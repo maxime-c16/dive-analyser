@@ -32,12 +32,17 @@ export type CodeSummaries = {
 export type LibraryCodeParams = Record<string, string | number | boolean | undefined>
 
 const FRESH_MS = 60_000
-type Entry<T> = { at: number; value?: T; promise?: Promise<T> }
+type Entry<T> = { at: number; value?: T; promise?: Promise<T>; liveness?: { alive: boolean } }
+type Liveness = { alive: boolean }
 let summaries = new Map<string, Entry<CodeSummaries>>()
 let codeAttempts = new Map<string, Entry<{ items: Attempt[]; capped: boolean }>>()
 
-/** Writes invalidate every derived read (see api.ts). */
+/** Writes invalidate every derived read (see api.ts). In-flight walks of the
+ * dropped maps are marked dead so bounded pages stop walking. */
 export function clearCodeSummaryCache() {
+  for (const store of [summaries, codeAttempts]) {
+    for (const entry of store.values()) entry.liveness && (entry.liveness.alive = false)
+  }
   summaries = new Map()
   codeAttempts = new Map()
 }
@@ -50,24 +55,34 @@ function scopedKey(viewer: string | null, ...rest: unknown[]) {
   return JSON.stringify([viewer, ...rest])
 }
 
-function cached<T>(store: Map<string, Entry<T>>, key: string, load: () => Promise<T>): Promise<T> {
+/** Bounded cache: oldest entries (past the cap) are evicted including
+ * pending ones, and an in-flight walk reads its own liveness so an evicted
+ * walk stops after the current page instead of deepening beyond the cap. */
+function trim<T>(store: Map<string, Entry<T>>, keep: string) {
+  let oldest: string | null = null
+  let oldestAt = Infinity
+  for (const [k, entry] of store) {
+    if (k === keep || entry.at >= oldestAt) continue
+    oldest = k
+    oldestAt = entry.at
+  }
+  if (oldest) {
+    const entry = store.get(oldest)
+    if (entry?.liveness) entry.liveness.alive = false
+    store.delete(oldest)
+  }
+}
+
+function cached<T>(store: Map<string, Entry<T>>, key: string, load: (liveness: Liveness) => Promise<T>): Promise<T> {
   const hit = store.get(key)
   if (hit?.promise) return hit.promise
   if (hit?.value !== undefined && Date.now() - hit.at < FRESH_MS) return Promise.resolve(hit.value)
-  const promise = load().then(value => { store.set(key, { at: Date.now(), value }); trim(store); return value })
+  const liveness: Liveness = { alive: true }
+  const promise = load(liveness).then(value => { store.set(key, { at: Date.now(), value }); return value })
     .catch(error => { store.delete(key); throw error })
-  store.set(key, { at: Date.now(), value: hit?.value, promise })
+  while (store.size >= MAX_CACHE_ENTRIES) trim(store, key)
+  store.set(key, { at: Date.now(), value: hit?.value, promise, liveness })
   return promise
-}
-
-/** Attempts stay bounded in memory even across many code visits: the oldest
- * entries (insertion order) drop first, current reads always hit their key. */
-function trim<T>(store: Map<string, Entry<T>>) {
-  while (store.size > MAX_CACHE_ENTRIES) {
-    const oldest = store.keys().next().value
-    if (oldest === undefined) break
-    store.delete(oldest)
-  }
 }
 
 /** Last value even when stale, so a revisit paints immediately while it refreshes. */
@@ -101,11 +116,15 @@ const MAX_CACHE_ENTRIES = 16
  * history was walked. */
 export function getCodeAttemptsResult(code: string, scope: string, viewer: string | null = null, diverId: number | null = null): Promise<CodeAttemptsResult> {
   const exact = code.toUpperCase()
-  return cached(codeAttempts, scopedKey(viewer, exact, scope, diverId), async () => {
+  return cached(codeAttempts, scopedKey(viewer, exact, scope, diverId), async (liveness) => {
     const items: Attempt[] = []
     let cursor: string | null = null
     let capped = false
     for (let page = 0; page < MAX_ATTEMPT_PAGES; page++) {
+      // An evicted/reset walk stops at the page boundary: the bounded walk
+      // never deepens once the cache dropped it (an evicted pending walk
+      // no longer deepens under rapid code switches).
+      if (!liveness.alive && page > 0) { capped = true; break }
       const response: { data: { items: Attempt[]; next_cursor: string | null } } = await api.get('/api/v1/dives/library', {
         // A diver view narrows server-side BEFORE the bounded walk: the
         // selected diver's older attempts stay reachable inside the newest

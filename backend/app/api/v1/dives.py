@@ -313,6 +313,8 @@ def library_facets(
     sync_filter: Optional[bool] = None, modifier_filter: str = "",
     date_from: Optional[datetime] = Query(None), date_to: Optional[datetime] = Query(None),
     code_filter: str = Query("", max_length=8192),
+    after: str = Query("", max_length=20),
+    limit: int = Query(100, ge=1, le=500),
 ):
     """Height options for the Library filter, independent of the height itself.
 
@@ -321,19 +323,29 @@ def library_facets(
     select after a UI switch vs a cold reload). One DISTINCT query over the
     authorized scope with every OTHER filter applied and the height filter
     absent: the same URL always answers the same options, and switching the
-    height stays reachable — no page rows are materialized for it."""
+    height stays reachable — no page rows are materialized for it.
+
+    The height column is free-form text, so the distinct set has no enforced
+    small domain: the answer is EXPLICITLY bounded (limit) with a `partial`
+    flag and an `after` keyset on the last returned height, so a facet stays
+    complete-by-continuation instead of silently truncating."""
     query = _filtered_dive_query(
         request, db, diver_scope=diver_scope, height=None, performance=performance,
         exclude_lineup=True, date_from=date_from, date_to=date_to, code_prefix=code_prefix,
         search_text=search_text, position_filter=position_filter, sync_filter=sync_filter,
         modifier_filter=modifier_filter, code_filter=code_filter,
-    ).with_entities(Dive.height).filter(Dive.height.isnot(None))
-    heights = [row[0] for row in query.distinct().order_by(Dive.height.asc()).all()]
+    ).with_entities(Dive.height).filter(Dive.height.isnot(None), Dive.height > after)
+    ordered = [row[0] for row in query.distinct().order_by(Dive.height.asc()).limit(limit + 1).all()]
+    partial = len(ordered) > limit
+    # The keyset anchor is the LAST height in the SQL order (continuation
+    # correctness); the page itself is re-sorted mp-aware for display.
+    after_key = ordered[limit - 1] if partial and len(ordered) > 0 else None
+    heights = ordered[:limit]
     try:
         heights.sort(key=lambda value: (int(str(value).removesuffix('mp')), str(value).removesuffix('mp')))
     except ValueError:
         heights.sort()
-    return {"heights": heights}
+    return {"heights": heights, "partial": partial, "after": after_key}
 
 
 @router.get("/library/codes/{dive_code}/community")

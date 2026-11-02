@@ -104,6 +104,9 @@ export default function Community() {
   // continues explicitly: the server total, never a silently truncated slice.
   const diversTotal = totals?.divers ?? divers.length
   const othersTotal = totals?.others ?? others.length
+  // Same totals rule for Recently active: the complete-directory window,
+  // never the loaded page's slice.
+  const recentTotal = totals?.recent ?? recent.length
 
   const row = (member: MemberSummary, index: number) => <Link key={member.user_id} to={`/users/${member.user_id}`} className="cm-row ca-pop" style={{ '--i': Math.min(index, 12) } as CSSProperties}>
     <MemberAvatar member={member} size={48} />
@@ -137,8 +140,8 @@ export default function Community() {
         {searchAfter != null && <button type="button" onClick={() => void moreResults()} disabled={searchingMore} className="ca-pill cm-more">{searchingMore ? t('common.loading') : t('community.more')}</button>}</>
         : <p className="cm-empty">{t('community.empty')}</p>}
     </section> : directory === null ? <PageLoading /> : <>
-      {recent.length > 0 && <section className="cm-section ca-arrive" aria-labelledby="cm-recent">
-        <h2 id="cm-recent" className="cm-h2">{t('community.recentlyActive')}</h2>
+      {(recent.length > 0 || (totals?.recent ?? 0) > 0) && <section className="cm-section ca-arrive" aria-labelledby="cm-recent">
+        <h2 id="cm-recent" className="cm-h2">{t('community.recentlyActive')}<span>{recentTotal}</span></h2>
         <div className="cm-stories">{recent.map((member, index) => <Link key={member.user_id} to={`/users/${member.user_id}`} className="cm-story ca-pop" style={{ '--i': index } as CSSProperties}>
           <span className={`cm-story-ring${now - lastAt(member) <= 7 * DAY_MS ? ' is-hot' : ''}`}><MemberAvatar member={member} size={60} /></span>
           <b>{member.display_name}</b>

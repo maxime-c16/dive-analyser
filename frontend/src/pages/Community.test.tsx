@@ -30,7 +30,7 @@ describe('Community discovery', () => {
     const divers = await screen.findByRole('region', { name: /Divers/ })
     expect(divers).toHaveTextContent(/32 shared dives/)
     expect(screen.getByRole('region', { name: /Other members/ })).toHaveTextContent('Alex')
-    expect(screen.getByRole('region', { name: 'Recently active' })).toHaveTextContent('Fanny')
+    expect(screen.getByRole('region', { name: /Recently active/ })).toHaveTextContent('Fanny')
     expect(screen.queryByText('Me')).not.toBeInTheDocument()
     expect(screen.queryByText('Twin')).not.toBeInTheDocument()
   })

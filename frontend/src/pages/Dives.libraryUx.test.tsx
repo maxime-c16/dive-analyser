@@ -60,9 +60,9 @@ function renderAt(url: string) {
 }
 
 /** Seeds the per-account workspace memory directly (same key as the hook). */
-const saveWorkspace = (params: string, scrollY: number) => {
+const saveWorkspace = (params: string, scrollY: number, resume?: { anchor: number | null; pages: number }) => {
   const key = `dive-library-view:v1:${JSON.stringify([mockUser!.user_id, mockUser!.role, mockUser!.is_admin, ['1:OWNER']])}`
-  sessionStorage.setItem(key, JSON.stringify({ p: params, y: scrollY }))
+  sessionStorage.setItem(key, JSON.stringify({ p: params, y: scrollY, ...(resume ? { d: resume } : {}) }))
 }
 
 beforeEach(() => {
@@ -358,6 +358,50 @@ it('advances the manual Load-more cursor past the resumed depth', async () => {
   expect(requests.filter(cursor => cursor === 'p3')).toHaveLength(1)
   expect(requests.filter(cursor => cursor === 'p4')).toHaveLength(1)
   expect(screen.getAllByRole('button', { name: /Open .* attempt/ })).toHaveLength(8)
+})
+
+it('holds the scroll anchor until the resumed depth finished walking', async () => {
+  // Regression (verdict finding, repeated): on a COLD restore, page 1 loads
+  // (loading=false) WHILE the resume walk is still ahead — the old code
+  // consumed and clamped the saved anchor against partial content, losing
+  // the full-depth position. This test fails on the old code: between page
+  // 1 (and page 2 while the walk proceeds) the anchor must stay unconsumed.
+  const originalHeight = Object.getOwnPropertyDescriptor(document.documentElement, 'scrollHeight')
+  Object.defineProperty(document.documentElement, 'scrollHeight', { configurable: true, value: 6000 })
+  const scrollSpy = vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
+  clearLibraryCache()
+  const gates: Record<string, (value: unknown) => void> = {}
+  vi.mocked(api.get).mockImplementation((url: string, config?: { params?: { cursor?: string } }) => {
+    if (url === '/api/v1/divers') return Promise.resolve({ data: divers })
+    const cursor = config?.params?.cursor ?? null
+    const page = (base: number, next: string | null) => ({
+      data: { items: [dive(base, `${base}B`, 1), dive(base + 1, `${base + 1}B`, 1)], next_cursor: next },
+    })
+    if (!cursor) return Promise.resolve(page(1, 'p2'))
+    if (cursor === 'p2') return new Promise(resolve => { gates.p2 = resolve })
+    if (cursor === 'p3') return new Promise(resolve => { gates.p3 = resolve })
+    return Promise.resolve(page(301, null))
+  })
+  saveWorkspace('scope=all', 5000, { anchor: null, pages: 3 })
+  renderAt('/dives')
+  // Page 1 rows paint while the resume walk is STILL PENDING: the anchor is
+  // not consumed yet (old code failed HERE with a clamped scrollTo).
+  await screen.findByRole('button', { name: /Open 2B attempt/ })
+  await waitFor(() => expect(gates.p2).toBeDefined())
+  expect(scrollSpy).not.toHaveBeenCalled()
+  // The walk progresses page 2 (p2 →): still nothing consumed.
+  gates.p2!({ data: { items: [dive(101, '101B', 1), dive(102, '102B', 1)], next_cursor: 'p3' } })
+  await screen.findByRole('button', { name: /Open 102B attempt/ })
+  await waitFor(() => expect(gates.p3).not.toBeUndefined())
+  expect(scrollSpy).not.toHaveBeenCalled()
+  // The walk finishes: the FINAL restore clamps against the full depth.
+  gates.p3!({ data: { items: [dive(201, '201B', 1), dive(202, '202B', 1)], next_cursor: null } })
+  await screen.findByRole('button', { name: /Open 202B attempt/ })
+  await waitFor(() => expect(scrollSpy).toHaveBeenCalled())
+  // 6000 - innerHeight = 5232 max; the 5000 anchor sits inside it.
+  expect(scrollSpy.mock.calls[0][1]).toBe(5000)
+  scrollSpy.mockRestore()
+  if (originalHeight) Object.defineProperty(document.documentElement, 'scrollHeight', originalHeight!)
 })
 
 it('opens the latest attempt of a code even when it is not on the loaded pages', async () => {

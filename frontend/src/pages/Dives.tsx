@@ -337,6 +337,13 @@ function DiveLibrary() {
   // Bounded reprise of a paginated depth: the anchor is a real row id, never
   // a snapshot of rows (nothing unlimited is stored, the walk is capped).
   const resumedPagesPending = useRef<{ anchor: number | null; pages: number } | null>(null);
+  // True while a resumed-depth walk is in flight: the scroll anchor stays
+  // pending until the walk's last page lands. The ref is the synchronous
+  // gate for render-time checks; the tick state re-runs the scroll effect
+  // when the walk releases the anchor (the final pages may have committed
+  // while the walk was still finishing).
+  const resumeWalkingRef = useRef(false);
+  const [resumeWalkingTick, setResumeWalkingTick] = useState(0);
   const resumeDepthPending = resumedPagesPending;
   const pagesHostedRef = useRef(1);
   const divesMirrorRef = useRef<Dive[]>(cached?.dives ?? []);
@@ -449,7 +456,21 @@ function DiveLibrary() {
           // re-reads the remembered pages, never more, never a snapshot.
           const depth = resumedPagesPending.current;
           resumedPagesPending.current = null;
-          if (depth) void resumeDepth(depth, nextCursor ?? null);
+          if (depth) {
+            // The scroll anchor stays PENDING while the walk proceeds (the
+            // scroll effect skips the consumption); the anchor is released
+            // when the walk finishes — or explicitly discarded when the
+            // remembered row fell beyond the bounded replay (new arrivals
+            // pushed it deeper): the restored rows are a different range
+            // than the saved position, so the saved scroll has no meaning.
+            resumeWalkingRef.current = true;
+            void resumeDepth(depth, nextCursor ?? null).then(result => {
+              if (result.current && !result.anchorReached) {
+                workspaceRestorePending.current = null;
+                workspaceRestoreKeyRef.current = null;
+              }
+            }).finally(() => { resumeWalkingRef.current = false; setResumeWalkingTick(t => t + 1); });
+          }
         }
       })
       .catch(() => {
@@ -470,8 +491,12 @@ function DiveLibrary() {
   // has painted; clamped to the current content height. The anchor waits for
   // the restored key's own rows: consuming it on the bare key's stale cache
   // or another filter's rows would scroll against content about to change.
+  // A resume walk ALSO holds the anchor: pages keep arriving after page 1
+  // until the remembered depth is re-reached, so the clamp runs on the full
+  // restored content instead of page 1's slice.
   useEffect(() => {
     if (loading || workspaceRestorePending.current === null) return;
+    if (resumeWalkingRef.current) return;
     if (loadedKeyRef.current !== workspaceRestoreKeyRef.current) return;
     const anchor = workspaceRestorePending.current;
     workspaceRestorePending.current = null;
@@ -481,8 +506,10 @@ function DiveLibrary() {
       window.scrollTo(0, Math.min(anchor, max));
     });
     // `dives` identity (not length): an equal-length refreshed page must
-    // still re-run this check so the anchor can be consumed on it.
-  }, [loading, dives]);
+    // still re-run this check so the anchor can be consumed on it. The
+    // walking tick re-runs the check when the resume releases the anchor
+    // (the last page's commit can precede the walk's own completion).
+  }, [loading, dives, resumeWalkingTick]);
 
   useEffect(() => {
     if (!aggregated) return;
@@ -522,15 +549,20 @@ function DiveLibrary() {
   // MAX_RESUME_PAGES server pages — the already-loaded depth, keyed on the
   // live cursor like the manual control — never re-charging the whole
   // history and never storing a single row.
-  const resumeDepth = async (depth: { anchor: number | null; pages: number }, initialCursor: string | null | undefined) => {
+  const resumeDepth = async (depth: { anchor: number | null; pages: number }, initialCursor: string | null | undefined): Promise<{ anchorReached: boolean; current: boolean }> => {
     const epoch = pageGeneration.current;
     let cursor: string | null = initialCursor ?? null;
     const target = Math.min(depth.pages, MAX_RESUME_PAGES);
+    // The saved anchor is the OLDEST row of the remembered depth: new
+    // arrivals shift it deeper, so the bounded replay may land short of it.
+    // The walk watches for the anchor row and reports explicitly whether
+    // the remembered position was re-reached within the cap.
+    let anchorReached = depth.anchor === null;
     for (let page = 1; page < target && cursor; page++) {
-      if (epoch !== pageGeneration.current) return;
+      if (epoch !== pageGeneration.current) return { anchorReached, current: false };
       try {
         const response = await api.get('/api/v1/dives/library', { params: { ...pageParams, cursor } });
-        if (epoch !== pageGeneration.current) return;
+        if (epoch !== pageGeneration.current) return { anchorReached, current: false };
         const items: Dive[] = response.data.items;
         setDives(current => [...current, ...items.filter(item => !current.some(dive => dive.id === item.id))]
           .sort((a, b) => Date.parse(b.dive_datetime) - Date.parse(a.dive_datetime) || b.id - a.id));
@@ -541,11 +573,17 @@ function DiveLibrary() {
         // from the first resume's anchor: otherwise "Load more" re-fetches
         // the pages the resume already hosted.
         if (epoch === pageGeneration.current) setNextCursor(cursor ?? null);
+        if (!anchorReached && depth.anchor !== null && items.some(item => item.id === depth.anchor)) {
+          // The remembered position re-reached: the depth IS restored; no
+          // point fetching pages the user had never reached.
+          return { anchorReached: true, current: true };
+        }
       } catch {
         if (epoch === pageGeneration.current) setError(t('dives.errorLoad'));
-        return;
+        return { anchorReached: false, current: false };
       }
     }
+    return { anchorReached, current: epoch === pageGeneration.current };
   };
 
   // Direct links can target an older page. Resolve that one authorized dive,
