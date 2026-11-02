@@ -339,7 +339,36 @@ def test_directory_answers_one_bounded_page_with_explicit_has_more(workspace):
     assert len(whole['items']) == 3
 
 
-def test_directory_totals_are_complete_never_the_page_slice(workspace):
+def test_directory_totals_exclude_deactivated_accounts_via_sql_aggregate(workspace):
+    """Account deactivation keeps OWNER bindings (admin_users), but the dive
+    aggregates must match the served directory: they join the active rule and
+    stop counting an inactive account's dives. The totals also leave the
+    per-account rows unmaterialized (one SQL aggregate row for the whole
+    community)."""
+    db, login, _, users, session_id = workspace
+    bob_diver = db.query(UserDiverAccess).filter_by(user_id=users['bob'].id).one().diver_id
+    # A fresh public dive for bob, inside the 30-day recency window.
+    db.add(Dive(session_id=session_id, dive_code='107B', performance='G',
+                performance_numeric=3, height='1m', dive_datetime=datetime.now(),
+                diver_id=bob_diver, visibility='public', video_uuid='bob-recent-video'))
+    db.commit()
+    # Deactivate through a live instance: the workspace's dict holds detached
+    # rows (expunge_all on teardown), so plain attribute writes stay untracked.
+    bob = db.query(AppUser).filter_by(email='bob@example.test').one()
+    bob.is_active = False
+    db.commit()
+    viewer = login('viewer')
+    totals = viewer.get('/api/v1/users/directory').json()['totals']
+    # Only alice stays served: bob is inactive (its dive days stop counting)
+    # and the viewer is excluded as self.
+    assert totals == {'members': 1, 'divers': 1, 'others': 0, 'recent': 1}
+    bob = db.query(AppUser).filter_by(email='bob@example.test').one()
+    bob.is_active = True
+    db.commit()
+    totals = viewer.get('/api/v1/users/directory').json()['totals']
+    assert totals == {'members': 2, 'divers': 2, 'others': 0, 'recent': 2}
+
+
     db, login, _, users, session_id = workspace
     alice_diver = db.query(UserDiverAccess).filter_by(user_id=users['alice'].id).one().diver_id
     # My own diver's dormant account: linked, never a peer, never counted.

@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { within } from '@testing-library/dom'
 import { MemoryRouter } from 'react-router-dom'
 import { I18nProvider } from '../i18n/I18nProvider'
 import Community from './Community'
@@ -88,6 +89,52 @@ describe('Community discovery', () => {
     await userEvent.setup().click(screen.getByRole('button', { name: 'Retry' }))
     expect(await screen.findByRole('link', { name: /Fanny/ })).toBeInTheDocument()
     await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument())
+  })
+
+  it('a restart discards a stale continuation served into the fresh page', async () => {
+    let hold: ((value: unknown) => void) | null = null
+    let directoryCalls = 0
+    let searchFails = false
+    vi.spyOn(globalThis, 'fetch').mockImplementation(input => {
+      const url = new URL(String(input), 'http://test')
+      if (url.pathname.includes('/leaderboard')) return response(board)
+      if (url.pathname.includes('/directory')) {
+        directoryCalls += 1
+        if (directoryCalls === 1) {
+          return response({ items: [fanny], next_after: 2, has_more: true, totals: { members: 2, divers: 1, others: 1, recent: 0 } })
+        }
+        if (url.searchParams.get('after')) {
+          return new Promise(resolve => { hold = resolve })
+        }
+        return response({ items: [{ ...fanny, user_id: 3, display_name: 'Bill' }], next_after: null, has_more: false, totals: { members: 2, divers: 1, others: 1, recent: 0 } })
+      }
+      if (searchFails && new URLSearchParams(url.search).get('q')) return response({}, false)
+      return response({ items: new URLSearchParams(url.search).get('q') ? [fanny] : [], next_after: null })
+    })
+    renderPage()
+    expect(await screen.findByRole('link', { name: /Fanny/ })).toBeInTheDocument()
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Show the remaining 1 member' }))
+    await waitFor(() => expect(hold).not.toBeNull())
+    // Force an error elsewhere, then Retry: both loads re-run (the directory
+    // generation moves) while the old continuation is still on the wire.
+    searchFails = true
+    await user.type(screen.getByRole('searchbox'), 'a')
+    const alert = await screen.findByRole('alert')
+    searchFails = false
+    await user.click(within(alert).getByRole('button', { name: 'Retry' }))
+    // Clear the search field so the directory sections come back (the retry
+    // already re-keyed both loads while the continuation was on the wire).
+    await user.clear(screen.getByRole('searchbox'))
+    // The retried first page replaces the list with its own truth…
+    expect(await screen.findByRole('link', { name: /Bill/ })).toBeInTheDocument()
+    // …and the in-flight continuation landed after: without the generation
+    // guard it would append Fanny a second time and install its cursor.
+    await act(async () => {
+      hold!(response({ items: [{ ...fanny, user_id: 2, display_name: 'Alex' }], next_after: null, has_more: false }))
+    })
+    expect(screen.queryByRole('link', { name: /^Alex$/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Show the remaining 2 members' })).not.toBeInTheDocument()
   })
 
   it('keeps you on the board with a zero score and pages search results', async () => {

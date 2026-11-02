@@ -536,6 +536,10 @@ function DiveLibrary() {
         setShown(count => count + 100);
         pagesHostedRef.current += 1;
         cursor = response.data.next_cursor as string | null;
+        // The manual control continues from the resume's deepest page, not
+        // from the first resume's anchor: otherwise "Load more" re-fetches
+        // the pages the resume already hosted.
+        if (epoch === pageGeneration.current) setNextCursor(cursor ?? null);
       } catch {
         if (epoch === pageGeneration.current) setError(t('dives.errorLoad'));
         return;

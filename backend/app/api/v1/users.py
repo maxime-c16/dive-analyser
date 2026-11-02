@@ -30,7 +30,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from PIL import Image, ImageOps, UnidentifiedImageError
 from starlette.concurrency import run_in_threadpool
-from sqlalchemy import Integer, and_, cast, func, literal, or_, select, union_all
+from sqlalchemy import Integer, and_, case, cast, func, literal, or_, select, union_all
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -148,41 +148,51 @@ def _community_totals(db: Session, user: AppUser, now: datetime) -> dict:
     accounts minus the viewer and the accounts bound to the viewer's own
     divers; divers have at least one dive visible to the requester; recent
     divers dove within the last 30 days. The client uses these so a partially
-    loaded directory never silently truncates section counts."""
+    loaded directory never silently truncates section counts.
+    """
     own = owned_diver_ids(db, user.id)
     linked = {uid for (uid,) in db.query(UserDiverAccess.user_id).filter(
         UserDiverAccess.access_kind == "OWNER", UserDiverAccess.diver_id.in_(own)).all()} if own else set()
     stamp = func.coalesce(Dive.dive_datetime, Dive.created_at)
+    horizon = now - timedelta(days=30)
 
-    def _aggregates():
-        return db.query(
+    # Bounded by construction: one aggregate row for the whole community.
+    # The per-account rows never materialize (aggregate over a subquery).
+    def _peer_counts():
+        per_user = db.query(
             UserDiverAccess.user_id,
-            func.count(Dive.id),
-            func.max(stamp),
-        ).join(Dive, Dive.diver_id == UserDiverAccess.diver_id).filter(
+            func.count(Dive.id).label("count"),
+            func.max(stamp).label("latest"),
+        ).join(Dive, Dive.diver_id == UserDiverAccess.diver_id).join(
+            AppUser, AppUser.id == UserDiverAccess.user_id,
+        ).filter(
             UserDiverAccess.access_kind == "OWNER",
             visible_dive_clause(own, bool(user.is_admin)),
+            # Account deactivation keeps OWNER bindings (admin_users keeps
+            # them so a re-activation restores the workspace): the dive
+            # aggregates must match the served directory and count only
+            # active accounts.
+            AppUser.is_active.is_(True),
             UserDiverAccess.user_id != user.id,
             UserDiverAccess.user_id.notin_(linked),
-        ).group_by(UserDiverAccess.user_id).all()
+        ).group_by(UserDiverAccess.user_id).subquery()
+        return db.query(
+            func.count(per_user.c.user_id),
+            func.count(case((per_user.c.latest >= horizon, per_user.c.user_id))),
+        ).filter(per_user.c.count > 0).one()
 
     try:
-        stat_rows = _aggregates()
+        divers, recent = _peer_counts()
     except Exception as exc:
         db.rollback()
         logging.getLogger(__name__).error("directory totals failed (%s)", type(exc).__name__)
-        stat_rows = []
-    stats = {uid: (count, latest) for uid, count, latest in stat_rows}
-    peers_with_dives = [uid for uid, (count, _latest) in stats.items() if count > 0]
-    horizon = now - timedelta(days=30)
-    recent = sum(1 for uid in peers_with_dives
-                 if stats[uid][1] and stats[uid][1] >= horizon)
+        divers = recent = 0
     member_total = db.query(func.count(AppUser.id)).filter(
         AppUser.is_active.is_(True), AppUser.id != user.id,
         ~AppUser.id.in_(linked),
     ).scalar() or 0
-    return dict(members=member_total, divers=len(peers_with_dives),
-                others=max(member_total - len(peers_with_dives), 0), recent=recent)
+    return dict(members=member_total, divers=divers,
+                others=max(member_total - divers, 0), recent=recent)
 
 
 @router.get("/directory")

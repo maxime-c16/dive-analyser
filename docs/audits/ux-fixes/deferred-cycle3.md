@@ -223,3 +223,16 @@ leurs éléments DOM. Aucun conflit détecté ni signalé au parent.
   e2e (données absentes) — attribués au compte qui possède les retours (triage #181).
 - **Reprise vidéo après pause, aria play-pause** : planifiée pour la PR de l'agent vidéo (profil
   7) — non traités ici.
+
+## Suivi review (2026-11-02 ~01h15, babysitter GLM sur 884bf57a)
+
+Registre des findings du verdict REQUEST_CHANGES (run 41364627920), vérifiés contre le code courant.
+
+| Source | Finding | Décision | Fix/validation |
+|---|---|---|---|
+| bot, `users.py:162` | `_aggregates().all()` matérialise une ligne par compte et retient `stats` — mémoire qui grandit avec la communauté | **Confirmé — corrigé** : la sous-requête par compte est enveloppée et agrégée en SQL (`count(...)` + `count(case latest ≥ horizon)`) → **une seule ligne** retourne de la DB, zéro rétention | `_community_totals` produit members/divers/others/recent par agrégats SQL purs |
+| bot, `users.py:162` | les totaux comptent les plongées des comptes désactivés (les liaisons OWNER subsistent post-désactivation) contrairement à l'annuaire servi | **Confirmé — corrigé** : `join(AppUser)` + `AppUser.is_active IS TRUE` dans l'agrégat ; la réactivation remet les totaux à l'état attendu | test `test_directory_totals_exclude_deactivated_accounts_via_sql_aggregate` : totaux = {members:1, divers:1, recent:1} hors bob, {2,2,2} après réactivation (instance vivante : les rows du workspace sont détachés — la mutation passe par une requête live) |
+| bot, `Dives.tsx:538` | la reprise n'avance que son curseur local : le « Load more » manuel re-héberge la première page reprise (deux chargements, même contenu) | **Confirmé — corrigé** : chaque page complétée de la reprise écrit `setNextCursor(next)` (ïlot de génération gardé) — le clic manuel continue depuis le curseur le plus profond | test « advances the manual Load-more cursor past the resumed depth » : reprise p2→p3→p4, clic manuel = un seul fetch `cursor=p4`, chaque curseur demandé exactement une fois, 8 lignes au total sans doublon |
+| bot, `Community.tsx:54` | une continuation périmée s'écrit après le rejeu de la première page (la voie retry repeuple pendant le vol) | **Confirmé — corrigé** : compteur `directoryGeneration` posé par (re)chargement du directory, la continuation vérifie son token sur son écriture ET sur error/finally | test « a restart discards a stale continuation served into the fresh page » : continuation en vol → Retry des deux voies → la page fraîche remplace (Bill), la page périmée n'ajoute rien ni ne ressuscite le contrôle |
+
+Validation : vitest Community + Library (26 tests incl. 2 nouveaux) + suites Dives ; backend profiles/communaute 40 tests 🟢 (20 profiles incl. 1 nouveau + 17 code_communaauté + visibility…). Gate GitHub rejouée au head suivant.

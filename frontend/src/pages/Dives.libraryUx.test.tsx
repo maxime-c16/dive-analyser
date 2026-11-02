@@ -313,6 +313,39 @@ it('never stacks the two pagination controls and reports truthful remaining coun
 
 // ---- Open latest attempt beyond the loaded page ----
 
+it('advances the manual Load-more cursor past the resumed depth', async () => {
+  // Page cursors advance p2 → p3 → p4 during the saved-depth resume; a
+  // later manual "Load more dives" must continue from the resume's deepest
+  // cursor (p4) — re-hosting p2 would count and fetch rows already shown.
+  vi.mocked(api.get).mockImplementation((url: string, config?: { params?: { cursor?: string } }) => {
+    if (url === '/api/v1/divers') return Promise.resolve({ data: divers })
+    const cursor = config?.params?.cursor ?? null
+    const page = (base: number, next: string | null) => ({
+      data: { items: [dive(base, `${base}B`, 1), dive(base + 1, `${base + 1}B`, 1)], next_cursor: next },
+    })
+    if (!cursor) return Promise.resolve(page(1, 'p2'))
+    if (cursor === 'p2') return Promise.resolve(page(101, 'p3'))
+    if (cursor === 'p3') return Promise.resolve(page(201, 'p4'))
+    return Promise.resolve(page(301, null))
+  })
+  const key = `dive-library-view:v1:${JSON.stringify([mockUser!.user_id, mockUser!.role, mockUser!.is_admin, ['1:OWNER']])}`
+  sessionStorage.setItem(key, JSON.stringify({ p: 'scope=all', y: 0, d: { anchor: null, pages: 3 } }))
+  renderAt('/dives')
+  // The resume hosts pages 2 and 3 on top of page 1 (6 rows total).
+  expect(await screen.findByRole('button', { name: /Open 202B attempt/ })).toBeInTheDocument()
+  expect(screen.getAllByRole('button', { name: /Open .* attempt/ })).toHaveLength(6)
+  // The manual control now anchors on p4: one click, one new page, no p2 redo.
+  const loadMore = screen.getByRole('button', { name: 'Load more dives' })
+  await userEvent.click(loadMore)
+  expect(await screen.findByRole('button', { name: /Open 302B attempt/ })).toBeInTheDocument()
+  const requests = (vi.mocked(api.get).mock.calls as unknown as Array<[string, { params?: { cursor?: string } }]>)
+    .map(call => call[1]?.params?.cursor ?? null)
+  expect(requests.filter(cursor => cursor === 'p2')).toHaveLength(1)
+  expect(requests.filter(cursor => cursor === 'p3')).toHaveLength(1)
+  expect(requests.filter(cursor => cursor === 'p4')).toHaveLength(1)
+  expect(screen.getAllByRole('button', { name: /Open .* attempt/ })).toHaveLength(8)
+})
+
 it('opens the latest attempt of a code even when it is not on the loaded pages', async () => {
   vi.mocked(api.get).mockImplementation((url: string) => {
     if (url === '/api/v1/divers') return Promise.resolve({ data: divers })

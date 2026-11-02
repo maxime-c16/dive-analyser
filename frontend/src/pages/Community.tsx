@@ -33,8 +33,10 @@ export default function Community() {
   const [showAll, setShowAll] = useState(false)
   const generation = useRef(0)
 
+  const directoryGeneration = useRef(0)
   useEffect(() => {
     const controller = new AbortController()
+    directoryGeneration.current += 1
     setError(false)
     // One bounded page replaces the former up-to-20-request sequential load
     // (discovery 2026-11-01, profil 6). Continuation stays explicit.
@@ -49,14 +51,18 @@ export default function Community() {
 
   async function moreDirectory() {
     if (!directoryMore?.after || directoryLoadingMore) return
+    // A retry builds a fresh first page while this continuation is in
+    // flight; only the owner of the current generation may write.
+    const token = directoryGeneration.current
     setDirectoryLoadingMore(true); setError(false)
     try {
       const page = await getMemberDirectory(directoryMore.after)
+      if (token !== directoryGeneration.current) return
       if (page.items.length) setDirectory(previous => [...(previous ?? []), ...page.items])
       setDirectoryMore({ after: page.next_after ?? null, hasMore: Boolean(page.has_more && page.next_after != null) })
       setTotals(page.totals ?? totals)
-    } catch { setError(true) }
-    finally { setDirectoryLoadingMore(false) }
+    } catch { if (token === directoryGeneration.current) setError(true) }
+    finally { if (token === directoryGeneration.current) setDirectoryLoadingMore(false) }
   }
 
   useEffect(() => {
