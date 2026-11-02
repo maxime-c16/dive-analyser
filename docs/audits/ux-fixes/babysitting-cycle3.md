@@ -24,3 +24,10 @@
 ## Passe 2026-11-02 ~09h (185 round-4)
 
 - **185 head `c325799e`** — les 4 findings du verdict a1f5033b traités (dénominateur diver omis, facets keyset-walk client, totals-null honesty, dead-walk no-reinsert) + 4 tests régressifs dont le walk-évincé (échoue sur l'ancien code) ; front 23+21/21, back 40/40, TS/build verts → CI/verdict sur c325799e.
+
+## Point de reprise final du cycle 3 lot (2026-11-02)
+
+- **master = 2506a12c** (181+182+184+186 squash-merged, toutes APPROVE+gates au SHA exact).
+- **185** head distant `ed74dcc2` (code c325799e + docs) — CI/verdict à venir (les 4+7 findings traités).
+- **183** head `e1e7d7e7` + stash client (dive_date renderer + clipNav.positionAria + tests) à POPPER sur la branche 183 et pousser — CI/verdict ensuite.
+- **Déploiement** : après merges 183/185 → `ci/ship.sh status → server --dry-run → server` (index SQL déjà appliqué ; la prod reste sur 31c0695 tant que le ship n'a pas réussi ; DIVE_CI_TIMEOUT=2400 requis côté serveur : le lancer DEPUIS le serveur (ssh inline) car ship.sh n'expédie pas l'env).
