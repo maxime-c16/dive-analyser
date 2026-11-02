@@ -352,7 +352,13 @@ export default function Calendar() {
                   </button>
                   {showPast && <div className="cal-agenda is-past">{Array.isArray(pastData) ? agenda(past) : <div className="cal-grid-skeleton" />}</div>}
                   <div className="cal-agenda">{agenda(upcoming)}</div>
-                  {!upcoming.length && <p className="cal-empty">{filtered ? t.emptyFiltered : t.nothingUpcoming}</p>}
+                  {/* The notices state the window each claim is honest about
+                      (profil 11 C5): a real array for the past emptiness, an
+                      error state for failed/incomplete past loads. */}
+                  {!showPast && !upcoming.length && <p className="cal-empty">{filtered ? t.emptyFiltered : t.nothingUpcoming}</p>}
+                  {showPast && pastData === 'failed' && <p role="alert" className="cal-empty">{t.failed} <button type="button" className="ca-pill" onClick={refresh}>{t.retry}</button></p>}
+                  {showPast && pastData === 'incomplete' && <p role="alert" className="cal-empty">{t.incompletePast}</p>}
+                  {showPast && Array.isArray(pastData) && !past.length && <p className="cal-empty">{filtered ? t.emptyFiltered : t.nothingPast}</p>}
                 </>}
             </div>
             <aside className="cal-side">

@@ -1,0 +1,8 @@
+{
+  "id": "notifications-session-date-consult-defaults",
+  "date": "2026-11-02",
+  "title": "Notifications name the real session date; Evaluations opens on your dives",
+  "body": "A clip that synced days after its session now says which day the dive is about (\"Dive of 18 Oct\"), instead of only the arrival day. Opening Evaluations no longer starts a full-screen scoring stage on someone else's dive: it lands on your own dives first, judging stays one explicit tab.",
+  "audience": "all",
+  "components": ["frontend", "backend"]
+}

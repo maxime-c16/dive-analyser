@@ -50,7 +50,9 @@ export default function Evaluations() {
   const { user } = useAuth()
   const [search, setSearch] = useSearchParams()
   const requested = search.get('tab') ?? ''
-  const tab: Tab = TABS.some(item => item.key === requested) ? requested as Tab : LEGACY[requested] ?? 'judge'
+  // Consultation first: the page opens on MY DIVES; the judge stage is an
+  // explicit tab (never the arrival view).
+  const tab: Tab = TABS.some(item => item.key === requested) ? requested as Tab : LEGACY[requested] ?? 'dives'
   const setTab = (value: Tab) => setSearch(previous => { const next = new URLSearchParams(previous); next.set('tab', value); return next })
   const [judging, setJudging] = useState(false)
   // Survives tab switches inside the page, resets when the member leaves it.

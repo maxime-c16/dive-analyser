@@ -50,6 +50,8 @@ export type AppNotification = {
   session_id?: number | null
   conversation_id?: number | null
   dive_id: number | null
+  /** The dive's real session date (new_video rows only, from the server). */
+  dive_date?: string | null
   calendar?: CalendarNotificationView
   read_at: string | null
   created_at: string | null
