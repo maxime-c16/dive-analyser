@@ -29,6 +29,12 @@ type NotificationsContextValue = {
   refresh: () => void
   markRead: (id: number) => Promise<void>
   markAllRead: () => Promise<void>
+  /** True once a real server count has arrived. `unreadCount` starts at 0,
+   * so UI that can distinguish loading must not announce a zero. */
+  countsKnown: boolean
+  /** The newest 50 rows are only the first page: the server said at least
+   * one further page exists (keyset continuation on /notifications). */
+  pageHasMore: boolean
 }
 
 const NotificationsContext = createContext<NotificationsContextValue>({
@@ -40,6 +46,8 @@ const NotificationsContext = createContext<NotificationsContextValue>({
   refresh: () => {},
   markRead: async () => {},
   markAllRead: async () => {},
+  countsKnown: false,
+  pageHasMore: false,
 })
 
 export function useNotifications(): NotificationsContextValue {
@@ -73,6 +81,8 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
 function AccountNotifications({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<AppNotification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
+  const [countsKnown, setCountsKnown] = useState(false)
+  const [pageHasMore, setPageHasMore] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<NotificationsError>(null)
   const [refreshTick, setRefreshTick] = useState(0)
@@ -88,6 +98,8 @@ function AccountNotifications({ children }: { children: React.ReactNode }) {
       const data = await listNotifications({ limit: 50 })
       setItems(data.items)
       setUnreadCount(data.unread_count)
+      setCountsKnown(true)
+      setPageHasMore(data.has_more)
       setError(null)
       setRefreshTick(tick => tick + 1)
     } catch {
@@ -133,6 +145,7 @@ function AccountNotifications({ children }: { children: React.ReactNode }) {
       const data = await listNotifications({ limit: 50 })
       setItems(data.items)
       setUnreadCount(data.unread_count)
+      setPageHasMore(data.has_more)
       setError(null)
     } catch {
       setItems(previous.items)
@@ -167,6 +180,8 @@ function AccountNotifications({ children }: { children: React.ReactNode }) {
     refresh,
     markRead,
     markAllRead,
+    countsKnown,
+    pageHasMore,
   }
   return <NotificationsContext.Provider value={value}>{children}</NotificationsContext.Provider>
 }

@@ -1,0 +1,8 @@
+{
+  "id": "feedback-reliability-ux-fixes",
+  "date": "2026-11-02",
+  "title": "Pages recover from broken loads; notifications page further",
+  "body": "When a page fails to open (for example a member profile right after an update), the app now shows a clear error with a Reload action instead of a raw failure. The notifications list offers an explicit 'Show older notifications' action past the first 50 items, never announces an unread count it does not know, and an empty jury note explains where the displayed score comes from. A member's dive now shows the diver's name in the viewer.",
+  "audience": "all",
+  "components": ["frontend", "backend"]
+}

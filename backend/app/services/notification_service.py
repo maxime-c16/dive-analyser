@@ -14,6 +14,7 @@ from datetime import datetime
 from typing import Dict, List, Optional, Sequence
 
 from fastapi import BackgroundTasks
+from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
 
 from app.models.notification import Notification, NotificationPref
@@ -373,12 +374,54 @@ def notify_owners_for_diver(
     return rows
 
 
+def _older_than_before(db: Session, user_id: int, before_id: int):
+    """Keyset filter: rows strictly older than the `before_id` anchor.
+
+    Ordering is (created_at desc, id desc), so "older" means a smaller
+    tuple. Comparing the (created_at, id) pair keeps rows with identical
+    timestamps (bursts of auto-created rows) in a stable, non-overlapping
+    page order without needing a composite index. The anchor must belong
+    to the same user, per the ownership rules above.
+    """
+    anchor = (
+        db.query(Notification)
+        .filter(Notification.id == int(before_id), Notification.user_id == user_id)
+        .first()
+    )
+    if anchor is None:
+        return None
+    base = db.query(Notification).filter(Notification.user_id == user_id)
+    return base.filter(
+        or_(
+            Notification.created_at < anchor.created_at,
+            and_(
+                Notification.created_at == anchor.created_at,
+                Notification.id < anchor.id,
+            ),
+        )
+    )
+
+
 def list_for_user(
-    db: Session, user_id: int, limit: int = 50, unread_only: bool = False
+    db: Session,
+    user_id: int,
+    limit: int = 50,
+    unread_only: bool = False,
+    before_id: Optional[int] = None,
 ) -> List[Notification]:
-    """Newest-first inbox rows for exactly one user; LIMIT capped at 100."""
+    """Newest-first inbox rows for exactly one user; LIMIT capped at 100.
+
+    `before_id` continues an already-returned page (keyset on created_at
+    desc, id desc). An anchor the caller does not own reads as the end of
+    their inbox (empty page) — it never says whether the row exists.
+    """
     limit = max(1, min(int(limit or 50), _MAX_LIST_LIMIT))
     query = db.query(Notification).filter(Notification.user_id == user_id)
+    if before_id is not None:
+        anchored = _older_than_before(db, user_id, before_id)
+        if anchored is None:
+            return []
+        query = anchored
     if unread_only:
         query = query.filter(Notification.read_at.is_(None))
     return (
@@ -386,6 +429,32 @@ def list_for_user(
         .limit(limit)
         .all()
     )
+
+
+def list_has_more(
+    db: Session, user_id: int, rows: Sequence[Notification], unread_only: bool = False
+) -> bool:
+    """True when at least one further row exists past the returned page
+    (same keyset rule as list_for_user, probed with a single indexed row)."""
+    if not rows:
+        return False
+    last = rows[-1]
+    probe = (
+        db.query(Notification.id)
+        .filter(
+            Notification.user_id == user_id,
+            or_(
+                Notification.created_at < last.created_at,
+                and_(
+                    Notification.created_at == last.created_at,
+                    Notification.id < last.id,
+                ),
+            ),
+        )
+    )
+    if unread_only:
+        probe = probe.filter(Notification.read_at.is_(None))
+    return probe.first() is not None
 
 
 def count_unread(db: Session, user_id: int) -> int:

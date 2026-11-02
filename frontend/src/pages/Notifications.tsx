@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Bell, CalendarDays, CheckCheck, Check, Film, RefreshCw } from 'lucide-react'
+import { useAuth } from '../contexts/AuthContext'
 import { useNotifications } from '../components/Notifications'
 import {
   listNotifications,
@@ -153,8 +154,13 @@ function NotificationRow({
 }
 
 export default function Notifications() {
+  const { user } = useAuth()
+  return <AccountNotificationsPage key={user?.user_id ?? 'anonymous'} />
+}
+
+function AccountNotificationsPage() {
   const { t } = useTranslation()
-  const { items, unreadCount, loading, error, refreshTick, refresh, markRead, markAllRead } = useNotifications()
+  const { items, unreadCount, loading, error, refreshTick, refresh, markRead, markAllRead, countsKnown, pageHasMore } = useNotifications()
   const [unreadOnly, setUnreadOnly] = useState(false)
   const [busyId, setBusyId] = useState<number | null>(null)
   const [busyAll, setBusyAll] = useState(false)
@@ -165,19 +171,34 @@ export default function Notifications() {
   // filter is on, refetch with unread_only=true instead; until the response
   // arrives (or when it fails) fall back to the in-memory filter.
   const [serverUnread, setServerUnread] = useState<AppNotification[] | null>(null)
+  const [serverUnreadHasMore, setServerUnreadHasMore] = useState(false)
+
+  // Explicit continuation beyond the first 50 rows, per current filter.
+  // Kept separate from the provider page so a 60s poll never loses rows the
+  // user already paged into view; switching filters rebuilds it.
+  const [older, setOlder] = useState<AppNotification[]>([])
+  const [olderCursor, setOlderCursor] = useState<number | null>(null)
+  const [olderHasMore, setOlderHasMore] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const pageGeneration = useRef(0)
+  const pendingPage = useRef(false)
 
   useEffect(() => {
     if (!unreadOnly) {
       setServerUnread(null)
       return
-    }
-    let alive = true
+    }    let alive = true
     void (async () => {
       try {
         const data = await listNotifications({ unreadOnly: true, limit: 50 })
-        if (alive) setServerUnread(data.items)
+        if (!alive) return
+        setServerUnread(data.items)
+        setServerUnreadHasMore(data.has_more)
       } catch {
-        if (alive) setServerUnread(null)
+        if (alive) {
+          setServerUnread(null)
+          setServerUnreadHasMore(false)
+        }
       }
     })()
     return () => {
@@ -190,9 +211,108 @@ export default function Notifications() {
     // newest unread.
   }, [unreadOnly, refreshTick])
 
-  const visible = unreadOnly
+  // Continuation pages below are anchored to the last row already on
+  // screen, so switching filters (and therefore re-anchoring) drops them.
+  useEffect(() => {
+    pendingPage.current = false
+    setOlder([])
+    setOlderCursor(null)
+    setOlderHasMore(false)
+    setLoadingMore(false)
+    // A filter switch moves the head anchor (the unread stream's deepest
+    // row differs from the all stream's). Record the fresh anchor as the
+    // baseline instead of letting the rebase see "the head jumped" — a
+    // switch announces no arrival, so server truth owns the control.
+    headAnchorRef.current = null
+    return () => { pageGeneration.current += 1 }
+  }, [unreadOnly])
+
+  // A refresh can displace rows out of the first page while the user has
+  // paged past it: the head grows (61–12 replaces 60–11) and the rows between
+  // the two heads (11) become unreachable from both lists — the dedup only
+  // merges rows, it cannot reach a row beyond either cursor. When the head's
+  // anchor moves forward while a continuation is loaded, rebase the cursor to
+  // the fresh head anchor: the next "Show older" re-fetches the displaced
+  // range from the server (bounded by the same limit; rows already loaded
+  // merge instead of accumulating). A shrinking/removal head never rebases,
+  // and rows are never dropped — only their cursor is moved forward.
+  const headBase = unreadOnly ? (serverUnread ?? items) : items
+  const headAnchor = headBase[headBase.length - 1]?.id ?? null
+  const headAnchorRef = useRef<number | null>(null)
+  useEffect(() => {
+    const previous = headAnchorRef.current
+    headAnchorRef.current = headAnchor
+    if (previous === null || headAnchor === null || headAnchor <= previous) return
+    // The head moved forward: align the continuation boundary to the fresh
+    // head's deepest row, no matter what continuation is on the wire. The
+    // generation bump ends the ownership of every request launched before
+    // the rebase (success/error AND finally: none of them may clear the
+    // pending fence of a newer page); the fence lifts here, the control is
+    // actionable immediately, and the displaced rows arrive with the next
+    // request (bounded by the same page limit).
+    pageGeneration.current += 1
+    if (olderCursor === null || headAnchor > olderCursor) {
+      setOlderCursor(headAnchor)
+    }
+    setOlderHasMore(true)
+    pendingPage.current = false
+    setLoadingMore(false)
+  }, [headAnchor, olderCursor])
+
+  const firstPage = unreadOnly
     ? (serverUnread ?? items).filter(item => !item.read_at)
     : items
+  // A refresh can move a continuation row into the first page. Prefer its
+  // fresh server state and render each notification exactly once.
+  const visible = [...new Map([...older, ...firstPage].map(item => [item.id, item])).values()]
+    .filter(item => !unreadOnly || !item.read_at)
+    .sort((a, b) => (b.created_at ?? '').localeCompare(a.created_at ?? '') || b.id - a.id)
+
+  // The "more" promise comes from whichever page is currently the deepest:
+  // the provider/unread first fetch when nothing else has been loaded.
+  const hasMore = loadingMore
+    ? true
+    : !unreadOnly
+      ? olderCursor !== null ? olderHasMore : pageHasMore
+      : serverUnread === null
+        ? false
+        : olderCursor !== null ? olderHasMore : serverUnreadHasMore
+
+  const handleLoadMore = async () => {
+    const base = unreadOnly ? (serverUnread ?? items) : items
+    const anchor = olderCursor ?? base[base.length - 1]?.id ?? null
+    if (anchor == null || pendingPage.current) return
+    const generation = pageGeneration.current
+    pendingPage.current = true
+    setLoadingMore(true)
+    setActionError(false)
+    try {
+      const data = await listNotifications({
+        unreadOnly: unreadOnly || undefined,
+        limit: 50,
+        beforeId: anchor,
+      })
+      if (generation !== pageGeneration.current) return
+      // Merge by id: a rebased cursor re-returns rows the user already
+      // loaded, and the server's fresh copy must replace the stale one
+      // without duplicating state.
+      setOlder(previous => {
+        const merged = new Map(previous.map(row => [row.id, row]))
+        for (const row of data.items) merged.set(row.id, row)
+        return [...merged.values()]
+      })
+      const next = data.items[data.items.length - 1]?.id ?? anchor
+      setOlderCursor(next)
+      setOlderHasMore(data.has_more)
+    } catch {
+      if (generation === pageGeneration.current) setActionError(true)
+    } finally {
+      if (generation === pageGeneration.current) {
+        pendingPage.current = false
+        setLoadingMore(false)
+      }
+    }
+  }
 
   const handleMarkRead = async (id: number) => {
     setBusyId(id)
@@ -200,6 +320,9 @@ export default function Notifications() {
     try {
       await markRead(id)
       if (unreadOnly) setServerUnread(prev => (prev ? prev.filter(item => item.id !== id) : prev))
+      // The read state also applies to rows the user paged in beyond the
+      // provider's first 50 (both filters keep their visible state).
+      setOlder(prev => prev.map(item => (item.id === id ? { ...item, read_at: item.read_at ?? new Date().toISOString() } : item)))
     } catch {
       setActionError(true)
     } finally {
@@ -212,7 +335,15 @@ export default function Notifications() {
     setActionError(false)
     try {
       await markAllRead()
-      if (unreadOnly) setServerUnread([])
+      if (unreadOnly) {
+        setServerUnread([])
+        setServerUnreadHasMore(false)
+      }
+      pageGeneration.current += 1
+      pendingPage.current = false
+      setLoadingMore(false)
+      setOlderHasMore(false)
+      setOlder(prev => prev.map(item => ({ ...item, read_at: item.read_at ?? new Date().toISOString() })))
     } catch {
       setActionError(true)
     } finally {
@@ -257,7 +388,9 @@ export default function Notifications() {
                 : 'border-app bg-app-panel-elevated text-app-muted hover:text-app-text'
             }`}
           >
-            {t('notifications.unreadOnly', { count: unreadCount })}
+            {countsKnown
+              ? t('notifications.unreadOnly', { count: unreadCount })
+              : t('notifications.unreadOnlyPending')}
           </button>
         </div>
         <button
@@ -300,6 +433,7 @@ export default function Notifications() {
           <p className="mt-1 text-sm text-app-muted">{t('notifications.emptyHint')}</p>
         </div>
       ) : (
+        <>
         <div className="grid gap-3" role="list" aria-label={t('notifications.listAria')}>
           {visible.map(item => (
             <div key={item.id} role="listitem">
@@ -307,6 +441,17 @@ export default function Notifications() {
             </div>
           ))}
         </div>
+        {hasMore && (
+          <button
+            type="button"
+            onClick={() => void handleLoadMore()}
+            disabled={loadingMore}
+            className="touch-target mt-4 inline-flex items-center gap-2 border border-app bg-app-panel-elevated px-4 py-2.5 text-sm font-medium text-app-text disabled:opacity-60"
+          >
+            {loadingMore ? t('common.loading') : t('notifications.loadMore')}
+          </button>
+        )}
+        </>
       )}
     </div>
   )

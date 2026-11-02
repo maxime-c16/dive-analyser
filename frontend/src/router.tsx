@@ -22,6 +22,8 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dives from "./pages/Dives";
 import { useNavigationIntent } from "./hooks/useNavigationIntent";
+import { loadChunk, loadChunkPrefetch } from "./utils/chunkLoad";
+import RouteErrorBoundary from "./components/RouteErrorBoundary";
 
 import { useAuth } from "./contexts/AuthContext";
 import MemberAvatar from './components/MemberAvatar'
@@ -45,59 +47,61 @@ import {
   Waves,
   X,
 } from "lucide-react";
-const SeriesPage = lazy(() => import("./pages/Series"));
+const SeriesPage = lazy(() => loadChunk(() => import("./pages/Series")));
 const loadCalendar = () => import("./pages/Calendar");
-const CalendarPage = lazy(loadCalendar);
-const loadSharedDive = () => import("./pages/SharedDive");
+const CalendarPage = lazy(() => loadChunk(loadCalendar));
+const loadSharedDive = () => loadChunk(() => import("./pages/SharedDive"));
 const SharedDive = lazy(loadSharedDive);
-const loadSharedSession = () => import("./pages/SharedSession");
+const loadSharedSession = () => loadChunk(() => import("./pages/SharedSession"));
 const SharedSession = lazy(loadSharedSession);
-const loadSessionVideos = () => import("./pages/SessionVideos");
+const loadSessionVideos = () => loadChunk(() => import("./pages/SessionVideos"));
 const SessionVideoPage = lazy(loadSessionVideos);
-const loadClaim = () => import("./pages/Claim");
+const loadClaim = () => loadChunk(() => import("./pages/Claim"));
 const Claim = lazy(loadClaim);
-const loadInvite = () => import("./pages/Invite");
+const loadInvite = () => loadChunk(() => import("./pages/Invite"));
 const Invite = lazy(loadInvite);
-const loadDeposits = () => import("./pages/Deposits");
+const loadDeposits = () => loadChunk(() => import("./pages/Deposits"));
 const Deposits = lazy(loadDeposits);
 const loadDashboard = () => import("./pages/Dashboard");
-const Dashboard = lazy(loadDashboard);
+const Dashboard = lazy(() => loadChunk(loadDashboard));
 const loadAnalytics = () => import("./pages/Analytics");
-const Analytics = lazy(loadAnalytics);
+const Analytics = lazy(() => loadChunk(loadAnalytics));
 const loadSessions = () => import("./pages/Sessions");
-const Sessions = lazy(loadSessions);
+const Sessions = lazy(() => loadChunk(loadSessions));
 const loadJourney = () => import("./pages/Journey");
-const Journey = lazy(loadJourney);
-const loadDiveAnalysis = () => import("./pages/DiveAnalysis");
+const Journey = lazy(() => loadChunk(loadJourney));
+const loadDiveAnalysis = () => loadChunk(() => import("./pages/DiveAnalysis"));
 const DiveAnalysis = lazy(loadDiveAnalysis);
-const loadCodeAnalysis = () => import("./pages/CodeAnalysis");
+const loadCodeAnalysis = () => loadChunk(() => import("./pages/CodeAnalysis"));
 const CodeAnalysis = lazy(loadCodeAnalysis);
 const loadRepresentativeMedia = () => import("./pages/RepresentativeMedia");
-const RepresentativeMedia = lazy(loadRepresentativeMedia);
+const RepresentativeMedia = lazy(() => loadChunk(loadRepresentativeMedia));
 const loadMediaRecall = () => import("./pages/MediaRecall");
-const MediaRecall = lazy(loadMediaRecall);
-const loadP5Canary = () => import("./pages/P5Canary");
+const MediaRecall = lazy(() => loadChunk(loadMediaRecall));
+const loadP5Canary = () => loadChunk(() => import("./pages/P5Canary"));
 const P5Canary = lazy(loadP5Canary);
 const loadAdmin = () => import("./pages/Admin");
-const Admin = lazy(loadAdmin);
-const AdminAccount = lazy(() => import("./pages/AdminAccount"));
+const Admin = lazy(() => loadChunk(loadAdmin));
+const AdminAccount = lazy(() => loadChunk(() => import("./pages/AdminAccount")));
 const loadAccount = () => import("./pages/Account");
-const Account = lazy(loadAccount);
+const Account = lazy(() => loadChunk(loadAccount));
 const loadMessages = () => import("./pages/Messages");
-const Messages = lazy(loadMessages);
+const Messages = lazy(() => loadChunk(loadMessages));
 const loadCommunity = () => import("./pages/Community");
-const Community = lazy(loadCommunity);
-const JudgeRoom = lazy(() => import("./pages/JudgeRoom"));
+const Community = lazy(() => loadChunk(loadCommunity));
+const JudgeRoom = lazy(() => loadChunk(() => import("./pages/JudgeRoom")));
 const loadMemberProfile = () => import("./pages/MemberProfile");
-const MemberProfile = lazy(loadMemberProfile);
+const MemberProfile = lazy(() => loadChunk(loadMemberProfile));
 const loadEvaluations = () => import("./pages/Evaluations");
-const Evaluations = lazy(loadEvaluations);
+const Evaluations = lazy(() => loadChunk(loadEvaluations));
 // Design-review mock (fixture data, no backend): dev-only, never shipped.
 const loadEvaluationDemo = (): Promise<{ default: React.ComponentType }> =>
-  (import.meta.env.DEV ? import("./pages/EvaluationDemo") : Promise.resolve({ default: () => null })) as unknown as Promise<{ default: React.ComponentType }>;
+  (import.meta.env.DEV
+    ? loadChunk(() => import("./pages/EvaluationDemo"))
+    : Promise.resolve({ default: () => null })) as unknown as Promise<{ default: React.ComponentType }>;
 const EvaluationDemo = lazy(loadEvaluationDemo);
 const loadNotifications = () => import("./pages/Notifications");
-const Notifications = lazy(loadNotifications);
+const Notifications = lazy(() => loadChunk(loadNotifications));
 
 const routeLoaders: Record<string, () => Promise<unknown>> = {
   '/dashboard': loadDashboard, '/analytics': loadAnalytics,
@@ -111,7 +115,11 @@ const routeLoaders: Record<string, () => Promise<unknown>> = {
 function IntentNavLink({ primaryActive, ...props }: React.ComponentProps<typeof NavLink> & { primaryActive?: boolean }) {
   const targetPath = typeof props.to === 'string' ? props.to : props.to.pathname ?? '';
   const path = targetPath.split(/[?#]/)[0];
-  const intent = useNavigationIntent(path, routeLoaders[path]);
+  // Prefetch, not the route loader: a failed speculative import must never
+  // auto-reload the page the user is looking at (lead reads, wip fields…).
+  const loader = routeLoaders[path];
+  const prefetch = loader ? () => loadChunkPrefetch(loader) : undefined;
+  const intent = useNavigationIntent(path, prefetch);
   if (primaryActive !== undefined) return <Link {...intent} {...props} className={typeof props.className === 'string' ? props.className : undefined} style={typeof props.style === 'object' ? props.style : undefined} aria-current={primaryActive ? 'page' : undefined}>{typeof props.children === 'function' ? null : props.children}</Link>;
   return <NavLink {...intent} {...props} />;
 }
@@ -617,7 +625,7 @@ function CalendarGate() {
 function RoomEntry() {
   const { checking } = useAuth();
   if (checking) return <PageLoading fullscreen />;
-  const room = <Suspense fallback={<PageLoading />}><JudgeRoom /></Suspense>;
+  const room = <RouteErrorBoundary><Suspense fallback={<PageLoading />}><JudgeRoom /></Suspense></RouteErrorBoundary>;
   return room;
 }
 
@@ -625,15 +633,15 @@ function Router() {
   return (
     <Routes>
       <Route path="/room/:code" element={<RoomEntry />} />
-      <Route path="/share/:shareId" element={<Suspense fallback={<PageLoading fullscreen />}><SharedDive /></Suspense>} />
-      <Route path="/share/session/:shareId" element={<Suspense fallback={<PageLoading fullscreen />}><SharedSession /></Suspense>} />
+      <Route path="/share/:shareId" element={<RouteErrorBoundary><Suspense fallback={<PageLoading fullscreen />}><SharedDive /></Suspense></RouteErrorBoundary>} />
+      <Route path="/share/session/:shareId" element={<RouteErrorBoundary><Suspense fallback={<PageLoading fullscreen />}><SharedSession /></Suspense></RouteErrorBoundary>} />
       {/* Design-review mock (fixture data, no backend, no auth): dev build only. */}
       {import.meta.env.DEV && (
-        <Route path="/evaluations-demo" element={<Suspense fallback={null}><EvaluationDemo /></Suspense>} />
+        <Route path="/evaluations-demo" element={<RouteErrorBoundary><Suspense fallback={null}><EvaluationDemo /></Suspense></RouteErrorBoundary>} />
       )}
-      <Route path="/claim" element={<Suspense fallback={<PageLoading fullscreen />}><Claim /></Suspense>} />
+      <Route path="/claim" element={<RouteErrorBoundary><Suspense fallback={<PageLoading fullscreen />}><Claim /></Suspense></RouteErrorBoundary>} />
       {/* Invitation landing: public like /claim — the friend has no account yet. */}
-      <Route path="/invite" element={<Suspense fallback={<PageLoading fullscreen />}><Invite /></Suspense>} />
+      <Route path="/invite" element={<RouteErrorBoundary><Suspense fallback={<PageLoading fullscreen />}><Invite /></Suspense></RouteErrorBoundary>} />
       {/* Login / register live outside the Layout and need no auth */}
       <Route
         path="/login"
@@ -658,6 +666,7 @@ function Router() {
         element={
           <AuthGuard>
             <WhatsNewProvider><NotificationsProvider><MessagesUnreadProvider><Layout>
+              <RouteErrorBoundary>
               <Suspense fallback={<PageLoading />}>
                 <Routes>
                   <Route path="/" element={<RootRedirect />} />
@@ -713,6 +722,7 @@ function Router() {
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </Suspense>
+              </RouteErrorBoundary>
             </Layout></MessagesUnreadProvider></NotificationsProvider></WhatsNewProvider>
           </AuthGuard>
         }

@@ -286,6 +286,14 @@ cleanup off during deployment; use dry-run first. No SQL migration is needed.
 See [setup, activation and rollback](PHOTOS_CLEANUP_PERMISSIONS.md). Optional
 automation dependencies and permissions are not installed by `ship.sh`.
 
+### Notification unread index (2026-11)
+
+Apply `backend/migrations/add_notifications_unread_index.sql` **before** the
+deploy that ships it (additive partial index on the unread keyset probes;
+`CREATE INDEX CONCURRENTLY` — a single-statement psql call, no BEGIN/COMMIT
+wrapper; idempotent). The previous backend keeps working with or without it.
+Details: docs/audits/ux-fixes/feedback-reliability.md.
+
 ### Synchro participants
 
 Apply `backend/migrations/add_dive_sync_pairs.sql` before deploying the backend.

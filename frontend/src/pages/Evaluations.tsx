@@ -7,6 +7,7 @@
  * it clears its draft and evaluation-scope media references.
  */
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { loadChunk, loadChunkPrefetch } from '../utils/chunkLoad'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useEvaluationDrawSize } from '../hooks/useEvaluationDrawSize'
@@ -23,7 +24,12 @@ import { getEvaluationOverview, type EvaluationOverview } from '../services/eval
 import { MobileShellActions } from '../navigation/mobileShellActions'
 
 const loadJurySession = () => import('../components/evaluation/JurySession')
-const JurySession = lazy(loadJurySession)
+const JurySession = lazy(() => loadChunk(loadJurySession))
+// Mount warm-up is speculative: a chunk failure here must not reload the
+// healthy Evaluations page (the guarded reload is reserved for real route
+// loads, above); the prefetch takes the raw import, not the guarded loader.
+const warmJurySession = () =>
+  loadChunkPrefetch(loadJurySession).catch(() => {})
 
 type Tab = 'judge' | 'dives' | 'history'
 const TABS: Array<{ key: Tab; label: string }> = [
@@ -136,7 +142,7 @@ function JudgeHub({ paused, onPause, onStageChange, onHistory }: {
     getEvaluationOverview().then(setOverview).catch(() => setFailed(true))
   }, [])
   useEffect(refresh, [refresh])
-  useEffect(() => { void loadJurySession() }, [])
+  useEffect(() => { void warmJurySession() }, [])
 
   const resume = overview?.today.resume ?? null
   const daily = useCallback((): Active => resume

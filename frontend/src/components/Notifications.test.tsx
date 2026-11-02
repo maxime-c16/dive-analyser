@@ -1,6 +1,7 @@
 import React from 'react'
 import { MemoryRouter } from 'react-router-dom'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { I18nProvider } from '../i18n/I18nProvider'
 import { NotificationsButton, NotificationsProvider } from './Notifications'
@@ -214,6 +215,298 @@ describe('Notifications page', () => {
     stubInbox()
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
     expect(await screen.findByText('New comment on 103B')).toBeInTheDocument()
+  })
+})
+
+describe('Older notifications continuation (UX fix 2026-11)', () => {
+  // 60 rows: ids 1..60. The provider/first page shows the 50 newest (60..11)
+  // and reports one further page; continuation pages anchor on before_id.
+  const allIds = Array.from({ length: 60 }, (_, index) => index + 1)
+
+  function pagingStub() {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = typeof input === 'string' ? input : input.toString()
+        if (init?.method) return { ok: true, json: async () => ({}) } as Response
+        const query = new URLSearchParams(url.split('?')[1] ?? '')
+        const anchor = query.get('before_id')
+        // The real inbox is newest first: descending id order.
+        const beyond = (anchor === null ? allIds : allIds.filter(id => id < Number(anchor))).sort((a, b) => b - a)
+        const offered = beyond.slice(0, Number(query.get('limit') ?? '50'))
+        return {
+          ok: true,
+          json: async () => ({
+            items: offered.map(id => ({
+              id,
+              type: 'new_video',
+              title: `New video synced #${id}`,
+              body: null,
+              dive_id: id,
+              read_at: null,
+              created_at: '2026-10-29T08:00:00Z',
+            })),
+            unread_count: allIds.length,
+            has_more: beyond.length > offered.length,
+          }),
+        } as Response
+      }),
+    )
+  }
+
+  it('pages the list past the first 50 rows with an explicit anchor', async () => {
+    pagingStub()
+    renderPage()
+    expect(await screen.findByText('New video synced #60')).toBeInTheDocument()
+    expect(screen.getByText('New video synced #11')).toBeInTheDocument()
+    expect(screen.queryByText('New video synced #10')).not.toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Show older notifications' }),
+    ).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Show older notifications' }))
+    expect(await screen.findByText('New video synced #10')).toBeInTheDocument()
+    expect(screen.getByText('New video synced #1')).toBeInTheDocument()
+    const calls = vi.mocked(fetch).mock.calls.map(([input]) =>
+      typeof input === 'string' ? input : input.toString(),
+    )
+    expect(calls.filter(url => url.includes('before_id=11')).length).toBeGreaterThan(0)
+    // Continuation reached the true end: the control goes away.
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: 'Show older notifications' })).toBeNull(),
+    )
+  })
+
+  it('ignores an old continuation response after the filter changes', async () => {
+    pagingStub()
+    const original = vi.mocked(fetch).getMockImplementation()!
+    let finish!: (response: Response) => void
+    vi.mocked(fetch).mockImplementation((input, init) => {
+      if (String(input).includes('before_id')) return new Promise<Response>(resolve => { finish = resolve })
+      return original(input, init)
+    })
+    renderPage()
+    await screen.findByText('New video synced #60')
+    fireEvent.click(screen.getByRole('button', { name: 'Show older notifications' }))
+    fireEvent.click(screen.getByRole('button', { name: /Unread \(60\)/ }))
+    await act(async () => {
+      finish({ ok: true, json: async () => ({ items: [{ ...unreadRow, id: 1, title: 'Stale continuation' }], unread_count: 60, has_more: false }) } as Response)
+    })
+    expect(screen.queryByText('Stale continuation')).not.toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Show older notifications' })).toBeEnabled()
+  })
+
+  it('deduplicates a continuation row moved into the first page by a refresh', async () => {
+    pagingStub()
+    renderPage()
+    await screen.findByText('New video synced #60')
+    await userEvent.click(screen.getByRole('button', { name: 'Show older notifications' }))
+    allIds.splice(allIds.indexOf(60), 1)
+    window.dispatchEvent(new Event('focus'))
+    await waitFor(() => expect(screen.queryByText('New video synced #60')).not.toBeInTheDocument())
+    expect(screen.getAllByText('New video synced #10')).toHaveLength(1)
+    allIds.push(60)
+  })
+
+  it('re-reaches a row displaced by a growing first page (60–11 + 10–1, new arrival 61)', async () => {
+    pagingStub()
+    renderPage()
+    await screen.findByText('New video synced #60')
+    expect(screen.getByText('New video synced #11')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Show older notifications' }))
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: 'Show older notifications' })).toBeNull(),
+    )
+    // A new arrival grows the head to 61–12: row 11 no longer belongs to
+    // either loaded page. The pagination control must come back instead of
+    // silently leaving a hole, and the next page re-reaches the displaced row.
+    allIds.push(61)
+    window.dispatchEvent(new Event('focus'))
+    expect(await screen.findByText('New video synced #61')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Show older notifications' })).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Show older notifications' }))
+    expect(await screen.findByText('New video synced #11')).toBeInTheDocument()
+    // Rows already loaded merge by id — each is rendered exactly once.
+    expect(screen.getAllByText('New video synced #1')).toHaveLength(1)
+    expect(screen.getAllByText('New video synced #10')).toHaveLength(1)
+    expect(screen.getAllByText('New video synced #31')).toHaveLength(1)
+  })
+
+  it('keeps the rebased cursor when a continuation launched before the arrival resolves', async () => {
+    pagingStub()
+    const intact = vi.mocked(fetch).getMockImplementation()!
+    renderPage()
+    await screen.findByText('New video synced #60')
+    // The first continuation (anchored on 11 from head 60–11) stalls on the
+    // wire…
+    const pending: Array<(response: Response) => void> = []
+    vi.mocked(fetch).mockImplementation((input, init) => {
+      const url = typeof input === 'string' ? input : input.toString()
+      if (url.includes('before_id')) return new Promise<Response>(r => { pending.push(r) })
+      return intact(input, init)
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Show older notifications' }))
+    expect(pending).toHaveLength(1)
+    // …and notification 61 arrives first: the fresh head covers 61–12, the
+    // stale request loses its ownership, and the control returns to its
+    // actionable label (the rebase lifted its fence).
+    allIds.push(61)
+    window.dispatchEvent(new Event('focus'))
+    expect(await screen.findByText('New video synced #61')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Show older notifications' })).toBeInTheDocument()
+    // The late response (rows 10–1, has_more=false) resolves afterwards: it
+    // must write NOTHING — the cursor stays aligned to the fresh head's
+    // deepest row (rebased to 12), so the displaced row 11 stays reachable
+    // and no has_more=false can hide the range.
+    await act(async () => {
+      pending[0](lateContinuation(10, 1, false))
+    })
+    expect(screen.queryByText('New video synced #11')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Show older notifications' })).toBeInTheDocument()
+    // The next page anchors past the rebased cursor: row 11 is reached, the
+    // continuation reaches its true end, nothing duplicates.
+    vi.mocked(fetch).mockImplementation(intact)
+    await userEvent.click(screen.getByRole('button', { name: 'Show older notifications' }))
+    expect(await screen.findByText('New video synced #11')).toBeInTheDocument()
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: 'Show older notifications' })).toBeNull(),
+    )
+    expect(screen.getAllByText('New video synced #1')).toHaveLength(1)
+  })
+
+  it('keeps the newer continuation busy while an older one lands out of order', async () => {
+    pagingStub()
+    const intact = vi.mocked(fetch).getMockImplementation()!
+    renderPage()
+    await screen.findByText('New video synced #60')
+    const pending: Array<(response: Response) => void> = []
+    vi.mocked(fetch).mockImplementation((input, init) => {
+      const url = typeof input === 'string' ? input : input.toString()
+      if (url.includes('before_id')) return new Promise<Response>(r => { pending.push(r) })
+      return intact(input, init)
+    })
+    // A (pre-rebase) is launched…
+    fireEvent.click(screen.getByRole('button', { name: 'Show older notifications' }))
+    await waitFor(() => expect(pending).toHaveLength(1))
+    // …a rebasing refresh invalidates it…
+    allIds.push(61)
+    window.dispatchEvent(new Event('focus'))
+    expect(await screen.findByText('New video synced #61')).toBeInTheDocument()
+    // …and B is launched with the rebased anchor. A finally lands BEFORE
+    // B: B still owns the loading state — the busy label must hold and the
+    // stale finally must neither re-enable nor duplicate a fence.
+    fireEvent.click(screen.getByRole('button', { name: 'Show older notifications' }))
+    await waitFor(() => expect(pending).toHaveLength(2))
+    expect(screen.getByRole('button', { name: 'Loading…' })).toBeInTheDocument()
+    await act(async () => {
+      pending[0](lateContinuation(10, 1, false))
+    })
+    // FinA may not hand the control back while B is on the wire.
+    expect(screen.getByRole('button', { name: 'Loading…' })).toBeInTheDocument()
+    // B answers: its rows land exactly once, the end is reached.
+    await act(async () => {
+      pending[1](lateContinuation(11, 1, false))
+    })
+    expect(await screen.findByText('New video synced #11')).toBeInTheDocument()
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: 'Show older notifications' })).toBeNull(),
+    )
+    expect(screen.getAllByText('New video synced #5')).toHaveLength(1)
+  })
+
+  function lateContinuation(from: number, to: number, hasMore: boolean): Response {
+    const items = Array.from({ length: from - to + 1 }, (_, index) => ({
+      id: from - index,
+      type: 'new_video',
+      title: `New video synced #${from - index}`,
+      body: null,
+      dive_id: from - index,
+      read_at: null,
+      created_at: '2026-10-29T08:00:00Z',
+    }))
+    return { ok: true, json: async () => ({ items, unread_count: allIds.length, has_more: hasMore }) } as Response
+  }
+
+  it('never fakes a continuation when switching All and Unread without an arrival', async () => {
+    // 41–60 read, 1–40 unread. The All stream holds 60–11 (has_more true at
+    // the head boundary 11); the unread stream ends at 40 and its own probe
+    // honestly reports has_more=false. A filter switch moves the anchor
+    // (11 → 40) without announcing any arrival: the switch must not rebase,
+    // and the server truth owns the continuation control.
+    const rows = Array.from({ length: 60 }, (_, index) => {
+      const id = 60 - index
+      return { id, type: 'new_video', title: `New video synced #${id}`, body: null, dive_id: id, read_at: id >= 41 ? '2026-10-05T08:00:00Z' : null, created_at: '2026-10-29T08:00:00Z' }
+    })
+    const stub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method) return { ok: true, json: async () => ({}) } as Response
+      const url = typeof input === 'string' ? input : String(input)
+      const query = new URLSearchParams(url.split('?')[1] ?? '')
+      const unreadOnly = query.get('unread_only') === 'true'
+      const anchorRaw = query.get('before_id')
+      const anchor = anchorRaw === null ? NaN : Number(anchorRaw)
+      const pool = rows.filter(row => (unreadOnly ? row.read_at === null : true)).sort((a, b) => b.id - a.id)
+      const offered = Number.isNaN(anchor) ? pool.slice(0, 50) : pool.filter(row => row.id < anchor).slice(0, 50)
+      const beyond = Number.isNaN(anchor) ? (unreadOnly ? [] as typeof rows : rows) : pool.filter(row => row.id < anchor)
+      return {
+        ok: true,
+        json: async () => ({ items: offered, unread_count: rows.filter(row => row.read_at === null).length, has_more: beyond.length > offered.length }),
+      } as Response
+    })
+    vi.stubGlobal('fetch', stub)
+    renderPage()
+    await screen.findByText('New video synced #60')
+    expect(screen.getByRole('button', { name: 'Show older notifications' })).toBeInTheDocument()
+    // Establish a continuation first (the page after 11 reaches the end in
+    // All mode): consumed, the control hides.
+    await userEvent.click(screen.getByRole('button', { name: 'Show older notifications' }))
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: 'Show older notifications' })).toBeNull(),
+    )
+    // Switch All → Unread without any arrival (anchor would jump 11 → 40).
+    fireEvent.click(screen.getByRole('button', { name: /Unread \(40\)/ }))
+    expect(await screen.findByText('New video synced #40')).toBeInTheDocument()
+    // The rebased-phantom would resurrect the control while the unread
+    // probe said the list is complete — it must stay hidden.
+    expect(screen.queryByRole('button', { name: 'Show older notifications' })).toBeNull()
+    // Back to All: the provider page re-owns the truth and the control
+    // returns for what the provider probe says remains.
+    fireEvent.click(screen.getByRole('button', { name: 'Show all' }))
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Show older notifications' })).toBeInTheDocument(),
+    )
+  })
+
+  it('marks a row read inside the continuation without losing it', async () => {
+    pagingStub()
+    renderPage()
+    await screen.findByText('New video synced #60')
+    await userEvent.click(screen.getByRole('button', { name: 'Show older notifications' }))
+    const row = screen.getByText('New video synced #5')
+    fireEvent.click(within(row.closest('article') as HTMLElement).getByRole('button', { name: 'Mark as read' }))
+    await waitFor(() =>
+      expect(
+        within(row.closest('article') as HTMLElement).queryByRole('button', { name: 'Mark as read' }),
+      ).toBeNull(),
+    )
+    expect(row).toBeInTheDocument()
+  })
+
+  it('no continuations are offered when the list ends inside the first page', async () => {
+    rows = [{ ...unreadRow }, { ...readRow }]
+    stubInbox()
+    renderPage()
+    await screen.findByText('New comment on 103B')
+    expect(screen.queryByRole('button', { name: 'Show older notifications' })).toBeNull()
+  })
+
+  it('does not announce an unread count before the server has answered', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>(() => {})))
+    renderPage()
+    // The pending filter shows "Unread" — never a default "Unread (0)"
+    // that contradicts the 84-style badge while nothing has arrived.
+    expect(screen.queryByRole('button', { name: /Unread \(\d+\)/ })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Unread' })).toBeInTheDocument()
+    expect(screen.getByText('Loading notifications…')).toBeInTheDocument()
+    vi.unstubAllGlobals()
   })
 })
 

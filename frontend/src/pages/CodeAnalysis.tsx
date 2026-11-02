@@ -1,4 +1,5 @@
 import React, { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
+import { loadChunk } from '../utils/chunkLoad'
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { format, formatDistanceToNowStrict, parseISO } from 'date-fns'
@@ -20,7 +21,7 @@ import { DAY_MS, mean, median, quantile, recentTrend, rolling, scoreBand, smooth
 import { appLocale } from '../utils/dateLocale'
 import { ATHLETE_SCORE_10 } from '../utils/performanceScoring'
 
-const ClipViewer = lazy(() => import('../components/clip-viewer/ClipViewer'))
+const ClipViewer = lazy(() => loadChunk(() => import('../components/clip-viewer/ClipViewer')))
 
 const PERIODS = [['1m', 30], ['3m', 91], ['1y', 365], ['all', Infinity]] as const
 type Period = (typeof PERIODS)[number][0]

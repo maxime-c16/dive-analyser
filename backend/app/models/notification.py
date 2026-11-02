@@ -14,6 +14,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    text,
 )
 
 from app.database import Base
@@ -39,6 +40,20 @@ class Notification(Base):
 
     __table_args__ = (
         Index("ix_notifications_user_created", "user_id", "created_at"),
+        # Unread pages (unread_only + the has_more probe) key on this
+        # subset; without it Postgres filters a growing read history on
+        # every page request. The partial predicate mirrors
+        # migrations/add_notifications_unread_index.sql (applied by hand
+        # with CONCURRENTLY before deploy — ship.sh does not run SQL); on
+        # the test dialects the predicate is dropped (a full index covers
+        # these tiny fixtures).
+        Index(
+            "ix_notifications_user_unread_recent",
+            "user_id",
+            "created_at",
+            "id",
+            postgresql_where=text("read_at IS NULL"),
+        ),
     )
 
 

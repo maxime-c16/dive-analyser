@@ -15,6 +15,12 @@ import Dives from './Dives'
 import { nameSearchCodes } from '../utils/diveNameSearch'
 import { clearLibraryCache } from '../services/libraryCache'
 
+// Cold lazy-route imports transformed by Vitest can take well over 5s on the
+// shared 2-CPU server while the gate runs next to production: every test
+// that opens a lazy route below waits with this shared budget instead of the
+// 1s default.
+const LAZY_ROUTE_WAIT = 20_000
+
 let mockUser: Record<string, unknown> | null = {
   user_id: 1, role: 'owner', is_admin: true, divers: [{ diver_id: 1, access_kind: 'OWNER' }],
 }
@@ -101,10 +107,15 @@ it('sends the derived codes to the API and keeps caption matches alongside them'
   // Deferred rendering (useDeferredValue) lands late on busy runners; the
   // call itself is what is being asserted, so keep a generous window.
   await userEvent.type(search, 'back dive')
-  const libraryCalls = vi.mocked(api.get).mock.calls.filter(([url]) => url === '/api/v1/dives/library')
+  // Read the live call list INSIDE the poll: a snapshot taken before the
+  // wait cannot see the calls the deferred render (`useDeferredValue`)
+  // fires still later — that stale-array form is what timed out in CI.
+  // The causal assertion (the API receives the derived behaviour codes)
+  // stays unchanged; 3 s of real-time polling only re-reads fresh calls.
   await waitFor(() => {
+    const libraryCalls = vi.mocked(api.get).mock.calls.filter(([url]) => url === '/api/v1/dives/library')
     expect(libraryCalls.some(([, config]) => (config as { params: Record<string, string> }).params?.code_filter !== undefined)).toBe(true)
-  }, { timeout: 5000 })
+  }, { timeout: 3000 })
   // The client filter mirrors the API's OR-composition: the caption-less
   // named dive stays visible too; the plain caption-less 103B drops out.
   await waitFor(() => expect(screen.queryByRole('button', { name: /Open 201C attempt/ })).not.toBeNull())
@@ -181,7 +192,10 @@ it('never restores over an explicit Library URL or a clip deep link', async () =
   expect(window.location.search).toBe('?scope=all')
 
   const clipEntry = renderAt('/dives?clip=2')
-  expect(await screen.findByRole('dialog')).toBeInTheDocument()
+  // The clip stage lazy-loads (see LAZY_ROUTE_WAIT): under CI load its
+  // settle can outlive the default 1 s wait — wait for the dialog with the
+  // same shared budget.
+  expect(await screen.findByRole('dialog', {}, { timeout: LAZY_ROUTE_WAIT })).toBeInTheDocument()
   expect((clipEntry.container.querySelector('input[data-dives-search]') as HTMLInputElement).value).toBe('')
   clipEntry.unmount()
 })

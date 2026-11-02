@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { Attempt } from '../../utils/attemptPresentation'
+import { attemptScore, type Attempt } from '../../utils/attemptPresentation'
 import {
   EVALUATION_COMMENT_MAX,
   getDiveEvaluation,
@@ -34,12 +34,22 @@ export function useDiveEvaluation(diveId: number, enabled: boolean) {
   return { data, setData, error, reload: load }
 }
 
-function JuryPanel({ results, mine }: { results: JuryResults; mine: number | null }) {
+function JuryPanel({ results, mine, loggedScore }: { results: JuryResults; mine: number | null; loggedScore?: number }) {
   const { t, i18n } = useTranslation()
   const myId = results.my_rating?.id
   const peers = results.ratings.filter((row) => row.id !== myId)
   const remarks = peers.filter((row) => row.comment)
-  if (!results.rating_count) return <p className="clip-eval-fine">{t('clipEvaluation.noVotes')}</p>
+  if (!results.rating_count) {
+    // The empty jury state must reconcile with the big score on the panel:
+    // that number is the logged performance score (P/G/M/B/F → /10), and
+    // no community/judge rating exists yet. Sourced from the attempt's own
+    // performance contract — no invented automatic score.
+    return (
+      <p className="clip-eval-fine">
+        {t('clipEvaluation.noVotes', { score: loggedScore != null ? scoreNumber(loggedScore, i18n.language) : '—' })}
+      </p>
+    )
+  }
   return (
     <div className="clip-eval-jury">
       <p className="clip-eval-mean">
@@ -124,7 +134,7 @@ export default function ClipEvaluation({
           <h4>{t('clipEvaluation.ownerTitle')}</h4>
           {circuitLabel && <span>{circuitLabel}</span>}
         </div>
-        {evaluation.results ? <JuryPanel results={evaluation.results} mine={null} /> : <p className="clip-eval-fine">{t('clipEvaluation.ownerPrivate')}</p>}
+        {evaluation.results ? <JuryPanel results={evaluation.results} mine={null} loggedScore={attemptScore(attempt)} /> : <p className="clip-eval-fine">{t('clipEvaluation.ownerPrivate')}</p>}
         {evaluation.automatic_excluded && <p className="clip-eval-fine">{t('clipEvaluation.excluded')}</p>}
         {attempt.can_manage && onUpdate && attempt.video_uuid && attempt.diver_id != null && (
           <EvaluationRequestControl
@@ -157,7 +167,7 @@ export default function ClipEvaluation({
             {evaluation.my_rating.comment && <p className="clip-eval-fine">« {evaluation.my_rating.comment} »</p>}
           </div>
         </div>
-        {evaluation.results && <JuryPanel results={evaluation.results} mine={mine} />}
+        {evaluation.results && <JuryPanel results={evaluation.results} mine={mine} loggedScore={attemptScore(attempt)} />}
       </div>
     )
   }
