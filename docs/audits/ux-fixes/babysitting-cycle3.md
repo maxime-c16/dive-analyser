@@ -35,3 +35,8 @@
 ## Passe 2026-11-02 ~14h (183 round-6 : verdict COMMENT sur 2af37ff8)
 
 - **`calendar/strings.ts` — `incompletePast` NE promet plus l'impossible** : l'ancienne phrase conseillait de fermer-rouvrir la fenêtre pour « compléter » — un reload rejoue la MÊME requête bornée et ne peut pas compléter. Nouveau message FACTUEL (limite de chargement atteinte, fenêtre partielle, ce qui est chargé est affiché, le reste indisponible), EN + FR ; pas de test-miroir de texte (parité/types suffisent, pastView 7/7 + TS verts). Push head: CE commit.
+
+## Passe 2026-11-02 ~15h (183 round-7 : correction du libellé incompletePast — sources vérifiées AVANT le texte)
+
+- **Vérification source d'abord** (verdict 2af37ff8-suite, run 41424988778) : `calendar/api.ts` `occurrences` lève `incomplete_occurrences` à la 10e page bornée en JETANT l'accumulation (« no partial agenda is returned ») — rien n'est montré ; et `Calendar.tsx:353` rend alors un SKELETON, pas une liste partielle. Mon libellé précédent (« ce qui a été chargé est affiché ») CONTRAISAIT ces sources : corrigé.
+- **Nouveau libellé FACTUEL et COURT** (EN + FR, sans conseil de reload ni affirmation de partiel visible) : « The past agenda is unavailable: the loading limit was reached. » / « L'agenda passé est indisponible : la limite de chargement a été atteinte. » — l'notice cohabite avec le skeleton (agenda passé indisponible). Parité FR/EN + types + pastView 7/7 verts. Push head: CE commit.
