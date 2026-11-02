@@ -145,11 +145,14 @@ export default function CodeAnalysis() {
   // Full-scope total for the capped-window note (server summary, never the
   // bounded client list itself). In a selected-diver view the summaries
   // cover the WHOLE scope — the diver's own total is unavailable, so the
-  // denominator is omitted instead of claiming a cross-population count;
-  // the all-scope fallback to items.length stays for the diver-less views.
+  // denominator is omitted instead of claiming a cross-population count.
+  // In the all-scope view the denominator is likewise unavailable while the
+  // matching per-code summary is pending or failed: a bounded, period-
+  // filtered or empty items slice never poses as the whole-history total —
+  // the count-free cap notice covers the gap until the summary matches.
   const attemptsTotal: number | null = useMemo(() => diverId ? null
-    : summaries?.find(item => item.dive_code === code)?.attempt_count ?? items.length,
-  [diverId, summaries, code, items.length])
+    : summaries?.find(item => item.dive_code === code)?.attempt_count ?? null,
+  [diverId, summaries, code])
   const sessions = useMemo(() => groupSessions(items), [items])
   const scoredGroups = useMemo(() => groupSessions(scored), [scored])
 
