@@ -492,3 +492,67 @@ def test_unread_cursor_excludes_read_rows_and_ends_at_last_unread(workspace):
     assert [r["id"] for r in last["items"]] == [ids[1]]
     assert last["has_more"] is False
     assert last["unread_count"] == 3
+
+
+def test_new_video_rows_carry_the_real_session_date(workspace):
+    """Discovery profil 5: a clip synced days later opens on its arrival
+    date, not the session it documents — the row now reports the dive's own
+    date (one bounded lookup per page; nothing else in the inbox changes)."""
+    from datetime import datetime, timedelta
+
+    from app.models.dive import Dive
+    from app.services import notification_service
+
+    db, login, dives, users, _ = workspace
+    old = db.get(Dive, dives["alice-public"])
+    expected_date = datetime(2026, 10, 18, 10, 30) - timedelta(days=90)
+    old.dive_datetime = expected_date
+    db.commit()
+    with_dive_id = notification_service.create(
+        db, user_id=users["alice"].id, type="new_video",
+        title="synced clip", dive_id=old.id,
+    ).id
+    without_dive_id = notification_service.create(
+        db, user_id=users["alice"].id, type="new_video", title="no dive"
+    ).id
+    comment_id = notification_service.create(
+        db, user_id=users["alice"].id, type="new_comment", title="signed",
+        dive_id=old.id,
+    ).id
+    items = {item["id"]: item for item in _items(login("alice"))["items"]}
+    assert items[with_dive_id]["dive_date"] == expected_date.isoformat() + "Z"
+    assert items[without_dive_id]["dive_date"] is None
+    # Non-video rows keep their event shape even when they point at a dive a
+    # video also documents (the mixed page): no dive date guessing.
+    assert items[comment_id]["dive_date"] is None
+    # Marking the row read answers with the same payload shape.
+    read = login("alice").post(f"/api/v1/notifications/{with_dive_id}/read")
+    assert read.status_code == 200
+    assert read.json()["dive_date"] == expected_date.isoformat() + "Z"
+    # A shared-dive comment marked read keeps that absence too.
+    comment_read = login("alice").post(f"/api/v1/notifications/{comment_id}/read")
+    assert comment_read.status_code == 200
+    assert comment_read.json()["dive_date"] is None
+
+
+def test_dive_date_survives_bounded_pagination(workspace):
+    """Continuation pages resolve the same dive dates (missing dive reads as
+    unknown, never as a failure of the inbox)."""
+    from app.models.dive import Dive
+    from app.services import notification_service
+
+    db, login, dives, users, _ = workspace
+    missing_id = db.query(Dive.id).order_by(Dive.id.desc()).first()[0] + 1
+    first_id = notification_service.create(
+        db, user_id=users["alice"].id, type="new_video",
+        title="a", dive_id=dives["alice-public"],
+    ).id
+    second_id = notification_service.create(
+        db, user_id=users["alice"].id, type="new_video",
+        title="b", dive_id=missing_id,  # deleted dive
+    ).id
+    page = _items(login("alice"), limit=1)
+    assert page["items"][0]["id"] == second_id and page["items"][0]["dive_date"] is None
+    continued = _items(login("alice"), limit=10, before_id=second_id)
+    row = next(item for item in continued["items"] if item["id"] == first_id)
+    assert row["dive_date"]

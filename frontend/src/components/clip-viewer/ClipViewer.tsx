@@ -876,8 +876,9 @@ export default function ClipViewer({
           </button>
           <div className="clip-header-end">
             {studio && speedSelect}
-            <span className="clip-counter" aria-live="polite">
-              <b>{index + 1}</b> / {total}
+            <span className="clip-counter" aria-live="polite" aria-atomic="true" title={t("clipNav.positionAria", { index: index + 1, total })}>
+              <span className="sr-only">{t("clipNav.positionAria", { index: index + 1, total })}</span>
+              <span className="clip-counter-fraction" aria-hidden="true"><b>{index + 1}</b> / {total}</span>
             </span>
           </div>
         </header>

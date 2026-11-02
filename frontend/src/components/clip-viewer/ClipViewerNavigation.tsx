@@ -28,8 +28,9 @@ export default function ClipViewerNavigation({
       >
         <ChevronLeft size={20} />
       </button>
-      <p className="clip-nav-count" aria-live="polite">
-        <b>{index + 1}</b> / {total}
+      <p className="clip-nav-count" aria-live="polite" aria-atomic="true">
+        <span className="sr-only">{t("clipNav.positionAria", { index: index + 1, total })}</span>
+        <span className="clip-nav-fraction" aria-hidden="true"><b>{index + 1}</b> / {total}</span>
       </p>
       <button
         type="button"

@@ -31,6 +31,7 @@ def _payload(row, overrides: dict | None = None) -> dict:
         "title": row.title,
         "body": row.body,
         "dive_id": row.dive_id,
+        "dive_date": None,
         "conversation_id": row.conversation_id,
         "session_id": row.session_id,
         "read_at": row.read_at.isoformat() + "Z" if row.read_at else None,
@@ -39,6 +40,38 @@ def _payload(row, overrides: dict | None = None) -> dict:
     if overrides:
         out.update(overrides)
     return out
+
+
+def _dive_dates(db, rows) -> dict[int, str]:
+    """Real session date for the new-video rows (one bounded query).
+
+    A new-video row is written when the clip syncs, which can be days after
+    the session it documents (discovery 2026-11-01, profil 5: sync of
+    10/29 opening a dive dated 18 Oct). The dive date is the datum the item
+    is really about. The enrichment stays new_video-only: comment/reply
+    notifications can carry a dive_id that merely ties the conversation to
+    a dive (possibly one that also carries a video) — putting a session
+    date on them would contract the payload beyond its type. Missing dives
+    (deleted) simply read as unknown and never break the inbox.
+    """
+    video_rows = [row for row in rows if row.type == "new_video" and row.dive_id is not None]
+    ids = sorted({row.dive_id for row in video_rows})
+    if not ids:
+        return {}
+    from app.models.dive import Dive
+
+    try:
+        found = dict(
+            (dive_id, (dive_date.isoformat() + "Z") if dive_date else None)
+            for dive_id, dive_date in db.query(Dive.id, Dive.dive_datetime)
+            .filter(Dive.id.in_(ids))
+            .all()
+        )
+    except Exception as exc:
+        db.rollback()
+        logger.error("notification dive dates failed (%s)", type(exc).__name__)
+        return {}
+    return {int(dive_id): date for dive_id, date in found.items() if date}
 
 
 def _calendar_views(db: Session, user, rows) -> dict:
@@ -99,8 +132,17 @@ def list_notifications(
         db, user.id, limit=limit, unread_only=unread_only, before_id=before_id
     )
     views = _calendar_views(db, user, items)
+    dates = _dive_dates(db, items)
+
+    def view(row):
+        """Calendar render override first, then the real session dates."""
+        merged = dict(views.get(row.id) or {})
+        if row.type == "new_video" and row.dive_id in dates:
+            merged["dive_date"] = dates[row.dive_id]
+        return merged or None
+
     return {
-        "items": [_payload(row, views.get(row.id)) for row in items],
+        "items": [_payload(row, view(row)) for row in items],
         "unread_count": notification_service.count_unread(db, user.id),
         "has_more": notification_service.list_has_more(db, user.id, items, unread_only=unread_only),
     }
@@ -113,7 +155,16 @@ def read_notification(
     row = notification_service.mark_read(db, user.id, notif_id)
     if row is None:
         raise HTTPException(404, "Notification not found")
-    return _payload(row, _calendar_views(db, user, [row]).get(row.id))
+    view = _calendar_views(db, user, [row]).get(row.id)
+    dates = _dive_dates(db, [row])
+
+    def view_with_date(overrides):
+        merged = dict(overrides or {})
+        if row.type == "new_video" and row.dive_id in dates:
+            merged["dive_date"] = dates[row.dive_id]
+        return merged or None
+
+    return _payload(row, view_with_date(view))
 
 
 @router.post("/notifications/read-all")
