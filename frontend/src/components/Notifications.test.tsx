@@ -17,6 +17,7 @@ type Row = {
   title: string
   body: string | null
   dive_id: number | null
+  dive_date?: string | null
   read_at: string | null
   created_at: string
   calendar?: Record<string, unknown>
@@ -138,6 +139,33 @@ describe('Notifications page', () => {
     expect(screen.getByText('Personal best: 103B')).toBeInTheDocument()
     const diveLink = screen.getByRole('link', { name: 'Open dive' })
     expect(diveLink).toHaveAttribute('href', '/dives?clip=7')
+  })
+
+  it('states the real session date on a late-synced video row only', async () => {
+    // A sync can land days after the session (profil 5): when the server
+    // resolved the dive's real date, the row names that session day —
+    // formatted in UTC (naive date part, noon anchor) so the displayed
+    // day is the dive's own day, never the browser's local shift of the
+    // ...Z timestamp (23:30Z stays "Oct 18" even where the local day is
+    // already the 19th).
+    rows = [{ ...unreadRow, type: 'new_video', title: '102B is ready', created_at: '2026-10-29T18:40:00Z', dive_date: '2026-10-18T23:30:00Z' }]
+    renderPage()
+    expect(await screen.findByText('102B is ready')).toBeInTheDocument()
+    expect(screen.getByText('Dive of Oct 18, 2026')).toBeInTheDocument()
+  })
+
+  it('adds no session label when the video arrived on its dive day', async () => {
+    rows = [{ ...unreadRow, type: 'new_video', title: '102B is ready', created_at: '2026-10-29T18:40:00Z', dive_date: '2026-10-29T00:00:00Z' }]
+    renderPage()
+    expect(await screen.findByText('102B is ready')).toBeInTheDocument()
+    expect(screen.queryByText(/^Dive of/)).not.toBeInTheDocument()
+  })
+
+  it('keeps non-video rows plain (no session-date line)', async () => {
+    rows = [{ ...unreadRow }]
+    renderPage()
+    await screen.findByText('New comment on 103B')
+    expect(screen.queryByText(/^Dive of/)).not.toBeInTheDocument()
   })
 
   it('filters to unread only', async () => {

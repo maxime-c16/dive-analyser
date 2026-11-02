@@ -23,6 +23,22 @@ function formatWhen(iso: string | null): string {
   return date.toLocaleString()
 }
 
+/** "Dive of <date>" when the real session date is known and differs from the
+ * day the row arrived (a synced clip can lag its session by days). The dive
+ * date is naive in the app's timezone, so only its naive date part renders —
+ * no timezone conversion for a calendar label. */
+function sessionDateLabel(item: AppNotification, lang: string): string | null {
+  if (item.type !== 'new_video' || !item.dive_date || !item.created_at) return null
+  const diveDay = item.dive_date.slice(0, 10)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(diveDay)) return null
+  const arrivalDay = item.created_at.slice(0, 10)
+  if (diveDay === arrivalDay) return null
+  const parsed = new Date(`${diveDay}T12:00:00Z`)
+  if (Number.isNaN(parsed.getTime())) return null
+  const label = parsed.toLocaleDateString(lang, { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
+  return label
+}
+
 type Translate = (key: string, options?: Record<string, unknown>) => string
 
 /** Event time in the event's own timezone (all-day: the local date). */
@@ -90,6 +106,10 @@ function NotificationRow({
       ? calendarLines(t, calendarView, lang).join(' · ')
       : t('notifications.calendar.redacted')
     : item.body
+  // The item carries the sync moment as its own date; when the server
+  // resolved the dive's real session date and it differs, state it — the
+  // "Open dive" action points at that session, not the arrival day.
+  const diveDate = sessionDateLabel(item, lang)
   return (
     <article
       aria-label={title}
@@ -108,6 +128,7 @@ function NotificationRow({
       </div>
       <h2 className="mt-1 text-base font-semibold text-app-text">{title}</h2>
       {body && <p className="mt-1 text-sm leading-6 text-app-muted">{body}</p>}
+      {diveDate && <p className="mt-1 text-xs text-app-muted">{t('notifications.diveDate', { date: diveDate })}</p>}
       <div className="mt-3 flex flex-wrap items-center gap-2">
         {calendarView && calendarView.url.startsWith('/calendar') && (
           <Link
