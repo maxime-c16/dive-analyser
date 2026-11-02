@@ -361,6 +361,7 @@ it('advances the manual Load-more cursor past the resumed depth', async () => {
 })
 
 it('holds the scroll anchor until the resumed depth finished walking', async () => {
+
   // Regression (verdict finding, repeated): on a COLD restore, page 1 loads
   // (loading=false) WHILE the resume walk is still ahead — the old code
   // consumed and clamped the saved anchor against partial content, losing
@@ -462,6 +463,123 @@ it('a fresh cache hit already holding the anchor restores the scroll without rep
   // The saved scroll applies against the CACHED rows (finds its position).
   await waitFor(() => expect(scrollSpy).toHaveBeenCalled())
   expect(scrollSpy.mock.calls[0][1]).toBe(5000)
+  scrollSpy.mockRestore()
+  if (originalHeight) Object.defineProperty(document.documentElement, 'scrollHeight', originalHeight!)
+})
+
+it('a twice-failed resume keeps the saved scroll unconsumed (no clamp on a partial page)', async () => {
+  // COLD restore, page 2 rejects and its single bounded retry rejects too:
+  // the failed walk FORFEITS the restore explicitly — the clamp must never
+  // run against the incomplete page-1 content (finding 04fb83ad: the old
+  // code released the hold and clamped anyway).
+  const originalHeight = Object.getOwnPropertyDescriptor(document.documentElement, 'scrollHeight')
+  Object.defineProperty(document.documentElement, 'scrollHeight', { configurable: true, value: 6000 })
+  clearLibraryCache()
+  const scrollSpy = vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
+  const gates: Array<(value: unknown) => void> = []
+  vi.mocked(api.get).mockImplementation((url: string, config?: { params?: { cursor?: string } }) => {
+    if (url === '/api/v1/divers') return Promise.resolve({ data: divers })
+    const cursor = config?.params?.cursor ?? null
+    const page = (base: number, next: string | null) => ({
+      data: { items: [dive(base, `${base}B`, 1), dive(base + 1, `${base + 1}B`, 1)], next_cursor: next },
+    })
+    if (!cursor) return Promise.resolve(page(1, 'p2'))
+    return new Promise(resolve => { gates.push(resolve) })
+  })
+  saveWorkspace('scope=all', 5000, { anchor: null, pages: 3 })
+  renderAt('/dives')
+  await screen.findByRole('button', { name: /Open 2B attempt/ })
+  // Release each p2 attempt AS IT appears (the bounded retry starts only
+  // after the first attempt rejects): both must fail for the forgo.
+  await waitFor(() => expect(gates.length).toBe(1))
+  gates[0](Promise.reject(new Error('down')))
+  await waitFor(() => expect(gates.length).toBe(2))
+  gates[1](Promise.reject(new Error('down')))
+  // The walk surfaces its error and the anchor is discarded explicitly —
+  // never a scrollTo against the bare page-1 slice.
+  await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('The dive library could not be loaded.'))
+  await new Promise(resolve => setTimeout(resolve, 80))
+  expect(scrollSpy).not.toHaveBeenCalled()
+  // No p2/p3 rows were fabricated either.
+  expect(screen.queryByRole('button', { name: /Open 101B attempt/ })).not.toBeInTheDocument()
+  scrollSpy.mockRestore()
+  if (originalHeight) Object.defineProperty(document.documentElement, 'scrollHeight', originalHeight!)
+})
+
+it('the bounded retry saves the restore: a transient p2 drop walks on and restores the full depth', async () => {
+  // The FIRST p2 read rejects; the bounded retry answers and the walk
+  // continues to p3, re-reaches the saved anchor row and restores the
+  // saved scroll (success walks and the warm-cache anchor keep working —
+  // finding 04fb83ad).
+  const originalHeight = Object.getOwnPropertyDescriptor(document.documentElement, 'scrollHeight')
+  Object.defineProperty(document.documentElement, 'scrollHeight', { configurable: true, value: 6000 })
+  clearLibraryCache()
+  const scrollSpy = vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
+  let p2Attempts = 0
+  vi.mocked(api.get).mockImplementation(async (url: string, config?: { params?: { cursor?: string } }) => {
+    if (url === '/api/v1/divers') return Promise.resolve({ data: divers })
+    const cursor = config?.params?.cursor ?? null
+    const page = (base: number, next: string | null) => ({
+      data: { items: [dive(base, `${base}B`, 1), dive(base + 1, `${base + 1}B`, 1)], next_cursor: next },
+    })
+    if (!cursor) return Promise.resolve(page(1, 'p2'))
+    if (cursor === 'p2') {
+      p2Attempts += 1
+      if (p2Attempts === 1) {
+        await new Promise(resolve => setTimeout(resolve, 60))
+        throw new Error('transient')
+      }
+      return Promise.resolve({ data: { items: [dive(101, '101B', 1), dive(102, '102B', 1)], next_cursor: 'p3' } })
+    }
+    if (cursor === 'p3') return Promise.resolve({ data: { items: [dive(201, '201B', 1), dive(202, '202B', 1)], next_cursor: null } })
+    return Promise.resolve(page(301, null))
+  })
+  // The anchor row (202) lives in p3: the walk must cross the transient
+  // failure to reach it.
+  saveWorkspace('scope=all', 5000, { anchor: 202, pages: 4 })
+  renderAt('/dives')
+  expect(await screen.findByRole('button', { name: /Open 202B attempt/ })).toBeInTheDocument()
+  // Full remembered depth restored → the clamp runs against it.
+  await waitFor(() => expect(scrollSpy).toHaveBeenCalled())
+  expect(scrollSpy.mock.calls[0][1]).toBe(5000)
+  scrollSpy.mockRestore()
+  if (originalHeight) Object.defineProperty(document.documentElement, 'scrollHeight', originalHeight!)
+})
+
+it('a superseding pass forfeits the held anchor too (no clamp after the exchange)', async () => {
+  // While p2 is held, a filter change starts a NEWER pass (page-1 re-keyed);
+  // the held walk belongs to a dead epoch and, once released, must NOT let
+  // the clamp run against the newer partial content.
+  const originalHeight = Object.getOwnPropertyDescriptor(document.documentElement, 'scrollHeight')
+  Object.defineProperty(document.documentElement, 'scrollHeight', { configurable: true, value: 6000 })
+  clearLibraryCache()
+  const scrollSpy = vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
+  let release: ((value: unknown) => void) | null = null
+  vi.mocked(api.get).mockImplementation((url: string, config?: { params?: { cursor?: string } }) => {
+    if (url === '/api/v1/divers') return Promise.resolve({ data: divers })
+    const cursor = config?.params?.cursor ?? null
+    const page = (base: number, next: string | null) => ({
+      data: { items: [dive(base, `${base}B`, 1), dive(base + 1, `${base + 1}B`, 1)], next_cursor: next },
+    })
+    if (!cursor) return Promise.resolve(page(1, 'p2'))
+    return new Promise(resolve => { release = resolve })
+  })
+  saveWorkspace('scope=all', 5000, { anchor: null, pages: 3 })
+  renderAt('/dives')
+  await screen.findByRole('button', { name: /Open 2B attempt/ })
+  await waitFor(() => expect(release).not.toBeNull())
+  // A filter change re-keys the pass (search text → newer epoch) BEFORE p2
+  // is released: the held walk is superseded (a fresh page-1 call with the
+  // new q lands).
+  await userEvent.type(screen.getByRole('textbox', { name: 'Search dives' }), 'back')
+  await waitFor(() => {
+    const libraryCalls = vi.mocked(api.get).mock.calls.filter(([url, config]) =>
+      url === '/api/v1/dives/library' && (config as { params?: { cursor?: string } }) && !(config as { params?: { cursor?: string } }).params?.cursor)
+    expect(libraryCalls.length).toBeGreaterThanOrEqual(2)
+  }, { timeout: 3000 })
+  release!({ data: { items: [dive(101, '101B', 1), dive(102, '102B', 1)], next_cursor: null } })
+  await new Promise(resolve => setTimeout(resolve, 100))
+  expect(scrollSpy).not.toHaveBeenCalled()
   scrollSpy.mockRestore()
   if (originalHeight) Object.defineProperty(document.documentElement, 'scrollHeight', originalHeight!)
 })

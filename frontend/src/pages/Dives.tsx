@@ -473,7 +473,11 @@ function DiveLibrary() {
               // than the saved position, so the saved scroll has no meaning.
               resumeWalkingRef.current = true;
               void resumeDepth(depth, nextCursor ?? null).then(result => {
-                if (result.current && !result.anchorReached) {
+                if (!result.anchorReached) {
+                  // Every not-re-reached outcome — a failed walk (after its
+                  // bounded retry) and a superseded one alike — forfeits
+                  // the restore EXPLICITLY: the clamp must never run
+                  // against partial page-1 content (finding 04fb83ad).
                   workspaceRestorePending.current = null;
                   workspaceRestoreKeyRef.current = null;
                 }
@@ -567,29 +571,56 @@ function DiveLibrary() {
     // The walk watches for the anchor row and reports explicitly whether
     // the remembered position was re-reached within the cap.
     let anchorReached = depth.anchor === null;
-    for (let page = 1; page < target && cursor; page++) {
-      if (epoch !== pageGeneration.current) return { anchorReached, current: false };
+
+    const hostPage = (items: Dive[]) => {
+      setDives(current => [...current, ...items.filter(item => !current.some(dive => dive.id === item.id))]
+        .sort((a, b) => Date.parse(b.dive_datetime) - Date.parse(a.dive_datetime) || b.id - a.id));
+      setShown(count => count + 100);
+      pagesHostedRef.current += 1;
+    };
+    // One page read, retried AT MOST ONCE: a transient drop must not cost
+    // the whole restored depth (the same one-retry precedent as the route
+    // loaders). A second failure surfaces the error; the caller then
+    // discards the anchor explicitly instead of clamping against partial
+    // content (finding 04fb83ad).
+    const readPage = async (atCursor: string): Promise<{ items: Dive[]; next: string | null } | 'failed' | 'superseded'> => {
       try {
-        const response = await api.get('/api/v1/dives/library', { params: { ...pageParams, cursor } });
-        if (epoch !== pageGeneration.current) return { anchorReached, current: false };
-        const items: Dive[] = response.data.items;
-        setDives(current => [...current, ...items.filter(item => !current.some(dive => dive.id === item.id))]
-          .sort((a, b) => Date.parse(b.dive_datetime) - Date.parse(a.dive_datetime) || b.id - a.id));
-        setShown(count => count + 100);
-        pagesHostedRef.current += 1;
-        cursor = response.data.next_cursor as string | null;
-        // The manual control continues from the resume's deepest page, not
-        // from the first resume's anchor: otherwise "Load more" re-fetches
-        // the pages the resume already hosted.
-        if (epoch === pageGeneration.current) setNextCursor(cursor ?? null);
-        if (!anchorReached && depth.anchor !== null && items.some(item => item.id === depth.anchor)) {
-          // The remembered position re-reached: the depth IS restored; no
-          // point fetching pages the user had never reached.
-          return { anchorReached: true, current: true };
-        }
+        const response = await api.get('/api/v1/dives/library', { params: { ...pageParams, cursor: atCursor } });
+        if (epoch !== pageGeneration.current) return 'superseded';
+        return { items: response.data.items, next: response.data.next_cursor as string | null };
+      } catch {
+        if (epoch !== pageGeneration.current) return 'superseded';
+      }
+      // The decisive re-run of the SAME page (bounded, once).
+      try {
+        const response = await api.get('/api/v1/dives/library', { params: { ...pageParams, cursor: atCursor } });
+        if (epoch !== pageGeneration.current) return 'superseded';
+        return { items: response.data.items, next: response.data.next_cursor as string | null };
       } catch {
         if (epoch === pageGeneration.current) setError(t('dives.errorLoad'));
-        return { anchorReached: false, current: false };
+        return 'failed';
+      }
+    };
+
+    for (let page = 1; page < target && cursor; page++) {
+      if (epoch !== pageGeneration.current) return { anchorReached, current: false };
+      const outcome = await readPage(cursor);
+      if (outcome === 'superseded') return { anchorReached, current: false };
+      if (outcome === 'failed') {
+        // A failed walk did NOT re-reach the anchor: the caller discards.
+        if (epoch === pageGeneration.current) setError(t('dives.errorLoad'));
+        return { anchorReached: false, current: epoch === pageGeneration.current };
+      }
+      hostPage(outcome.items);
+      cursor = outcome.next;
+      // The manual control continues from the resume's deepest page, not
+      // from the first resume's anchor: otherwise "Load more" re-fetches
+      // the pages the resume already hosted.
+      if (epoch === pageGeneration.current) setNextCursor(cursor ?? null);
+      if (!anchorReached && depth.anchor !== null && outcome.items.some(item => item.id === depth.anchor)) {
+        // The remembered position re-reached: the depth IS restored; no
+        // point fetching pages the user had never reached.
+        return { anchorReached: true, current: true };
       }
     }
     return { anchorReached, current: epoch === pageGeneration.current };
