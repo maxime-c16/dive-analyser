@@ -83,8 +83,8 @@ export default function CodeAnalysis() {
   // signed-in account (same viewer key as the Library snapshot cache).
   const viewerKey = libraryKey(user)
 
-  const [attempts, setAttempts] = useState<Attempt[] | null>(() => peekCodeAttemptsResult(code, scope, viewerKey)?.items ?? null)
-  const [attemptsCapped, setAttemptsCapped] = useState<boolean>(() => peekCodeAttemptsResult(code, scope, viewerKey)?.capped ?? false)
+  const [attempts, setAttempts] = useState<Attempt[] | null>(() => peekCodeAttemptsResult(code, scope, viewerKey, diverId)?.items ?? null)
+  const [attemptsCapped, setAttemptsCapped] = useState<boolean>(() => peekCodeAttemptsResult(code, scope, viewerKey, diverId)?.capped ?? false)
   const [summaries, setSummaries] = useState<CodeSummary[] | null>(() => peekCodeSummaries({ diver_scope: scope }, viewerKey)?.codes ?? null)
   const [error, setError] = useState<string | null>(null)
   const [reload, setReload] = useState(0)
@@ -98,10 +98,10 @@ export default function CodeAnalysis() {
 
   useEffect(() => {
     let live = true
-    setAttempts(peekCodeAttemptsResult(code, scope, viewerKey)?.items ?? null)
-    setAttemptsCapped(peekCodeAttemptsResult(code, scope, viewerKey)?.capped ?? false)
+    setAttempts(peekCodeAttemptsResult(code, scope, viewerKey, diverId)?.items ?? null)
+    setAttemptsCapped(peekCodeAttemptsResult(code, scope, viewerKey, diverId)?.capped ?? false)
     setError(null)
-    getCodeAttemptsResult(code, scope, viewerKey).then(result => { if (live) { setAttempts(result.items); setAttemptsCapped(result.capped) } }).catch(() => { if (live) setError(t('codeAnalysis.loadError')) })
+    getCodeAttemptsResult(code, scope, viewerKey, diverId).then(result => { if (live) { setAttempts(result.items); setAttemptsCapped(result.capped) } }).catch(() => { if (live) setError(t('codeAnalysis.loadError')) })
     getCodeSummaries({ diver_scope: scope }, viewerKey).then(data => { if (live) setSummaries(data.codes) }).catch(() => undefined)
     return () => { live = false }
   }, [code, scope, reload, t, viewerKey])
@@ -269,6 +269,7 @@ export default function CodeAnalysis() {
     </div>
 
     {!analytics && <div className="ca-span ca-note">{t('codeAnalysis.straightJump')}</div>}
+    {!items.length && attemptsCapped && <div className="ca-span ca-note">{t('codeAnalysis.cappedAria', { total: attemptsTotal })}</div>}
     {!items.length ? <div className="ca-span ca-note">{t('codeAnalysis.emptyPeriod', { code })} <button type="button" className="ca-btn" onClick={() => update({ period: null, h: null, month: null })}>{t('codeAnalysis.showAll')}</button></div> : <>
       <div className="ca-main">
         {analytics && <div>

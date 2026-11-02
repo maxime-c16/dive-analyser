@@ -86,8 +86,8 @@ export function peekCodeAttempts(code: string, scope: string, viewer: string | n
 
 export type CodeAttemptsResult = { items: Attempt[]; capped: boolean }
 
-export function peekCodeAttemptsResult(code: string, scope: string, viewer: string | null = null): CodeAttemptsResult | null {
-  return codeAttempts.get(scopedKey(viewer, code.toUpperCase(), scope))?.value ?? null
+export function peekCodeAttemptsResult(code: string, scope: string, viewer: string | null = null, diverId: number | null = null): CodeAttemptsResult | null {
+  return codeAttempts.get(scopedKey(viewer, code.toUpperCase(), scope, diverId))?.value ?? null
 }
 
 /** Newest-attempts window for one exact code, at most this many pages of 100:
@@ -99,15 +99,18 @@ const MAX_CACHE_ENTRIES = 16
  * through the bounded Library pages. `capped` marks an explicit newest
  * window: the Code Analysis page says so instead of pretending the whole
  * history was walked. */
-export function getCodeAttemptsResult(code: string, scope: string, viewer: string | null = null): Promise<CodeAttemptsResult> {
+export function getCodeAttemptsResult(code: string, scope: string, viewer: string | null = null, diverId: number | null = null): Promise<CodeAttemptsResult> {
   const exact = code.toUpperCase()
-  return cached(codeAttempts, scopedKey(viewer, exact, scope), async () => {
+  return cached(codeAttempts, scopedKey(viewer, exact, scope, diverId), async () => {
     const items: Attempt[] = []
     let cursor: string | null = null
     let capped = false
     for (let page = 0; page < MAX_ATTEMPT_PAGES; page++) {
       const response: { data: { items: Attempt[]; next_cursor: string | null } } = await api.get('/api/v1/dives/library', {
-        params: { limit: 100, diver_scope: scope, code_prefix: exact, ...(cursor ? { cursor } : {}) },
+        // A diver view narrows server-side BEFORE the bounded walk: the
+        // selected diver's older attempts stay reachable inside the newest
+        // window instead of being cut by the cap first.
+        params: { limit: 100, diver_scope: scope, code_prefix: exact, ...(diverId ? { diver_id: diverId } : {}), ...(cursor ? { cursor } : {}) },
       })
       // The Library response is newest first, so a bounded walk keeps the
       // newest window complete and says so, rather than mixing eras.

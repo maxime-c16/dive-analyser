@@ -188,6 +188,7 @@ def list_dives(
     modifier_filter: str = "",
     code_filter: str = "",
     cursor: Optional[str] = None,
+    diver_id: Optional[int] = None,
 ):
     """
     List dives with optional filters
@@ -199,6 +200,12 @@ def list_dives(
         search_text=search_text, position_filter=position_filter, sync_filter=sync_filter,
         modifier_filter=modifier_filter, code_filter=code_filter,
     )
+    # Exact-diver narrowing INSIDE the applied access scope, before the cap
+    # walk: a selected diver's older attempts stay reachable without growing
+    # the bounded window. Unknown diver_ids answer an empty page ("missing,
+    # not forbidden") — the scope above never widens.
+    if diver_id is not None:
+        query = query.filter(Dive.diver_id == diver_id)
     from app.services.library_query import decode_cursor
     if cursor:
         before_date, before_id = decode_cursor(cursor)
@@ -256,6 +263,7 @@ def library_page(
     sync_filter: Optional[bool] = None, modifier_filter: str = "",
     date_from: Optional[datetime] = Query(None), date_to: Optional[datetime] = Query(None),
     code_filter: str = Query("", max_length=8192),
+    diver_id: Optional[int] = Query(None),
 ):
     """A bounded, filtered Library page; cursor ties include id for stable order."""
     from app.services.library_query import encode_cursor
@@ -264,7 +272,8 @@ def library_page(
         exclude_lineup=True, exclude_personal=False, diver_scope=diver_scope,
         limit=limit + 1, offset=0, code_prefix=code_prefix, search_text=search_text,
         position_filter=position_filter, sync_filter=sync_filter,
-        modifier_filter=modifier_filter, code_filter=code_filter, cursor=cursor)
+        modifier_filter=modifier_filter, code_filter=code_filter, cursor=cursor,
+        diver_id=diver_id)
     more = len(rows) > limit
     rows = rows[:limit]
     # One bounded join after list_dives has applied the existing access scope.

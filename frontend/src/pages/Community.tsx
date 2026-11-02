@@ -149,12 +149,16 @@ export default function Community() {
 
       <Leaderboard excluded={excluded} me={me} />
 
-      {divers.length > 0 && <section className="cm-section" aria-labelledby="cm-divers">
+      {/* Section banners come from the directory totals: a category that
+          lives entirely on a later page still gets its banner (empty of
+          cards until the continuation carries it in), instead of the first
+          page deciding which sections exist. */}
+      {(divers.length > 0 || (totals?.divers ?? 0) > 0) && <section className="cm-section" aria-labelledby="cm-divers">
         <h2 id="cm-divers" className="cm-h2">{t('community.divers')}<span>{diversTotal}</span></h2>
         <div className="cm-list">{divers.map(row)}</div>
       </section>}
 
-      {others.length > 0 && <section className="cm-section" aria-labelledby="cm-others">
+      {(others.length > 0 || (totals?.others ?? 0) > 0) && <section className="cm-section" aria-labelledby="cm-others">
         <h2 id="cm-others" className="cm-h2">{t('community.otherMembers')}<span>{othersTotal}</span></h2>
         <div className="cm-chips">{(showAll ? others : others.slice(0, 8)).map((member, index) => <Link key={member.user_id} to={`/users/${member.user_id}`} className="cm-chip ca-pop" style={{ '--i': index } as CSSProperties}>
           <MemberAvatar member={member} size={30} />{member.display_name}

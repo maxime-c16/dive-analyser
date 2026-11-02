@@ -40,7 +40,7 @@ beforeEach(() => {
 it('summarises every attempt of the code and highlights the dive it came from', async () => {
   renderPage('/dives/analysis/5122D?attempt=6')
   expect(await screen.findByRole('heading', { name: '5122D' })).toBeInTheDocument()
-  expect(getCodeAttemptsResult).toHaveBeenCalledWith('5122D', 'self', null)
+  expect(getCodeAttemptsResult).toHaveBeenCalledWith('5122D', 'self', null, null)
   expect(screen.getByText(/12 attempts · 6 sessions/)).toBeInTheDocument()
   const focus = screen.getByText(/This dive/).closest('button')!
   expect(within(focus).getByText('10.0')).toBeInTheDocument()

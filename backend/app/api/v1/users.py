@@ -30,9 +30,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from PIL import Image, ImageOps, UnidentifiedImageError
 from starlette.concurrency import run_in_threadpool
-from sqlalchemy import Integer, and_, case, cast, func, literal, or_, select, union_all
+from sqlalchemy import Integer, and_, case, cast, exists, false, func, literal, or_, select, union_all
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import aliased, Session
 
 from app.api.v1.auth import get_current_user, _origin_allowed
 from app.database import get_db
@@ -141,18 +141,28 @@ def search_members(q: str = Query("", max_length=120), after: int = Query(0, ge=
                 next_after=rows[limit - 1].id if len(rows) > limit else None)
 
 
-def _community_totals(db: Session, user: AppUser, now: datetime) -> dict:
+def _community_totals(db: Session, user: AppUser, now: datetime) -> dict | None:
     """Complete Community counts, over the whole directory (never the page subset).
 
     Same semantics the page computed client-side so far: peers are active
     accounts minus the viewer and the accounts bound to the viewer's own
     divers; divers have at least one dive visible to the requester; recent
     divers dove within the last 30 days. The client uses these so a partially
-    loaded directory never silently truncates section counts.
+    loaded directory never silently truncates section counts. Returns None on
+    a failure (the caller serves the page without totals; the frontend falls
+    back to the loaded page's own counts instead of reporting fake zeros).
     """
     own = owned_diver_ids(db, user.id)
-    linked = {uid for (uid,) in db.query(UserDiverAccess.user_id).filter(
-        UserDiverAccess.access_kind == "OWNER", UserDiverAccess.diver_id.in_(own)).all()} if own else set()
+    # Bounded by the viewer's own divers (small); the LINKED-account rule is
+    # expressed as EXISTS against the viewer's diver set, never expanded into
+    # materialized account-id lists (identity scope compounds with the
+    # directory size otherwise).
+    owns = aliased(UserDiverAccess)
+    linked = exists(select(1).where(
+        owns.user_id == AppUser.id,
+        owns.access_kind == "OWNER",
+        owns.diver_id.in_(own),
+    )) if own else false()
     stamp = func.coalesce(Dive.dive_datetime, Dive.created_at)
     horizon = now - timedelta(days=30)
 
@@ -174,7 +184,11 @@ def _community_totals(db: Session, user: AppUser, now: datetime) -> dict:
             # active accounts.
             AppUser.is_active.is_(True),
             UserDiverAccess.user_id != user.id,
-            UserDiverAccess.user_id.notin_(linked),
+            ~exists(select(1).where(
+                owns.user_id == UserDiverAccess.user_id,
+                owns.access_kind == "OWNER",
+                owns.diver_id.in_(own),
+            )),
         ).group_by(UserDiverAccess.user_id).subquery()
         return db.query(
             func.count(per_user.c.user_id),
@@ -186,10 +200,9 @@ def _community_totals(db: Session, user: AppUser, now: datetime) -> dict:
     except Exception as exc:
         db.rollback()
         logging.getLogger(__name__).error("directory totals failed (%s)", type(exc).__name__)
-        divers = recent = 0
+        return None
     member_total = db.query(func.count(AppUser.id)).filter(
-        AppUser.is_active.is_(True), AppUser.id != user.id,
-        ~AppUser.id.in_(linked),
+        AppUser.is_active.is_(True), AppUser.id != user.id, ~linked,
     ).scalar() or 0
     return dict(members=member_total, divers=divers,
                 others=max(member_total - divers, 0), recent=recent)
@@ -213,8 +226,12 @@ def member_directory(after: int = Query(0, ge=0), limit: int = Query(200, ge=1, 
     has_more = len(rows) > limit
     rows = rows[:limit]
     own = owned_diver_ids(db, user.id)
+    # The linked-account binding is scoped to THIS PAGE's rows: a small,
+    # bounded materialization instead of one entry per community account
+    # (the same bound the page itself obeys).
     linked = {uid for (uid,) in db.query(UserDiverAccess.user_id).filter(
-        UserDiverAccess.access_kind == "OWNER", UserDiverAccess.diver_id.in_(own)).all()} if own else set()
+        UserDiverAccess.user_id.in_([row.id for row in rows]),
+        UserDiverAccess.access_kind == "OWNER", UserDiverAccess.diver_id.in_(own)).all()} if rows and own else set()
     stats = {uid: (count, latest) for uid, count, latest in db.query(
         UserDiverAccess.user_id, func.count(Dive.id),
         func.max(func.coalesce(Dive.dive_datetime, Dive.created_at)),
@@ -229,9 +246,10 @@ def member_directory(after: int = Query(0, ge=0), limit: int = Query(200, ge=1, 
         items.append(dict(**_identity(row), accessible_dive_count=count,
                           latest_dive_at=latest.isoformat() + "Z" if latest else None,
                           linked=row.id in linked))
-    return dict(items=items, has_more=has_more,
-                next_after=rows[-1].id if has_more and rows else None,
-                totals=_community_totals(db, user, now))
+    return dict(items=items,
+                has_more=has_more,
+                totals=_community_totals(db, user, now),
+                next_after=rows[-1].id if has_more and rows else None)
 
 
 @router.get("/leaderboard")
