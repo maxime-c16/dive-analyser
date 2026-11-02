@@ -15,6 +15,12 @@ import Dives from './Dives'
 import { nameSearchCodes } from '../utils/diveNameSearch'
 import { clearLibraryCache } from '../services/libraryCache'
 
+// Cold lazy-route imports transformed by Vitest can take well over 5s on the
+// shared 2-CPU server while the gate runs next to production: every test
+// that opens a lazy route below waits with this shared budget instead of the
+// 1s default.
+const LAZY_ROUTE_WAIT = 20_000
+
 let mockUser: Record<string, unknown> | null = {
   user_id: 1, role: 'owner', is_admin: true, divers: [{ diver_id: 1, access_kind: 'OWNER' }],
 }
