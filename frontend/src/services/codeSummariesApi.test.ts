@@ -132,3 +132,38 @@ it('asks the server for the EXACT code so same-prefix siblings cannot crowd the 
   // The display only keeps this code's own rows (defense in depth).
   expect(result.items.map(item => item.dive_code)).toEqual(['201A'])
 })
+
+it('an evicted pending full-summary request aborts at the transport and never lands in cache', async () => {
+  // The full-summary read is cached like the attempts walk: eviction of a
+  // pending entry ABORTS its in-flight api.get at the transport (finding
+  // a7a6e37f: the old code left the request live and kept its rows), and
+  // a settled-but-dead response never writes back into the bounded cache.
+  const empty = { data: { generated_at: '2026-11-02T00:00:00Z', codes: [], activity: { current: {}, previous: {}, months: [], weeks: [] } } }
+  let release!: (value?: unknown) => void
+  const signals: AbortSignal[] = []
+  vi.mocked(api.get).mockImplementation((_url, config) => {
+    const params = (config?.params ?? {}) as Record<string, unknown>
+    if (params.page === undefined) {
+      // The FIRST full-summary request is held pending…
+      const signal = (config as { signal?: AbortSignal } | undefined)?.signal
+      if (signal) signals.push(signal)
+      return new Promise<unknown>(resolve => { release = resolve })
+    }
+    // …every later summary answers instantly.
+    return Promise.resolve({ data: JSON.parse(JSON.stringify(empty.data)) })
+  })
+  const inFlight = getCodeSummaries({ diver_scope: 'all' }, 'viewer-a')
+  // Sixteen later summaries settle instantly; the 16-entry cap evicts the
+  // oldest = the pending first summary (its transport signal aborts NOW).
+  for (let index = 0; index < 16; index++) {
+    await getCodeSummaries({ diver_scope: 'all', page: index }, 'viewer-b')
+  }
+  // The signal EXISTS and aborted before the held response is released —
+  // the old code (no signal forwarded) leaves this array empty.
+  expect(signals.length).toBe(1)
+  expect(signals[0].aborted).toBe(true)
+  release!(JSON.parse(JSON.stringify(empty.data)))
+  await inFlight
+  // The dead response never reinserts.
+  expect(peekCodeSummaries({ diver_scope: 'all' }, 'viewer-a')).toBeNull()
+})

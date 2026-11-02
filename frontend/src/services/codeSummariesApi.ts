@@ -106,7 +106,10 @@ export function peekCodeSummaries(params: LibraryCodeParams, viewer: string | nu
 
 export function getCodeSummaries(params: LibraryCodeParams, viewer: string | null = null): Promise<CodeSummaries> {
   const clean = Object.fromEntries(Object.entries(params).filter(([, value]) => value !== '' && value !== undefined))
-  return cached(summaries, scopedKey(viewer, params), () => api.get('/api/v1/dives/library/codes', { params: clean }).then(response => response.data))
+  // The signal rides into the request options: an evicted pending summary
+  // is ABORTED at the transport like the attempts walk, so rapid filter
+  // changes retain neither the request nor its rows (finding a7a6e37f).
+  return cached(summaries, scopedKey(viewer, params), (_liveness, signal) => api.get('/api/v1/dives/library/codes', { params: clean, signal }).then(response => response.data))
 }
 
 export function peekCodeAttempts(code: string, scope: string, viewer: string | null = null): Attempt[] | null {
