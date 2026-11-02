@@ -31,3 +31,7 @@
 ## Passe 2026-11-02 ~13h (183 round-5 : verdict COMMENT sur 44bd8da8)
 
 - **Calendar.tsx:361 — la notice « rien d'enregistré » (passé) est attaquée par la SEULE réalité de la fenêtre passée** : suppression du cross-condition `!upcoming.length` (des sessions à venir non vides effaçaient l'explication de la section passée vide) ; les gardes loading/error/incomplete restent des lignes séparées, inchangées. Test : passe vide + sessions à venir via next-card & agenda → la notice « Nothing recorded in the past three months. » reste affichée À CÔTÉ des sessions prévues (l'ancien code la supprimait). 5/5 pastView + TS verts. Push head: CE commit.
+
+## Passe 2026-11-02 ~14h (183 round-6 : verdict COMMENT sur 2af37ff8)
+
+- **`calendar/strings.ts` — `incompletePast` NE promet plus l'impossible** : l'ancienne phrase conseillait de fermer-rouvrir la fenêtre pour « compléter » — un reload rejoue la MÊME requête bornée et ne peut pas compléter. Nouveau message FACTUEL (limite de chargement atteinte, fenêtre partielle, ce qui est chargé est affiché, le reste indisponible), EN + FR ; pas de test-miroir de texte (parité/types suffisent, pastView 7/7 + TS verts). Push head: CE commit.
