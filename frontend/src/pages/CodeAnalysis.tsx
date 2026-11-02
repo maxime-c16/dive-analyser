@@ -104,8 +104,11 @@ export default function CodeAnalysis() {
     setError(null)
     getCodeAttemptsResult(code, scope, viewerKey, diverId).then(result => { if (live) { setAttempts(result.items); setAttemptsCapped(result.capped) } }).catch(() => { if (live) setError(t('codeAnalysis.loadError')) })
     getCodeSummaries({ diver_scope: scope }, viewerKey).then(data => { if (live) setSummaries(data.codes) }).catch(() => undefined)
+    // diverId participates: switching the selected diver on the same code
+    // refetches the diver-scoped walk instead of leaving the previous
+    // diver's rows mounted with an unchanged all-scope value.
     return () => { live = false }
-  }, [code, scope, reload, t, viewerKey])
+  }, [code, scope, diverId, reload, t, viewerKey])
   useEffect(() => {
     let live = true
     setCommunity(null)
