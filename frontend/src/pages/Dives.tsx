@@ -460,10 +460,14 @@ function DiveLibrary() {
             // A fresh cache hit already CONTAINS the remembered anchor row
             // (its rows end at the snapshot's own nextCursor): replaying
             // pages from there would fetch beyond the remembered depth and
-            // then discard the saved scroll position. An anchor inside the
-            // loaded rows means the depth IS restored — no replay at all;
-            // an anchor among later pages keeps the bounded cold replay.
-            const anchorCached = depth.anchor !== null && dives.some(item => item.id === depth.anchor);
+            // then discard the saved scroll position. The skip checks THE
+            // LOADED VERSION'S OWN rows (loadedKeyRef === this pass' key —
+            // the response that shared the `dives` closure), never a stale
+            // other-key closure: an anchor among later pages keeps the
+            // bounded cold replay (finding cc205dbf).
+            const anchorCached = loadedKeyRef.current === cacheKey
+              && depth.anchor !== null
+              && dives.some(item => item.id === depth.anchor);
             if (!anchorCached) {
               // The scroll anchor stays PENDING while the walk proceeds (the
               // scroll effect skips the consumption); the anchor is released
@@ -512,6 +516,11 @@ function DiveLibrary() {
   // restored content instead of page 1's slice.
   useEffect(() => {
     if (loading || workspaceRestorePending.current === null) return;
+    // BOTH keys must be ASSIGNED: null === null would "match" and consume
+    // the anchor against the STALE pre-restore rows (a bare-URL pass whose
+    // merge redirects to the restored filters mounts its own earlier cache
+    // rows — the anchor must not clamp there, finding cc205dbf).
+    if (!workspaceRestoreKeyRef.current) return;
     if (resumeWalkingRef.current) return;
     if (loadedKeyRef.current !== workspaceRestoreKeyRef.current) return;
     const anchor = workspaceRestorePending.current;

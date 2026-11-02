@@ -99,3 +99,10 @@
 
 - **Verdict** (run 41428688636) : `cached()` aboît les entrées évincées, MAIS `getCodeSummaries` ne transmettait PAS le signal à `api.get` — des requêtes full-summary restaient actives après éviction sous changements de filtres rapides. Vérification système faite : les DEUX consommateurs de `cached()` sont `getCodeSummaries` (corrigé ici) et `getCodeAttemptsResult` (signal déjà transmis) — aucun autre transport dans le fichier.
 - Test dédié : un summary pending évincé a son signal `aborted` AVANT la libération de la réponse (l'ancien code laissait le tableau vide) ; le release tardif n'écrit plus jamais dans le cache borné (peek null). 8/8 + TS verts. Push head: CE commit.
+
+## Passe 2026-11-02 ~17h (185 round-13 : REQUEST_CHANGES sur cc205dbf)
+
+- **Verdict** (re-review parent, checks verts d'abord) : le check d'anchor warm-cache ne regardait la closure `dives` SANS lier à la version chargée — sur un restore bare-URL avec des filtres différents, les rows stales du pass bare (qui CONTIENNEN T l'ancre) peuvent clamps l'ancre sur un contenu qui n'est pas la page restaurée.
+- **Diagnostic réel par la régression demandée** : le clamp s'exécutait NON PAS pendant le walk mais dans la FENÊTRE pass-1 — `workspaceRestoreKeyRef` pas encore assigné et `loadedKeyRef` null → la garde `null === null` de l'effet de restauration de scroll passait et clampait sur les rows stales du pass bare.
+- **Corrigé (les deux gardes)** : (1) l'effet de restoration de scroll EXIGE les deux clés ASSIGNÉES (plus jamais `null === null`) ; (2) le skip warm-cache lie la closure à la VERSION CHARGÉE (`loadedKeyRef.current === cacheKey` && l'ancre dans la réponse de CETTE key uniquement — jamais une closure stale d'une autre key).
+- Régression prouvée : restore bare-URL + filtres différents + cache stale du scope bare contenant l'ancre + page matching scope=all SANS l'ancre → la walk RÉELLE se lance (p2/p3 fetch), l'ancre non re-atteinte est FORFEITED — clamp JAMAIS sur la page partiel (anciennement appelé scrollTo avant le fix). Warm-cache VÉRITABLE + cold success/error/retry/cancel préservés (29/29 + TS verts). Push head: CE commit.

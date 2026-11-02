@@ -629,3 +629,51 @@ it('manual Load more stands down while the walk consumes the same cursor, then r
     url === '/api/v1/dives/library' && (config as { params?: { cursor?: string } } | undefined)?.params?.cursor)
   expect(cursorCalls).toHaveLength(3) // p2 (walk) + p3 (walk) + p4 (manual)
 })
+
+it('a bare-URL restore whose filtered page hides the anchor still walks (stale closure cannot skip)', async () => {
+  // A bare /dives restores the workspace's DIFFERENT filters (scope=all)
+  // and then loads THE MATCHING page 1 — which does NOT contain the saved
+  // anchor row (the stale BARE-scope cache does). The walk MUST actually
+  // run to the remembered depth (paginated target): an anchor-skip read
+  // from a stale closure would clamp against just page 1 (finding
+  // cc205dbf).
+  clearLibraryCache()
+  const originalHeight = Object.getOwnPropertyDescriptor(document.documentElement, 'scrollHeight')
+  Object.defineProperty(document.documentElement, 'scrollHeight', { configurable: true, value: 6000 })
+  const scrollSpy = vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
+  // Stale BARE-scope cache containing the anchor (id 97).
+  const barePageParamsKey = JSON.stringify({ limit: 100, diver_scope: 'self', height: '', performance: '', code_prefix: '', search_text: '', position_filter: '', modifier_filter: '' })
+  localStorage.setItem('dive-library-v1', JSON.stringify({
+    key: JSON.stringify([JSON.stringify([mockUser!.user_id, mockUser!.role, mockUser!.is_admin, ['1:OWNER']]), 'paged', barePageParamsKey]),
+    snapshot: { dives: [dive(97, '202B', 1), dive(2, '103B', 1)], divers, savedAt: Date.now(), nextCursor: 'p2-old' },
+  }))
+  // The workspace restores scope=all with a paginated depth (3 pages).
+  saveWorkspace('scope=all', 5000, { anchor: 97, pages: 3 })
+  const gates: Record<string, (value: unknown) => void> = {}
+  vi.mocked(api.get).mockImplementation((url: string, config?: { params?: { cursor?: string } }) => {
+    if (url === '/api/v1/divers') return Promise.resolve({ data: divers })
+    const cursor = config?.params?.cursor ?? null
+    const page = (base: number, next: string | null) => ({
+      data: { items: [dive(base, `${base}B`, 1), dive(base + 1, `${base + 1}B`, 1)], next_cursor: next },
+    })
+    if (!cursor) return Promise.resolve(page(1, 'p2'))
+    return new Promise(resolve => { gates[cursor] = resolve })
+  })
+  renderAt('/dives')
+  // The matching (scope=all) page 1 mounts rows 1–2; row 97 is NOT among
+  // them. If the anchor-skip wrongly fired, no cursor request ever lands.
+  await screen.findByRole('button', { name: /Open 2B attempt/ })
+  await waitFor(() => expect(gates.p2).toBeDefined())
+  // The walk is REAL: page 2's held read proves the replay started.
+  gates.p2!({ data: { items: [dive(101, '101B', 1), dive(102, '102B', 1)], next_cursor: 'p3' } })
+  await waitFor(() => expect(gates.p3).toBeDefined())
+  console.log('T1-after-p2', scrollSpy.mock.calls.length)
+  gates.p3!({ data: { items: [dive(201, '201B', 1), dive(202, '202B', 1)], next_cursor: null } })
+  // The walk finished (anchor unreachable in the bounded depth): the
+  // anchor forfeits — NEVER a clamp against the partial page-1 content.
+  await new Promise(resolve => setTimeout(resolve, 120))
+  console.log('T2-after-p3', scrollSpy.mock.calls.length, JSON.stringify(scrollSpy.mock.calls))
+  expect(scrollSpy).not.toHaveBeenCalled()
+  scrollSpy.mockRestore()
+  if (originalHeight) Object.defineProperty(document.documentElement, 'scrollHeight', originalHeight!)
+})
