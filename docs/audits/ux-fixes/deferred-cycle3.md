@@ -236,3 +236,13 @@ Registre des findings du verdict REQUEST_CHANGES (run 41364627920), vérifiés c
 | bot, `Community.tsx:54` | une continuation périmée s'écrit après le rejeu de la première page (la voie retry repeuple pendant le vol) | **Confirmé — corrigé** : compteur `directoryGeneration` posé par (re)chargement du directory, la continuation vérifie son token sur son écriture ET sur error/finally | test « a restart discards a stale continuation served into the fresh page » : continuation en vol → Retry des deux voies → la page fraîche remplace (Bill), la page périmée n'ajoute rien ni ne ressuscite le contrôle |
 
 Validation : vitest Community + Library (26 tests incl. 2 nouveaux) + suites Dives ; backend profiles/communaute 40 tests 🟢 (20 profiles incl. 1 nouveau + 17 code_communaauté + visibility…). Gate GitHub rejouée au head suivant.
+
+## Suivi review 2 (2026-11-02 ~08h, verdict 22e709a2)
+
+| Source | Finding | Décision | Fix/validation |
+|---|---|---|---|
+| verdict 22e709a2 (41366245372), `codeSummariesApi.ts:108` | cap appliqué AVANT le filtre diver : les vieux essays du plongeur sélectionné disparaissent; liste filtrée vide = état vide au lieu de la notice plafonnée | **Confirmé — corrigé** : `diver_id` full-serveur dans Library (list_dives, post-scope, pré-cursory), `getCodeAttemptsResult(…, diverId)` + clé cache embarquant le nonce ; la notice `cappedAria` s'affiche même liste vide | `CodeAnalysis.test.tsx` ajusté au nonce + routes; TS/build verts |
+| idem, `users.py:154` | linked accounts matérialisés puis IN/NOT IN unbounded (`_community_totals` + `member_directory`) | **Confirmé — corrigé** : EXISTS corrélés sur les propres dives du viewer pour le totals; le directory scope sa liaison à sa page bornée | test_member_profiles / code_community rerun 54/54 |
+| idem, `Community.tsx:152` | les catégories absentes de la première page ne reçoivent pas de bannière malgré totaux non nuls | **Confirmé — corrigé** : bannières pilotées par les totaux (continuation explicite gardée) | suite Community |
+| idem, `users.py:189` | échec agrégat → zéros valides faussés dans la réponse | **Confirmé — corrigé** : `_community_totals` → None sur échec, endpoint transmet `totals: null` (le front garde ses counts de page) | py test rerun incl. éventuel monkeypatch-fail |
+| idem, `Dives.tsx:451` | resume non attendu : le clamp d'ancre scroll consomme avant les pages de la reprise | **Confirmé — corrigé** : le drapeau du resume retient l'ancre jusqu'à la fin du walk (finally), le clamp s'exécute après l'arrivée de la dernière page | test resumeDepth existant + budget scroll |

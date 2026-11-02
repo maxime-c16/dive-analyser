@@ -10,3 +10,7 @@
 
 - L'échec serveur (post-checkout 4c78262) isolé : **le test clip deep-link tenant dans l'attente par défaut du dialogue lazy (1 s)** ; le serveur a montré un dépassement (le set lazy ClipViewer durait >1 s sous charge CI) — la réunion des lazy-routes du fichier utilise **LAZY_ROUTE_WAIT** ; le test dans la PR 186 maintenant reproduit le même budget, rien d'autre.
 - Le mini-PR **186** (base master, head `1a361d8a`, branch `t3/clip-dialog-wait`) ne porte QUE ce test — aucun comportement sans test de livraison. Les gates et le verdict du bot sur 186 prouveront le passage avant merge ; le deploy regroupé suit le match-head (l'index SQL déjà appliqué, aucune récurrence).
+
+## Passe 2026-11-02 ~08h (185 round2)
+
+- **185** head `f9bae848` : les 5 findings du verdict 22e709a2 traités (voir deferred-cycle3.md « Suivi review 2 ») ; le CONFLICT avec master (186 merge) résolu proprement (theirs cycle3-doc seulement); tests back 54/54 + front 35/35 + TS/build → CI/verdict au nouveau SHA.
