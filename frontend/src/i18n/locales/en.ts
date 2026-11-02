@@ -1520,6 +1520,8 @@ const en = {
     codeView: 'Code view',
     heightFilter: 'Height',
     allHeights: 'All heights',
+    heightsPartial: 'More heights exist (the list is partial).',
+    heightsPartialAria: 'The height list is partial: more heights exist beyond this bounded view. Open the Library filters to load them as you page.',
     contextFilter: 'Context',
     contextAll: 'Individual + SYNC',
     contextIndividual: 'Individual only',

@@ -1522,6 +1522,8 @@ const fr = {
     codeView: 'Vue par code',
     heightFilter: 'Hauteur',
     allHeights: 'Toutes les hauteurs',
+    heightsPartial: 'D’autres hauteurs existent (la liste est partielle).',
+    heightsPartialAria: 'La liste des hauteurs est partielle : d’autres hauteurs existent au-delà de cette vue bornée. Ouvrez les filtres de la Library pour les charger en paginant.',
     contextFilter: 'Contexte',
     contextAll: 'Individuel + SYNCHRO',
     contextIndividual: 'Individuel seulement',

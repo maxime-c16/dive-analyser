@@ -32,16 +32,20 @@ export type CodeSummaries = {
 export type LibraryCodeParams = Record<string, string | number | boolean | undefined>
 
 const FRESH_MS = 60_000
-type Entry<T> = { at: number; value?: T; promise?: Promise<T>; liveness?: { alive: boolean } }
+type Entry<T> = { at: number; value?: T; promise?: Promise<T>; liveness?: { alive: boolean }; abort?: () => void }
 type Liveness = { alive: boolean }
 let summaries = new Map<string, Entry<CodeSummaries>>()
 let codeAttempts = new Map<string, Entry<{ items: Attempt[]; capped: boolean }>>()
 
 /** Writes invalidate every derived read (see api.ts). In-flight walks of the
- * dropped maps are marked dead so bounded pages stop walking. */
+ * dropped maps are ABORTED at the transport (their in-flight api.get
+ * rejects) so dropped walks retain neither live requests nor partial rows. */
 export function clearCodeSummaryCache() {
   for (const store of [summaries, codeAttempts]) {
-    for (const entry of store.values()) entry.liveness && (entry.liveness.alive = false)
+    for (const entry of store.values()) {
+      entry.abort?.()
+      entry.liveness && (entry.liveness.alive = false)
+    }
   }
   summaries = new Map()
   codeAttempts = new Map()
@@ -56,8 +60,9 @@ function scopedKey(viewer: string | null, ...rest: unknown[]) {
 }
 
 /** Bounded cache: oldest entries (past the cap) are evicted including
- * pending ones, and an in-flight walk reads its own liveness so an evicted
- * walk stops after the current page instead of deepening beyond the cap. */
+ * pending ones — eviction ABORTS the in-flight request at the transport
+ * (axios signal) and marks the walk dead, so an evicted walk retains
+ * neither a live request nor its partial rows, and never reinserts. */
 function trim<T>(store: Map<string, Entry<T>>, keep: string) {
   let oldest: string | null = null
   let oldestAt = Infinity
@@ -68,17 +73,19 @@ function trim<T>(store: Map<string, Entry<T>>, keep: string) {
   }
   if (oldest) {
     const entry = store.get(oldest)
+    entry?.abort?.()
     if (entry?.liveness) entry.liveness.alive = false
     store.delete(oldest)
   }
 }
 
-function cached<T>(store: Map<string, Entry<T>>, key: string, load: (liveness: Liveness) => Promise<T>): Promise<T> {
+function cached<T>(store: Map<string, Entry<T>>, key: string, load: (liveness: Liveness, signal: AbortSignal) => Promise<T>): Promise<T> {
   const hit = store.get(key)
   if (hit?.promise) return hit.promise
   if (hit?.value !== undefined && Date.now() - hit.at < FRESH_MS) return Promise.resolve(hit.value)
   const liveness: Liveness = { alive: true }
-  const promise = load(liveness)
+  const controller = new AbortController()
+  const promise = load(liveness, controller.signal)
     // An evicted/reset walk NEVER writes back: the store may belong to a
     // newer entry (or none) — reinsertion would break the bounded cap and
     // resurrect stale rows under rapid switches.
@@ -88,7 +95,7 @@ function cached<T>(store: Map<string, Entry<T>>, key: string, load: (liveness: L
     })
     .catch(error => { if (liveness.alive) store.delete(key); throw error })
   while (store.size >= MAX_CACHE_ENTRIES) trim(store, key)
-  store.set(key, { at: Date.now(), value: hit?.value, promise, liveness })
+  store.set(key, { at: Date.now(), value: hit?.value, promise, liveness, abort: () => controller.abort() })
   return promise
 }
 
@@ -123,20 +130,21 @@ const MAX_CACHE_ENTRIES = 16
  * history was walked. */
 export function getCodeAttemptsResult(code: string, scope: string, viewer: string | null = null, diverId: number | null = null): Promise<CodeAttemptsResult> {
   const exact = code.toUpperCase()
-  return cached(codeAttempts, scopedKey(viewer, exact, scope, diverId), async (liveness) => {
+  return cached(codeAttempts, scopedKey(viewer, exact, scope, diverId), async (liveness, signal) => {
     const items: Attempt[] = []
     let cursor: string | null = null
     let capped = false
     for (let page = 0; page < MAX_ATTEMPT_PAGES; page++) {
-      // An evicted/reset walk stops at the page boundary: the bounded walk
-      // never deepens once the cache dropped it (an evicted pending walk
-      // no longer deepens under rapid code switches).
+      // An evicted/reset walk stops at the page boundary — and its in-flight
+      // request is ABORTED at the transport (axios signal), so a dropped
+      // walk retains neither a live request nor its partial rows.
       if (!liveness.alive && page > 0) { capped = true; break }
       const response: { data: { items: Attempt[]; next_cursor: string | null } } = await api.get('/api/v1/dives/library', {
         // A diver view narrows server-side BEFORE the bounded walk: the
         // selected diver's older attempts stay reachable inside the newest
         // window instead of being cut by the cap first.
         params: { limit: 100, diver_scope: scope, code_prefix: exact, ...(diverId ? { diver_id: diverId } : {}), ...(cursor ? { cursor } : {}) },
+        signal,
       })
       // The Library response is newest first, so a bounded walk keeps the
       // newest window complete and says so, rather than mixing eras.

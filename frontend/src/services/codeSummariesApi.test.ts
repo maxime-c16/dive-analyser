@@ -68,16 +68,21 @@ it('stops at a bounded newest window and reports the cap instead of lying', asyn
 
 it('an evicted in-flight walk stops deepening and never reinserts its result', async () => {
   // Walk A goes in flight (its second page is held); 16 later walks evict
-  // it (FIFO, pending included). The evicted walk must stop at the page
-  // boundary and NEVER write back — the old code walked to its cap and
-  // reinserted, both leaking the bound under rapid code switches.
+  // it (FIFO, pending included). Eviction ABORTS the in-flight request at
+  // the transport (axios signal): the held page's signal is already aborted
+  // BEFORE its release, the walk stops at the page boundary (never walks to
+  // its 10-page cap) and NEVER writes back — the old code kept the request
+  // live, walked to the cap and reinserted, all three leaking the bound.
   const callsByCode = new Map<string, number>()
+  const signalsByCode = new Map<string, AbortSignal>()
   let gateUsed = false
   let releaseA!: (value: unknown) => void
   vi.mocked(api.get).mockImplementation(async (_url, config) => {
     const params = (config?.params ?? {}) as { code_prefix?: string; cursor?: string }
+    const signal = (config as { signal?: AbortSignal } | undefined)?.signal
     const code = params.code_prefix ?? '?'
     callsByCode.set(code, (callsByCode.get(code) ?? 0) + 1)
+    if (signal) signalsByCode.set(code, signal)
     if (code === '599D' && params.cursor && !gateUsed) { gateUsed = true; return new Promise(resolve => { releaseA = resolve }) }
     return { data: { items: [{ id: 1, dive_code: code, dive_datetime: '2026-01-01T00:00:00Z' }], next_cursor: `cursor-${code}` } }
   })
@@ -88,7 +93,10 @@ it('an evicted in-flight walk stops deepening and never reinserts its result', a
     await getCodeAttemptsResult(`5${index}1D`, 'all', 'viewer-a')
   }
   expect(callsByCode.get('599D')).toBe(2)
-  // Release the held page: the walk lands it, then the liveness stops it.
+  // The eviction aborted the held request AT THE TRANSPORT (before its
+  // release — the old code's signal stayed live here).
+  expect(signalsByCode.get('599D')?.aborted).toBe(true)
+  // Releasing the held page resolves it; the walk still stops (dead).
   releaseA!({ data: { items: [{ id: 2, dive_code: '599D', dive_datetime: '2026-01-02T00:00:00Z' }], next_cursor: 'cursor-599D-2' } })
   await inFlight
   // The old code walked to its 10-page cap here (callsByCode 10) and

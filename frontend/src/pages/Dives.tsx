@@ -800,7 +800,7 @@ function DiveLibrary() {
     return rest;
   }, [pageParams]);
   const facetParamsKey = JSON.stringify(facetScopeParams);
-  const [heightFacets, setHeightFacets] = useState<{ key: string; heights: string[] } | null>(null);
+  const [heightFacets, setHeightFacets] = useState<{ key: string; heights: string[]; partial?: boolean } | null>(null);
   const facetScopeParamsRef = useRef(facetScopeParams);
   facetScopeParamsRef.current = facetScopeParams;
   useEffect(() => {
@@ -810,19 +810,27 @@ function DiveLibrary() {
     // URL answers the same options and switching the dimension needs no
     // detour through All heights. Failures fall back to the row-derived list.
     // The facet answer is EXPLICITLY bounded (limit + partial + after): the
-    // client follows the keyset for a bounded number of pages so the options
-    // stay complete instead of silently showing the first page's slice.
+    // client follows the keyset until the server says the domain is
+    // complete; if a safety cap (MAX_FACET_PAGES) is ever reached while the
+    // server still reports `partial`, the PARTIAL state stays visible
+    // instead of presenting the walk as the whole domain.
     const facets: string[] = [];
-    const walk = (after: string): Promise<void> => api
+    const MAX_FACET_PAGES = 10;
+    const walk = (after: string, depth: number): Promise<void> => api
       .get('/api/v1/dives/library/facets', { params: { ...facetScopeParamsRef.current, ...(after ? { after } : {}) } })
       .then((response) => {
         if (!active || !Array.isArray(response.data?.heights)) return;
         facets.push(...response.data.heights);
-        setHeightFacets({ key: facetParamsKey, heights: [...new Set(facets)] });
-        if (response.data.partial && response.data.after && facets.length < 500) return walk(response.data.after);
+        const stillPartial = Boolean(response.data.partial && response.data.after);
+        setHeightFacets({
+          key: facetParamsKey,
+          heights: [...new Set(facets)],
+          partial: stillPartial && depth + 1 >= MAX_FACET_PAGES,
+        });
+        if (stillPartial && depth + 1 < MAX_FACET_PAGES) return walk(response.data.after, depth + 1);
       })
       .catch(() => undefined);
-    void walk('');
+    void walk('', 0);
     return () => { active = false; };
   }, [facetParamsKey, reloadKey, accessKey]);
   const heights = useMemo(
@@ -1001,6 +1009,11 @@ function DiveLibrary() {
               </option>
             ))}
           </select>
+          {heightFacets?.partial && heightFacets.key === facetParamsKey && (
+            <span className="text-xs text-app-muted sm:w-auto" title={t("dives.heightsPartialAria")}>
+              {t("dives.heightsPartial")}
+            </span>
+          )}
           <select
             aria-label={t("dives.contextFilter")}
             value={contextFilter}
