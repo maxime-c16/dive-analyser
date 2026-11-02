@@ -186,7 +186,10 @@ it('never restores over an explicit Library URL or a clip deep link', async () =
   expect(window.location.search).toBe('?scope=all')
 
   const clipEntry = renderAt('/dives?clip=2')
-  expect(await screen.findByRole('dialog')).toBeInTheDocument()
+  // The clip stage lazy-loads (see LAZY_ROUTE_WAIT): under CI load its
+  // settle can outlive the default 1 s wait — wait for the dialog with the
+  // same shared budget.
+  expect(await screen.findByRole('dialog', {}, { timeout: LAZY_ROUTE_WAIT })).toBeInTheDocument()
   expect((clipEntry.container.querySelector('input[data-dives-search]') as HTMLInputElement).value).toBe('')
   clipEntry.unmount()
 })
