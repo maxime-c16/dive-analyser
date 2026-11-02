@@ -101,10 +101,15 @@ it('sends the derived codes to the API and keeps caption matches alongside them'
   // Deferred rendering (useDeferredValue) lands late on busy runners; the
   // call itself is what is being asserted, so keep a generous window.
   await userEvent.type(search, 'back dive')
-  const libraryCalls = vi.mocked(api.get).mock.calls.filter(([url]) => url === '/api/v1/dives/library')
+  // Read the live call list INSIDE the poll: a snapshot taken before the
+  // wait cannot see the calls the deferred render (`useDeferredValue`)
+  // fires still later — that stale-array form is what timed out in CI.
+  // The causal assertion (the API receives the derived behaviour codes)
+  // stays unchanged; 3 s of real-time polling only re-reads fresh calls.
   await waitFor(() => {
+    const libraryCalls = vi.mocked(api.get).mock.calls.filter(([url]) => url === '/api/v1/dives/library')
     expect(libraryCalls.some(([, config]) => (config as { params: Record<string, string> }).params?.code_filter !== undefined)).toBe(true)
-  }, { timeout: 5000 })
+  }, { timeout: 3000 })
   // The client filter mirrors the API's OR-composition: the caption-less
   // named dive stays visible too; the plain caption-less 103B drops out.
   await waitFor(() => expect(screen.queryByRole('button', { name: /Open 201C attempt/ })).not.toBeNull())

@@ -468,11 +468,14 @@ it('keeps judging hidden until playback ends and hides it again for replay', asy
   await screen.findByText('EvalVideo')
   expect(screen.queryByRole('group', { name: 'Score from 0 to 10 by half point' })).not.toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Confirm score' })).not.toBeInTheDocument()
-  await userEvent.click(screen.getByRole('button', { name: 'Finish video' }))
+  // The stage settles asynchronously under CI load: waiting the control into
+  // existence keeps the causal claim (judging hidden until the video ends)
+  // without timing the appearance.
+  await userEvent.click(await screen.findByRole('button', { name: 'Finish video' }))
   await choose(13)
   await userEvent.click(screen.getByRole('button', { name: /replay/i }))
   expect(screen.queryByRole('group', { name: 'Score from 0 to 10 by half point' })).not.toBeInTheDocument()
-  await userEvent.click(screen.getByRole('button', { name: 'Finish video' }))
+  await userEvent.click(await screen.findByRole('button', { name: 'Finish video' }))
   expect(screen.getByRole('button', { name: '6 out of 10' })).toHaveAttribute('aria-pressed', 'true')
   expect(submitRating).not.toHaveBeenCalled()
 })

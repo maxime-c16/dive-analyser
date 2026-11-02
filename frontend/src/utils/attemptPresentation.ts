@@ -100,7 +100,11 @@ export function attemptSummary(attempt: Attempt) {
 export function attemptDetailRows(attempt: Attempt): Array<[string, string]> {
   const score = attemptScore(attempt);
   const label = (key: string) => i18n.t(`attemptDetail.${key}`);
-  return [
+  const rows: Array<[string, string]> = [];
+  // Diver attribution is shown only when the data has a name: own-library
+  // rows carry none, and nothing should ever infer the viewer from absence.
+  if (attempt.person_name) rows.push([label("diver"), attempt.person_name]);
+  rows.push(
     [label("score"), `${score.toFixed(1)} / 10 · ${attempt.performance}`],
     [label("officialDD"), attempt.official_dd?.toFixed(1) || i18n.t("attemptDetail.notDefined")],
     [
@@ -116,5 +120,6 @@ export function attemptDetailRows(attempt: Attempt): Array<[string, string]> {
     [i18n.t("analysis.modifiers"), modifiersFor(attempt).join(", ") || i18n.t("analysis.none")],
     [i18n.t("dashboard.date"), attemptDate(attempt, "d MMMM yyyy")],
     [i18n.t("attemptDetail.rawCaption"), attempt.raw_caption || i18n.t("attemptDetail.notPreserved")],
-  ];
+  );
+  return rows;
 }

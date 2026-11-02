@@ -84,16 +84,25 @@ class PushSubscriptionDelete(BaseModel):
 def list_notifications(
     unread_only: bool = Query(False),
     limit: int = Query(50, ge=1, le=100),
+    before_id: int | None = Query(None, ge=1),
     user=Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    """One bounded page (newest first) plus an explicit `has_more` flag.
+
+    `before_id` continues the pager behind the first 50 rows (keyset on
+    created_at desc, id desc). The anchor must belong to the caller — a
+    foreign id reads as the end of the inbox, exactly the same
+    "missing, not forbidden" rule as the rest of the inbox.
+    """
     items = notification_service.list_for_user(
-        db, user.id, limit=limit, unread_only=unread_only
+        db, user.id, limit=limit, unread_only=unread_only, before_id=before_id
     )
     views = _calendar_views(db, user, items)
     return {
         "items": [_payload(row, views.get(row.id)) for row in items],
         "unread_count": notification_service.count_unread(db, user.id),
+        "has_more": notification_service.list_has_more(db, user.id, items, unread_only=unread_only),
     }
 
 
