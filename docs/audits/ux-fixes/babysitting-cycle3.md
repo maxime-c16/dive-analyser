@@ -31,3 +31,9 @@
 - **185** head distant `ed74dcc2` (code c325799e + docs) — CI/verdict à venir (les 4+7 findings traités).
 - **183** head `e1e7d7e7` + stash client (dive_date renderer + clipNav.positionAria + tests) à POPPER sur la branche 183 et pousser — CI/verdict ensuite.
 - **Déploiement** : après merges 183/185 → `ci/ship.sh status → server --dry-run → server` (index SQL déjà appliqué ; la prod reste sur 31c0695 tant que le ship n'a pas réussi ; DIVE_CI_TIMEOUT=2400 requis côté serveur : le lancer DEPUIS le serveur (ssh inline) car ship.sh n'expédie pas l'env).
+
+## Passe 2026-11-02 ~11h (185 round-6 : REQUEST_CHANGES sur a49b53ad)
+
+- **Verdict** (run 41418744045) : 2 invariants résiduels — (1) `Dives.tsx:828` store `partial:false` pendant tout le walk (échec de continuation → liste bornée affichée comme complète) ; (2) `Community.tsx:63` `page.totals ?? totals` garde les anciens chiffres quand un `totals: null` EXPLICITE arrive sur continuation.
+- **Corrigé** : (1) le flag `partial` du serveur est stocké À CHAQUE page (notice visible dès la 1re page bornée, retirée seulement à la page complète) — et le `.catch` de continuation ré-affirme `partial:true` (jamais de downgrade par un échec) ; (2) contrat explicite : `if ('totals' in page) setTotals(page.totals ?? null)` — null explicite EFFACE (bannières count-free, bouton « Load more members » sans chiffre), champ absent garde l'affichage (producteur vérifié : `users.py` sérialise toujours `totals`, null inclus).
+- Tests : notice visible dès la 1re page pendant le walk puis retirée à la page complète ; échec de continuation garde la notice ; continuation `totals:null` efface les chiffres des bannières — ancien code rouge sur les trois. 20/20 + typecheck verts. Poussé avec le code de cette passe (CE commit).

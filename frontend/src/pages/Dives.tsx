@@ -822,14 +822,25 @@ function DiveLibrary() {
         if (!active || !Array.isArray(response.data?.heights)) return;
         facets.push(...response.data.heights);
         const stillPartial = Boolean(response.data.partial && response.data.after);
+        // The server's partial flag is stored AS OF EVERY PAGE: while the
+        // walk keeps following continuations — and if one of them fails —
+        // a capped list is never stored or displayed as the whole domain.
         setHeightFacets({
           key: facetParamsKey,
           heights: [...new Set(facets)],
-          partial: stillPartial && depth + 1 >= MAX_FACET_PAGES,
+          partial: stillPartial,
         });
         if (stillPartial && depth + 1 < MAX_FACET_PAGES) return walk(response.data.after, depth + 1);
       })
-      .catch(() => undefined);
+      .catch(() => {
+        // A failed continuation only ever follows a page that announced
+        // `partial`: re-assert it so a failure can never downgrade the
+        // visible options to a false-complete list (finding a49b53ad).
+        if (!active || facets.length === 0) return;
+        setHeightFacets(previous => (
+          previous && previous.key === facetParamsKey ? { ...previous, partial: true } : previous
+        ));
+      });
     void walk('', 0);
     return () => { active = false; };
   }, [facetParamsKey, reloadKey, accessKey]);

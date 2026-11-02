@@ -60,7 +60,12 @@ export default function Community() {
       if (token !== directoryGeneration.current) return
       if (page.items.length) setDirectory(previous => [...(previous ?? []), ...page.items])
       setDirectoryMore({ after: page.next_after ?? null, hasMore: Boolean(page.has_more && page.next_after != null) })
-      setTotals(page.totals ?? totals)
+      // An explicitly served `totals: null` means the aggregate is
+      // UNAVAILABLE right now: the numbers previously displayed are stale,
+      // not current — clear them so the banners fall back to count-free
+      // (the old `?? totals` kept the stale counts). An omitted field
+      // (older payload shape) leaves the displayed totals in place.
+      if ('totals' in page) setTotals(page.totals ?? null)
     } catch { if (token === directoryGeneration.current) setError(true) }
     finally { if (token === directoryGeneration.current) setDirectoryLoadingMore(false) }
   }

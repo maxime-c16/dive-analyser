@@ -57,6 +57,28 @@ describe('Community discovery', () => {
     second.unmount()
   })
 
+  it('a continuation answering an explicit totals:null clears the stale banner counts', async () => {
+    // Page 1 carries real totals (numbered banners). Its continuation
+    // serves an EXPLICIT totals:null (the aggregate is unavailable right
+    // now): the previously shown numbers are stale — they must not
+    // survive as if current (the old `?? totals` kept them); the banners
+    // fall back to count-free until a later page restores totals.
+    api(input => {
+      const url = new URL(String(input), 'http://test')
+      if (url.searchParams.get('after')) {
+        return { items: [], next_after: 9, has_more: true, totals: null }
+      }
+      return { items: [{ ...fanny, accessible_dive_count: 32, latest_dive_at: new Date(Date.now() - 3 * 86_400_000).toISOString() }], next_after: 5, has_more: true, totals: { members: 3, divers: 2, others: 1, recent: 1 } }
+    })
+    renderPage()
+    expect(await screen.findByRole('heading', { name: /Divers 2/ })).toBeInTheDocument()
+    // With totals known, the continuation control carries a count; after the
+    // explicit null it must be count-free again ('Load more members').
+    await userEvent.setup().click(screen.getByRole('button', { name: /remaining|Load more/ }))
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Divers' })).not.toHaveTextContent(/\d/))
+    expect(screen.getByRole('button', { name: 'Load more members' })).toHaveTextContent('Load more members')
+  })
+
   it('ranks the most active members on a podium, you highlighted, your own diver left out', async () => {    const member = (user_id: number, display_name: string, attempts: number) => ({ user_id, display_name, handle: null, avatar_url: null, attempts, sessions: 1, codes: 1, median: null, delta: null, streak_weeks: 1, last_attempt_at: null })
     api(() => ({ items: [{ ...fanny, accessible_dive_count: 3 }, { ...fanny, user_id: 4, display_name: 'Twin', linked: true }], next_after: null }),
       { ...board, members: [member(4, 'Twin', 50), member(2, 'Fanny', 12), member(1, 'Me', 8)] })
