@@ -27,3 +27,7 @@
 - **(2) Evaluations — le VRAI défaut restauré** : `?? 'dives'` (consultation d'abord, juge = onglet explicite) — le périmètre 183 original confirmé absent du master (code vérifié, le verdict avait raison). Tests originaux portés : les scenarios juge explicitent `?tab=judge` et le nouveau test « lands on the consultation tab by default and never deals a stage on arrival » (getEvaluationOverview non appelé à l'arrivée).
 - **(3) i18n/hint originaux rétablis** : `positionAria` (« Position {{index}} … liste courante »), `qualityCycle` + `qualityCycleHint` dans le `title` de la pill qualitative (DiveVideoPlayer) — absents de master (ni 181/184). Le test play/pause 87 lignes et le test « Comments count » sont DÉJÀ sur master via 184 → non dupliqués.
 - Validation : Notifications + Evaluations + parity + DiveVideoPlayer + ClipViewer = 146/146, TypeScript verts. Push head: CE commit.
+
+## Passe 2026-11-02 ~13h (183 round-5 : verdict COMMENT sur 44bd8da8)
+
+- **Calendar.tsx:361 — la notice « rien d'enregistré » (passé) est attaquée par la SEULE réalité de la fenêtre passée** : suppression du cross-condition `!upcoming.length` (des sessions à venir non vides effaçaient l'explication de la section passée vide) ; les gardes loading/error/incomplete restent des lignes séparées, inchangées. Test : passe vide + sessions à venir via next-card & agenda → la notice « Nothing recorded in the past three months. » reste affichée À CÔTÉ des sessions prévues (l'ancien code la supprimait). 5/5 pastView + TS verts. Push head: CE commit.

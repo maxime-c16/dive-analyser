@@ -358,7 +358,7 @@ export default function Calendar() {
                   {!showPast && !upcoming.length && <p className="cal-empty">{filtered ? t.emptyFiltered : t.nothingUpcoming}</p>}
                   {showPast && pastData === 'failed' && <p role="alert" className="cal-empty">{t.failed} <button type="button" className="ca-pill" onClick={refresh}>{t.retry}</button></p>}
                   {showPast && pastData === 'incomplete' && <p role="alert" className="cal-empty">{t.incompletePast}</p>}
-                  {showPast && Array.isArray(pastData) && !upcoming.length && !past.length && <p className="cal-empty">{filtered ? t.emptyFiltered : t.nothingPast}</p>}
+                  {showPast && Array.isArray(pastData) && !past.length && <p className="cal-empty">{filtered ? t.emptyFiltered : t.nothingPast}</p>}
                 </>}
             </div>
             <aside className="cal-side">

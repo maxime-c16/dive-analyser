@@ -61,6 +61,24 @@ it('names the past window honestly when it is empty too', async () => {
   expect(await screen.findByText('Nothing recorded in the past three months.')).toBeInTheDocument()
 })
 
+it('names the empty past window even when upcoming sessions are non-empty', async () => {
+  // The past claim is about the PAST window alone: a scheduled future
+  // session never erases the honest "nothing recorded" notice (the old
+  // cross-condition on !upcoming.length suppressed it).
+  vi.mocked(calendarApi.occurrences).mockImplementation(async (from: string) => {
+    // The upcoming window opens on (today - 1) so a naive "before today"
+    // classification can swallow it at test-time hours: the PAST window
+    // (from 92 days back) is what stays "past" here.
+    const past = new Date(from).getTime() < Date.now() - 2 * 86_400_000
+    return past ? [] : [occurrence(monthString(40))]
+  })
+  renderView('?past=1')
+  // The future dive is visible (next-card holds one, agenda the other)…
+  expect((await screen.findAllByText('Plongée champigny')).length).toBeGreaterThan(0)
+  // …and the past emptiness stays stated beside it.
+  expect(screen.getByText('Nothing recorded in the past three months.')).toBeInTheDocument()
+})
+
 it('handles a failed past window: retries and no empty claim until real data', async () => {
   const user = userEvent.setup()
   // Only the 90-day past window fails on its first call; the retried call
