@@ -8,7 +8,7 @@
  */
 import React from 'react'
 import { BrowserRouter } from 'react-router-dom'
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, expect, it, vi } from 'vitest'
 import Dives from './Dives'
@@ -582,4 +582,50 @@ it('a superseding pass forfeits the held anchor too (no clamp after the exchange
   expect(scrollSpy).not.toHaveBeenCalled()
   scrollSpy.mockRestore()
   if (originalHeight) Object.defineProperty(document.documentElement, 'scrollHeight', originalHeight!)
+})
+
+it('manual Load more stands down while the walk consumes the same cursor, then re-arms', async () => {
+  // While resumeDepth is fetching page 2 (held), the manual control is
+  // serialized (disabled, source-gated): a competing click cannot fire a
+  // second p2 read whose out-of-order completion would rewind nextCursor
+  // and miscount the depth (finding 736422cd). After the walk completes,
+  // the control re-arms on the walk's DEEPEST cursor (p4), not page-1's.
+  clearLibraryCache()
+  const gates: Record<string, (value: unknown) => void> = {}
+  vi.mocked(api.get).mockImplementation((url: string, config?: { params?: { cursor?: string } }) => {
+    if (url === '/api/v1/divers') return Promise.resolve({ data: divers })
+    const cursor = config?.params?.cursor ?? null
+    const page = (base: number, next: string | null) => ({
+      data: { items: [dive(base, `${base}B`, 1), dive(base + 1, `${base + 1}B`, 1)], next_cursor: next },
+    })
+    if (!cursor) return Promise.resolve(page(1, 'p2'))
+    if (cursor === 'p2') return new Promise(resolve => { gates.p2 = resolve })
+    if (cursor === 'p3') return Promise.resolve({ data: { items: [dive(201, '201B', 1), dive(202, '202B', 1)], next_cursor: 'p4' } })
+    return Promise.resolve({ data: { items: [dive(301, '301B', 1), dive(302, '302B', 1)], next_cursor: null } })
+  })
+  saveWorkspace('scope=all', 0, { anchor: null, pages: 3 })
+  renderAt('/dives')
+  await screen.findByRole('button', { name: /Open 2B attempt/ })
+  await waitFor(() => expect(gates.p2).toBeDefined())
+  // The walk holds p2: the manual control is serialized (disabled) and its
+  // click cannot inject a competing p2 request.
+  const more = screen.getByRole('button', { name: 'Load more dives' })
+  await waitFor(() => expect(more).toBeDisabled())
+  fireEvent.click(more)
+  // The walk completes: p2 then p3 mount, the control re-arms on the
+  // WALK's deepest cursor (p4), not page-1's.
+  gates.p2!({ data: { items: [dive(101, '101B', 1), dive(102, '102B', 1)], next_cursor: 'p3' } })
+  expect(await screen.findByRole('button', { name: /Open 102B attempt/ })).toBeInTheDocument()
+  const reArmed = await waitFor(() => {
+    const button = screen.getByRole('button', { name: 'Load more dives' })
+    expect(button).not.toBeDisabled()
+    return button
+  })
+  await userEvent.click(reArmed)
+  await screen.findByRole('button', { name: /Open 302B attempt/ })
+  // Exactly ONE p2 read happened in the whole exchange (the walk's own
+  // held page) — the mid-walk click and the later re-arm both respected it.
+  const cursorCalls = vi.mocked(api.get).mock.calls.filter(([url, config]) =>
+    url === '/api/v1/dives/library' && (config as { params?: { cursor?: string } } | undefined)?.params?.cursor)
+  expect(cursorCalls).toHaveLength(3) // p2 (walk) + p3 (walk) + p4 (manual)
 })

@@ -252,3 +252,53 @@ describe('Community discovery', () => {
     expect(screen.queryByRole('button', { name: /Show the remaining/ })).not.toBeInTheDocument()
   })
 })
+
+describe('Retry re-owns the in-flight continuation state', () => {
+  it('a retry landing a fresh page unstrands the continuation button (stale finally cannot fence it)', async () => {
+    // Continuation A is held while a retry starts generation B (fresh
+    // page-1 with hasMore). A's fenced `finally` can never clear the stale
+    // loading flag after the generation changed — the new generation owns
+    // that state and clears it — so the button is LIVE once the first page
+    // is back, stays live when A settles, and the next click fires a real
+    // continuation call (finding 736422cd).
+    const user = userEvent.setup()
+    let releaseA: ((value: Response | PromiseLike<Response>) => void) | null = null
+    const spy = vi.spyOn(globalThis, 'fetch').mockImplementation(input => {
+      const url = new URL(String(input), 'http://test')
+      if (url.pathname.includes('/leaderboard')) return response(board)
+      if (url.pathname.includes('/directory')) {
+        if (url.searchParams.get('after') === '5') {
+          // The FIRST continuation is held; any LATER continuation (the
+          // retry's own) answers immediately with a further page.
+          if (releaseA) return response({ items: [{ ...fanny, user_id: 4, display_name: 'Bill', accessible_dive_count: 1, latest_dive_at: null }], next_after: 9, has_more: true, totals: { members: 4, divers: 2, others: 1, recent: 1 } })
+          return new Promise(resolve => { releaseA = resolve })
+        }
+        return response({ items: [{ ...fanny, accessible_dive_count: 32, latest_dive_at: new Date(Date.now() - 3 * 86_400_000).toISOString() }], next_after: 5, has_more: true, totals: { members: 2, divers: 1, others: 1, recent: 1 } })
+      }
+      // The SEARCH path fails: it exposes the Retry affordance mid-continuation.
+      if (url.searchParams.get('q')) return response({}, false)
+      return response({ items: [], next_after: null })
+    })
+    renderPage()
+    await user.click(await screen.findByRole('button', { name: /remaining|Load more/ })) // A begins (held)
+    const search = screen.getByRole('searchbox', { name: 'Search by name or @handle' })
+    await user.type(search, '@x')
+    await screen.findByRole('alert')
+    await user.click(screen.getByRole('button', { name: 'Retry' }))
+    // Back to the directory: clear the failed search query.
+    await user.clear(search)
+    // The fresh generation's page-1 is back with hasMore; A is still held,
+    // and the control must NOT be stranded disabled (this is the bug).
+    const more = await screen.findByRole('button', { name: /remaining|Load more/ })
+    expect(more).not.toBeDisabled()
+    // A settles late: its fenced finally cannot strand the control again.
+    releaseA!(response({ items: [], next_after: 9, has_more: true, totals: { members: 2, divers: 1, others: 1, recent: 1 } }))
+    await new Promise(resolve => setTimeout(resolve, 120))
+    expect(screen.getByRole('button', { name: /remaining|Load more/ })).not.toBeDisabled()
+    // And the control belongs to the new generation: the click fires a real
+    // continuation (a SECOND after=5 request, which answers immediately).
+    await user.click(screen.getByRole('button', { name: /remaining|Load more/ }))
+    await waitFor(() => expect(screen.getByRole('link', { name: /Bill/ })).toBeInTheDocument())
+    spy.mockRestore()
+  })
+})

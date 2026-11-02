@@ -472,6 +472,9 @@ function DiveLibrary() {
               // pushed it deeper): the restored rows are a different range
               // than the saved position, so the saved scroll has no meaning.
               resumeWalkingRef.current = true;
+              // The UI re-renders NOW so the manual control already reads
+              // its disabled serialization state during the walk.
+              setResumeWalkingTick(t => t + 1);
               void resumeDepth(depth, nextCursor ?? null).then(result => {
                 if (!result.anchorReached) {
                   // Every not-re-reached outcome — a failed walk (after its
@@ -537,7 +540,11 @@ function DiveLibrary() {
   }, [aggregated, codeParamsKey, reloadKey, accessKey]);
 
   const loadMore = async () => {
-    if (loadingMore || !nextCursor) return;
+    // A resume walk is consuming the live cursor: manual loading stands
+    // down until it finishes, or both paths could re-host the same page
+    // and the out-of-order completion would rewind nextCursor / miscount
+    // the depth (finding 736422cd).
+    if (loadingMore || resumeWalkingRef.current || !nextCursor) return;
     const epoch = pageGeneration.current;
     setLoadingMore(true);
     try {
@@ -744,7 +751,7 @@ function DiveLibrary() {
 
   // Extend the viewer's navigation window before it reaches a page boundary.
   useEffect(() => {
-    if (selected && nextCursor && !loadingMore && filtered.findIndex(dive => dive.id === selected.id) >= filtered.length - 3) void loadMore();
+    if (selected && nextCursor && !loadingMore && !resumeWalkingRef.current && filtered.findIndex(dive => dive.id === selected.id) >= filtered.length - 3) void loadMore();
   }, [selected?.id, nextCursor, filtered.length, loadingMore]);
 
   // Stale/invalid clip identity (bad id, removed attempt, direct stale link):
@@ -1263,7 +1270,7 @@ function DiveLibrary() {
       )}
       {!loading && nextCursor && !aggregated && shown >= filtered.length && (
         <div className="mt-5 text-center">
-          <button type="button" disabled={loadingMore} onClick={() => void loadMore()}
+          <button type="button" disabled={loadingMore || resumeWalkingRef.current} onClick={() => void loadMore()}
             className="touch-target border border-app bg-app-panel px-5 text-sm text-app-text disabled:opacity-50">
             {loadingMore ? t('common.loading') : t('dives.loadMore')}
           </button>

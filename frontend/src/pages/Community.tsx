@@ -38,6 +38,11 @@ export default function Community() {
     const controller = new AbortController()
     directoryGeneration.current += 1
     setError(false)
+    // THIS generation owns the async control state: a stale continuation's
+    // fenced `finally` can never clear `directoryLoadingMore` after the
+    // generation changed, so the fresh pass clears it here (finding
+    // 736422cd — a retry would otherwise strand its button disabled).
+    setDirectoryLoadingMore(false)
     // One bounded page replaces the former up-to-20-request sequential load
     // (discovery 2026-11-01, profil 6). Continuation stays explicit.
     getMemberDirectory(undefined, controller.signal).then(page => {
