@@ -20,3 +20,7 @@
 - **185 head `a1f5033b`** — les 7 findings du verdict cf8b83f8 traités (diverId deps, dénominateur omis en vue diver + clés `cappedPlain`, resume walk qui TIENT l'ancre (ref + tick, régression dédiée qui échoue sur l'ancien code), `depth.anchor` lu (arrêt tôt si atteint / abandon explicite sinon), liveness des walks en vol (trim FIFO y compris pending, stop à la page), facettes hauteurs bornées (limit/partial/after, rétrocompatible), « Recently active » depuis `totals.recent`) ; front 62/62 + back 54/54 + TS/build → CI/verdict sur a1f5033b.
 - **183 head `e1e7d7e7`** — les 2 findings du verdict 90961b7a traités : la NOTE IMMUABLE rétablie (notifications-session-date-consult-defaults.json, validate ✅, components frontend+backend) ; l'erreur/chargement passé du calendrier a son état propre (retryable failed + incompletePast, la claim vide n'apparaît qu'après un vrai tableau) + tests pastView étendus. CI e1e7d7e7 : 6/6 SUCCESS (gate/front/back/postgres/review/plan).
 - Déploiement : toujours suspendu aux merges restants (183/185) + gates normales ; l'index SQL est déjà appliqué en prod (preuve pg_indexes).
+
+## Passe 2026-11-02 ~09h (185 round-4)
+
+- **185 head `c325799e`** — les 4 findings du verdict a1f5033b traités (dénominateur diver omis, facets keyset-walk client, totals-null honesty, dead-walk no-reinsert) + 4 tests régressifs dont le walk-évincé (échoue sur l'ancien code) ; front 23+21/21, back 40/40, TS/build verts → CI/verdict sur c325799e.
