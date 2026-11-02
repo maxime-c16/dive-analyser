@@ -15,7 +15,7 @@ import { CountUp, RatingBar, ratingCounts, ScoreChip, Segmented, Sparkline } fro
 import { diveCodeName } from '../i18n/diveNames'
 import { clearLibraryCache, libraryKey } from '../services/libraryCache'
 import { getCodeCommunity, type CodeCommunity } from '../services/codeCommunityApi'
-import { clearCodeSummaryCache, getCodeAttempts, getCodeSummaries, peekCodeAttempts, peekCodeSummaries, type CodeSummary } from '../services/codeSummariesApi'
+import { clearCodeSummaryCache, getCodeAttemptsResult, getCodeSummaries, peekCodeAttemptsResult, peekCodeSummaries, type CodeSummary } from '../services/codeSummariesApi'
 import { attemptScore, type Attempt } from '../utils/attemptPresentation'
 import { DAY_MS, mean, median, quantile, recentTrend, rolling, scoreBand, smoothingWindow, type Extreme, fmtScore } from '../utils/codeStats'
 import { appLocale } from '../utils/dateLocale'
@@ -84,7 +84,8 @@ export default function CodeAnalysis() {
   // signed-in account (same viewer key as the Library snapshot cache).
   const viewerKey = libraryKey(user)
 
-  const [attempts, setAttempts] = useState<Attempt[] | null>(() => peekCodeAttempts(code, scope, viewerKey))
+  const [attempts, setAttempts] = useState<Attempt[] | null>(() => peekCodeAttemptsResult(code, scope, viewerKey, diverId)?.items ?? null)
+  const [attemptsCapped, setAttemptsCapped] = useState<boolean>(() => peekCodeAttemptsResult(code, scope, viewerKey, diverId)?.capped ?? false)
   const [summaries, setSummaries] = useState<CodeSummary[] | null>(() => peekCodeSummaries({ diver_scope: scope }, viewerKey)?.codes ?? null)
   const [error, setError] = useState<string | null>(null)
   const [reload, setReload] = useState(0)
@@ -98,12 +99,16 @@ export default function CodeAnalysis() {
 
   useEffect(() => {
     let live = true
-    setAttempts(peekCodeAttempts(code, scope, viewerKey))
+    setAttempts(peekCodeAttemptsResult(code, scope, viewerKey, diverId)?.items ?? null)
+    setAttemptsCapped(peekCodeAttemptsResult(code, scope, viewerKey, diverId)?.capped ?? false)
     setError(null)
-    getCodeAttempts(code, scope, viewerKey).then(items => { if (live) setAttempts(items) }).catch(() => { if (live) setError(t('codeAnalysis.loadError')) })
+    getCodeAttemptsResult(code, scope, viewerKey, diverId).then(result => { if (live) { setAttempts(result.items); setAttemptsCapped(result.capped) } }).catch(() => { if (live) setError(t('codeAnalysis.loadError')) })
     getCodeSummaries({ diver_scope: scope }, viewerKey).then(data => { if (live) setSummaries(data.codes) }).catch(() => undefined)
+    // diverId participates: switching the selected diver on the same code
+    // refetches the diver-scoped walk instead of leaving the previous
+    // diver's rows mounted with an unchanged all-scope value.
     return () => { live = false }
-  }, [code, scope, reload, t, viewerKey])
+  }, [code, scope, diverId, reload, t, viewerKey])
   useEffect(() => {
     let live = true
     setCommunity(null)
@@ -137,6 +142,17 @@ export default function CodeAnalysis() {
   const scores = useMemo(() => scored.map(attemptScore), [scored])
   const analytics = isAnalyticsCode(code)
   const heights = useMemo(() => [...new Set(all.map(item => item.height))], [all])
+  // Full-scope total for the capped-window note (server summary, never the
+  // bounded client list itself). In a selected-diver view the summaries
+  // cover the WHOLE scope — the diver's own total is unavailable, so the
+  // denominator is omitted instead of claiming a cross-population count.
+  // In the all-scope view the denominator is likewise unavailable while the
+  // matching per-code summary is pending or failed: a bounded, period-
+  // filtered or empty items slice never poses as the whole-history total —
+  // the count-free cap notice covers the gap until the summary matches.
+  const attemptsTotal: number | null = useMemo(() => diverId ? null
+    : summaries?.find(item => item.dive_code === code)?.attempt_count ?? null,
+  [diverId, summaries, code])
   const sessions = useMemo(() => groupSessions(items), [items])
   const scoredGroups = useMemo(() => groupSessions(scored), [scored])
 
@@ -265,6 +281,7 @@ export default function CodeAnalysis() {
     </div>
 
     {!analytics && <div className="ca-span ca-note">{t('codeAnalysis.straightJump')}</div>}
+    {!items.length && attemptsCapped && <div className="ca-span ca-note">{attemptsTotal === null ? t('codeAnalysis.cappedPlain') : t('codeAnalysis.cappedAria', { total: attemptsTotal })}</div>}
     {!items.length ? <div className="ca-span ca-note">{t('codeAnalysis.emptyPeriod', { code })} <button type="button" className="ca-btn" onClick={() => update({ period: null, h: null, month: null })}>{t('codeAnalysis.showAll')}</button></div> : <>
       <div className="ca-main">
         {analytics && <div>
@@ -272,10 +289,12 @@ export default function CodeAnalysis() {
             <div className="ca-kpi"><dt>{t('codeAnalysis.average')}</dt><dd><CountUp value={mean(scores)} /></dd></div>
             <div className="ca-kpi"><dt>{t('codeAnalysis.median')}</dt><dd><CountUp value={med} /></dd></div>
             <div className="ca-kpi"><dt>{t('dives.best')}</dt><dd className="ca-t-P"><CountUp value={scores.length ? Math.max(...scores) : null} /></dd></div>
-            <div className="ca-kpi"><dt>{t('codeAnalysis.success')}</dt><dd><CountUp value={scored.length ? 100 * scored.filter(item => attemptScore(item) >= ATHLETE_SCORE_10.G).length / scored.length : null} digits={0} suffix="%" /></dd></div>
+            <div className="ca-kpi"><dt title={t('codeAnalysis.successTitle')}>{t('codeAnalysis.success')}</dt><dd title={t('codeAnalysis.successTitle')}><CountUp value={scored.length ? 100 * scored.filter(item => attemptScore(item) >= ATHLETE_SCORE_10.G).length / scored.length : null} digits={0} suffix="%" /></dd></div>
           </dl>
           <div style={{ marginTop: 10 }}><RatingBar ratings={ratingCounts(items.map(item => item.performance))} /></div>
-          <p className="ca-sample">{t('codeAnalysis.sample', { attempts: items.length, sessions: sessions.length, from: date(items[0].dive_datetime), to: date(latest!.dive_datetime) })}</p>
+          <p className="ca-sample" title={attemptsCapped ? (attemptsTotal === null ? t('codeAnalysis.cappedPlain') : t('codeAnalysis.cappedAria', { total: attemptsTotal })) : undefined}>{attemptsCapped && attemptsTotal !== null
+            ? t('codeAnalysis.sampleCapped', { attempts: items.length, total: attemptsTotal, sessions: sessions.length, from: date(items[0].dive_datetime), to: date(latest!.dive_datetime) })
+            : t('codeAnalysis.sample', { attempts: items.length, sessions: sessions.length, from: date(items[0].dive_datetime), to: date(latest!.dive_datetime) })}</p>
         </div>}
 
         {focus && analytics && (() => {
@@ -288,7 +307,7 @@ export default function CodeAnalysis() {
             <span>
               <b className="text-app-text">{t('codeAnalysis.thisDive')} · <span className={`ca-t-${focus.performance}`}>{fmtScore(attemptScore(focus))}</span></b> <span className="ca-flat" style={{ fontSize: 12 }}>{date(focus.dive_datetime, 'd MMM · HH:mm')}</span>
               <span className="ca-focus-facts">
-                <span className="ca-fact">{rankText(rank(focus, all), all.length)}</span>
+                <span className="ca-fact" title={t('codeAnalysis.rankTitle', { total: all.length })}>{rankText(rank(focus, all), all.length)}</span>
                 <span className={`ca-fact ${delta >= 0.25 ? 'ca-up' : delta <= -0.25 ? 'ca-down' : ''}`}>{delta >= 0 ? '+' : ''}{fmtScore(delta)} {t('codeAnalysis.vsMedian')}</span>
                 {previous && <span className={`ca-fact ${attemptScore(focus) > attemptScore(previous) ? 'ca-up' : attemptScore(focus) < attemptScore(previous) ? 'ca-down' : ''}`}>{attemptScore(focus) > attemptScore(previous) ? '▲' : attemptScore(focus) < attemptScore(previous) ? '▼' : '='} {t('codeAnalysis.vsPreviousDive', { score: fmtScore(attemptScore(previous)) })}</span>}
                 {!beaten && before.length > 0 && <span className="ca-fact ca-up">{t('codeAnalysis.record')}</span>}

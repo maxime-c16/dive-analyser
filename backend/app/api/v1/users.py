@@ -18,9 +18,10 @@ Received items always involve a dive or comment the requester owns; sent items
 always involve a dive that is still visible to the requester, so the deep link
 (/dives?clip=…) can never point at hidden content.
 """
-from datetime import datetime
+from datetime import datetime, timedelta
 from io import BytesIO
 from pathlib import Path
+import logging
 import re
 import warnings
 from typing import Literal
@@ -29,9 +30,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from PIL import Image, ImageOps, UnidentifiedImageError
 from starlette.concurrency import run_in_threadpool
-from sqlalchemy import Integer, and_, cast, func, literal, or_, select, union_all
+from sqlalchemy import Integer, and_, case, cast, exists, false, func, literal, or_, select, union_all
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import aliased, Session
 
 from app.api.v1.auth import get_current_user, _origin_allowed
 from app.database import get_db
@@ -138,6 +139,117 @@ def search_members(q: str = Query("", max_length=120), after: int = Query(0, ge=
                           linked=row.id in linked))
     return dict(items=items,
                 next_after=rows[limit - 1].id if len(rows) > limit else None)
+
+
+def _community_totals(db: Session, user: AppUser, now: datetime) -> dict | None:
+    """Complete Community counts, over the whole directory (never the page subset).
+
+    Same semantics the page computed client-side so far: peers are active
+    accounts minus the viewer and the accounts bound to the viewer's own
+    divers; divers have at least one dive visible to the requester; recent
+    divers dove within the last 30 days. The client uses these so a partially
+    loaded directory never silently truncates section counts. Returns None on
+    a failure (the caller serves the page without totals; the frontend falls
+    back to the loaded page's own counts instead of reporting fake zeros).
+    """
+    own = owned_diver_ids(db, user.id)
+    # Bounded by the viewer's own divers (small); the LINKED-account rule is
+    # expressed as EXISTS against the viewer's diver set, never expanded into
+    # materialized account-id lists (identity scope compounds with the
+    # directory size otherwise).
+    owns = aliased(UserDiverAccess)
+    linked = exists(select(1).where(
+        owns.user_id == AppUser.id,
+        owns.access_kind == "OWNER",
+        owns.diver_id.in_(own),
+    )) if own else false()
+    stamp = func.coalesce(Dive.dive_datetime, Dive.created_at)
+    horizon = now - timedelta(days=30)
+
+    # Bounded by construction: one aggregate row for the whole community.
+    # The per-account rows never materialize (aggregate over a subquery).
+    def _peer_counts():
+        per_user = db.query(
+            UserDiverAccess.user_id,
+            func.count(Dive.id).label("count"),
+            func.max(stamp).label("latest"),
+        ).join(Dive, Dive.diver_id == UserDiverAccess.diver_id).join(
+            AppUser, AppUser.id == UserDiverAccess.user_id,
+        ).filter(
+            UserDiverAccess.access_kind == "OWNER",
+            visible_dive_clause(own, bool(user.is_admin)),
+            # Account deactivation keeps OWNER bindings (admin_users keeps
+            # them so a re-activation restores the workspace): the dive
+            # aggregates must match the served directory and count only
+            # active accounts.
+            AppUser.is_active.is_(True),
+            UserDiverAccess.user_id != user.id,
+            ~exists(select(1).where(
+                owns.user_id == UserDiverAccess.user_id,
+                owns.access_kind == "OWNER",
+                owns.diver_id.in_(own),
+            )),
+        ).group_by(UserDiverAccess.user_id).subquery()
+        return db.query(
+            func.count(per_user.c.user_id),
+            func.count(case((per_user.c.latest >= horizon, per_user.c.user_id))),
+        ).filter(per_user.c.count > 0).one()
+
+    try:
+        divers, recent = _peer_counts()
+    except Exception as exc:
+        db.rollback()
+        logging.getLogger(__name__).error("directory totals failed (%s)", type(exc).__name__)
+        return None
+    member_total = db.query(func.count(AppUser.id)).filter(
+        AppUser.is_active.is_(True), AppUser.id != user.id, ~linked,
+    ).scalar() or 0
+    return dict(members=member_total, divers=divers,
+                others=max(member_total - divers, 0), recent=recent)
+
+
+@router.get("/directory")
+def member_directory(after: int = Query(0, ge=0), limit: int = Query(200, ge=1, le=500),
+                     user: AppUser = Depends(get_current_user), db: Session = Depends(get_db)):
+    """One bounded directory page + the complete Community counts.
+
+    Replaces the page's former client loop (up to 20 sequential /users?q=
+    requests, discovery 2026-11-01 profil 6): one keyset page (active
+    accounts by id) with the same identity/stats contract as search_members,
+    an explicit `has_more`, and totals computed over the WHOLE directory so
+    an explicit continuation never truncates the section counts silently.
+    """
+    now = datetime.now()
+    search_query = db.query(AppUser).filter(
+        AppUser.is_active.is_(True), AppUser.id > after)
+    rows = search_query.order_by(AppUser.id).limit(limit + 1).all()
+    has_more = len(rows) > limit
+    rows = rows[:limit]
+    own = owned_diver_ids(db, user.id)
+    # The linked-account binding is scoped to THIS PAGE's rows: a small,
+    # bounded materialization instead of one entry per community account
+    # (the same bound the page itself obeys).
+    linked = {uid for (uid,) in db.query(UserDiverAccess.user_id).filter(
+        UserDiverAccess.user_id.in_([row.id for row in rows]),
+        UserDiverAccess.access_kind == "OWNER", UserDiverAccess.diver_id.in_(own)).all()} if rows and own else set()
+    stats = {uid: (count, latest) for uid, count, latest in db.query(
+        UserDiverAccess.user_id, func.count(Dive.id),
+        func.max(func.coalesce(Dive.dive_datetime, Dive.created_at)),
+    ).join(Dive, Dive.diver_id == UserDiverAccess.diver_id).filter(
+        UserDiverAccess.user_id.in_([row.id for row in rows]),
+        UserDiverAccess.access_kind == "OWNER",
+        visible_dive_clause(own, bool(user.is_admin)),
+    ).group_by(UserDiverAccess.user_id).all()} if rows else {}
+    items = []
+    for row in rows:
+        count, latest = stats.get(row.id, (0, None))
+        items.append(dict(**_identity(row), accessible_dive_count=count,
+                          latest_dive_at=latest.isoformat() + "Z" if latest else None,
+                          linked=row.id in linked))
+    return dict(items=items,
+                has_more=has_more,
+                totals=_community_totals(db, user, now),
+                next_after=rows[-1].id if has_more and rows else None)
 
 
 @router.get("/leaderboard")

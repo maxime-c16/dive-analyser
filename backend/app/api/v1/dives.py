@@ -188,6 +188,7 @@ def list_dives(
     modifier_filter: str = "",
     code_filter: str = "",
     cursor: Optional[str] = None,
+    diver_id: Optional[int] = None,
 ):
     """
     List dives with optional filters
@@ -199,6 +200,12 @@ def list_dives(
         search_text=search_text, position_filter=position_filter, sync_filter=sync_filter,
         modifier_filter=modifier_filter, code_filter=code_filter,
     )
+    # Exact-diver narrowing INSIDE the applied access scope, before the cap
+    # walk: a selected diver's older attempts stay reachable without growing
+    # the bounded window. Unknown diver_ids answer an empty page ("missing,
+    # not forbidden") — the scope above never widens.
+    if diver_id is not None:
+        query = query.filter(Dive.diver_id == diver_id)
     from app.services.library_query import decode_cursor
     if cursor:
         before_date, before_id = decode_cursor(cursor)
@@ -252,19 +259,23 @@ def library_page(
     limit: int = Query(100, ge=1, le=100), cursor: Optional[str] = None,
     diver_scope: str = Query("self", pattern="^(self|all)$"),
     height: str = "", performance: str = "", code_prefix: str = "",
+    dive_code: str = Query("", max_length=16),
     search_text: str = Query("", max_length=200), position_filter: str = "",
     sync_filter: Optional[bool] = None, modifier_filter: str = "",
     date_from: Optional[datetime] = Query(None), date_to: Optional[datetime] = Query(None),
     code_filter: str = Query("", max_length=8192),
+    diver_id: Optional[int] = Query(None),
 ):
     """A bounded, filtered Library page; cursor ties include id for stable order."""
     from app.services.library_query import encode_cursor
-    rows = list_dives(request=request, db=db, session_id=None, dive_code=None,
+    rows = list_dives(request=request, db=db, session_id=None,
+        dive_code=dive_code or None,
         height=height, performance=performance, date_from=date_from, date_to=date_to,
         exclude_lineup=True, exclude_personal=False, diver_scope=diver_scope,
         limit=limit + 1, offset=0, code_prefix=code_prefix, search_text=search_text,
         position_filter=position_filter, sync_filter=sync_filter,
-        modifier_filter=modifier_filter, code_filter=code_filter, cursor=cursor)
+        modifier_filter=modifier_filter, code_filter=code_filter, cursor=cursor,
+        diver_id=diver_id)
     more = len(rows) > limit
     rows = rows[:limit]
     # One bounded join after list_dives has applied the existing access scope.
@@ -293,6 +304,50 @@ def library_codes(
         modifier_filter=modifier_filter, code_filter=code_filter,
     )
     return summarize_library_query(db, query, datetime.now())
+
+
+@router.get("/library/facets")
+def library_facets(
+    request: Request, db: Session = Depends(get_db),
+    diver_scope: str = Query("self", pattern="^(self|all)$"),
+    performance: str = "", code_prefix: str = "",
+    search_text: str = Query("", max_length=200), position_filter: str = "",
+    sync_filter: Optional[bool] = None, modifier_filter: str = "",
+    date_from: Optional[datetime] = Query(None), date_to: Optional[datetime] = Query(None),
+    code_filter: str = Query("", max_length=8192),
+    after: str = Query("", max_length=20),
+    limit: int = Query(100, ge=1, le=500),
+):
+    """Height options for the Library filter, independent of the height itself.
+
+    The stage select used to derive its options from the loaded page, so
+    filtering by 3m hid every other height (profil 12 C1: same URL, different
+    select after a UI switch vs a cold reload). One DISTINCT query over the
+    authorized scope with every OTHER filter applied and the height filter
+    absent: the same URL always answers the same options, and switching the
+    height stays reachable — no page rows are materialized for it.
+
+    The height column is free-form text, so the distinct set has no enforced
+    small domain: the answer is EXPLICITLY bounded (limit) with a `partial`
+    flag and an `after` keyset on the last returned height, so a facet stays
+    complete-by-continuation instead of silently truncating."""
+    query = _filtered_dive_query(
+        request, db, diver_scope=diver_scope, height=None, performance=performance,
+        exclude_lineup=True, date_from=date_from, date_to=date_to, code_prefix=code_prefix,
+        search_text=search_text, position_filter=position_filter, sync_filter=sync_filter,
+        modifier_filter=modifier_filter, code_filter=code_filter,
+    ).with_entities(Dive.height).filter(Dive.height.isnot(None), Dive.height > after)
+    ordered = [row[0] for row in query.distinct().order_by(Dive.height.asc()).limit(limit + 1).all()]
+    partial = len(ordered) > limit
+    # The keyset anchor is the LAST height in the SQL order (continuation
+    # correctness); the page itself is re-sorted mp-aware for display.
+    after_key = ordered[limit - 1] if partial and len(ordered) > 0 else None
+    heights = ordered[:limit]
+    try:
+        heights.sort(key=lambda value: (int(str(value).removesuffix('mp')), str(value).removesuffix('mp')))
+    except ValueError:
+        heights.sort()
+    return {"heights": heights, "partial": partial, "after": after_key}
 
 
 @router.get("/library/codes/{dive_code}/community")

@@ -25,7 +25,10 @@ it('renders a cached Library immediately on return without any list or diver req
   page();
   expect(screen.getAllByText('103B').length).toBeGreaterThan(0);
   expect(screen.queryByText('Loading…')).not.toBeInTheDocument();
-  expect(api.get).not.toHaveBeenCalled();
+  // No Library page nor /divers refetch — the bounded Height-facet read
+  // (profil 12 C1) is the one bounded call a cached return keeps paying.
+  const libraryCalls = vi.mocked(api.get).mock.calls.filter(([url]) => String(url) !== '/api/v1/dives/library/facets');
+  expect(libraryCalls).toHaveLength(0);
 });
 it('keeps saved dives visible and announces a failed background refresh', async () => {
   data();
@@ -89,4 +92,55 @@ it('keeps a direct-link clip open when the stale saved Library refreshes after r
   finish({ data: { items: [attempt], next_cursor: null } });
   await new Promise(resolve => setTimeout(resolve, 50));
   expect(screen.getByRole('dialog')).toBeInTheDocument();
+});
+
+it('keeps the server partial flag visible while the facet keyset walk continues', async () => {
+  // The facet answer is EXPLICITLY bounded (limit + partial + after): the
+  // server's partial flag is stored as of EVERY page — the notice covers
+  // the first page's slice immediately and drops only once the walk
+  // reaches a complete page (the a49b53ad round stored partial:false
+  // mid-walk, so a then-failed continuation looked complete).
+  vi.mocked(api.get).mockClear();
+  let releasePage2!: () => void;
+  const held = new Promise<void>(resolve => { releasePage2 = () => resolve(); });
+  vi.mocked(api.get).mockImplementation(async (url, config) => {
+    const after = ((config as { params?: { after?: string } } | undefined)?.params)?.after;
+    if (String(url).includes('/divers')) return { data: [{ id: 1, display_name: 'Me', is_primary_user: true }] };
+    if (String(url).includes('/facets')) {
+      if (!after) return { data: { heights: ['1m', '3m'], partial: true, after: '3m' } };
+      await held;
+      return { data: { heights: ['5m'], partial: false, after: null } };
+    }
+    return { data: { items: [attempt], next_cursor: null } };
+  });
+  const view = page();
+  expect(await screen.findByText('More heights exist (the list is partial).')).toBeInTheDocument();
+  releasePage2!();
+  await waitFor(() => expect(screen.queryByText('More heights exist (the list is partial).')).not.toBeInTheDocument());  await waitFor(() => expect(screen.getAllByText('5m').length).toBeGreaterThan(0));
+  view.unmount();
+});
+
+it('a failed facet continuation keeps the capped list visibly partial', async () => {
+  // The continuation rejects after a page that announced `partial`: the
+  // visible options keep the honest partial state — a failure never
+  // downgrades them to a false-complete list (finding a49b53ad).
+  vi.mocked(api.get).mockClear();
+  vi.mocked(api.get).mockImplementation(async (url, config) => {
+    const after = ((config as { params?: { after?: string } } | undefined)?.params)?.after;
+    if (String(url).includes('/divers')) return { data: [{ id: 1, display_name: 'Me', is_primary_user: true }] };
+    if (String(url).includes('/facets')) {
+      if (!after) return { data: { heights: ['1m', '3m'], partial: true, after: '3m' } };
+      return Promise.reject(new Error('continuation failed'));
+    }
+    return { data: { items: [attempt], next_cursor: null } };
+  });
+  const view = page();
+  expect(await screen.findByText('More heights exist (the list is partial).')).toBeInTheDocument();
+  // Wait until the failing continuation was actually attempted…
+  await waitFor(() => expect(vi.mocked(api.get).mock.calls.filter(([url, config]) =>
+    String(url).includes('/facets') && (config as { params?: { after?: string } } | undefined)?.params?.after,
+  ).length).toBeGreaterThanOrEqual(1));
+  // …and the notice survives it (the catch re-asserts `partial`).
+  expect(await screen.findByText('More heights exist (the list is partial).')).toBeInTheDocument();
+  view.unmount();
 });

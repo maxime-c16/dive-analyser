@@ -32,12 +32,21 @@ export type CodeSummaries = {
 export type LibraryCodeParams = Record<string, string | number | boolean | undefined>
 
 const FRESH_MS = 60_000
-type Entry<T> = { at: number; value?: T; promise?: Promise<T> }
+type Entry<T> = { at: number; value?: T; promise?: Promise<T>; liveness?: { alive: boolean }; abort?: () => void }
+type Liveness = { alive: boolean }
 let summaries = new Map<string, Entry<CodeSummaries>>()
-let codeAttempts = new Map<string, Entry<Attempt[]>>()
+let codeAttempts = new Map<string, Entry<{ items: Attempt[]; capped: boolean }>>()
 
-/** Writes invalidate every derived read (see api.ts). */
+/** Writes invalidate every derived read (see api.ts). In-flight walks of the
+ * dropped maps are ABORTED at the transport (their in-flight api.get
+ * rejects) so dropped walks retain neither live requests nor partial rows. */
 export function clearCodeSummaryCache() {
+  for (const store of [summaries, codeAttempts]) {
+    for (const entry of store.values()) {
+      entry.abort?.()
+      entry.liveness && (entry.liveness.alive = false)
+    }
+  }
   summaries = new Map()
   codeAttempts = new Map()
 }
@@ -50,13 +59,43 @@ function scopedKey(viewer: string | null, ...rest: unknown[]) {
   return JSON.stringify([viewer, ...rest])
 }
 
-function cached<T>(store: Map<string, Entry<T>>, key: string, load: () => Promise<T>): Promise<T> {
+/** Bounded cache: oldest entries (past the cap) are evicted including
+ * pending ones — eviction ABORTS the in-flight request at the transport
+ * (axios signal) and marks the walk dead, so an evicted walk retains
+ * neither a live request nor its partial rows, and never reinserts. */
+function trim<T>(store: Map<string, Entry<T>>, keep: string) {
+  let oldest: string | null = null
+  let oldestAt = Infinity
+  for (const [k, entry] of store) {
+    if (k === keep || entry.at >= oldestAt) continue
+    oldest = k
+    oldestAt = entry.at
+  }
+  if (oldest) {
+    const entry = store.get(oldest)
+    entry?.abort?.()
+    if (entry?.liveness) entry.liveness.alive = false
+    store.delete(oldest)
+  }
+}
+
+function cached<T>(store: Map<string, Entry<T>>, key: string, load: (liveness: Liveness, signal: AbortSignal) => Promise<T>): Promise<T> {
   const hit = store.get(key)
   if (hit?.promise) return hit.promise
   if (hit?.value !== undefined && Date.now() - hit.at < FRESH_MS) return Promise.resolve(hit.value)
-  const promise = load().then(value => { store.set(key, { at: Date.now(), value }); return value })
-    .catch(error => { store.delete(key); throw error })
-  store.set(key, { at: Date.now(), value: hit?.value, promise })
+  const liveness: Liveness = { alive: true }
+  const controller = new AbortController()
+  const promise = load(liveness, controller.signal)
+    // An evicted/reset walk NEVER writes back: the store may belong to a
+    // newer entry (or none) — reinsertion would break the bounded cap and
+    // resurrect stale rows under rapid switches.
+    .then(value => {
+      if (liveness.alive) store.set(key, { at: Date.now(), value });
+      return value
+    })
+    .catch(error => { if (liveness.alive) store.delete(key); throw error })
+  while (store.size >= MAX_CACHE_ENTRIES) trim(store, key)
+  store.set(key, { at: Date.now(), value: hit?.value, promise, liveness, abort: () => controller.abort() })
   return promise
 }
 
@@ -67,26 +106,64 @@ export function peekCodeSummaries(params: LibraryCodeParams, viewer: string | nu
 
 export function getCodeSummaries(params: LibraryCodeParams, viewer: string | null = null): Promise<CodeSummaries> {
   const clean = Object.fromEntries(Object.entries(params).filter(([, value]) => value !== '' && value !== undefined))
-  return cached(summaries, scopedKey(viewer, params), () => api.get('/api/v1/dives/library/codes', { params: clean }).then(response => response.data))
+  // The signal rides into the request options: an evicted pending summary
+  // is ABORTED at the transport like the attempts walk, so rapid filter
+  // changes retain neither the request nor its rows (finding a7a6e37f).
+  return cached(summaries, scopedKey(viewer, params), (_liveness, signal) => api.get('/api/v1/dives/library/codes', { params: clean, signal }).then(response => response.data))
 }
 
 export function peekCodeAttempts(code: string, scope: string, viewer: string | null = null): Attempt[] | null {
-  return codeAttempts.get(scopedKey(viewer, code.toUpperCase(), scope))?.value ?? null
+  return peekCodeAttemptsResult(code, scope, viewer)?.items ?? null
 }
 
-/** Every Library attempt of one exact code (oldest first), with thumbnails, through the bounded Library pages. */
-export function getCodeAttempts(code: string, scope: string, viewer: string | null = null): Promise<Attempt[]> {
+export type CodeAttemptsResult = { items: Attempt[]; capped: boolean }
+
+export function peekCodeAttemptsResult(code: string, scope: string, viewer: string | null = null, diverId: number | null = null): CodeAttemptsResult | null {
+  return codeAttempts.get(scopedKey(viewer, code.toUpperCase(), scope, diverId))?.value ?? null
+}
+
+/** Newest-attempts window for one exact code, at most this many pages of 100:
+ * bounded traversal and bounded memory, never a silently truncated analysis. */
+const MAX_ATTEMPT_PAGES = 10
+const MAX_CACHE_ENTRIES = 16
+
+/** Every Library attempt of one exact code (sorted oldest first), read
+ * through the bounded Library pages. `capped` marks an explicit newest
+ * window: the Code Analysis page says so instead of pretending the whole
+ * history was walked. */
+export function getCodeAttemptsResult(code: string, scope: string, viewer: string | null = null, diverId: number | null = null): Promise<CodeAttemptsResult> {
   const exact = code.toUpperCase()
-  return cached(codeAttempts, scopedKey(viewer, exact, scope), async () => {
+  return cached(codeAttempts, scopedKey(viewer, exact, scope, diverId), async (liveness, signal) => {
     const items: Attempt[] = []
     let cursor: string | null = null
-    do {
+    let capped = false
+    for (let page = 0; page < MAX_ATTEMPT_PAGES; page++) {
+      // An evicted/reset walk stops at the page boundary — and its in-flight
+      // request is ABORTED at the transport (axios signal), so a dropped
+      // walk retains neither a live request nor its partial rows.
+      if (!liveness.alive && page > 0) { capped = true; break }
       const response: { data: { items: Attempt[]; next_cursor: string | null } } = await api.get('/api/v1/dives/library', {
-        params: { limit: 100, diver_scope: scope, code_prefix: exact, ...(cursor ? { cursor } : {}) },
+        // A diver view narrows server-side BEFORE the bounded walk: the
+        // selected diver's older attempts stay reachable inside the newest
+        // window instead of being cut by the cap first. The EXACT code also
+        // filters server-side BEFORE the paging window: same-prefix sibling
+        // codes (code_prefix) can never crowd this code's attempts out of
+        // the bounded window — permission scoping stays unchanged.
+        params: { limit: 100, diver_scope: scope, dive_code: exact, ...(diverId ? { diver_id: diverId } : {}), ...(cursor ? { cursor } : {}) },
+        signal,
       })
+      // The Library response is newest first, so a bounded walk keeps the
+      // newest window complete and says so, rather than mixing eras.
       items.push(...response.data.items.filter(item => item.dive_code.toUpperCase() === exact))
       cursor = response.data.next_cursor
-    } while (cursor)
-    return items.sort((a, b) => Date.parse(a.dive_datetime) - Date.parse(b.dive_datetime) || a.id - b.id)
+      if (!cursor) return { items: items.sort((a, b) => Date.parse(a.dive_datetime) - Date.parse(b.dive_datetime) || a.id - b.id), capped: false }
+    }
+    capped = true
+    return { items: items.sort((a, b) => Date.parse(a.dive_datetime) - Date.parse(b.dive_datetime) || a.id - b.id), capped }
   })
+}
+
+/** Backwards-compatible view of the same bounded cache. */
+export function getCodeAttempts(code: string, scope: string, viewer: string | null = null): Promise<Attempt[]> {
+  return getCodeAttemptsResult(code, scope, viewer).then(result => result.items)
 }

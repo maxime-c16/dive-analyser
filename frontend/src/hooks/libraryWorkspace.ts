@@ -22,7 +22,15 @@ export const LIBRARY_VIEW_KEYS = [
 
 const STORAGE_PREFIX = "dive-library-view:v1";
 
-export type LibraryWorkspace = { params: URLSearchParams; scrollY: number };
+export type LibraryWorkspace = { params: URLSearchParams; scrollY: number; resume?: LibraryResume | null };
+
+/** Bounded reprise hint for a paginated depth: the anchor is a REAL row
+ * (oldest loaded dive id), `pages` counts the server pages that were loaded.
+ * No rows are ever stored — the resume re-reads exactly that many pages,
+ * capped by MAX_RESUME_PAGES, instead of re-charging the whole history. */
+export type LibraryResume = { anchor: number | null; pages: number };
+/** Never resume more than this many pages past page 1. */
+export const MAX_RESUME_PAGES = 6;
 
 /** True when the URL carries none of the Library's own working state. */
 export function isBareLibraryUrl(params: URLSearchParams): boolean {
@@ -40,12 +48,16 @@ export function librarySearchParams(params: URLSearchParams): URLSearchParams {
 }
 
 /** Save on leaving the Library; storage failures are non-fatal. */
-export function saveLibraryWorkspace(user: AuthUser | null, params: URLSearchParams, scrollY: number): void {
+export function saveLibraryWorkspace(user: AuthUser | null, params: URLSearchParams, scrollY: number,
+    resume?: LibraryResume | null): void {
   const owned = librarySearchParams(params);
+  const bounded = resume && resume.pages > 0
+    ? { anchor: typeof resume.anchor === 'number' ? resume.anchor : null, pages: Math.min(Math.max(1, Math.floor(resume.pages)), MAX_RESUME_PAGES) }
+    : undefined;
   try {
     sessionStorage.setItem(
       `${STORAGE_PREFIX}:${libraryKey(user) ?? 'anonymous'}`,
-      JSON.stringify({ p: owned.toString(), y: Math.max(0, Math.round(scrollY || 0)) }),
+      JSON.stringify({ p: owned.toString(), y: Math.max(0, Math.round(scrollY || 0)), d: bounded ?? null }),
     );
   } catch { /* Private mode or quota: memory-only, nothing to restore. */ }
 }
@@ -55,9 +67,18 @@ export function readLibraryWorkspace(user: AuthUser | null): LibraryWorkspace | 
   try {
     const raw = sessionStorage.getItem(`${STORAGE_PREFIX}:${libraryKey(user) ?? 'anonymous'}`);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as { p?: unknown; y?: unknown };
+    const parsed = JSON.parse(raw) as { p?: unknown; y?: unknown; d?: unknown };
     if (typeof parsed.p !== "string") return null;
-    return { params: new URLSearchParams(parsed.p), scrollY: Number.isFinite(parsed.y) ? Math.max(0, Number(parsed.y)) : 0 };
+    const resume = parsed.d && typeof parsed.d === 'object'
+      && typeof (parsed.d as LibraryResume).pages === 'number'
+      ? { anchor: typeof (parsed.d as LibraryResume).anchor === 'number' ? (parsed.d as LibraryResume).anchor : null,
+          pages: Math.min(Math.max(1, Math.floor((parsed.d as { pages: number }).pages)), MAX_RESUME_PAGES) }
+      : null;
+    return {
+      params: new URLSearchParams(parsed.p),
+      scrollY: Number.isFinite(parsed.y) ? Math.max(0, Number(parsed.y)) : 0,
+      resume,
+    };
   } catch {
     return null;
   }

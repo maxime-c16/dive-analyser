@@ -22,6 +22,25 @@ export function searchMembers(q: string, after?: number, signal?: AbortSignal): 
   if (after) params.set('after', String(after))
   return request(`?${params}`, { signal })
 }
+
+/** Complete Community counts, computed server-side over the whole directory,
+ * so an explicit continuation never silently truncates the section headers. */
+export type MemberTotals = { members: number; divers: number; others: number; recent: number }
+export type MemberDirectoryPage = {
+  items: MemberSummary[]
+  next_after: number | null
+  /** Older servers answer without the flag: read as "unknown", never as false-complete. */
+  has_more?: boolean
+  totals?: MemberTotals
+}
+
+/** One bounded directory page (keyset on active account ids), replacing the
+ * former up-to-20-request sequential load (discovery 2026-11-01, profil 6). */
+export function getMemberDirectory(after?: number, signal?: AbortSignal): Promise<MemberDirectoryPage> {
+  const params = new URLSearchParams()
+  if (after) params.set('after', String(after))
+  return request(`/directory?${params}`, { signal })
+}
 export function getProfileDives(id: number, before?: string): Promise<DivePage> {
   return request(`/${id}/dives${before ? `?before=${encodeURIComponent(before)}` : ''}`)
 }

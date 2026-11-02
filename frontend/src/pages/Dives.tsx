@@ -12,6 +12,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { usePreservedSearchParams } from "../hooks/usePreservedSearchParams";
 import {
   isBareLibraryUrl,
+  MAX_RESUME_PAGES,
   mergeLibraryParams,
   readLibraryWorkspace,
   saveLibraryWorkspace,
@@ -61,8 +62,11 @@ const PERIODS: Array<[string, number]> = [
 
 function ScoreBadge({ dive }: { dive: Dive }) {
   const { t } = useTranslation();
+  // The surface chip is the letter; hovering (and the Details tab) give the
+  // /10 scale and where the logged score actually sits on it.
   return (
     <span
+      title={t("dives.scoreChipTitle", { score: attemptScore(dive).toFixed(1), letter: performanceLabel(dive.performance) || dive.performance })}
       className={`inline-flex border px-2 py-1 text-xs font-medium ${performanceClass[dive.performance] || performanceClass.M}`}
     >
       {performanceLabel(dive.performance) || dive.performance}
@@ -330,12 +334,29 @@ function DiveLibrary() {
   const workspaceConsumed = useRef(false);
   const workspaceParamsRef = useRef<URLSearchParams | null>(null);
   workspaceParamsRef.current = searchParams;
+  // Bounded reprise of a paginated depth: the anchor is a real row id, never
+  // a snapshot of rows (nothing unlimited is stored, the walk is capped).
+  const resumedPagesPending = useRef<{ anchor: number | null; pages: number } | null>(null);
+  // True while a resumed-depth walk is in flight: the scroll anchor stays
+  // pending until the walk's last page lands. The ref is the synchronous
+  // gate for render-time checks; the tick state re-runs the scroll effect
+  // when the walk releases the anchor (the final pages may have committed
+  // while the walk was still finishing).
+  const resumeWalkingRef = useRef(false);
+  const [resumeWalkingTick, setResumeWalkingTick] = useState(0);
+  const resumeDepthPending = resumedPagesPending;
+  const pagesHostedRef = useRef(1);
+  const divesMirrorRef = useRef<Dive[]>(cached?.dives ?? []);
+  useEffect(() => { divesMirrorRef.current = dives; }, [dives]);
   useEffect(() => {
     workspaceConsumed.current = false;
     return () => {
-      // Leaving the Library saves the working state for this tab + account.
+      // Leaving the Library saves the working state for this tab + account,
+      // plus the bounded reprise hint (anchor row + pages already loaded).
       if (workspaceParamsRef.current && user !== undefined) {
-        saveLibraryWorkspace(user, workspaceParamsRef.current, window.scrollY ?? 0);
+        const anchor = divesMirrorRef.current.length ? divesMirrorRef.current[divesMirrorRef.current.length - 1].id : null;
+        saveLibraryWorkspace(user, workspaceParamsRef.current, window.scrollY ?? 0,
+          pagesHostedRef.current > 1 ? { anchor, pages: pagesHostedRef.current } : null);
       }
       workspaceParamsRef.current = null;
     };
@@ -372,6 +393,7 @@ function DiveLibrary() {
       if (stored && isBareLibraryUrl(searchParams) && !searchParams.has("clip")) {
         const merged = mergeLibraryParams(searchParams, stored);
         workspaceRestorePending.current = stored.scrollY;
+        resumeDepthPending.current = stored.resume ?? null;
         if (merged.toString() !== searchParams.toString()) {
           setSearchParams(merged, { replace: true, preventScrollReset: true });
           // Presentation-only restores (view, sort) leave the query keys,
@@ -421,6 +443,7 @@ function DiveLibrary() {
           // What is (about to be) mounted belongs to this key: the workspace
           // scroll anchor and the period screening key off this.
           loadedKeyRef.current = cacheKey;
+          pagesHostedRef.current = 1;
           // A direct-link clip resolved while this refresh was in flight must survive it.
           setDives(current => {
             const pinned = current.find(dive => String(dive.id) === clipRef.current && !dives.some(item => item.id === dive.id));
@@ -429,6 +452,45 @@ function DiveLibrary() {
           setDivers(divers);
           setNextCursor(nextCursor ?? null);
           setError(null);
+          // Bounded depth reprise, once per restored mount, after page 1:
+          // re-reads the remembered pages, never more, never a snapshot.
+          const depth = resumedPagesPending.current;
+          resumedPagesPending.current = null;
+          if (depth) {
+            // A fresh cache hit already CONTAINS the remembered anchor row
+            // (its rows end at the snapshot's own nextCursor): replaying
+            // pages from there would fetch beyond the remembered depth and
+            // then discard the saved scroll position. The skip checks THE
+            // LOADED VERSION'S OWN rows (loadedKeyRef === this pass' key —
+            // the response that shared the `dives` closure), never a stale
+            // other-key closure: an anchor among later pages keeps the
+            // bounded cold replay (finding cc205dbf).
+            const anchorCached = loadedKeyRef.current === cacheKey
+              && depth.anchor !== null
+              && dives.some(item => item.id === depth.anchor);
+            if (!anchorCached) {
+              // The scroll anchor stays PENDING while the walk proceeds (the
+              // scroll effect skips the consumption); the anchor is released
+              // when the walk finishes — or explicitly discarded when the
+              // remembered row fell beyond the bounded replay (new arrivals
+              // pushed it deeper): the restored rows are a different range
+              // than the saved position, so the saved scroll has no meaning.
+              resumeWalkingRef.current = true;
+              // The UI re-renders NOW so the manual control already reads
+              // its disabled serialization state during the walk.
+              setResumeWalkingTick(t => t + 1);
+              void resumeDepth(depth, nextCursor ?? null).then(result => {
+                if (!result.anchorReached) {
+                  // Every not-re-reached outcome — a failed walk (after its
+                  // bounded retry) and a superseded one alike — forfeits
+                  // the restore EXPLICITLY: the clamp must never run
+                  // against partial page-1 content (finding 04fb83ad).
+                  workspaceRestorePending.current = null;
+                  workspaceRestoreKeyRef.current = null;
+                }
+              }).finally(() => { resumeWalkingRef.current = false; setResumeWalkingTick(t => t + 1); });
+            }
+          }
         }
       })
       .catch(() => {
@@ -449,8 +511,17 @@ function DiveLibrary() {
   // has painted; clamped to the current content height. The anchor waits for
   // the restored key's own rows: consuming it on the bare key's stale cache
   // or another filter's rows would scroll against content about to change.
+  // A resume walk ALSO holds the anchor: pages keep arriving after page 1
+  // until the remembered depth is re-reached, so the clamp runs on the full
+  // restored content instead of page 1's slice.
   useEffect(() => {
     if (loading || workspaceRestorePending.current === null) return;
+    // BOTH keys must be ASSIGNED: null === null would "match" and consume
+    // the anchor against the STALE pre-restore rows (a bare-URL pass whose
+    // merge redirects to the restored filters mounts its own earlier cache
+    // rows — the anchor must not clamp there, finding cc205dbf).
+    if (!workspaceRestoreKeyRef.current) return;
+    if (resumeWalkingRef.current) return;
     if (loadedKeyRef.current !== workspaceRestoreKeyRef.current) return;
     const anchor = workspaceRestorePending.current;
     workspaceRestorePending.current = null;
@@ -460,8 +531,10 @@ function DiveLibrary() {
       window.scrollTo(0, Math.min(anchor, max));
     });
     // `dives` identity (not length): an equal-length refreshed page must
-    // still re-run this check so the anchor can be consumed on it.
-  }, [loading, dives]);
+    // still re-run this check so the anchor can be consumed on it. The
+    // walking tick re-runs the check when the resume releases the anchor
+    // (the last page's commit can precede the walk's own completion).
+  }, [loading, dives, resumeWalkingTick]);
 
   useEffect(() => {
     if (!aggregated) return;
@@ -476,7 +549,11 @@ function DiveLibrary() {
   }, [aggregated, codeParamsKey, reloadKey, accessKey]);
 
   const loadMore = async () => {
-    if (loadingMore || !nextCursor) return;
+    // A resume walk is consuming the live cursor: manual loading stands
+    // down until it finishes, or both paths could re-host the same page
+    // and the out-of-order completion would rewind nextCursor / miscount
+    // the depth (finding 736422cd).
+    if (loadingMore || resumeWalkingRef.current || !nextCursor) return;
     const epoch = pageGeneration.current;
     setLoadingMore(true);
     try {
@@ -487,12 +564,82 @@ function DiveLibrary() {
         .sort((a, b) => Date.parse(b.dive_datetime) - Date.parse(a.dive_datetime) || b.id - a.id));
       setNextCursor(response.data.next_cursor);
       setShown(count => count + 100);
+      pagesHostedRef.current += 1;
       setError(null);
     } catch {
       if (epoch === pageGeneration.current) setError(t('dives.errorLoad'));
     } finally {
       if (epoch === pageGeneration.current) setLoadingMore(false);
     }
+  };
+
+  // Bounded reprise of a remembered pagination depth (discovery profil 4:
+  // the "Load more dives" depth was lost on every return). Re-reads at most
+  // MAX_RESUME_PAGES server pages — the already-loaded depth, keyed on the
+  // live cursor like the manual control — never re-charging the whole
+  // history and never storing a single row.
+  const resumeDepth = async (depth: { anchor: number | null; pages: number }, initialCursor: string | null | undefined): Promise<{ anchorReached: boolean; current: boolean }> => {
+    const epoch = pageGeneration.current;
+    let cursor: string | null = initialCursor ?? null;
+    const target = Math.min(depth.pages, MAX_RESUME_PAGES);
+    // The saved anchor is the OLDEST row of the remembered depth: new
+    // arrivals shift it deeper, so the bounded replay may land short of it.
+    // The walk watches for the anchor row and reports explicitly whether
+    // the remembered position was re-reached within the cap.
+    let anchorReached = depth.anchor === null;
+
+    const hostPage = (items: Dive[]) => {
+      setDives(current => [...current, ...items.filter(item => !current.some(dive => dive.id === item.id))]
+        .sort((a, b) => Date.parse(b.dive_datetime) - Date.parse(a.dive_datetime) || b.id - a.id));
+      setShown(count => count + 100);
+      pagesHostedRef.current += 1;
+    };
+    // One page read, retried AT MOST ONCE: a transient drop must not cost
+    // the whole restored depth (the same one-retry precedent as the route
+    // loaders). A second failure surfaces the error; the caller then
+    // discards the anchor explicitly instead of clamping against partial
+    // content (finding 04fb83ad).
+    const readPage = async (atCursor: string): Promise<{ items: Dive[]; next: string | null } | 'failed' | 'superseded'> => {
+      try {
+        const response = await api.get('/api/v1/dives/library', { params: { ...pageParams, cursor: atCursor } });
+        if (epoch !== pageGeneration.current) return 'superseded';
+        return { items: response.data.items, next: response.data.next_cursor as string | null };
+      } catch {
+        if (epoch !== pageGeneration.current) return 'superseded';
+      }
+      // The decisive re-run of the SAME page (bounded, once).
+      try {
+        const response = await api.get('/api/v1/dives/library', { params: { ...pageParams, cursor: atCursor } });
+        if (epoch !== pageGeneration.current) return 'superseded';
+        return { items: response.data.items, next: response.data.next_cursor as string | null };
+      } catch {
+        if (epoch === pageGeneration.current) setError(t('dives.errorLoad'));
+        return 'failed';
+      }
+    };
+
+    for (let page = 1; page < target && cursor; page++) {
+      if (epoch !== pageGeneration.current) return { anchorReached, current: false };
+      const outcome = await readPage(cursor);
+      if (outcome === 'superseded') return { anchorReached, current: false };
+      if (outcome === 'failed') {
+        // A failed walk did NOT re-reach the anchor: the caller discards.
+        if (epoch === pageGeneration.current) setError(t('dives.errorLoad'));
+        return { anchorReached: false, current: epoch === pageGeneration.current };
+      }
+      hostPage(outcome.items);
+      cursor = outcome.next;
+      // The manual control continues from the resume's deepest page, not
+      // from the first resume's anchor: otherwise "Load more" re-fetches
+      // the pages the resume already hosted.
+      if (epoch === pageGeneration.current) setNextCursor(cursor ?? null);
+      if (!anchorReached && depth.anchor !== null && outcome.items.some(item => item.id === depth.anchor)) {
+        // The remembered position re-reached: the depth IS restored; no
+        // point fetching pages the user had never reached.
+        return { anchorReached: true, current: true };
+      }
+    }
+    return { anchorReached, current: epoch === pageGeneration.current };
   };
 
   // Direct links can target an older page. Resolve that one authorized dive,
@@ -613,7 +760,7 @@ function DiveLibrary() {
 
   // Extend the viewer's navigation window before it reaches a page boundary.
   useEffect(() => {
-    if (selected && nextCursor && !loadingMore && filtered.findIndex(dive => dive.id === selected.id) >= filtered.length - 3) void loadMore();
+    if (selected && nextCursor && !loadingMore && !resumeWalkingRef.current && filtered.findIndex(dive => dive.id === selected.id) >= filtered.length - 3) void loadMore();
   }, [selected?.id, nextCursor, filtered.length, loadingMore]);
 
   // Stale/invalid clip identity (bad id, removed attempt, direct stale link):
@@ -704,12 +851,69 @@ function DiveLibrary() {
   };
 
   const visible = filtered.slice(0, shown);
+  const facetScopeParams = useMemo(() => {
+    const { height: _height, ...rest } = pageParams;
+    return rest;
+  }, [pageParams]);
+  const facetParamsKey = JSON.stringify(facetScopeParams);
+  const [heightFacets, setHeightFacets] = useState<{ key: string; heights: string[]; partial?: boolean } | null>(null);
+  const facetScopeParamsRef = useRef(facetScopeParams);
+  facetScopeParamsRef.current = facetScopeParams;
+  useEffect(() => {
+    let active = true;
+    // C1 (profil 12): the Height select derives from the authorized scope as
+    // a whole (every other filter, never the height it filters), so the same
+    // URL answers the same options and switching the dimension needs no
+    // detour through All heights. Failures fall back to the row-derived list.
+    // The facet answer is EXPLICITLY bounded (limit + partial + after): the
+    // client follows the keyset until the server says the domain is
+    // complete; if a safety cap (MAX_FACET_PAGES) is ever reached while the
+    // server still reports `partial`, the PARTIAL state stays visible
+    // instead of presenting the walk as the whole domain.
+    const facets: string[] = [];
+    const MAX_FACET_PAGES = 10;
+    const walk = (after: string, depth: number): Promise<void> => api
+      .get('/api/v1/dives/library/facets', { params: { ...facetScopeParamsRef.current, ...(after ? { after } : {}) } })
+      .then((response) => {
+        if (!active || !Array.isArray(response.data?.heights)) return;
+        facets.push(...response.data.heights);
+        const stillPartial = Boolean(response.data.partial && response.data.after);
+        // The server's partial flag is stored AS OF EVERY PAGE: while the
+        // walk keeps following continuations — and if one of them fails —
+        // a capped list is never stored or displayed as the whole domain.
+        setHeightFacets({
+          key: facetParamsKey,
+          heights: [...new Set(facets)],
+          partial: stillPartial,
+        });
+        if (stillPartial && depth + 1 < MAX_FACET_PAGES) return walk(response.data.after, depth + 1);
+      })
+      .catch(() => {
+        // A failed continuation only ever follows a page that announced
+        // `partial`: re-assert it so a failure can never downgrade the
+        // visible options to a false-complete list (finding a49b53ad).
+        if (!active || facets.length === 0) return;
+        setHeightFacets(previous => (
+          previous && previous.key === facetParamsKey ? { ...previous, partial: true } : previous
+        ));
+      });
+    void walk('', 0);
+    return () => { active = false; };
+  }, [facetParamsKey, reloadKey, accessKey]);
   const heights = useMemo(
-    () =>
-      [...new Set(dives.map((dive) => dive.height))].sort(
+    () => {
+      const fromRows = [...new Set(dives.map((dive) => dive.height))].sort(
         (a, b) => Number(a) - Number(b),
-      ),
-    [dives],
+      );
+      // Full-scope heights stay in the list even while one height is active;
+      // a page slice can no longer prune its own answer (profil 12 C1).
+      const options = heightFacets && heightFacets.key === facetParamsKey
+        ? [...heightFacets.heights, ...fromRows.filter((height) => !heightFacets.heights.includes(height))]
+        : fromRows;
+      if (heightFilter && !options.includes(heightFilter)) options.push(heightFilter);
+      return options.sort((a, b) => Number(a) - Number(b));
+    },
+    [dives, heightFacets, facetParamsKey, heightFilter],
   );
   const activeFilters = [
     heightFilter,
@@ -872,6 +1076,11 @@ function DiveLibrary() {
               </option>
             ))}
           </select>
+          {heightFacets?.partial && heightFacets.key === facetParamsKey && (
+            <span className="text-xs text-app-muted sm:w-auto" title={t("dives.heightsPartialAria")}>
+              {t("dives.heightsPartial")}
+            </span>
+          )}
           <select
             aria-label={t("dives.contextFilter")}
             value={contextFilter}
@@ -943,6 +1152,18 @@ function DiveLibrary() {
                 <dt className="font-semibold text-app-text">{modifier} · {t(`dives.modifierNames.${modifier}`)}</dt>
                 <dd className="mt-1 text-app-muted">{t(`dives.modifierDescriptions.${modifier}`)}</dd>
               </div>)}
+              <div>
+                <dt className="font-semibold text-app-text">SYNC · {t("dives.helpSyncName")}</dt>
+                <dd className="mt-1 text-app-muted">{t("dives.helpSyncDescription")}</dd>
+              </div>
+              <div>
+                <dt className="font-semibold text-app-text">DD · {t("dives.helpDdName")}</dt>
+                <dd className="mt-1 text-app-muted">{t("dives.helpDdDescription")}</dd>
+              </div>
+              <div>
+                <dt className="font-semibold text-app-text">{t("dives.ratingsItem")} (P/G/M/B/F)</dt>
+                <dd className="mt-1 text-app-muted">{t("dives.ratingsScale")}</dd>
+              </div>
             </dl>
           </details>
           <button
@@ -1058,7 +1279,7 @@ function DiveLibrary() {
       )}
       {!loading && nextCursor && !aggregated && shown >= filtered.length && (
         <div className="mt-5 text-center">
-          <button type="button" disabled={loadingMore} onClick={() => void loadMore()}
+          <button type="button" disabled={loadingMore || resumeWalkingRef.current} onClick={() => void loadMore()}
             className="touch-target border border-app bg-app-panel px-5 text-sm text-app-text disabled:opacity-50">
             {loadingMore ? t('common.loading') : t('dives.loadMore')}
           </button>

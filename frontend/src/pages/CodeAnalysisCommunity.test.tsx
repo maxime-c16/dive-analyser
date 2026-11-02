@@ -4,12 +4,13 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, expect, it, vi } from 'vitest'
 import CodeAnalysis from './CodeAnalysis'
-import { getCodeAttempts, getCodeSummaries } from '../services/codeSummariesApi'
+import { getCodeAttemptsResult, getCodeSummaries } from '../services/codeSummariesApi'
 import { getCodeCommunity } from '../services/codeCommunityApi'
 
 vi.mock('../services/codeSummariesApi', () => ({
   getCodeAttempts: vi.fn(), getCodeSummaries: vi.fn(),
-  peekCodeAttempts: vi.fn(() => null), peekCodeSummaries: vi.fn(() => null), clearCodeSummaryCache: vi.fn(),
+  getCodeAttemptsResult: vi.fn(),
+  peekCodeAttemptsResult: vi.fn(() => null), peekCodeAttempts: vi.fn(() => null), peekCodeSummaries: vi.fn(() => null), clearCodeSummaryCache: vi.fn(),
 }))
 vi.mock('../services/codeCommunityApi', () => ({
   getCodeCommunity: vi.fn(), clearCodeCommunityCache: vi.fn(),
@@ -45,7 +46,7 @@ const members = [{
 }]
 
 beforeEach(() => {
-  vi.mocked(getCodeAttempts).mockResolvedValue(attempts as never)
+  vi.mocked(getCodeAttemptsResult).mockResolvedValue({ items: attempts as never, capped: false })
   vi.mocked(getCodeSummaries).mockResolvedValue({ generated_at: day(0), codes: [], activity: {} } as never)
   vi.mocked(getCodeCommunity).mockResolvedValue({ dive_code: '5122D', members, hidden_count: 0 } as never)
 })
