@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { useAuth } from '../contexts/AuthContext'
 import { performanceLabel } from '../utils/attemptPresentation'
 import { EVALUATION_PROMPT_MAX } from '../services/evaluationApi'
+import { Plus } from 'lucide-react'
 
 function localDate(date: Date) {
   return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
@@ -22,7 +23,7 @@ function newUploadId() {
 
 type Clip = { file: File; id: string; date: string; code: string; height: string; rating: string; notes: string; public: boolean; evaluation: boolean; evaluationPrompt: string }
 
-export default function AddVideos({ onAdded }: { onAdded: () => void }) {
+export default function AddVideos({ onAdded, compact = false }: { onAdded: () => void; compact?: boolean }) {
   const { t } = useTranslation()
   const { user } = useAuth()
   const owners = user?.divers.filter(binding => binding.access_kind === 'OWNER') || []
@@ -95,7 +96,10 @@ export default function AddVideos({ onAdded }: { onAdded: () => void }) {
       setClips(selected.map(file => ({ file, id: newUploadId(), date: localDate(new Date(file.lastModified || Date.now())), code: '', height: '3m', rating: 'M', notes: '', public: false, evaluation: false, evaluationPrompt: '' })))
       setIndex(0); setSaved(0); setDiver(String(owners[0].diver_id)); setNotice(''); setError('')
     }} />
-    <button ref={trigger} type="button" className="touch-target inline-flex items-center justify-center whitespace-nowrap border border-app-accent bg-app-accent px-4 text-sm font-semibold text-black hover:bg-app-accent/90" onClick={() => input.current?.click()}>{t('addVideos.add')}</button>
+    <button ref={trigger} type="button" aria-label={t('addVideos.add')} title={t('addVideos.add')} className={`touch-target inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-app-accent bg-app-accent text-sm font-semibold text-black hover:bg-app-accent/90 ${compact ? 'px-3 sm:px-4' : 'px-4'}`} onClick={() => input.current?.click()}>
+      {compact && <Plus className="h-5 w-5" aria-hidden="true" />}
+      <span className={compact ? 'hidden sm:inline' : undefined}>{t('addVideos.add')}</span>
+    </button>
     {notice && <p role="status" className="text-sm text-app-muted">{notice}</p>}
     {clip && <div ref={overlayRef} className="fixed inset-0 z-50 overflow-y-auto bg-black/80 p-3 sm:p-8" role="dialog" aria-modal="true" aria-labelledby="add-video-title">
       <form ref={form} tabIndex={-1} onSubmit={save} className="mx-auto max-w-xl space-y-4 border border-app bg-app-panel p-4 sm:p-6">

@@ -158,7 +158,7 @@ export default function MemberProfile() {
     </div>
 
     <header className="cm-hero">
-      <MemberAvatar member={profile} size={96} />
+      <MemberAvatar member={profile} size={72} />
       <div style={{ minWidth: 0 }}>
         <h1>{profile.display_name}</h1>
         {profile.handle && <p className="cm-hero-handle">@{profile.handle}</p>}
@@ -180,6 +180,8 @@ export default function MemberProfile() {
     {editing && <ProfileEditor profile={profile} onChange={identity => setProfile(previous => previous ? { ...previous, ...identity } : previous)} onClose={() => setEditing(false)} />}
 
     {totals && totals.attempt_count > 0 && <section className="ca-panel" aria-label={t('profile.stats')}>
+      <details className="cm-stats">
+      <summary>{t('profile.stats')}</summary>
       <dl className="ca-kpis" style={{ margin: 0 }}>
         <div className="ca-kpi"><dt>{t('profile.kpi.dives')}</dt><dd><CountUp value={totals.attempt_count} digits={0} /></dd></div>
         <div className="ca-kpi"><dt>{t('profile.kpi.codes')}</dt><dd><CountUp value={codes!.codes.length} digits={0} /></dd></div>
@@ -193,6 +195,7 @@ export default function MemberProfile() {
         </div>
         <div className="cm-weeks-legend"><span>{format(parseISO(weeks[0].start), 'MMM yy', { locale: appLocale() })}</span><span>{t('profile.thisWeek')}</span></div>
       </>}
+      </details>
     </section>}
 
     <Segmented label={t('community.profileSections')} value={tab} onChange={setTab}

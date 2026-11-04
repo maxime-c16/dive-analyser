@@ -14,6 +14,8 @@
   --app-text: #edf2f4;
   --app-muted: #98a2aa;
   --app-accent: #54beab;
+  --app-control-radius: 8px;
+  --app-surface-radius: 12px;
 }
 
 a {

@@ -93,7 +93,7 @@ function Thread({ id, onLeave }: { id: number; onLeave: (id: number) => void }) 
   const thread = useRef<HTMLElement>(null)
   const [top, setTop] = useState(0)
   useLayoutEffect(() => {
-    if (viewport.width >= 768 || !thread.current) return
+    if (!thread.current) return
     window.scrollTo({ top: 0, behavior: 'instant' })
     const measure = () => { if (thread.current) setTop(thread.current.getBoundingClientRect().top + window.scrollY) }
     measure()

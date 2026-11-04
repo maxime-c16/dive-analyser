@@ -8,7 +8,7 @@ import { diveCodeName } from '../../i18n/diveNames'
 import { appLocale } from '../../utils/dateLocale'
 import type { Attempt } from '../../utils/attemptPresentation'
 import type { CodeSummary } from '../../services/codeSummariesApi'
-import { RatingBar, ScoreChip, Sparkline, TrendBadge } from './parts'
+import { RatingBar, ScoreChip, TrendBadge } from './parts'
 import { fmtScore } from '../../utils/codeStats'
 
 export type CodeSort = 'recent' | 'volume' | 'progress'
@@ -62,22 +62,27 @@ export default function CodeCards({ codes, sort, onSort, onOpenClip, diverId }: 
               {name !== code.dive_code && <div className="ca-code-name">{name}</div>}
               {code.analytics && <div className="ca-code-stats">
                 <span>{t('dives.avg')} <b>{fmtScore(code.average)}</b></span>
-                <span>{t('codeAnalysis.median')} <b>{fmtScore(code.median)}</b></span>
-                <span>{t('dives.best')} <b>{fmtScore(code.best)}</b></span>
               </div>}
             </div>
-            {code.analytics && <div className="ca-code-side"><TrendBadge delta={code.trend?.delta} /><Sparkline values={code.spark} /></div>}
+            {code.analytics && <div className="ca-code-side"><TrendBadge delta={code.trend?.delta} /></div>}
           </div>
           <div className="ca-code-meta">
             <span>{t('codeAnalysis.attemptsSessions', { attempts: code.attempt_count, sessions: code.session_count })}</span>
             <span>{t('dives.last')} {date(code.last_attempt_at, 'd MMM')}</span>
           </div>
+          <details className="ca-code-details" onClick={event => event.stopPropagation()} onKeyDown={event => event.stopPropagation()}>
+          <summary>{t('dives.recentAttemptsFor', { code: code.dive_code })}</summary>
+          {code.analytics && <div className="ca-code-stats">
+            <span>{t('codeAnalysis.median')} <b>{fmtScore(code.median)}</b></span>
+            <span>{t('dives.best')} <b>{fmtScore(code.best)}</b></span>
+          </div>}
           <RatingBar ratings={code.ratings} />
           <div className="ca-chips" aria-label={t('dives.recentAttemptsFor', { code: code.dive_code })}>
             {code.recent.map(item => <ScoreChip key={item.id} id={item.id} performance={item.performance} score={item.score ?? 0} onOpen={onOpenClip}
               label={t('dives.openAttemptFrom', { code: code.dive_code, date: date(item.dive_datetime, 'd MMM HH:mm') })} />)}
             {code.attempt_count > code.recent.length && <span className="ca-flat" style={{ alignSelf: 'center', paddingLeft: 4, fontSize: 12 }}>+{code.attempt_count - code.recent.length}</span>}
           </div>
+          </details>
           <ChevronRight className="ca-code-go h-4 w-4" aria-hidden="true" />
         </div>
       })}

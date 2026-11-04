@@ -297,7 +297,7 @@ function Breadcrumbs() {
   if (location.pathname === "/dives") return null;
 
   return (
-    <div className="mx-auto mb-4 hidden w-full max-w-[1320px] items-center gap-2 overflow-x-auto text-xs font-medium uppercase tracking-[0.14em] text-app-muted sm:flex">
+    <div className="app-breadcrumbs mx-auto mb-4 hidden w-full max-w-[1320px] items-center gap-2 overflow-x-auto text-xs font-medium uppercase tracking-[0.14em] text-app-muted sm:flex">
       <Link to="/" className="hover:text-app-text">
         Dive Analyser
       </Link>

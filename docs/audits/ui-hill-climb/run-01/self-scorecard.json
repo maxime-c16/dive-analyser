@@ -1,0 +1,219 @@
+{
+  "kind": "coordinator-self-assessment",
+  "status": "ready-for-independent-review",
+  "source": "candidate implementation commit containing this file; screenshots span documented working iterations",
+  "viewports": [
+    [
+      390,
+      844
+    ],
+    [
+      844,
+      390
+    ],
+    [
+      768,
+      1024
+    ],
+    [
+      1024,
+      768
+    ],
+    [
+      1440,
+      900
+    ]
+  ],
+  "scoring": "Subjective conservative lowest screen score in inspected coverage; independent reviewers must re-evaluate, never reuse these scores. No accessibility certification.",
+  "rows": [
+    {
+      "category": 1,
+      "name": "Visual hierarchy",
+      "scores": [
+        7,
+        7,
+        7,
+        7,
+        7
+      ],
+      "weakest_reason": "Evaluations My dives retains repeated code/height rows; score and opening action lead"
+    },
+    {
+      "category": 2,
+      "name": "Layout and density",
+      "scores": [
+        7,
+        7,
+        7,
+        7,
+        7
+      ],
+      "weakest_reason": "Landscape analysis requires scrolling; chrome is now compact"
+    },
+    {
+      "category": 3,
+      "name": "Typography",
+      "scores": [
+        7,
+        7,
+        8,
+        8,
+        8
+      ],
+      "weakest_reason": "Detailed analysis has secondary small metadata"
+    },
+    {
+      "category": 4,
+      "name": "Color and contrast",
+      "scores": [
+        7,
+        7,
+        8,
+        8,
+        8
+      ],
+      "weakest_reason": "Muted secondary labels remain; this is visual judgement, no accessibility certification"
+    },
+    {
+      "category": 5,
+      "name": "Spacing and alignment",
+      "scores": [
+        7,
+        7,
+        7,
+        7,
+        7
+      ],
+      "weakest_reason": "Calendar detail secondary actions and dense code filters"
+    },
+    {
+      "category": 6,
+      "name": "Navigation and orientation",
+      "scores": [
+        7,
+        7,
+        7,
+        7,
+        7
+      ],
+      "weakest_reason": "Player Back and Room Back remain available; profile has return action"
+    },
+    {
+      "category": 7,
+      "name": "Control clarity",
+      "scores": [
+        7,
+        7,
+        7,
+        7,
+        7
+      ],
+      "weakest_reason": "Native summary opens code details without navigating; timed score submit fits landscape"
+    },
+    {
+      "category": 8,
+      "name": "Terminology and instructions",
+      "scores": [
+        7,
+        7,
+        7,
+        7,
+        7
+      ],
+      "weakest_reason": "High variability and simulated judge labels are explicit; technical charts remain"
+    },
+    {
+      "category": 9,
+      "name": "Component consistency",
+      "scores": [
+        7,
+        7,
+        7,
+        7,
+        7
+      ],
+      "weakest_reason": "Detailed analysis uses square panels while other journeys use rounded surfaces"
+    },
+    {
+      "category": 10,
+      "name": "Task content presentation",
+      "scores": [
+        7,
+        7,
+        7,
+        7,
+        7
+      ],
+      "weakest_reason": "My dives lacks date/poster in existing API; clip link provides access"
+    },
+    {
+      "category": 11,
+      "name": "Feedback and state clarity",
+      "scores": [
+        7,
+        7,
+        7,
+        7,
+        7
+      ],
+      "weakest_reason": "Loading/retry/room pending are visible; transient 201C failure cause unknown"
+    },
+    {
+      "category": 12,
+      "name": "Professional finish",
+      "scores": [
+        7,
+        7,
+        7,
+        7,
+        7
+      ],
+      "weakest_reason": "Dark workspace remains restrained; score-card spiral intentionally retained"
+    },
+    {
+      "category": 13,
+      "name": "Responsive fit",
+      "scores": [
+        7,
+        7,
+        7,
+        7,
+        7
+      ],
+      "weakest_reason": "844x390 room scoring fits; long lobby/form scroll normally"
+    },
+    {
+      "category": 14,
+      "name": "Next-action discoverability",
+      "scores": [
+        7,
+        7,
+        7,
+        7,
+        7
+      ],
+      "weakest_reason": "Create, open clip, judge and submit have explicit controls"
+    }
+  ],
+  "coverage": [
+    "Library grid/codes/progress, clip3044 player and next/back",
+    "Code201C overview/details, dense sessions chart, code disclosure and clip3028",
+    "Messages inbox/thread4/new-message/group form; no sends",
+    "Community directory/profile15 Dives/Codes/Activity/Achievements and stats",
+    "Calendar November list/detail10/new form; no RSVP/save",
+    "Evaluations My dives/History/judging9.5 draft, quit without confirming",
+    "Own isolated Judge Room Classic/code/mole lobby/playback/scoring/reveal/vote/results; normal UI actions only"
+  ],
+  "checks": {
+    "frontend": "115 files, 948 tests PASS under Node20",
+    "build": "tsc + Vite production build PASS",
+    "release_notes": "PASS",
+    "diff_check": "PASS",
+    "global_gate": "BLOCKED by Mac missing nproc/timeout/Docker/PyYAML; no global green claim"
+  },
+  "limitations": [
+    "Historical captures with mismatched metadata or unsettled content retained as invalid; cannot support score increases",
+    "Before/after gallery draft requires annotation QA and child-flow completion before PR",
+    "No independent UI council scores yet"
+  ]
+}

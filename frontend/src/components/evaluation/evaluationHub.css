@@ -3,14 +3,14 @@
 
 /* ---- Page chrome ------------------------------------------------------ */
 .evaluations-heading { display: flex; align-items: center; gap: 8px; }
-.evaluations-title { flex: 1; min-width: 0; margin: 0; font-size: 22px; }
-@media (max-width: 1023px) { .evaluations-title { font-size: 30px; font-weight: 600; } }
+.evaluations-title { flex: 1; min-width: 0; margin: 0; font-size: 30px; line-height:36px; font-weight:600; letter-spacing:-.025em; }
+@media (min-width: 640px) { .evaluations-title { font-size: 36px; line-height:40px; } }
 .evaluations-tabs { position: relative; display: flex; flex-wrap: nowrap; border-bottom: 1px solid var(--app-border); }
 .evaluations-tabs button { flex: 1 1 auto; min-width: 0; min-height: 44px; padding: 8px 10px; border: 0; border-radius: 0; background: none; color: var(--app-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: color 200ms; }
 .evaluations-tabs button[aria-selected=true] { color: var(--app-accent); }
 .evaluations-tab-indicator { position: absolute; left: 0; bottom: -1px; height: 2px; border-radius: 2px; background: var(--app-accent); transition: transform 320ms cubic-bezier(.3,1.4,.5,1), width 320ms cubic-bezier(.3,1.4,.5,1); }
 /* minmax(0,1fr): wide card strips scroll inside their row instead of widening the page. */
-.evaluations-body { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; animation: eval-panel-in 260ms ease-out both; }
+.evaluations-body { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
 @keyframes eval-panel-in { from { opacity: 0; transform: translateY(8px); } }
 
 .eval-hub-card { display: grid; gap: 10px; justify-items: start; padding: 18px; border: 1px solid var(--app-border); border-radius: 16px; background: var(--app-panel); }
@@ -97,7 +97,9 @@
 .eval-rules summary { cursor: pointer; color: var(--app-accent); font-size: 14px; min-height: 32px; }
 .eval-rules p { margin: 6px 0 0; }
 .eval-board-list { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; margin: 0; padding: 0; list-style: none; }
-.eval-board-row { display: grid; grid-template-columns: auto 1fr auto; align-items: start; gap: 12px; padding: 12px; border: 1px solid var(--app-border); border-radius: 14px; background: var(--app-panel); animation: eval-row-in 360ms cubic-bezier(.2,.8,.3,1) calc(var(--i, 0) * 45ms) both; }
+.eval-board-row { display: grid; grid-template-columns: 3rem minmax(0,1fr) auto; align-items: start; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--app-border); background: transparent; }
+.eval-mean { font-size:22px; line-height:28px; font-weight:600; color:var(--app-text); font-variant-numeric:tabular-nums; }
+.eval-dive-link { color:var(--app-text); font-weight:600; }
 .eval-board-row[data-excluded=true] { opacity: .55; }
 .eval-board-main { display: grid; gap: 4px; min-width: 0; }
 .eval-board-main .eval-owned-panel > button { min-height: 32px; padding: 0; border: 0; background: none; color: var(--app-accent); font-size: 13px; }
@@ -126,7 +128,7 @@
 .eval-history { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
 .eval-history-day h3 { position: sticky; top: 0; z-index: 1; margin: 8px 0 6px; padding: 4px 0; background: var(--app-bg); color: var(--app-muted); font-size: 13px; font-weight: 600; text-transform: capitalize; }
 .eval-history-list { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; margin: 0; padding: 0; list-style: none; }
-.eval-history-row { border: 1px solid var(--app-border); border-radius: 14px; background: var(--app-panel); animation: eval-row-in 360ms cubic-bezier(.2,.8,.3,1) calc(min(var(--i, 0), 12) * 40ms) both; }
+.eval-history-row { border: 1px solid var(--app-border); border-radius: 14px; background: var(--app-panel); }
 .eval-history-row[data-open=true] { border-color: color-mix(in srgb, var(--app-accent) 50%, var(--app-border)); }
 .eval-history-summary { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px; width: 100%; min-height: 64px; padding: 10px 12px; border: 0; background: none; color: inherit; text-align: left; }
 .eval-history-summary .eval-card { --eval-card-w: 30px; transition: transform 300ms cubic-bezier(.3,1.5,.5,1); }

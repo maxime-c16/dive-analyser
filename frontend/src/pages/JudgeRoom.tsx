@@ -7,7 +7,7 @@ import {
 } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Check, Copy, Crown, Link2, Play, Timer, Volume2 } from "lucide-react";
+import { ArrowLeft, Check, Copy, Link2, Play, Timer, User, Volume2 } from "lucide-react";
 import MemberAvatar from "../components/MemberAvatar";
 import { ScoreCard } from "../components/evaluation/ScoreCards";
 import EvaluationPlayer from "../components/evaluation/EvaluationPlayer";
@@ -32,9 +32,11 @@ function Seat({ player, size = 44 }: { player: Player; size?: number }) {
   ) : (
     <span
       className="gm-ghost"
+      role="img"
+      aria-label={player.name}
       style={{ width: size, height: size, fontSize: size * 0.5 }}
     >
-      {player.emoji ?? player.name.slice(0, 1)}
+      <User size={size * 0.5} aria-hidden="true" />
     </span>
   );
 }
@@ -224,23 +226,6 @@ export default function JudgeRoom() {
           <MobileShellActions />
         </header>
         <section className="ca-panel gm-hero ca-arrive">
-          <ul className="gm-hero-seats" aria-hidden="true">
-            {user && (
-              <li className="is-me">
-                <MemberAvatar member={user} size={64} />
-              </li>
-            )}
-            {["🥰", "🧊", "👻", "🏅"].map((emoji, i) => (
-              <li key={emoji} className="ca-pop" style={{ "--i": i } as CSSProperties}>
-                <span className="gm-ghost">{emoji}</span>
-              </li>
-            ))}
-          </ul>
-          <div className="gm-hero-modes" aria-hidden="true">
-            <span className="ca-fact">{t("room.classic")}</span>
-            <span className="ca-fact">{t("room.mole")}</span>
-            <span className="ca-fact">{t("room.guessCode")}</span>
-          </div>
           <button
             className="gm-cta"
             disabled={busy || !user}
@@ -257,7 +242,7 @@ export default function JudgeRoom() {
             }}
           >
             <Play size={18} />
-            {t("room.create")}
+            <span aria-live="polite">{busy ? t("common.loading") : t("room.create")}</span>
           </button>
         </section>
         <form
@@ -313,6 +298,10 @@ export default function JudgeRoom() {
     <div
       className={`ca gm-page gm-phase-${room?.phase ?? "join"}${watching ? " gm-watching" : ""}${scoring ? " gm-scoring" : ""}`}
     >
+      <Link className="gm-exit" to="/evaluations" aria-label={t("common.back")}>
+        <ArrowLeft size={18} aria-hidden="true" />
+        {t("common.back")}
+      </Link>
       {error && (
         <p role="alert" className="eval-error">
           {t("room.error")}
@@ -609,6 +598,10 @@ export default function JudgeRoom() {
             {room.is_mole && <p className="gm-roast">{t("room.secret")}</p>}
             {scoring && (
               <>
+                <figure className="gm-score-context">
+                  <img src={dive.poster_url} alt="" />
+                  <figcaption>{room.mode === "code" ? t("room.guessCode") : `${dive.dive_code ?? ""} · ${dive.height}`}</figcaption>
+                </figure>
                 <ul className="gm-status">
                   {room.players.map((p) => (
                     <li
@@ -718,13 +711,7 @@ export default function JudgeRoom() {
                           />
                           <Seat player={p} size={30} />
                           <b>{p.name}</b>
-                          {p.emoji && (
-                            <q>
-                              {p.id === "shadow" && room.result?.shadow_comment
-                                ? room.result.shadow_comment
-                                : t("room.line." + p.id)}
-                            </q>
-                          )}
+                          {p.id === "shadow" && room.result?.shadow_comment && <q>{room.result.shadow_comment}</q>}
                         </li>
                       ))}
                     </ul>
@@ -742,7 +729,6 @@ export default function JudgeRoom() {
                         <b>+{room.result.gains[room.me] ?? 0}</b>
                       </div>
                     </section>
-                    <p className="gm-roast">{t("room.roast")}</p>
                   </>
                 )}
                 <button
@@ -804,7 +790,6 @@ export default function JudgeRoom() {
           </header>
           {room.mode === "mole" && (
             <section className="gm-mole-out">
-              <span>🕵️</span>
               <b>
                 {t("room.moleWas", {
                   name:
@@ -815,38 +800,22 @@ export default function JudgeRoom() {
             </section>
           )}
           <section className="ca-panel">
-            <ol className="cm-podium">
+            <div className="ca-panel-h"><h2>{t("community.board.title")}</h2><span>{t("room.points")}</span></div>
+            <ol className="gm-ranking">
               {[...room.players]
                 .sort((a, b) => b.points - a.points)
-                .slice(0, 3)
                 .map((p, i) => (
-                  <li key={p.id} className={"cm-step is-" + (i + 1)}>
-                    <span className="cm-step-who">
-                      {i === 0 && <Crown size={20} />}
-                      <Seat player={p} size={i === 0 ? 64 : 48} />
-                      <b>{p.name}</b>
-                      <span className="cm-step-value">{p.points}</span>
-                    </span>
-                    <span className="cm-step-block">{i + 1}</span>
+                  <li key={p.id}>
+                    <span>{i + 1}</span>
+                    <Seat player={p} size={30} />
+                    <b>{p.name}</b>
+                    <span>{p.points}</span>
                   </li>
                 ))}
             </ol>
           </section>
-          <ol className="gm-ranking" start={4}>
-            {[...room.players]
-              .sort((a, b) => b.points - a.points)
-              .slice(3)
-              .map((p) => (
-                <li key={p.id}>
-                  <Seat player={p} size={30} />
-                  <b>{p.name}</b>
-                  <span>{p.points}</span>
-                </li>
-              ))}
-          </ol>
           <section className="gm-awards">
             <div className="ca-panel">
-              <span>🎯</span>
               <b>{t("room.sharp")}</b>
               <small>
                 {
@@ -858,7 +827,6 @@ export default function JudgeRoom() {
               </small>
             </div>
             <div className="ca-panel">
-              <span>🔥</span>
               <b>{t("room.harsh")}</b>
               <small>
                 {

@@ -934,11 +934,12 @@ function DiveLibrary() {
     });
 
   return (
-    <div className="mx-auto max-w-[1440px] pb-10">
+    <div className="library-page mx-auto max-w-[1440px] pb-10">
       <header className="flex flex-wrap items-center gap-x-2 gap-y-3 border-b border-app pb-3 sm:flex-nowrap sm:items-end sm:gap-4 sm:pb-5">
         <h1 className="min-w-0 flex-1 text-3xl font-semibold tracking-tight text-app-text sm:text-4xl">
           {t("nav.dives")}
         </h1>
+        <AddVideos compact onAdded={() => { clearLibraryCache(); setReloadKey(key => key + 1); }} />
         <MobileShellActions />
         <div className="basis-full sm:hidden" aria-hidden />
         <div className="flex h-11 flex-1 gap-1 border border-app bg-app-panel p-0.5 sm:hidden">
@@ -970,8 +971,6 @@ function DiveLibrary() {
         >
           <RefreshCw className="h-4 w-4" />
         </button>
-        <div className="basis-full sm:hidden" aria-hidden />
-        <AddVideos onAdded={() => { clearLibraryCache(); setReloadKey(key => key + 1); }} />
       </header>
       <PendingBanner />
       <section className="mt-4 space-y-2" aria-label={t("dives.filtersAria")}>
@@ -1009,7 +1008,7 @@ function DiveLibrary() {
             type="button"
             onClick={() => setFiltersOpen((open) => !open)}
             aria-expanded={filtersOpen}
-            className={`touch-target relative inline-flex items-center justify-center border sm:hidden ${filtersOpen ? "border-app-accent text-app-accent" : "border-app text-app-muted"}`}
+            className={`library-filter-toggle touch-target relative inline-flex items-center justify-center border sm:hidden ${filtersOpen ? "border-app-accent text-app-accent" : "border-app text-app-muted"}`}
             aria-label={t("dives.filters")}
           >
             <SlidersHorizontal className="h-4 w-4" />
@@ -1062,7 +1061,7 @@ function DiveLibrary() {
             </button>
           </div>
         </div>
-        <div className={`${filtersOpen ? "grid" : "hidden"} grid-cols-2 items-center gap-2 sm:flex sm:flex-wrap`}>
+        <div data-open={filtersOpen} className={`library-advanced-filters ${filtersOpen ? "grid" : "hidden"} grid-cols-2 items-center gap-2 sm:flex sm:flex-wrap`}>
           <select
             aria-label={t("dives.heightFilter")}
             value={heightFilter}

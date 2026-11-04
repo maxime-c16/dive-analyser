@@ -181,7 +181,7 @@ export default function OccurrenceView({ ctx, occurrenceId }: { ctx: CalendarCon
 
       </section>
 
-      {event.description && <section className="ca-panel"><p className="cal-description">{event.description}</p></section>}
+      {event.description && <section className="cal-description-block"><p className="cal-description">{event.description}</p></section>}
 
       {(event.itinerary ?? []).length > 0 && (
         <section className="ca-panel">
