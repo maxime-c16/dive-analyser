@@ -7,8 +7,11 @@ import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { OwnedPanelLink } from './EvaluationSpaces'
 import WarmUp from './EvaluationWarmUp'
 import { useTranslation } from 'react-i18next'
-import { getAutomaticScores, setAutomaticExclusion, type AutomaticScore } from '../../services/evaluationApi'
+import { getAutomaticScores, loadAutomaticIdentities, setAutomaticExclusion, type AutomaticScore } from '../../services/evaluationApi'
 import { Link } from 'react-router-dom'
+import { format, parseISO } from 'date-fns'
+import { appLocale } from '../../utils/dateLocale'
+import DiveThumbnail from '../DiveThumbnail'
 
 type Sort = 'recent' | 'top' | 'votes'
 const SORTS: Sort[] = ['recent', 'top', 'votes']
@@ -25,10 +28,17 @@ export default function AutomaticScores() {
   const [sort, setSort] = useState<Sort>('recent')
   useEffect(() => {
     let live = true
+    const controller = new AbortController()
     setLoading(true); setError(false)
-    getAutomaticScores(offset).then(data => { if (live) { setItems(data.items); setTotal(data.total) } })
+    getAutomaticScores(offset).then(data => {
+      if (!live) return
+      setItems(data.items); setTotal(data.total)
+      void loadAutomaticIdentities(data.items, (id, identity) => {
+        if (live) setItems(rows => rows.map(row => row.dive_id === id ? { ...row, identity } : row))
+      }, controller.signal)
+    })
       .catch(() => { if (live) setError(true) }).finally(() => { if (live) setLoading(false) })
-    return () => { live = false }
+    return () => { live = false; controller.abort() }
   }, [offset, retry])
   async function toggle(item: AutomaticScore) {
     setBusy(item.dive_id); setError(false)
@@ -48,17 +58,19 @@ export default function AutomaticScores() {
         {SORTS.map(value => <button key={value} type="button" aria-pressed={sort === value} onClick={() => setSort(value)}>{t(`evaluations.sort.${value}`)}</button>)}
       </div>
     </header>
-    <details className="eval-rules">
-      <summary>{t('evaluations.rulesSummary')}</summary>
-      <p className="eval-note">{t('evaluations.communityNote')}</p>
-    </details>
     {error && <div role="alert"><p>{t('evaluations.loadError')}</p><button className="eval-pass" onClick={() => setRetry(n => n + 1)}>{t('evaluations.retry')}</button></div>}
     {loading ? <WarmUp /> : <>
       {!items.length && <p>{t('evaluations.noPublicDives')}</p>}
       <ul className="eval-board-list">{sorted.map((item, index) => <li key={item.dive_id} className="eval-board-row" data-excluded={item.excluded ? 'true' : undefined} style={{ '--i': index } as CSSProperties}>
-        <strong className="eval-mean" aria-hidden>{item.mean_score === null ? '—' : scoreNumber(item.mean_score, i18n.language)}</strong>
+        <Link className="eval-attempt-preview" to={`/dives?clip=${item.dive_id}`} aria-label={`${item.dive_code} · ${item.height}`}>
+          {item.identity?.video_uuid ? <DiveThumbnail compact dive={item.identity} /> : <span aria-hidden>{item.dive_code}</span>}
+        </Link>
         <div className="eval-board-main">
-          <Link to={`/dives?clip=${item.dive_id}`} className="eval-dive-link">{item.dive_code} · {item.height}</Link>
+          <div className="eval-attempt-heading">
+            <strong className="eval-mean" aria-hidden>{item.mean_score === null ? '—' : scoreNumber(item.mean_score, i18n.language)}</strong>
+            <Link to={`/dives?clip=${item.dive_id}`} className="eval-dive-link">{item.dive_code} · {item.height}</Link>
+          </div>
+          {item.identity?.dive_datetime && <time className="eval-attempt-date" dateTime={item.identity.dive_datetime}>{format(parseISO(item.identity.dive_datetime), 'd MMM yyyy · HH:mm:ss', { locale: appLocale() })}</time>}
           <p className="sr-only">{t('evaluations.communityScore', { score: scoreNumber(item.mean_score, i18n.language), count: item.rating_count })}</p>
           <span className="eval-pips" aria-hidden>
             <em>{t('evaluations.judgesCount', { count: item.rating_count })}</em>
@@ -77,5 +89,9 @@ export default function AutomaticScores() {
         {offset + items.length < total && <button className="eval-pass" onClick={() => setOffset(n => n + 20)}>{t('evaluations.more')}</button>}
       </div>
     </>}
+    <details className="eval-rules">
+      <summary>{t('evaluations.rulesSummary')}</summary>
+      <p className="eval-note">{t('evaluations.communityNote')}</p>
+    </details>
   </section>
 }

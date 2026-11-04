@@ -461,7 +461,7 @@ export default function JudgeRoom() {
               {t(copied ? "room.copied" : "room.copy")}
             </b>
           </button>
-          <section className="ca-panel ca-arrive">
+          <section className="ca-panel ca-arrive gm-lobby-panel">
             <div className="ca-panel-h">
               <h2>{t("room.jury")}</h2>
               <span>
@@ -492,7 +492,7 @@ export default function JudgeRoom() {
               ))}
             </ul>
           </section>
-          <section className="cm-section">
+          <section className="cm-section gm-lobby-mode">
             <h2 className="cm-h2">{t("room.mode")}</h2>
             <div className="ca-scroll">
               {["classic", "mole", "code"].map((m) => (
@@ -508,7 +508,7 @@ export default function JudgeRoom() {
               ))}
             </div>
           </section>
-          <section className="cm-section">
+          <section className="cm-section gm-lobby-dives">
             <h2 className="cm-h2">
               {t("room.dives")}
               <span>{room.playlist.length}</span>

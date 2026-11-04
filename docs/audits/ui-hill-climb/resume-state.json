@@ -1,0 +1,55 @@
+{
+  "candidate_before_corrections": "056b5a638876f5b7602334616124eb1bdd984a2c",
+  "source_changes": "uncommitted: real My dives identity/date/thumbnail with current-page-only reads, maximum4concurrent; short-height lobby columns",
+  "authentication": "401 confirmed independently by coordinator and parent after initial200; cannot distinguish missing/revoked/expired",
+  "runtime": {
+    "candidate": "http://localhost:4317",
+    "profile": "default",
+    "tunnel_session": 89231,
+    "vite_session": 98819
+  },
+  "held_checks": [],
+  "interrupted_reviews": [
+    {
+      "task": "07d5defe-50e7-4f18-b789-a16cea116970",
+      "provider": "oc2",
+      "model": "opencode/glm-5.3-flash",
+      "settings": {
+        "variant": "max"
+      },
+      "status": "interrupted at STOP",
+      "final_verdict": null,
+      "scores": null,
+      "last_record": "Covered own games and began phone-landscape sweep; no complete matrix delivered."
+    },
+    {
+      "task": "e9404bfe-0720-4ca5-b281-3e74a71b8489",
+      "provider": "oc1",
+      "model": "opencode-go/glm-5.3-flash",
+      "settings": {
+        "variant": "max"
+      },
+      "status": "interrupted at STOP",
+      "final_verdict": null,
+      "scores": null,
+      "last_record": "Results captured five sizes, lobby mode paint transition resolved; next Classic phase choreography not completed."
+    }
+  ],
+  "substitution": "Second GLM replaces repeated incomplete Codex seat. Two GLM reviewers are not three distinct models.",
+  "threshold_reached": false,
+  "authentication_recovery": {
+    "own_new_tab": "tab_o",
+    "text": "Signed in as maxime",
+    "auth_me": 200,
+    "display_name": "maxime",
+    "websocket": "open",
+    "media": "200 image/webp",
+    "note": "Previous401 retained as historical event; supported user login restored access."
+  },
+  "latest_checks": {
+    "frontend": "116 files951testsPASS",
+    "build": "PASS",
+    "typecheck": "PASS",
+    "targeted": "7PASS"
+  }
+}

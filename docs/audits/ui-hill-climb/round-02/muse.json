@@ -1,0 +1,164 @@
+{
+  "round": 2,
+  "candidateSHA": "056b5a638876f5b7602334616124eb1bdd984a2c",
+  "provider": "opencode-go",
+  "model": "muse-spark-1.3-contributor",
+  "launch_options": {
+    "variant": "xhigh"
+  },
+  "reviewer_reported_options": "default options; no variant override requested by this subagent; running in T3 Code OpenCode harness",
+  "options_discrepancy": "Launch tool returned variant=xhigh; reviewer self report says defaults. Preserve both; setting verification unresolved.",
+  "identity": {
+    "own_new_tab": true,
+    "profile": "default",
+    "auth_me_status": 200,
+    "display_name": "maxime"
+  },
+  "status": "FAIL with partial coverage",
+  "viewportOrder": [
+    "390x844",
+    "844x390",
+    "768x1024",
+    "1024x768",
+    "1440x900"
+  ],
+  "scores": {
+    "Visual hierarchy": [
+      3,
+      3,
+      3,
+      4,
+      4
+    ],
+    "Layout and density": [
+      2,
+      2,
+      3,
+      3,
+      4
+    ],
+    "Typography": [
+      4,
+      3,
+      4,
+      4,
+      4
+    ],
+    "Color and contrast": [
+      5,
+      5,
+      5,
+      5,
+      5
+    ],
+    "Spacing and alignment": [
+      3,
+      2,
+      3,
+      3,
+      4
+    ],
+    "Navigation and orientation": [
+      3,
+      3,
+      3,
+      4,
+      5
+    ],
+    "Control clarity": [
+      4,
+      3,
+      4,
+      4,
+      4
+    ],
+    "Terminology and instructions": [
+      2,
+      2,
+      2,
+      2,
+      2
+    ],
+    "Component consistency": [
+      3,
+      3,
+      3,
+      3,
+      3
+    ],
+    "Task content presentation": [
+      2,
+      2,
+      3,
+      3,
+      3
+    ],
+    "Feedback and state clarity": [
+      3,
+      3,
+      3,
+      3,
+      4
+    ],
+    "Professional finish": [
+      2,
+      2,
+      2,
+      3,
+      3
+    ],
+    "Responsive fit": [
+      3,
+      2,
+      3,
+      4,
+      5
+    ],
+    "Next-action discoverability": [
+      4,
+      3,
+      4,
+      4,
+      4
+    ]
+  },
+  "coverage_gaps": [
+    "player next/back traversal",
+    "3028 disclosure",
+    "201C detailed analysis body",
+    "messages chooser/group draft",
+    "profile Codes/Activity/Achievements bodies/stats",
+    "phone Calendar new",
+    "per-size judging draft except desktop",
+    "room playback/reveal/results/code/mole/vote"
+  ],
+  "findings": [
+    "My dives repeated code/height/zero judges/switch lacks date/poster",
+    "By-code crowded avg/delta/sparkline/median/best/sessions/histogram/chips",
+    "DB/SD/HU,IQR,Phase2,mole/shadow wording unclear",
+    "Classic112B score selection did not register in background; timer frozen; needs visible-tab retest",
+    "Landscape Progress load failure recovered Retry",
+    "Composer below fold/lobby clipping risk",
+    "Community ornament/profile stats/calendar boxing persist"
+  ],
+  "limitations": "Reviewer assigned numeric scores despite incomplete coverage. These remain reported scores, not accepted full-coverage matrices. No7 assigned to missing coverage.",
+  "screenshots": [
+    "browser-screenshot-localhost-mw1wjf3f-b3f312cd.png",
+    "browser-screenshot-localhost-mw1wjgsk-bf5de12f.png",
+    "browser-screenshot-localhost-mw1wjiwm-319d7412.png",
+    "browser-screenshot-localhost-mw1wlf1k-cf95c0c3.png",
+    "browser-screenshot-localhost-mw1wlh7c-0f99d71d.png",
+    "browser-screenshot-localhost-mw1wmsa0-6a25d0e4.png",
+    "browser-screenshot-localhost-mw1wnbpg-944d1723.png",
+    "browser-screenshot-localhost-mw1wo0x2-8383753c.png",
+    "browser-screenshot-localhost-mw1wo9q2-2d6fcea8.png",
+    "browser-screenshot-localhost-mw1wof6q-191c1425.png",
+    "browser-screenshot-localhost-mw1wohf0-b6b8dcb0.png",
+    "browser-screenshot-localhost-mw1woj5i-8c7f8186.png",
+    "browser-screenshot-localhost-mw1woxbx-9add8d94.png",
+    "browser-screenshot-localhost-mw1wpx0b-ea787666.png",
+    "browser-screenshot-localhost-mw1wqd21-eac4a301.png"
+  ],
+  "verdict": "FAIL; no cell reaches7",
+  "source": "Delivered complete reviewer report in T3 task f6ef710c-4c3a-40c8-beae-5f20418fc2ce; private email intentionally omitted from audit record."
+}

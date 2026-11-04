@@ -1,0 +1,39 @@
+{
+  "status": "incomplete",
+  "accepted_review": false,
+  "fullSHA": "056b5a638876f5b7602334616124eb1bdd984a2c",
+  "model": "gpt-6.1-sol",
+  "options": {
+    "reasoning_effort": "low"
+  },
+  "candidate": "http://localhost:4317",
+  "own_identity_proof": {
+    "new_tab": true,
+    "profile": "default",
+    "account_text": "Signed in as maxime",
+    "auth_me_status": 200,
+    "display_name": "maxime"
+  },
+  "source_proof": {
+    "worktree_HEAD_matches": true,
+    "LibraryCards_GET": 200,
+    "library_grid_and_grid_cols_2": true,
+    "JudgeRoom_GET": 200,
+    "gm_score_context": true
+  },
+  "coverage": {
+    "account_preflight": true,
+    "requested_flows_and_sizes": "Not completed",
+    "numerical_cells_verified": 0
+  },
+  "scores": null,
+  "missing_reason": "Stopped after authenticated source preflight; no concrete application blocker established. Does not satisfy persistence/coverage.",
+  "screenshot_paths": [
+    "browser-screenshot-localhost-mw1wkmmp-5a64e372.png"
+  ],
+  "findings": [],
+  "product_writes": false,
+  "git_writes": false,
+  "accessibility_certification": false,
+  "coordinator_decision": "Repeated inability to complete required review. Replace this seat with user-authorized GLM Flash max fallback; disclose duplicate model and loss of three-model diversity."
+}

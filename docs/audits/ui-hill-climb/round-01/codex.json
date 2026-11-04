@@ -1,0 +1,159 @@
+{
+  "round": 1,
+  "candidateSHA": "056b5a638876f5b7602334616124eb1bdd984a2c",
+  "reviewer": "Codex gpt-6.1-sol low",
+  "status": "blocked",
+  "reason": "Own new default tab localhost4317/account ERR_CONNECTION_REFUSED; lsof no listener. No identity proof, no UI observations.",
+  "viewports": [
+    "390x844",
+    "844x390",
+    "768x1024",
+    "1024x768",
+    "1440x900"
+  ],
+  "rows": [
+    {
+      "category": "Visual hierarchy",
+      "scores": [
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "category": "Layout and density",
+      "scores": [
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "category": "Typography",
+      "scores": [
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "category": "Color and contrast",
+      "scores": [
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "category": "Spacing and alignment",
+      "scores": [
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "category": "Navigation and orientation",
+      "scores": [
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "category": "Control clarity",
+      "scores": [
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "category": "Terminology and instructions",
+      "scores": [
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "category": "Component consistency",
+      "scores": [
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "category": "Task content presentation",
+      "scores": [
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "category": "Feedback and state clarity",
+      "scores": [
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "category": "Professional finish",
+      "scores": [
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "category": "Responsive fit",
+      "scores": [
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "category": "Next-action discoverability",
+      "scores": [
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    }
+  ],
+  "coverage": 0,
+  "approval": false,
+  "runtime_recovery": "Restarted supported SSH tunnel4318 and Vite4317. Own new default tab_g ready complete auth/me200 maxime; no authentication changes."
+}

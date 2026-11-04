@@ -1,0 +1,142 @@
+[
+  {
+    "flow": "my-dives",
+    "viewport": [
+      390,
+      844
+    ],
+    "image": "images/my-dives-390x844.png",
+    "before_original": "browser-screenshot-localhost-mw1ghq6k-5353230f.png",
+    "before_sha256": "f05894d52095534776ec9407d4c7bda896b4de0cbedbfeb13a02488ea4e84698",
+    "after_original": "browser-screenshot-localhost-mw2lc3wd-29aed3bd.png",
+    "after_sha256": "ebc0ff8651c8db6ba8535f9e57c6db71977fee36051f7b84bf403e6951bf00c9",
+    "source": "baseline ef05e126 versus run02 working source; commit tracked by run record",
+    "privacy": "media blur / invitation redaction; raw originals retained outside git"
+  },
+  {
+    "flow": "my-dives",
+    "viewport": [
+      844,
+      390
+    ],
+    "image": "images/my-dives-844x390.png",
+    "before_original": "browser-screenshot-localhost-mw1ghqmm-b6f22d41.png",
+    "before_sha256": "8d7445c1a09d651594ba0b78931a6a6d3623d13af764e0924b1e61ea5e0425a2",
+    "after_original": "browser-screenshot-localhost-mw2lc4pg-bb171e00.png",
+    "after_sha256": "1608a56aead51c5d7836695a80a76e514a0372212e11f10e5af98f90a249ed36",
+    "source": "baseline ef05e126 versus run02 working source; commit tracked by run record",
+    "privacy": "media blur / invitation redaction; raw originals retained outside git"
+  },
+  {
+    "flow": "my-dives",
+    "viewport": [
+      768,
+      1024
+    ],
+    "image": "images/my-dives-768x1024.png",
+    "before_original": "browser-screenshot-localhost-mw1ghr3v-0370ae92.png",
+    "before_sha256": "050a3f7b3836ddff7e5cb2448da5a0c06ead7ef1765e797876d8960c6932d7db",
+    "after_original": "browser-screenshot-localhost-mw2lc5k5-c7d3b8aa.png",
+    "after_sha256": "5559e85b860c48c9c6e129725b965826491247246cb299050a6638aef6f593a1",
+    "source": "baseline ef05e126 versus run02 working source; commit tracked by run record",
+    "privacy": "media blur / invitation redaction; raw originals retained outside git"
+  },
+  {
+    "flow": "my-dives",
+    "viewport": [
+      1024,
+      768
+    ],
+    "image": "images/my-dives-1024x768.png",
+    "before_original": "browser-screenshot-localhost-mw1ghs3s-920263c6.png",
+    "before_sha256": "728ba3311553db430754d50ff054dc69ba8256283568f7e7701397f46bf56c97",
+    "after_original": "browser-screenshot-localhost-mw2lc6aq-9920e30c.png",
+    "after_sha256": "02f601142bbde37797ae64d1c9988021b2f40c2a5d59c3962dfdc6d79e03477e",
+    "source": "baseline ef05e126 versus run02 working source; commit tracked by run record",
+    "privacy": "media blur / invitation redaction; raw originals retained outside git"
+  },
+  {
+    "flow": "my-dives",
+    "viewport": [
+      1440,
+      900
+    ],
+    "image": "images/my-dives-1440x900.png",
+    "before_original": "browser-screenshot-localhost-mw1ght5r-91f07b0d.png",
+    "before_sha256": "7a669e55662d71633be2600e20a2aa69628f35c9b9f9d326720e521b39fe1475",
+    "after_original": "browser-screenshot-localhost-mw2lc6sx-8c732dde.png",
+    "after_sha256": "33972723021844561238c94a007039531f74138ccd5f3ced23eabf725907e7fb",
+    "source": "baseline ef05e126 versus run02 working source; commit tracked by run record",
+    "privacy": "media blur / invitation redaction; raw originals retained outside git"
+  },
+  {
+    "flow": "room-lobby",
+    "viewport": [
+      390,
+      844
+    ],
+    "image": "images/room-lobby-390x844.png",
+    "before_original": "browser-screenshot-localhost-mw1emne4-ca2e09eb.png",
+    "before_sha256": "8f5d0b04ad2fa37bcb31851afc8a20904aed7da77485f8ca736cffd85d17b24e",
+    "after_original": "browser-screenshot-localhost-mw2l8w5v-deb347ff.png",
+    "after_sha256": "236658d722328ffa6a27f75af9f848e7ae1ef8816e8b658b3ed8a331a4276554",
+    "source": "baseline ef05e126 versus run02 working source; commit tracked by run record",
+    "privacy": "media blur / invitation redaction; raw originals retained outside git"
+  },
+  {
+    "flow": "room-lobby",
+    "viewport": [
+      844,
+      390
+    ],
+    "image": "images/room-lobby-844x390.png",
+    "before_original": "browser-screenshot-localhost-mw1emnim-a0d13203.png",
+    "before_sha256": "560b27d29cb465c9bbefee136186505c71404df166eaa84550cee6c2f2c6c29b",
+    "after_original": "browser-screenshot-localhost-mw2l8wo5-1d676112.png",
+    "after_sha256": "1010549f12c705bd299f701326e410650b6942140b2dfa43d15c4aa754c3a393",
+    "source": "baseline ef05e126 versus run02 working source; commit tracked by run record",
+    "privacy": "media blur / invitation redaction; raw originals retained outside git"
+  },
+  {
+    "flow": "room-lobby",
+    "viewport": [
+      768,
+      1024
+    ],
+    "image": "images/room-lobby-768x1024.png",
+    "before_original": "browser-screenshot-localhost-mw1emnqp-9814a9cf.png",
+    "before_sha256": "bd0f6c15a23f0435a124848d810febf1fa6f497f2de76754630572cc57051777",
+    "after_original": "browser-screenshot-localhost-mw2l8x5h-b07c2834.png",
+    "after_sha256": "46f6fcee648a49a5921f90892c4aabf03789c2c6db490026b388a368a37785b5",
+    "source": "baseline ef05e126 versus run02 working source; commit tracked by run record",
+    "privacy": "media blur / invitation redaction; raw originals retained outside git"
+  },
+  {
+    "flow": "room-lobby",
+    "viewport": [
+      1024,
+      768
+    ],
+    "image": "images/room-lobby-1024x768.png",
+    "before_original": "browser-screenshot-localhost-mw1emnyk-641e74c6.png",
+    "before_sha256": "fa8e8ef4cda6d0de7eff88e6c3871462a76c174899cc9b26c07ce52caf5c31ea",
+    "after_original": "browser-screenshot-localhost-mw2l8xlu-790074cd.png",
+    "after_sha256": "f24b5f9d1e9d962a5378ac1f450961827c0bcdc3840f9cdde1b6bc0f20aa5ae1",
+    "source": "baseline ef05e126 versus run02 working source; commit tracked by run record",
+    "privacy": "media blur / invitation redaction; raw originals retained outside git"
+  },
+  {
+    "flow": "room-lobby",
+    "viewport": [
+      1440,
+      900
+    ],
+    "image": "images/room-lobby-1440x900.png",
+    "before_original": "browser-screenshot-localhost-mw1emo7b-4f3713e2.png",
+    "before_sha256": "c007e1525863feb9e518fe75ffeb1eb03b1566b9a7f9bd76b277dbe5ba1c81ca",
+    "after_original": "browser-screenshot-localhost-mw2l8y3j-4355f917.png",
+    "after_sha256": "dce905b577390531042bb46023a8711a1d50fe36212b727fd960e4940318f5ff",
+    "source": "baseline ef05e126 versus run02 working source; commit tracked by run record",
+    "privacy": "media blur / invitation redaction; raw originals retained outside git"
+  }
+]

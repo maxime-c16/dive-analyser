@@ -5,7 +5,7 @@ import { act, fireEvent, render as rtlRender, screen, waitFor } from '@testing-l
 import { beforeEach, expect, it, vi } from 'vitest'
 import AutomaticScores from './AutomaticScores'
 import { getAutomaticScores, setAutomaticExclusion } from '../../services/evaluationApi'
-vi.mock('../../services/evaluationApi', () => ({ getAutomaticScores: vi.fn(), setAutomaticExclusion: vi.fn() }))
+vi.mock('../../services/evaluationApi', () => ({ getAutomaticScores: vi.fn(), loadAutomaticIdentities: vi.fn().mockResolvedValue(undefined), setAutomaticExclusion: vi.fn() }))
 function render(ui: ReactElement) { return rtlRender(<MemoryRouter>{ui}</MemoryRouter>) }
 beforeEach(() => { vi.clearAllMocks() })
 it('keeps the exclusion state unchanged on failure and only confirms after persistence', async () => {
@@ -61,4 +61,18 @@ it('uses French decimal commas in both the visible scores and accessible summari
     expect(screen.getByText(/6.5.*2 reviewers.*provisional/)).toBeInTheDocument()
     await waitFor(() => expect(container.querySelector('.eval-mean')).toHaveTextContent('6.5'))
   } finally { await act(async () => { await i18n.changeLanguage('en') }) }
+})
+
+it('distinguishes repeated codes with the actual attempt time and keeps exact clip destinations', async () => {
+  vi.mocked(getAutomaticScores).mockResolvedValue({ items: [
+    { dive_id: 81, dive_code: '101B', height: '1m', excluded: false, rating_count: 0, mean_score: null, provisional: true,
+      identity: { id: 81, dive_datetime: '2026-10-18T17:23:24', video_uuid: null, dive_code: '101B', height: '1m', performance: 'M', performance_numeric: 5, session_id: 1, is_lineup: false, is_sync: false, platform_type: 'springboard', official_dd: 1.3 } },
+    { dive_id: 82, dive_code: '101B', height: '1m', excluded: false, rating_count: 1, mean_score: 0, provisional: true,
+      identity: { id: 82, dive_datetime: '2026-10-18T17:25:08', video_uuid: null, dive_code: '101B', height: '1m', performance: 'M', performance_numeric: 5, session_id: 1, is_lineup: false, is_sync: false, platform_type: 'springboard', official_dd: 1.3 } },
+  ], total: 2 })
+  const { container } = render(<AutomaticScores />)
+  await screen.findAllByText('101B · 1m')
+  expect([...container.querySelectorAll('time')].map(node => node.dateTime)).toEqual(['2026-10-18T17:23:24', '2026-10-18T17:25:08'])
+  expect([...container.querySelectorAll('.eval-dive-link')].map(node => node.getAttribute('href'))).toEqual(['/dives?clip=81', '/dives?clip=82'])
+  expect([...container.querySelectorAll('.eval-mean')].map(node => node.textContent)).toEqual(['—', '0.0'])
 })

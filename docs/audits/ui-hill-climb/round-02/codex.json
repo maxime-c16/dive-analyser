@@ -1,0 +1,142 @@
+{
+  "round": 2,
+  "status": "incomplete",
+  "approved": false,
+  "candidateSHA": "056b5a638876f5b7602334616124eb1bdd984a2c",
+  "runningCandidateSHAIndependentlyVerified": false,
+  "runtime": {
+    "provider": "OpenAI",
+    "model": "gpt-6.1-sol",
+    "reasoningEffort": "low",
+    "harness": "Codex through T3 Code"
+  },
+  "blocker": null,
+  "incompletionReason": "Review stopped before required flows/five-size coverage; browser/auth worked, not environmental failure.",
+  "identityProof": {
+    "ownNewTab": true,
+    "profileId": "default",
+    "url": "http://localhost:4317/account",
+    "visibleText": "Signed in as maxime",
+    "status": 200,
+    "display_name": "maxime"
+  },
+  "viewportOrder": [
+    "390x844",
+    "844x390",
+    "768x1024",
+    "1024x768",
+    "1440x900"
+  ],
+  "scores": {
+    "Visual hierarchy": [
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    "Layout and density": [
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    "Typography": [
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    "Color and contrast": [
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    "Spacing and alignment": [
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    "Navigation and orientation": [
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    "Control clarity": [
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    "Terminology and instructions": [
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    "Component consistency": [
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    "Task content presentation": [
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    "Feedback and state clarity": [
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    "Professional finish": [
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    "Responsive fit": [
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    "Next-action discoverability": [
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "scoreReason": "Insufficient independent coverage to establish lowest-screen scores across required journeys.",
+  "coverage": {
+    "Library390x844": "Populated initial Clips grid visually inspected; actual viewport confirmed, five visible images loaded, complete, zero running animations; children untested.",
+    "other": "All other sizes, journeys and children untested."
+  },
+  "screenshots": {
+    "accountIdentity": "browser-screenshot-localhost-mw1whiql-fb123a51.png",
+    "librarySettled390x844": "browser-screenshot-localhost-mw1wi41q-893f8110.png"
+  },
+  "findings": [],
+  "writes": false,
+  "ownTabClosed": true
+}
