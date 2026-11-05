@@ -1,7 +1,7 @@
 {
   "reviewedSHA": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c (git rev-parse HEAD; log cf95a4a fix(ui) + 80cab70a + 6cb6cff; status shows only docs/audits/ui-hill-climb audit/gallery dirt, no served source change)",
-  "correctedSHA": null,
-  "status": "Integrated after all round5 reviews completed; not yet visually verified or independently reevaluated",
+  "correctedSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+  "status": "Committed, checks green; real-data visualQA held by own auth/me401; no design reevaluation",
   "files": [
     "frontend/src/components/code-analysis/CodeCards.tsx",
     "frontend/src/components/code-analysis/codeAnalysis.css",

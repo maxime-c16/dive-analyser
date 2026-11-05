@@ -1,12 +1,12 @@
 {
   "candidate_before_corrections": "056b5a638876f5b7602334616124eb1bdd984a2c",
-  "source_changes": "uncommitted: real My dives identity/date/thumbnail with current-page-only reads, maximum4concurrent; short-height lobby columns",
-  "authentication": "401 confirmed independently by coordinator and parent after initial200; cannot distinguish missing/revoked/expired",
+  "source_changes": "Confirmed round5 UI corrections committed d27eb728; design unverified, no fresh councils while own auth/me401",
+  "authentication": "Own new defaulttab16 /account redirected/login; GET auth/me4012026-11-05. No specific expiry/revocation diagnosis. Parent notified; source/unit work continues.",
   "runtime": {
     "candidate": "http://localhost:4317",
     "profile": "default",
-    "tunnel_session": 89231,
-    "vite_session": 98819
+    "tunnel_session": 70516,
+    "vite_session": 89613
   },
   "held_checks": [],
   "interrupted_reviews": [
@@ -47,9 +47,74 @@
     "note": "Previous401 retained as historical event; supported user login restored access."
   },
   "latest_checks": {
-    "frontend": "116 files951testsPASS",
-    "build": "PASS",
-    "typecheck": "PASS",
-    "targeted": "7PASS"
-  }
+    "frontend": "117files958testsPASS prior final localized labels",
+    "final_targeted": "43analysis/evaluationtestsPASS finalsource",
+    "build": "PASS finalsource",
+    "self_score": "Superseded; no accepted fullscope validation"
+  },
+  "active_council": [
+    {
+      "provider": "oc1",
+      "model": "opencode-go/muse-spark-1.3-contributor",
+      "variant": "xhigh"
+    },
+    {
+      "provider": "codex",
+      "model": "gpt-6.1-sol",
+      "reasoningEffort": "medium"
+    },
+    {
+      "provider": "codex",
+      "model": "gpt-6.1-sol",
+      "reasoningEffort": "low"
+    }
+  ],
+  "roster_change": "User2026-11-05 replaces Opus with Sol6.1low Codex account; model catalog verified. Two Sol reviewers reduce model diversity. No new delegates launched before QA/self gate.",
+  "round4": {
+    "sha": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "Muse": {
+      "minimum": 5,
+      "below7": 51
+    },
+    "SolMedium": {
+      "minimum": 4,
+      "below7": 55
+    },
+    "OpusMedium": {
+      "minimum": 2,
+      "below7": 70
+    },
+    "numeric": 210,
+    "below7": 176,
+    "fullscope_pass": false
+  },
+  "private_current_evidence": "/tmp/dive-ui-r5-shots-v10-private.json (latest cumulative originals/metrics), functions store r5shots",
+  "own_current_tab": "tab_16_c539092e-8e18-4ced-b1f1-786e334b7451",
+  "room_private": "own room stored privately in functions store r5roomURL; never publish invite code",
+  "outstanding": [
+    "Finish confirmed round5 corrections and source verification",
+    "Run tests/build and actual five-size own-account QA",
+    "New SHA and fresh three fullscope council reviews; threshold unmet",
+    "Sanitized annotated gallery and PR"
+  ],
+  "running_checks": {},
+  "candidate_source_sha": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+  "actual_room_QA": {
+    "Classic844x390": "Own fresh isolated room; scoped blob readyState4,time8.902; foreground6selected pressed=true,Submit enabled, submitted score12halfsteps and20points verified by read-only own-room API; results actionsbottom286.5visible",
+    "Mole844x390": "Scoring6submitted; vote shows20s countdown,no preselected choice,vote initiallydisabled; deliberateNobody vote persisted and results show Incorrect vote against actualmole; noawards",
+    "GuessCode844x390": "4enabled choices, selected first normalUI; reveal reached, choices disabled; result still to capture",
+    "limitations": "No all-mode/all-five-size claim yet; no numerical self/council score inferred"
+  },
+  "round5_delivery": {
+    "sol_low_01": "incomplete0numeric70missing; no blocker; archived verbatim",
+    "muse": "DELIVERED70numeric,min5,70below7,partial child evidence; no pending delegates",
+    "sol_medium": "pending, no polling",
+    "replacement": "new Sol low task required on same frozenSHA",
+    "sol_low_02": "incomplete0numeric70missing,no blocker; archived. Change to bounded evidence checkpointA for same low seat, then remaining families and full final reevaluation.",
+    "sol_low_A": "partialgrid390viewed;5snapshotstimeout; archived",
+    "sol_medium_01": "incomplete0numeric70missing;actualmedia5size proofs, broad child gaps; archived",
+    "snapshot_recovery": "Own tab fiveLibrarygrid native snapshotsPASS exact sizes/fonts/0animations, documented; no root cause claim",
+    "method": "Bounded FAMILY ONLY scorecards to obtain concrete criticisms; not fullscope approval; a fresh complete final evaluator remains required. Musefull pending, no polling."
+  },
+  "browser_capacity": "Sol low blockedTooManyTabs. Owncurrenttab_xclosed freeing1slot. Seven old same-thread tabs agentMismatch, not closed. One new Sol low retry reservedslot; otherspending notpolled. Noauthchanges."
 }

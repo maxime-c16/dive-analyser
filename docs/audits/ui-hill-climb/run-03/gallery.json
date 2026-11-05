@@ -1,0 +1,21 @@
+[
+  {
+    "route": "/dives?view=codes",
+    "viewport": [
+      844,
+      390
+    ],
+    "before": {
+      "derived_source": "docs/audits/ui-hill-climb/run-01/images/02-844x390.png",
+      "original_record": "../run-01/gallery.json"
+    },
+    "after": {
+      "source": "uncommitted structural candidate after6cb6cff7; NOT council-scored",
+      "original": "browser-screenshot-localhost-mw2nx7kk-23afd1ee.png",
+      "sha256": "f6e68c8e5bdc2b9b9e5d1adf40b4cbd913dd2b0f05a27eabbbb0bc3f086af4bc"
+    },
+    "derived": "images/named-navigation-844x390.png",
+    "privacy": "actual media blurred and DM body/preview text masked; originals retained outside git",
+    "scores": "none inferred"
+  }
+]
