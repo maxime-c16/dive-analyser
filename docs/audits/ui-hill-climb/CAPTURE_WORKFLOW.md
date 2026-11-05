@@ -50,3 +50,15 @@ DM text appears in the crop. This compares the pre-fix product and f1afe9bb at
 390×844. Historical full run completed in 561s (20 failed/unsettled); focused
 Library grid/player run completed in about 30s. Incremental manifests and
 no automatic retries of unsettled frames avoid the original long feedback loop.
+
+Owner reauthenticated through supported headed login on 2026-11-05; auth/me200
+maxime independently checked. Targeted recovery: 55 attempts in 181s, 23 ok and
+32 unsettled. Consolidation with identical source fingerprint 54fd32e35d39 yields
+74/105 status-ok and31unsettled. Latest unsettled outcomes supersede historical
+401 failures; no current-session-expiry claim. Index is rebuilt after completion.
+Read-only isolated detailed201C diagnostic rendered analysis-key-summary with
+zero visible loaders while a background auth/me request remained pending: network
+quiet alone overrejects real content. Two analysis scenarios now allow explicit
+data-bearing selectors with no visible loaders; the manifest records that basis.
+This is not an interaction test or a design score. Reports in round-08 preserve
+observed-only numbers and missing coverage; no final acceptance.

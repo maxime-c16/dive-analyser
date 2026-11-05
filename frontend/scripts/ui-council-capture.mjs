@@ -69,8 +69,8 @@ export const SCENARIOS = [
   { id: 'library-by-code', family: 'Library', path: '/dives?view=codes' },
   { id: 'library-progress', family: 'Library', path: '/dives?view=progress' },
   // 201C is the baseline audit's reference code (409 attempts, 91 sessions).
-  { id: 'code-analysis', family: 'Library', path: '/dives/analysis/201C', slow: true },
-  { id: 'code-analysis-details', family: 'Library', path: '/dives/analysis/201C/details', slow: true },
+  { id: 'code-analysis', family: 'Library', path: '/dives/analysis/201C', ready: '.ca-hero', slow: true },
+  { id: 'code-analysis-details', family: 'Library', path: '/dives/analysis/201C/details', ready: '[data-testid=analysis-key-summary]', slow: true },
   // Messages
   { id: 'messages-inbox', family: 'Messages', path: '/messages', private: true },
   { id: 'messages-thread', family: 'Messages', path: '/messages', discover: firstHref('/messages/'), private: true },
@@ -275,7 +275,9 @@ async function captureOne(context, sc, w, h, dir) {
       await page.goto(BASE + target, { waitUntil: 'domcontentloaded', timeout: 30000 })
     }
     const ready = await settle(page, sc.settle, sc.slow)
-    if (!ready) throw Object.assign(new Error('network did not settle within budget'), { unsettled: true })
+    const contentReady = sc.ready && await page.locator(sc.ready).first().isVisible()
+    rec.readiness = contentReady ? 'explicit-content-selector' : 'network-quiet'
+    if (!ready && !contentReady) throw Object.assign(new Error('network did not settle within budget'), { unsettled: true })
     if (sc.settle && !await page.locator(sc.settle).first().isVisible()) throw new Error('required scenario element missing')
     if (new URL(page.url()).pathname === '/login') throw new Error('session redirected to login')
     const m = await metrics(page)

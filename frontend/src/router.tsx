@@ -27,7 +27,7 @@ import RouteErrorBoundary from "./components/RouteErrorBoundary";
 
 import { useAuth } from "./contexts/AuthContext";
 import MemberAvatar from './components/MemberAvatar'
-import { WhatsNewProvider, WhatsNewButton } from "./components/WhatsNew";
+import { WhatsNewProvider, WhatsNewButton, WhatsNewNotice } from "./components/WhatsNew";
 import { NotificationsProvider, NotificationsButton } from "./components/Notifications";
 import { MessagesUnreadProvider, MessagesUnreadBadge, useMessagesUnreadAria } from "./components/MessagesUnread";
 import {
@@ -260,6 +260,11 @@ export function breadcrumbTrail(
     case "/":
     case "/dives":
       return [{ labelKey: "nav.dives" }];
+    case "/community":
+      return [{ labelKey: "nav.community" }];
+    case "/evaluations":
+    case "/room":
+      return [{ labelKey: "nav.evaluations" }];
     case "/dashboard":
       return [{ labelKey: "nav.overview" }];
     case "/journey":
@@ -531,6 +536,7 @@ function Layout({ children }: { children: React.ReactNode }) {
             {professional && <MobileTabBar policy={policy} remembered={remembered} attached />}
             <main id="main-content" tabIndex={-1} className="shell-main flex-1">
               <div className="mx-auto w-full max-w-[1440px] px-4 py-5 sm:px-6 lg:px-8 lg:py-8">
+                <WhatsNewNotice />
                 <Breadcrumbs />
                 {children}
               </div>

@@ -204,6 +204,8 @@ describe('minimal IA routing', () => {
 
   it('breadcrumbs reflect user-visible IA, not router hierarchy', () => {
     const t = (key: string) => key
+    expect(breadcrumbTrail('/community', t)).toEqual([{ labelKey: 'nav.community' }])
+    expect(breadcrumbTrail('/evaluations', t)).toEqual([{ labelKey: 'nav.evaluations' }])
     expect(breadcrumbTrail('/dives', t)).toEqual([{ labelKey: 'nav.dives' }])
     expect(breadcrumbTrail('/journey', t)).toEqual([{ labelKey: 'nav.journey' }])
     // Deep analysis paths link back to the Library, not to /dives/analysis.

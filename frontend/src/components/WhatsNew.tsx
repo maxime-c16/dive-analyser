@@ -11,7 +11,7 @@ type Manifest = { schema: number; version: string; frontend_sha: string; notes: 
 type ReadState = { seen: string[]; lastShown: number }
 const DAY = 24 * 60 * 60 * 1000
 const buildSha = import.meta.env.VITE_APP_SHA || 'dev'
-const Context = createContext({ open: () => {}, unread: false })
+const Context = createContext<{ open: () => void; unread: boolean; notice: React.ReactNode }>({ open: () => {}, unread: false, notice: null })
 
 export function parseManifest(value: unknown): Manifest | null {
   if (!value || typeof value !== 'object') return null
@@ -57,7 +57,7 @@ function AccountUpdates({ accountId, children }: { accountId: number; children: 
   toastRef.current = toast
   const compatible = !manifest?.frontend_sha || buildSha === 'dev' || manifest.frontend_sha === buildSha
   const noticeElement = useRef<HTMLDivElement>(null)
-  const showNotice = useBottomNotice(noticeElement, !!toast && compatible)
+  const showNotice = useBottomNotice(noticeElement, false)
   const unread = !!manifest?.notes.some(note => !state?.seen.includes(note.id))
 
   useEffect(() => {
@@ -157,17 +157,19 @@ function AccountUpdates({ accountId, children }: { accountId: number; children: 
   }
   const closePanel = useCallback(() => setPanel(null), [])
 
-  return <Context.Provider value={{ open, unread: unread || !compatible }}>
-    {children}
-    {toast && compatible && showNotice && <div ref={noticeElement} role="status" className="mobile-bottom-notice fixed bottom-[calc(0.5rem+var(--mobile-nav-offset,0px))] left-4 right-4 z-40 flex items-center gap-2 border border-app-strong bg-app-panel p-2 shadow-lg sm:left-auto sm:right-6 sm:max-w-[410px]">
+  const notice = toast && compatible && showNotice && <div ref={noticeElement} role="status" className="mb-3 flex items-center gap-2 border border-app-strong bg-app-panel p-2">
       <button aria-label={t('whatsNew.seeWhatsNew')} onClick={openToast} className="min-h-11 min-w-0 flex-1 bg-transparent px-2 text-left text-sm text-app-accent">
         <span className="line-clamp-2">{toast.length === 1 ? t(`releaseNotes.${toast[0].id}.title`, { defaultValue: toast[0].title }) : t('whatsNew.improvementsReady', { count: toast.length })}</span>
       </button>
       <button aria-label={t('whatsNew.dismissHint')} onClick={dismiss} className="flex h-11 w-11 shrink-0 items-center justify-center bg-transparent text-app-muted"><X className="h-5 w-5" /></button>
-    </div>}
+    </div>
+  return <Context.Provider value={{ open, unread: unread || !compatible, notice }}>
+    {children}
     {panel && <UpdatePanel manifest={panel} compatible={buildSha === 'dev' || !panel.frontend_sha || panel.frontend_sha === buildSha} close={closePanel} />}
   </Context.Provider>
 }
+
+export function WhatsNewNotice() { return <>{useContext(Context).notice}</> }
 
 export function WhatsNewButton({ compact = false }: { compact?: boolean }) {
   const { open, unread } = useContext(Context)

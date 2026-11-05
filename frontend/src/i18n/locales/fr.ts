@@ -1522,7 +1522,7 @@ const fr = {
     filtersAria: 'Filtres de la bibliothèque de plongeons',
     myDives: 'Mes plongeons',
     community: 'Communauté',
-    searchPlaceholder: 'Rechercher un plongeon…',
+    searchPlaceholder: 'Rechercher…',
     searchAria: 'Rechercher des plongeons',
     filters: 'Filtres',
     gridView: 'Vue grille',
