@@ -145,3 +145,6 @@ runs/full_action_fax_v2/
 frontend/public/player-review.mp4
 frontend/public/series-review-demo.mp4
 frontend/public/series-review-demo.jpg
+
+# UI council capture bundles (frontend/scripts/ui-council-capture.mjs); contain private data
+/.ui-council/
