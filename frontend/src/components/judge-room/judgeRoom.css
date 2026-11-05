@@ -271,3 +271,10 @@
   .gm-phase-results > .gm-row { grid-column:2; grid-row:3; flex-wrap:wrap; align-self:start; }
   .gm-scoring .gm-submit-deadline { grid-column:2; grid-row:5; }
 }
+
+@media (orientation:landscape) and (max-height:500px) {
+ .gm-scoring .gm-score-context { gap:8px; font-size:14px; }
+ .gm-scoring .gm-score-context img { width:36px; height:48px; }
+ .gm-scoring .gm-status { gap:4px; flex-wrap:wrap; }
+ .gm-scoring .gm-submit-deadline { font-size:13px; line-height:1.3; }
+}

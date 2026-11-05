@@ -1,0 +1,14 @@
+{
+  "candidateSHA": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+  "report_sha256": "3b342ff9fe927f6e71d4e0d2690bc652d5d854dcd716b27402b86922359afd92",
+  "provider": "codex",
+  "model": "gpt-6.1-sol",
+  "reasoningEffort": "low",
+  "numeric": 0,
+  "missing": 70,
+  "minimum": null,
+  "verdict": null,
+  "runtime_blocker": null,
+  "execution": "Auth200, populated Library23decodedimages; stopped before five-size/fullscope inspection",
+  "next_method": "Bounded evidence checkpoints for the same requested reviewer seat; full final independent matrix still required. No source or roster change."
+}

@@ -113,3 +113,5 @@
 .cm-event-icon { display: inline-grid; place-items: center; width: 18px; height: 18px; margin-right: 4px; border-radius: 999px; background: var(--app-panel-elevated); color: var(--app-muted); vertical-align: -3px; }
 
 @media (prefers-reduced-motion: reduce) { .cm-page *, .cm-profile * { animation: none !important; transition: none !important; } }
+
+.cm-weekly-activity { margin:16px 0 0; }.cm-weekly-activity figcaption { display:flex; justify-content:space-between; gap:12px; margin-bottom:8px; color:var(--app-muted); font-size:13px; }.cm-weekly-activity figcaption span { font-variant-numeric:tabular-nums; }

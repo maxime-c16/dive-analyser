@@ -1,0 +1,71 @@
+{
+  "candidate": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+  "auth": {
+    "status": 200,
+    "display_name": "maxime",
+    "signed_in_text": true
+  },
+  "coverage": [
+    {
+      "screen": "grid",
+      "size": [
+        390,
+        844
+      ],
+      "screenshot": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw39rbfc-64046210.png",
+      "viewed": true
+    }
+  ],
+  "unverified": [
+    "player",
+    "codes",
+    "progress",
+    "overview",
+    "details",
+    "other product families"
+  ],
+  "status": "blocked_partial",
+  "blocker": "Preview automation snapshot timed out after 15000ms.",
+  "failed_captures": [
+    {
+      "screen": "grid",
+      "size": [
+        844,
+        390
+      ]
+    },
+    {
+      "screen": "grid",
+      "size": [
+        768,
+        1024
+      ]
+    },
+    {
+      "screen": "grid",
+      "size": [
+        1024,
+        768
+      ]
+    },
+    {
+      "screen": "grid",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "screen": "codes collapsed",
+      "size": [
+        1440,
+        900
+      ]
+    }
+  ],
+  "findings": [
+    "390x844 grid: decoded pool thumbnails, readable labels and two columns; no confirmed defect in viewed viewport."
+  ],
+  "unfinished": "All five-size child screen inspection, player decoding/navigation/details, expanded 201C, progress, overview, secondary sections and exact attempt drawer. Other product families explicitly unverified.",
+  "tab": "tab_13_c539092e-8e18-4ced-b1f1-786e334b7451"
+}

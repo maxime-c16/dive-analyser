@@ -1,0 +1,20 @@
+{
+  "blocked_report": "sol-low-A-capacity-blocked.json",
+  "candidateSHA": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+  "action": "Successfully closed only current coordinator-owned tab_x using supported t3_preview_close, freeing one slot. Seven old same-thread tabs rejected agentMismatch; remained unchanged. No force, no other reviewer/human tabs touched.",
+  "profile": "default unchanged; no cookie/auth changes",
+  "closed": [
+    "tab_x"
+  ],
+  "reason": "Free global browser-tab capacity for the pending council. Future family tasks should close their own tabs after durable screenshots/report to avoid accumulating orphan tabs.",
+  "remaining": "One freed slot reserved for Sol low new tab. Old automation sessions cannot be closed by current caller despite same-thread listing; parent notified. Fresh child must prove opening/session. No profile/cookie/auth changes.",
+  "rejected_old_same_thread_tabs": [
+    "tab_v",
+    "tab_w",
+    "tab_s",
+    "tab_m",
+    "tab_o",
+    "tab_g",
+    "tab_3"
+  ]
+}

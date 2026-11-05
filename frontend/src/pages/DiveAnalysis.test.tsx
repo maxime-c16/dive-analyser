@@ -220,3 +220,12 @@ it('opens the main progression while keeping secondary comparison details collap
   expect(screen.getByRole('button',{name:/^Comparison/})).toHaveAttribute('aria-expanded','false')
   expect(screen.getByTestId('attempt-progression-chart')).toBeInTheDocument()
 })
+
+it('labels a Library return as Library, preserving its exact filters', async () => {
+ vi.mocked(getDiveAnalysis).mockResolvedValue(payload)
+ renderPage({pathname:'/dives/analysis/103B',search:'',state:{returnTo:'/dives?view=codes&scope=all'}})
+ await screen.findByTestId('analysis-key-summary')
+ expect(screen.getByTestId('analysis-back')).toHaveTextContent('Back to Library')
+ await userEvent.click(screen.getByTestId('analysis-back'))
+ expect(screen.getByTestId('location')).toHaveTextContent('view=codes&scope=all')
+})

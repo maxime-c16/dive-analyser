@@ -336,9 +336,11 @@ export default function Messages() {
       <h1>{t('messages.title')}</h1>
       <button type="button" className="msg-new-btn" onClick={() => choose ? closeSheet() : setChoose(true)} aria-expanded={choose} aria-label={t('messages.new')}><Plus size={18} /><span>{t('messages.newShort')}</span></button>
       {(!(id > 0) || !phone) && <MobileShellActions />}
+
+    </div>
       {choose && <>
         <div className="msg-sheet-backdrop" onClick={closeSheet} aria-hidden="true" />
-        <div className="msg-sheet" role="dialog" style={phone ? { bottom: `${Math.max(0, window.innerHeight - visible.top - visible.height)}px`, maxHeight: `${Math.max(240, visible.height - 24)}px` } : undefined} aria-label={t(groupMode ? 'messages.newGroup' : 'messages.new')} onKeyDown={e => { if (e.key === 'Escape') closeSheet() }}>
+        <div className="msg-sheet" role="dialog" aria-modal="true" style={phone ? { bottom: `${Math.max(0, window.innerHeight - visible.top - visible.height)}px`, maxHeight: `${Math.max(0, visible.height - 24)}px` } : undefined} aria-label={t(groupMode ? 'messages.newGroup' : 'messages.new')} onKeyDown={e => { if (e.key === 'Escape') closeSheet() }}>
           <div className="msg-sheet-head">
             {groupMode && <button type="button" className="msg-icon-btn" aria-label={t('common.back')} onClick={() => { setGroupMode(false); setPicked([]) }}><ArrowLeft size={18} /></button>}
             <b>{t(groupMode ? 'messages.newGroup' : 'messages.new')}</b>
@@ -346,6 +348,7 @@ export default function Messages() {
               ? <button type="button" className="msg-new-btn msg-create" disabled={picked.length < 2 || picked.length > GROUP_MAX_OTHERS || starting} onClick={() => void createGroup()}
                   aria-label={picked.length < 2 ? t('messages.pickTwo') : t('messages.createGroup', { count: picked.length + 1 })}>{t('messages.create')}{picked.length >= 2 && <span className="msg-create-count">{picked.length + 1}</span>}</button>
               : <button type="button" className="msg-icon-btn" aria-label={t('common.close')} onClick={closeSheet}><X size={18} /></button>}
+            {groupMode && <button type="button" className="msg-icon-btn" aria-label={t('common.close')} onClick={closeSheet}><X size={18} /></button>}
           </div>
           {!groupMode && <button type="button" className="msg-mode" onClick={() => setGroupMode(true)}><span className="msg-mode-icon"><Users size={20} /></span><b>{t('messages.newGroup')}</b></button>}
           {groupMode && <label className="msg-search msg-name-field"><span className="sr-only">{t('messages.groupName')}</span>
@@ -360,7 +363,6 @@ export default function Messages() {
           {groupMode && picked.length >= GROUP_MAX_OTHERS && <p className="msg-hint">{t('messages.groupFull', { count: GROUP_MAX_OTHERS + 1 })}</p>}
         </div>
       </>}
-    </div>
     {error && <p role="alert" className="msg-alert">{t('messages.error')} <button type="button" onClick={() => setRetry(n => n + 1)}>{t('common.retry')}</button></p>}
     <div className="messages-grid msg-grid">
       <aside className={`msg-inbox${id ? ' is-behind' : ''}`} aria-label={t('messages.inbox')}>
@@ -388,7 +390,7 @@ export default function Messages() {
         })}
         {before && <button type="button" className="msg-older" onClick={async () => { try { const page = await api.listConversations(before); setItems(rows => [...new Map([...rows, ...page.items].map(c => [c.id,c])).values()]); setBefore(page.next_before) } catch { setError(true) } }}>{t('messages.more')}</button>}
       </aside>
-      {Number.isSafeInteger(id) && id > 0 ? <Thread key={`${user?.user_id}:${id}`} id={id} onLeave={removeConversation} /> : <div className="msg-pane-empty"><p>{t('messages.choose')}</p></div>}
+      {Number.isSafeInteger(id) && id > 0 ? <Thread key={`${user?.user_id}:${id}`} id={id} onLeave={removeConversation} /> : null}
     </div>
   </div>
 }

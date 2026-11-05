@@ -205,3 +205,16 @@
 
 .msg-sheet-head, .msg-mode, .msg-name-field { flex-shrink:0; }
 @media(min-width:768px) and (max-height:500px) { .msg-head { margin-bottom:8px; } .msg-thread-head { min-height:40px; padding:6px 10px; } .msg-thread { height:calc(100dvh - var(--message-top,80px) - 8px); } .msg-sheet { max-height:calc(100dvh - 76px); } }
+
+/* Compose remains visible across thread/phone breakpoints and short windows. */
+.msg-page > .msg-sheet { position:fixed; top:auto; bottom:0; left:0; right:0; width:auto; max-height:calc(100dvh - 24px); }
+.msg-sheet .msg-pick-list { flex:1; min-height:0; }
+.msg-page:not(.messages-page-thread) .msg-grid { grid-template-columns:minmax(0,1fr); max-width:960px; }
+@media(min-width:768px) {
+ .msg-page > .msg-sheet { top:24px; bottom:auto; left:auto; right:24px; width:min(440px,calc(100vw - 48px)); max-height:calc(100dvh - 48px); }
+ .msg-page > .msg-sheet-backdrop { background:rgba(0,0,0,.35); }
+}
+@media(min-width:768px) and (max-height:500px) {
+ .msg-page > .msg-sheet { top:12px; right:16px; width:min(560px,calc(100vw - 32px)); max-height:calc(100dvh - 24px); gap:8px; padding:12px; }
+ .msg-sheet .msg-sheet-head, .msg-sheet .msg-name-field, .msg-sheet .msg-pick > .msg-search { min-height:40px; }
+}

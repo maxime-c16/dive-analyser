@@ -1,0 +1,568 @@
+{
+  "verdict": "INCOMPLETE \u2014 no UI approval",
+  "candidate": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+  "reviewer": {
+    "provider": "OpenAI/Codex",
+    "model": "gpt-6.1-sol",
+    "effort": "low",
+    "account": "Codex account (runtime does not independently expose account identity)",
+    "variant": null
+  },
+  "sizes": [
+    "390x844",
+    "844x390",
+    "768x1024",
+    "1024x768",
+    "1440x900"
+  ],
+  "matrix": {
+    "Visual hierarchy": [
+      {
+        "score": null,
+        "reason": "Required full screen/state coverage not performed",
+        "weakestScreen": null,
+        "fix": null,
+        "screenshots": []
+      },
+      {
+        "score": null,
+        "reason": "Required full screen/state coverage not performed",
+        "weakestScreen": null,
+        "fix": null,
+        "screenshots": []
+      },
+      {
+        "score": null,
+        "reason": "Required full screen/state coverage not performed",
+        "weakestScreen": null,
+        "fix": null,
+        "screenshots": []
+      },
+      {
+        "score": null,
+        "reason": "Required full screen/state coverage not performed",
+        "weakestScreen": null,
+        "fix": null,
+        "screenshots": []
+      },
+      {
+        "score": null,
+        "reason": "Required full screen/state coverage not performed",
+        "weakestScreen": null,
+        "fix": null,
+        "screenshots": []
+      }
+    ],
+    "Layout and density": [
+      {
+        "score": null,
+        "reason": "Required full screen/state coverage not performed",
+        "weakestScreen": null,
+        "fix": null,
+        "screenshots": []
+      },
+      {
+        "score": null,
+        "reason": "Required full screen/state coverage not performed",
+        "weakestScreen": null,
+        "fix": null,
+        "screenshots": []
+      },
+      {
+        "score": null,
+        "reason": "Required full screen/state coverage not performed",
+        "weakestScreen": null,
+        "fix": null,
+        "screenshots": []
+      },
+      {
+        "score": null,
+        "reason": "Required full screen/state coverage not performed",
+        "weakestScreen": null,
+        "fix": null,
+        "screenshots": []
+      },
+      {
+        "score": null,
+        "reason": "Required full screen/state coverage not performed",
+        "weakestScreen": null,
+        "fix": null,
+        "screenshots": []
+      }
+    ],
+    "Typography": [
+      {
+        "score": null,
+        "reason": "Required full screen/state coverage not performed",
+        "weakestScreen": null,
+        "fix": null,
+        "screenshots": []
+      },
+      {
+        "score": null,
+        "reason": "Required full screen/state coverage not performed",
+        "weakestScreen": null,
+        "fix": null,
+        "screenshots": []
+      },
+      {
+        "score": null,
+        "reason": "Required full screen/state coverage not performed",
+        "weakestScreen": null,
+        "fix": null,
+        "screenshots": []
+      },
+      {
+        "score": null,
+        "reason": "Required full screen/state coverage not performed",
+        "weakestScreen": null,
+        "fix": null,
+        "screenshots": []
+      },
+      {
+        "score": null,
+        "reason": "Required full screen/state coverage not performed",
+        "weakestScreen": null,
+        "fix": null,
+        "screenshots": []
+      }
+    ],
+    "Color and contrast": [
+      {
+        "score": null,
+        "reason": "Required full screen/state coverage not performed",
+        "weakestScreen": null,
+        "fix": null,
+        "screenshots": []
+      },
+      {
+        "score": null,
+        "reason": "Required full screen/state coverage not performed",
+        "weakestScreen": null,
+        "fix": null,
+        "screenshots": []
+      },
+      {
+        "score": null,
+        "reason": "Required full screen/state coverage not performed",
+        "weakestScreen": null,
+        "fix": null,
+        "screenshots": []
+      },
+      {
+        "score": null,
+        "reason": "Required full screen/state coverage not performed",
+        "weakestScreen": null,
+        "fix": null,
+        "screenshots": []
+      },
+      {
+        "score": null,
+        "reason": "Required full screen/state coverage not performed",
+        "weakestScreen": null,
+        "fix": null,
+        "screenshots": []
+      }
+    ],
+    "Spacing and alignment": [
+      {
+        "score": null,
+        "reason": "Required full screen/state coverage not performed",
+        "weakestScreen": null,
+        "fix": null,
+        "screenshots": []
+      },
+      {
+        "score": null,
+        "reason": "Required full screen/state coverage not performed",
+        "weakestScreen": null,
+        "fix": null,
+        "screenshots": []
+      },
+      {
+        "score": null,
+        "reason": "Required full screen/state coverage not performed",
+        "weakestScreen": null,
+        "fix": null,
+        "screenshots": []
+      },
+      {
+        "score": null,
+        "reason": "Required full screen/state coverage not performed",
+        "weakestScreen": null,
+        "fix": null,
+        "screenshots": []
+      },
+      {
+        "score": null,
+        "reason": "Required full screen/state coverage not performed",
+        "weakestScreen": null,
+        "fix": null,
+        "screenshots": []
+      }
+    ],
+    "Navigation and orientation": [
+      {
+        "score": null,
+        "reason": "Required full screen/state coverage not performed",
+        "weakestScreen": null,
+        "fix": null,
+        "screenshots": []
+      },
+      {
+        "score": null,
+        "reason": "Required full screen/state coverage not performed",
+        "weakestScreen": null,
+        "fix": null,
+        "screenshots": []
+      },
+      {
+        "score": null,
+        "reason": "Required full screen/state coverage not performed",
+        "weakestScreen": null,
+        "fix": null,
+        "screenshots": []
+      },
+      {
+        "score": null,
+        "reason": "Required full screen/state coverage not performed",
+        "weakestScreen": null,
+        "fix": null,
+        "screenshots": []
+      },
+      {
+        "score": null,
+        "reason": "Required full screen/state coverage not performed",
+        "weakestScreen": null,
+        "fix": null,
+        "screenshots": []
+      }
+    ],
+    "Control clarity": [
+      {
+        "score": null,
+        "reason": "Required full screen/state coverage not performed",
+        "weakestScreen": null,
+        "fix": null,
+        "screenshots": []
+      },
+      {
+        "score": null,
+        "reason": "Required full screen/state coverage not performed",
+        "weakestScreen": null,
+        "fix": null,
+        "screenshots": []
+      },
+      {
+        "score": null,
+        "reason": "Required full screen/state coverage not performed",
+        "weakestScreen": null,
+        "fix": null,
+        "screenshots": []
+      },
+      {
+        "score": null,
+        "reason": "Required full screen/state coverage not performed",
+        "weakestScreen": null,
+        "fix": null,
+        "screenshots": []
+      },
+      {
+        "score": null,
+        "reason": "Required full screen/state coverage not performed",
+        "weakestScreen": null,
+        "fix": null,
+        "screenshots": []
+      }
+    ],
+    "Terminology and instructions": [
+      {
+        "score": null,
+        "reason": "Required full screen/state coverage not performed",
+        "weakestScreen": null,
+        "fix": null,
+        "screenshots": []
+      },
+      {
+        "score": null,
+        "reason": "Required full screen/state coverage not performed",
+        "weakestScreen": null,
+        "fix": null,
+        "screenshots": []
+      },
+      {
+        "score": null,
+        "reason": "Required full screen/state coverage not performed",
+        "weakestScreen": null,
+        "fix": null,
+        "screenshots": []
+      },
+      {
+        "score": null,
+        "reason": "Required full screen/state coverage not performed",
+        "weakestScreen": null,
+        "fix": null,
+        "screenshots": []
+      },
+      {
+        "score": null,
+        "reason": "Required full screen/state coverage not performed",
+        "weakestScreen": null,
+        "fix": null,
+        "screenshots": []
+      }
+    ],
+    "Component consistency": [
+      {
+        "score": null,
+        "reason": "Required full screen/state coverage not performed",
+        "weakestScreen": null,
+        "fix": null,
+        "screenshots": []
+      },
+      {
+        "score": null,
+        "reason": "Required full screen/state coverage not performed",
+        "weakestScreen": null,
+        "fix": null,
+        "screenshots": []
+      },
+      {
+        "score": null,
+        "reason": "Required full screen/state coverage not performed",
+        "weakestScreen": null,
+        "fix": null,
+        "screenshots": []
+      },
+      {
+        "score": null,
+        "reason": "Required full screen/state coverage not performed",
+        "weakestScreen": null,
+        "fix": null,
+        "screenshots": []
+      },
+      {
+        "score": null,
+        "reason": "Required full screen/state coverage not performed",
+        "weakestScreen": null,
+        "fix": null,
+        "screenshots": []
+      }
+    ],
+    "Task content presentation": [
+      {
+        "score": null,
+        "reason": "Required full screen/state coverage not performed",
+        "weakestScreen": null,
+        "fix": null,
+        "screenshots": []
+      },
+      {
+        "score": null,
+        "reason": "Required full screen/state coverage not performed",
+        "weakestScreen": null,
+        "fix": null,
+        "screenshots": []
+      },
+      {
+        "score": null,
+        "reason": "Required full screen/state coverage not performed",
+        "weakestScreen": null,
+        "fix": null,
+        "screenshots": []
+      },
+      {
+        "score": null,
+        "reason": "Required full screen/state coverage not performed",
+        "weakestScreen": null,
+        "fix": null,
+        "screenshots": []
+      },
+      {
+        "score": null,
+        "reason": "Required full screen/state coverage not performed",
+        "weakestScreen": null,
+        "fix": null,
+        "screenshots": []
+      }
+    ],
+    "Feedback and state clarity": [
+      {
+        "score": null,
+        "reason": "Required full screen/state coverage not performed",
+        "weakestScreen": null,
+        "fix": null,
+        "screenshots": []
+      },
+      {
+        "score": null,
+        "reason": "Required full screen/state coverage not performed",
+        "weakestScreen": null,
+        "fix": null,
+        "screenshots": []
+      },
+      {
+        "score": null,
+        "reason": "Required full screen/state coverage not performed",
+        "weakestScreen": null,
+        "fix": null,
+        "screenshots": []
+      },
+      {
+        "score": null,
+        "reason": "Required full screen/state coverage not performed",
+        "weakestScreen": null,
+        "fix": null,
+        "screenshots": []
+      },
+      {
+        "score": null,
+        "reason": "Required full screen/state coverage not performed",
+        "weakestScreen": null,
+        "fix": null,
+        "screenshots": []
+      }
+    ],
+    "Professional finish": [
+      {
+        "score": null,
+        "reason": "Required full screen/state coverage not performed",
+        "weakestScreen": null,
+        "fix": null,
+        "screenshots": []
+      },
+      {
+        "score": null,
+        "reason": "Required full screen/state coverage not performed",
+        "weakestScreen": null,
+        "fix": null,
+        "screenshots": []
+      },
+      {
+        "score": null,
+        "reason": "Required full screen/state coverage not performed",
+        "weakestScreen": null,
+        "fix": null,
+        "screenshots": []
+      },
+      {
+        "score": null,
+        "reason": "Required full screen/state coverage not performed",
+        "weakestScreen": null,
+        "fix": null,
+        "screenshots": []
+      },
+      {
+        "score": null,
+        "reason": "Required full screen/state coverage not performed",
+        "weakestScreen": null,
+        "fix": null,
+        "screenshots": []
+      }
+    ],
+    "Responsive fit": [
+      {
+        "score": null,
+        "reason": "Required full screen/state coverage not performed",
+        "weakestScreen": null,
+        "fix": null,
+        "screenshots": []
+      },
+      {
+        "score": null,
+        "reason": "Required full screen/state coverage not performed",
+        "weakestScreen": null,
+        "fix": null,
+        "screenshots": []
+      },
+      {
+        "score": null,
+        "reason": "Required full screen/state coverage not performed",
+        "weakestScreen": null,
+        "fix": null,
+        "screenshots": []
+      },
+      {
+        "score": null,
+        "reason": "Required full screen/state coverage not performed",
+        "weakestScreen": null,
+        "fix": null,
+        "screenshots": []
+      },
+      {
+        "score": null,
+        "reason": "Required full screen/state coverage not performed",
+        "weakestScreen": null,
+        "fix": null,
+        "screenshots": []
+      }
+    ],
+    "Next-action discoverability": [
+      {
+        "score": null,
+        "reason": "Required full screen/state coverage not performed",
+        "weakestScreen": null,
+        "fix": null,
+        "screenshots": []
+      },
+      {
+        "score": null,
+        "reason": "Required full screen/state coverage not performed",
+        "weakestScreen": null,
+        "fix": null,
+        "screenshots": []
+      },
+      {
+        "score": null,
+        "reason": "Required full screen/state coverage not performed",
+        "weakestScreen": null,
+        "fix": null,
+        "screenshots": []
+      },
+      {
+        "score": null,
+        "reason": "Required full screen/state coverage not performed",
+        "weakestScreen": null,
+        "fix": null,
+        "screenshots": []
+      },
+      {
+        "score": null,
+        "reason": "Required full screen/state coverage not performed",
+        "weakestScreen": null,
+        "fix": null,
+        "screenshots": []
+      }
+    ]
+  },
+  "minimum": null,
+  "countBelow7": 0,
+  "numericCount": 0,
+  "missingCount": 70,
+  "proofs": {
+    "HEAD": "verified exact candidate",
+    "account": {
+      "signedInAsMaxime": true,
+      "GET /api/v1/auth/me": 200,
+      "display_name": "maxime"
+    },
+    "initialIncorrectEndpointProbes": [
+      "/api/auth/me returned404",
+      "/auth/me returned HTML; JSON parsing failed"
+    ],
+    "sourceMarkers": null,
+    "media": null,
+    "websocket": null
+  },
+  "coverage": {
+    "allRequiredFlowsAtAllFiveSizes": "missing",
+    "screenshots": [],
+    "interactions": []
+  },
+  "limitations": [
+    "Review terminated before UI coverage; no actual runtime blocker established. This is not a pass or complete council review.",
+    "No scores inferred from source, previous rounds, coordinator claims or account page.",
+    "No accessibility certification."
+  ],
+  "changes": "No repository edits, auth writes, room creation or external publication."
+}

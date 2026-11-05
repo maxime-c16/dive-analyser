@@ -1,0 +1,1453 @@
+{
+  "commit": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+  "family": "A",
+  "auth": {
+    "status": 200,
+    "display_name": "maxime",
+    "signedIn": true
+  },
+  "coverage": [
+    {
+      "state": "grid",
+      "size": [
+        390,
+        844
+      ],
+      "screenshot": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a3y9z-f35121aa.png",
+      "inspected": true
+    },
+    {
+      "state": "player3044",
+      "size": [
+        390,
+        844
+      ],
+      "inspected": true,
+      "decoded": true,
+      "advancing": true,
+      "screenshot": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a53dt-cb207c23.png"
+    },
+    {
+      "state": "player3044",
+      "size": [
+        844,
+        390
+      ],
+      "inspected": true,
+      "decoded": true,
+      "advancing": true,
+      "screenshot": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a5482-6691f54a.png"
+    },
+    {
+      "state": "player3044",
+      "size": [
+        768,
+        1024
+      ],
+      "inspected": true,
+      "decoded": true,
+      "advancing": true,
+      "screenshot": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a56rd-2f2fd86c.png"
+    },
+    {
+      "state": "player3044",
+      "size": [
+        1024,
+        768
+      ],
+      "inspected": true,
+      "decoded": true,
+      "advancing": true,
+      "screenshot": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a59qd-54522f49.png"
+    },
+    {
+      "state": "player3044",
+      "size": [
+        1440,
+        900
+      ],
+      "inspected": true,
+      "decoded": true,
+      "advancing": true,
+      "screenshot": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a5d03-f830ca6a.png"
+    },
+    {
+      "state": "codes-collapsed",
+      "size": [
+        390,
+        844
+      ],
+      "screenshot": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a6i7l-8b8d7181.png",
+      "inspected": true
+    },
+    {
+      "state": "codes-collapsed",
+      "size": [
+        844,
+        390
+      ],
+      "screenshot": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a6lbn-08faf797.png",
+      "inspected": true
+    },
+    {
+      "state": "codes-collapsed",
+      "size": [
+        768,
+        1024
+      ],
+      "screenshot": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a6oh3-ec21b755.png",
+      "inspected": true
+    },
+    {
+      "state": "codes-collapsed",
+      "size": [
+        1024,
+        768
+      ],
+      "screenshot": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a6rmn-7fe0b3e8.png",
+      "inspected": true
+    },
+    {
+      "state": "codes-collapsed",
+      "size": [
+        1440,
+        900
+      ],
+      "screenshot": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a6utl-7af5cb57.png",
+      "inspected": true
+    },
+    {
+      "state": "codes-201C-expanded",
+      "size": [
+        390,
+        844
+      ],
+      "screenshot": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a7ge5-de9786d3.png",
+      "inspected": true
+    },
+    {
+      "state": "codes-201C-expanded",
+      "size": [
+        844,
+        390
+      ],
+      "screenshot": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a7ka5-232a1d4c.png",
+      "inspected": true
+    },
+    {
+      "state": "codes-201C-expanded",
+      "size": [
+        768,
+        1024
+      ],
+      "screenshot": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a7l4k-bc333ce3.png",
+      "inspected": true
+    },
+    {
+      "state": "codes-201C-expanded",
+      "size": [
+        1024,
+        768
+      ],
+      "screenshot": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a7ltg-579a6a01.png",
+      "inspected": true
+    },
+    {
+      "state": "codes-201C-expanded",
+      "size": [
+        1440,
+        900
+      ],
+      "screenshot": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a7opw-53ad0bda.png",
+      "inspected": true
+    },
+    {
+      "state": "progress",
+      "size": [
+        390,
+        844
+      ],
+      "screenshot": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a80i4-419dd58e.png",
+      "inspected": true
+    },
+    {
+      "state": "progress",
+      "size": [
+        844,
+        390
+      ],
+      "screenshot": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a81bf-edb5b584.png",
+      "inspected": true
+    },
+    {
+      "state": "progress",
+      "size": [
+        768,
+        1024
+      ],
+      "screenshot": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a82ln-bc953f2a.png",
+      "inspected": true
+    },
+    {
+      "state": "progress",
+      "size": [
+        1024,
+        768
+      ],
+      "screenshot": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a83wm-aab5d6d4.png",
+      "inspected": true
+    },
+    {
+      "state": "progress",
+      "size": [
+        1440,
+        900
+      ],
+      "screenshot": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a84h3-89057c30.png",
+      "inspected": true
+    },
+    {
+      "state": "201C-overview",
+      "size": [
+        390,
+        844
+      ],
+      "screenshot": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a8kmp-f7cedeb4.png",
+      "inspected": true
+    },
+    {
+      "state": "201C-overview",
+      "size": [
+        844,
+        390
+      ],
+      "screenshot": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a8mqn-c6eaa07a.png",
+      "inspected": true
+    },
+    {
+      "state": "201C-overview",
+      "size": [
+        768,
+        1024
+      ],
+      "screenshot": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a8nb5-94caf09f.png",
+      "inspected": true
+    },
+    {
+      "state": "201C-overview",
+      "size": [
+        1024,
+        768
+      ],
+      "screenshot": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a8o2d-ff3c9165.png",
+      "inspected": true
+    },
+    {
+      "state": "201C-overview",
+      "size": [
+        1440,
+        900
+      ],
+      "screenshot": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a8qcl-710a728a.png",
+      "inspected": true
+    },
+    {
+      "state": "201C-detailed",
+      "size": [
+        390,
+        844
+      ],
+      "screenshot": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a8yqv-0d6cacf4.png",
+      "inspected": true,
+      "accepted": false,
+      "reason": "Loading page; excluded"
+    },
+    {
+      "state": "201C-detailed",
+      "size": [
+        844,
+        390
+      ],
+      "screenshot": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a8z9k-644389c8.png",
+      "inspected": true,
+      "accepted": false,
+      "reason": "Loading page; excluded"
+    },
+    {
+      "state": "201C-detailed",
+      "size": [
+        768,
+        1024
+      ],
+      "screenshot": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a8zsm-ff8d5181.png",
+      "inspected": true,
+      "accepted": false,
+      "reason": "Loading page; excluded"
+    },
+    {
+      "state": "201C-detailed",
+      "size": [
+        1024,
+        768
+      ],
+      "screenshot": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a90b7-201a81bf.png",
+      "inspected": true,
+      "accepted": false,
+      "reason": "Loading page; excluded"
+    },
+    {
+      "state": "201C-detailed",
+      "size": [
+        1440,
+        900
+      ],
+      "screenshot": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a90ub-864d4725.png",
+      "inspected": true,
+      "accepted": false,
+      "reason": "Loading page; excluded"
+    },
+    {
+      "state": "201C-detailed-settled",
+      "size": [
+        390,
+        844
+      ],
+      "screenshot": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a99gb-3afb38be.png",
+      "inspected": true
+    },
+    {
+      "state": "201C-detailed-settled",
+      "size": [
+        844,
+        390
+      ],
+      "screenshot": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a99zi-f21ffd39.png",
+      "inspected": true
+    },
+    {
+      "state": "201C-detailed-settled",
+      "size": [
+        768,
+        1024
+      ],
+      "screenshot": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a9akw-2df38cf1.png",
+      "inspected": true
+    },
+    {
+      "state": "201C-detailed-settled",
+      "size": [
+        1024,
+        768
+      ],
+      "screenshot": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a9b9d-5f86a31e.png",
+      "inspected": true
+    },
+    {
+      "state": "201C-detailed-settled",
+      "size": [
+        1440,
+        900
+      ],
+      "screenshot": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a9but-2b3cda38.png",
+      "inspected": true
+    },
+    {
+      "state": "201C-inventory",
+      "size": [
+        390,
+        844
+      ],
+      "screenshot": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a9scr-22b983ec.png",
+      "inspected": true
+    },
+    {
+      "state": "201C-inventory",
+      "size": [
+        844,
+        390
+      ],
+      "screenshot": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a9td8-a8e37031.png",
+      "inspected": true
+    },
+    {
+      "state": "201C-inventory",
+      "size": [
+        768,
+        1024
+      ],
+      "screenshot": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a9u16-ed885aac.png",
+      "inspected": true
+    },
+    {
+      "state": "201C-inventory",
+      "size": [
+        1024,
+        768
+      ],
+      "screenshot": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a9ulv-b16716a4.png",
+      "inspected": true
+    },
+    {
+      "state": "201C-inventory",
+      "size": [
+        1440,
+        900
+      ],
+      "screenshot": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a9va2-4758e5a2.png",
+      "inspected": true
+    },
+    {
+      "state": "exact-attempt-drawer-2321",
+      "size": [
+        390,
+        844
+      ],
+      "screenshot": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3aankv-516223b9.png",
+      "inspected": true
+    },
+    {
+      "state": "exact-attempt-drawer-2321",
+      "size": [
+        844,
+        390
+      ],
+      "screenshot": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3aao8o-325b0eb0.png",
+      "inspected": true
+    },
+    {
+      "state": "exact-attempt-drawer-2321",
+      "size": [
+        768,
+        1024
+      ],
+      "screenshot": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3aaowm-e50513cb.png",
+      "inspected": true
+    },
+    {
+      "state": "exact-attempt-drawer-2321",
+      "size": [
+        1024,
+        768
+      ],
+      "screenshot": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3aapy8-802a1fc8.png",
+      "inspected": true
+    },
+    {
+      "state": "exact-attempt-drawer-2321",
+      "size": [
+        1440,
+        900
+      ],
+      "screenshot": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3aaqon-a1cef4a6.png",
+      "inspected": true
+    }
+  ],
+  "cells": [
+    {
+      "category": "Visual hierarchy",
+      "size": [
+        390,
+        844
+      ],
+      "score": null,
+      "observed_subset_score": 6,
+      "weakest_screen": "201C detailed / inspected subset",
+      "reason": "Detailed analysis gives header and filters priority before task content",
+      "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a99gb-3afb38be.png",
+      "proposed_fix": "Reduce header and foreground progression",
+      "status": "unverified family minimum: missing required states"
+    },
+    {
+      "category": "Visual hierarchy",
+      "size": [
+        844,
+        390
+      ],
+      "score": null,
+      "observed_subset_score": 6,
+      "weakest_screen": "201C detailed / inspected subset",
+      "reason": "Detailed analysis gives header and filters priority before task content",
+      "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a99zi-f21ffd39.png",
+      "proposed_fix": "Reduce header and foreground progression",
+      "status": "unverified family minimum: missing required states"
+    },
+    {
+      "category": "Visual hierarchy",
+      "size": [
+        768,
+        1024
+      ],
+      "score": null,
+      "observed_subset_score": 6,
+      "weakest_screen": "201C detailed / inspected subset",
+      "reason": "Detailed analysis gives header and filters priority before task content",
+      "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a9akw-2df38cf1.png",
+      "proposed_fix": "Reduce header and foreground progression",
+      "status": "unverified family minimum: missing required states"
+    },
+    {
+      "category": "Visual hierarchy",
+      "size": [
+        1024,
+        768
+      ],
+      "score": null,
+      "observed_subset_score": 6,
+      "weakest_screen": "201C detailed / inspected subset",
+      "reason": "Detailed analysis gives header and filters priority before task content",
+      "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a9b9d-5f86a31e.png",
+      "proposed_fix": "Reduce header and foreground progression",
+      "status": "unverified family minimum: missing required states"
+    },
+    {
+      "category": "Visual hierarchy",
+      "size": [
+        1440,
+        900
+      ],
+      "score": null,
+      "observed_subset_score": 6,
+      "weakest_screen": "201C detailed / inspected subset",
+      "reason": "Detailed analysis gives header and filters priority before task content",
+      "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a9but-2b3cda38.png",
+      "proposed_fix": "Reduce header and foreground progression",
+      "status": "unverified family minimum: missing required states"
+    },
+    {
+      "category": "Layout and density",
+      "size": [
+        390,
+        844
+      ],
+      "score": null,
+      "observed_subset_score": 5,
+      "weakest_screen": "201C detailed / inspected subset",
+      "reason": "Detailed analysis consumes much of initial viewport before progression",
+      "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a99gb-3afb38be.png",
+      "proposed_fix": "Compact header and filter area",
+      "status": "unverified family minimum: missing required states"
+    },
+    {
+      "category": "Layout and density",
+      "size": [
+        844,
+        390
+      ],
+      "score": null,
+      "observed_subset_score": 5,
+      "weakest_screen": "201C detailed / inspected subset",
+      "reason": "Detailed analysis consumes much of initial viewport before progression",
+      "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a99zi-f21ffd39.png",
+      "proposed_fix": "Compact header and filter area",
+      "status": "unverified family minimum: missing required states"
+    },
+    {
+      "category": "Layout and density",
+      "size": [
+        768,
+        1024
+      ],
+      "score": null,
+      "observed_subset_score": 5,
+      "weakest_screen": "201C detailed / inspected subset",
+      "reason": "Detailed analysis consumes much of initial viewport before progression",
+      "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a9akw-2df38cf1.png",
+      "proposed_fix": "Compact header and filter area",
+      "status": "unverified family minimum: missing required states"
+    },
+    {
+      "category": "Layout and density",
+      "size": [
+        1024,
+        768
+      ],
+      "score": null,
+      "observed_subset_score": 5,
+      "weakest_screen": "201C detailed / inspected subset",
+      "reason": "Detailed analysis consumes much of initial viewport before progression",
+      "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a9b9d-5f86a31e.png",
+      "proposed_fix": "Compact header and filter area",
+      "status": "unverified family minimum: missing required states"
+    },
+    {
+      "category": "Layout and density",
+      "size": [
+        1440,
+        900
+      ],
+      "score": null,
+      "observed_subset_score": 5,
+      "weakest_screen": "201C detailed / inspected subset",
+      "reason": "Detailed analysis consumes much of initial viewport before progression",
+      "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a9but-2b3cda38.png",
+      "proposed_fix": "Compact header and filter area",
+      "status": "unverified family minimum: missing required states"
+    },
+    {
+      "category": "Typography",
+      "size": [
+        390,
+        844
+      ],
+      "score": null,
+      "observed_subset_score": 7,
+      "weakest_screen": "201C detailed / inspected subset",
+      "reason": "Text remains legible on inspected screens",
+      "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a99gb-3afb38be.png",
+      "proposed_fix": null,
+      "status": "unverified family minimum: missing required states"
+    },
+    {
+      "category": "Typography",
+      "size": [
+        844,
+        390
+      ],
+      "score": null,
+      "observed_subset_score": 7,
+      "weakest_screen": "201C detailed / inspected subset",
+      "reason": "Text remains legible on inspected screens",
+      "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a99zi-f21ffd39.png",
+      "proposed_fix": null,
+      "status": "unverified family minimum: missing required states"
+    },
+    {
+      "category": "Typography",
+      "size": [
+        768,
+        1024
+      ],
+      "score": null,
+      "observed_subset_score": 7,
+      "weakest_screen": "201C detailed / inspected subset",
+      "reason": "Text remains legible on inspected screens",
+      "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a9akw-2df38cf1.png",
+      "proposed_fix": null,
+      "status": "unverified family minimum: missing required states"
+    },
+    {
+      "category": "Typography",
+      "size": [
+        1024,
+        768
+      ],
+      "score": null,
+      "observed_subset_score": 7,
+      "weakest_screen": "201C detailed / inspected subset",
+      "reason": "Text remains legible on inspected screens",
+      "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a9b9d-5f86a31e.png",
+      "proposed_fix": null,
+      "status": "unverified family minimum: missing required states"
+    },
+    {
+      "category": "Typography",
+      "size": [
+        1440,
+        900
+      ],
+      "score": null,
+      "observed_subset_score": 7,
+      "weakest_screen": "201C detailed / inspected subset",
+      "reason": "Text remains legible on inspected screens",
+      "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a9but-2b3cda38.png",
+      "proposed_fix": null,
+      "status": "unverified family minimum: missing required states"
+    },
+    {
+      "category": "Color and contrast",
+      "size": [
+        390,
+        844
+      ],
+      "score": null,
+      "observed_subset_score": 7,
+      "weakest_screen": "201C detailed / inspected subset",
+      "reason": "Dark surfaces and foregrounds distinguish major content",
+      "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a99gb-3afb38be.png",
+      "proposed_fix": null,
+      "status": "unverified family minimum: missing required states"
+    },
+    {
+      "category": "Color and contrast",
+      "size": [
+        844,
+        390
+      ],
+      "score": null,
+      "observed_subset_score": 7,
+      "weakest_screen": "201C detailed / inspected subset",
+      "reason": "Dark surfaces and foregrounds distinguish major content",
+      "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a99zi-f21ffd39.png",
+      "proposed_fix": null,
+      "status": "unverified family minimum: missing required states"
+    },
+    {
+      "category": "Color and contrast",
+      "size": [
+        768,
+        1024
+      ],
+      "score": null,
+      "observed_subset_score": 7,
+      "weakest_screen": "201C detailed / inspected subset",
+      "reason": "Dark surfaces and foregrounds distinguish major content",
+      "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a9akw-2df38cf1.png",
+      "proposed_fix": null,
+      "status": "unverified family minimum: missing required states"
+    },
+    {
+      "category": "Color and contrast",
+      "size": [
+        1024,
+        768
+      ],
+      "score": null,
+      "observed_subset_score": 7,
+      "weakest_screen": "201C detailed / inspected subset",
+      "reason": "Dark surfaces and foregrounds distinguish major content",
+      "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a9b9d-5f86a31e.png",
+      "proposed_fix": null,
+      "status": "unverified family minimum: missing required states"
+    },
+    {
+      "category": "Color and contrast",
+      "size": [
+        1440,
+        900
+      ],
+      "score": null,
+      "observed_subset_score": 7,
+      "weakest_screen": "201C detailed / inspected subset",
+      "reason": "Dark surfaces and foregrounds distinguish major content",
+      "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a9but-2b3cda38.png",
+      "proposed_fix": null,
+      "status": "unverified family minimum: missing required states"
+    },
+    {
+      "category": "Spacing and alignment",
+      "size": [
+        390,
+        844
+      ],
+      "score": null,
+      "observed_subset_score": 6,
+      "weakest_screen": "201C detailed / inspected subset",
+      "reason": "Large vertical gaps and uneven card heights slow scanning",
+      "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a99gb-3afb38be.png",
+      "proposed_fix": "Use consistent section spacing",
+      "status": "unverified family minimum: missing required states"
+    },
+    {
+      "category": "Spacing and alignment",
+      "size": [
+        844,
+        390
+      ],
+      "score": null,
+      "observed_subset_score": 6,
+      "weakest_screen": "201C detailed / inspected subset",
+      "reason": "Large vertical gaps and uneven card heights slow scanning",
+      "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a99zi-f21ffd39.png",
+      "proposed_fix": "Use consistent section spacing",
+      "status": "unverified family minimum: missing required states"
+    },
+    {
+      "category": "Spacing and alignment",
+      "size": [
+        768,
+        1024
+      ],
+      "score": null,
+      "observed_subset_score": 6,
+      "weakest_screen": "201C detailed / inspected subset",
+      "reason": "Large vertical gaps and uneven card heights slow scanning",
+      "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a9akw-2df38cf1.png",
+      "proposed_fix": "Use consistent section spacing",
+      "status": "unverified family minimum: missing required states"
+    },
+    {
+      "category": "Spacing and alignment",
+      "size": [
+        1024,
+        768
+      ],
+      "score": null,
+      "observed_subset_score": 6,
+      "weakest_screen": "201C detailed / inspected subset",
+      "reason": "Large vertical gaps and uneven card heights slow scanning",
+      "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a9b9d-5f86a31e.png",
+      "proposed_fix": "Use consistent section spacing",
+      "status": "unverified family minimum: missing required states"
+    },
+    {
+      "category": "Spacing and alignment",
+      "size": [
+        1440,
+        900
+      ],
+      "score": null,
+      "observed_subset_score": 6,
+      "weakest_screen": "201C detailed / inspected subset",
+      "reason": "Large vertical gaps and uneven card heights slow scanning",
+      "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a9but-2b3cda38.png",
+      "proposed_fix": "Use consistent section spacing",
+      "status": "unverified family minimum: missing required states"
+    },
+    {
+      "category": "Navigation and orientation",
+      "size": [
+        390,
+        844
+      ],
+      "score": null,
+      "observed_subset_score": 6,
+      "weakest_screen": "201C detailed / inspected subset",
+      "reason": "Back to clip label from overview is ambiguous",
+      "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a99gb-3afb38be.png",
+      "proposed_fix": "Label return destination accurately",
+      "status": "unverified family minimum: missing required states"
+    },
+    {
+      "category": "Navigation and orientation",
+      "size": [
+        844,
+        390
+      ],
+      "score": null,
+      "observed_subset_score": 6,
+      "weakest_screen": "201C detailed / inspected subset",
+      "reason": "Back to clip label from overview is ambiguous",
+      "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a99zi-f21ffd39.png",
+      "proposed_fix": "Label return destination accurately",
+      "status": "unverified family minimum: missing required states"
+    },
+    {
+      "category": "Navigation and orientation",
+      "size": [
+        768,
+        1024
+      ],
+      "score": null,
+      "observed_subset_score": 6,
+      "weakest_screen": "201C detailed / inspected subset",
+      "reason": "Back to clip label from overview is ambiguous",
+      "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a9akw-2df38cf1.png",
+      "proposed_fix": "Label return destination accurately",
+      "status": "unverified family minimum: missing required states"
+    },
+    {
+      "category": "Navigation and orientation",
+      "size": [
+        1024,
+        768
+      ],
+      "score": null,
+      "observed_subset_score": 6,
+      "weakest_screen": "201C detailed / inspected subset",
+      "reason": "Back to clip label from overview is ambiguous",
+      "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a9b9d-5f86a31e.png",
+      "proposed_fix": "Label return destination accurately",
+      "status": "unverified family minimum: missing required states"
+    },
+    {
+      "category": "Navigation and orientation",
+      "size": [
+        1440,
+        900
+      ],
+      "score": null,
+      "observed_subset_score": 6,
+      "weakest_screen": "201C detailed / inspected subset",
+      "reason": "Back to clip label from overview is ambiguous",
+      "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a9but-2b3cda38.png",
+      "proposed_fix": "Label return destination accurately",
+      "status": "unverified family minimum: missing required states"
+    },
+    {
+      "category": "Control clarity",
+      "size": [
+        390,
+        844
+      ],
+      "score": null,
+      "observed_subset_score": 6,
+      "weakest_screen": "201C detailed / inspected subset",
+      "reason": "Analyze button lacks comfortable horizontal padding",
+      "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a99gb-3afb38be.png",
+      "proposed_fix": "Pad Analyze consistently",
+      "status": "unverified family minimum: missing required states"
+    },
+    {
+      "category": "Control clarity",
+      "size": [
+        844,
+        390
+      ],
+      "score": null,
+      "observed_subset_score": 6,
+      "weakest_screen": "201C detailed / inspected subset",
+      "reason": "Analyze button lacks comfortable horizontal padding",
+      "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a99zi-f21ffd39.png",
+      "proposed_fix": "Pad Analyze consistently",
+      "status": "unverified family minimum: missing required states"
+    },
+    {
+      "category": "Control clarity",
+      "size": [
+        768,
+        1024
+      ],
+      "score": null,
+      "observed_subset_score": 6,
+      "weakest_screen": "201C detailed / inspected subset",
+      "reason": "Analyze button lacks comfortable horizontal padding",
+      "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a9akw-2df38cf1.png",
+      "proposed_fix": "Pad Analyze consistently",
+      "status": "unverified family minimum: missing required states"
+    },
+    {
+      "category": "Control clarity",
+      "size": [
+        1024,
+        768
+      ],
+      "score": null,
+      "observed_subset_score": 6,
+      "weakest_screen": "201C detailed / inspected subset",
+      "reason": "Analyze button lacks comfortable horizontal padding",
+      "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a9b9d-5f86a31e.png",
+      "proposed_fix": "Pad Analyze consistently",
+      "status": "unverified family minimum: missing required states"
+    },
+    {
+      "category": "Control clarity",
+      "size": [
+        1440,
+        900
+      ],
+      "score": null,
+      "observed_subset_score": 6,
+      "weakest_screen": "201C detailed / inspected subset",
+      "reason": "Analyze button lacks comfortable horizontal padding",
+      "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a9but-2b3cda38.png",
+      "proposed_fix": "Pad Analyze consistently",
+      "status": "unverified family minimum: missing required states"
+    },
+    {
+      "category": "Terminology and instructions",
+      "size": [
+        390,
+        844
+      ],
+      "score": null,
+      "observed_subset_score": 5,
+      "weakest_screen": "201C detailed / inspected subset",
+      "reason": "IQR and letter scores require domain interpretation",
+      "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a99gb-3afb38be.png",
+      "proposed_fix": "Explain statistical terms at point of use",
+      "status": "unverified family minimum: missing required states"
+    },
+    {
+      "category": "Terminology and instructions",
+      "size": [
+        844,
+        390
+      ],
+      "score": null,
+      "observed_subset_score": 5,
+      "weakest_screen": "201C detailed / inspected subset",
+      "reason": "IQR and letter scores require domain interpretation",
+      "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a99zi-f21ffd39.png",
+      "proposed_fix": "Explain statistical terms at point of use",
+      "status": "unverified family minimum: missing required states"
+    },
+    {
+      "category": "Terminology and instructions",
+      "size": [
+        768,
+        1024
+      ],
+      "score": null,
+      "observed_subset_score": 5,
+      "weakest_screen": "201C detailed / inspected subset",
+      "reason": "IQR and letter scores require domain interpretation",
+      "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a9akw-2df38cf1.png",
+      "proposed_fix": "Explain statistical terms at point of use",
+      "status": "unverified family minimum: missing required states"
+    },
+    {
+      "category": "Terminology and instructions",
+      "size": [
+        1024,
+        768
+      ],
+      "score": null,
+      "observed_subset_score": 5,
+      "weakest_screen": "201C detailed / inspected subset",
+      "reason": "IQR and letter scores require domain interpretation",
+      "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a9b9d-5f86a31e.png",
+      "proposed_fix": "Explain statistical terms at point of use",
+      "status": "unverified family minimum: missing required states"
+    },
+    {
+      "category": "Terminology and instructions",
+      "size": [
+        1440,
+        900
+      ],
+      "score": null,
+      "observed_subset_score": 5,
+      "weakest_screen": "201C detailed / inspected subset",
+      "reason": "IQR and letter scores require domain interpretation",
+      "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a9but-2b3cda38.png",
+      "proposed_fix": "Explain statistical terms at point of use",
+      "status": "unverified family minimum: missing required states"
+    },
+    {
+      "category": "Component consistency",
+      "size": [
+        390,
+        844
+      ],
+      "score": null,
+      "observed_subset_score": 6,
+      "weakest_screen": "201C detailed / inspected subset",
+      "reason": "Overview and detailed analysis use different visual conventions",
+      "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a99gb-3afb38be.png",
+      "proposed_fix": "Unify analysis controls",
+      "status": "unverified family minimum: missing required states"
+    },
+    {
+      "category": "Component consistency",
+      "size": [
+        844,
+        390
+      ],
+      "score": null,
+      "observed_subset_score": 6,
+      "weakest_screen": "201C detailed / inspected subset",
+      "reason": "Overview and detailed analysis use different visual conventions",
+      "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a99zi-f21ffd39.png",
+      "proposed_fix": "Unify analysis controls",
+      "status": "unverified family minimum: missing required states"
+    },
+    {
+      "category": "Component consistency",
+      "size": [
+        768,
+        1024
+      ],
+      "score": null,
+      "observed_subset_score": 6,
+      "weakest_screen": "201C detailed / inspected subset",
+      "reason": "Overview and detailed analysis use different visual conventions",
+      "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a9akw-2df38cf1.png",
+      "proposed_fix": "Unify analysis controls",
+      "status": "unverified family minimum: missing required states"
+    },
+    {
+      "category": "Component consistency",
+      "size": [
+        1024,
+        768
+      ],
+      "score": null,
+      "observed_subset_score": 6,
+      "weakest_screen": "201C detailed / inspected subset",
+      "reason": "Overview and detailed analysis use different visual conventions",
+      "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a9b9d-5f86a31e.png",
+      "proposed_fix": "Unify analysis controls",
+      "status": "unverified family minimum: missing required states"
+    },
+    {
+      "category": "Component consistency",
+      "size": [
+        1440,
+        900
+      ],
+      "score": null,
+      "observed_subset_score": 6,
+      "weakest_screen": "201C detailed / inspected subset",
+      "reason": "Overview and detailed analysis use different visual conventions",
+      "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a9but-2b3cda38.png",
+      "proposed_fix": "Unify analysis controls",
+      "status": "unverified family minimum: missing required states"
+    },
+    {
+      "category": "Task content presentation",
+      "size": [
+        390,
+        844
+      ],
+      "score": null,
+      "observed_subset_score": 6,
+      "weakest_screen": "201C detailed / inspected subset",
+      "reason": "Recent score chips omit visible dates and distribution legend",
+      "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a99gb-3afb38be.png",
+      "proposed_fix": "Expose dates and distribution labels",
+      "status": "unverified family minimum: missing required states"
+    },
+    {
+      "category": "Task content presentation",
+      "size": [
+        844,
+        390
+      ],
+      "score": null,
+      "observed_subset_score": 6,
+      "weakest_screen": "201C detailed / inspected subset",
+      "reason": "Recent score chips omit visible dates and distribution legend",
+      "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a99zi-f21ffd39.png",
+      "proposed_fix": "Expose dates and distribution labels",
+      "status": "unverified family minimum: missing required states"
+    },
+    {
+      "category": "Task content presentation",
+      "size": [
+        768,
+        1024
+      ],
+      "score": null,
+      "observed_subset_score": 6,
+      "weakest_screen": "201C detailed / inspected subset",
+      "reason": "Recent score chips omit visible dates and distribution legend",
+      "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a9akw-2df38cf1.png",
+      "proposed_fix": "Expose dates and distribution labels",
+      "status": "unverified family minimum: missing required states"
+    },
+    {
+      "category": "Task content presentation",
+      "size": [
+        1024,
+        768
+      ],
+      "score": null,
+      "observed_subset_score": 6,
+      "weakest_screen": "201C detailed / inspected subset",
+      "reason": "Recent score chips omit visible dates and distribution legend",
+      "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a9b9d-5f86a31e.png",
+      "proposed_fix": "Expose dates and distribution labels",
+      "status": "unverified family minimum: missing required states"
+    },
+    {
+      "category": "Task content presentation",
+      "size": [
+        1440,
+        900
+      ],
+      "score": null,
+      "observed_subset_score": 6,
+      "weakest_screen": "201C detailed / inspected subset",
+      "reason": "Recent score chips omit visible dates and distribution legend",
+      "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a9but-2b3cda38.png",
+      "proposed_fix": "Expose dates and distribution labels",
+      "status": "unverified family minimum: missing required states"
+    },
+    {
+      "category": "Feedback and state clarity",
+      "size": [
+        390,
+        844
+      ],
+      "score": null,
+      "observed_subset_score": 6,
+      "weakest_screen": "201C detailed / inspected subset",
+      "reason": "Overview Improving and detailed Stable lack visible explanation of differing windows",
+      "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a99gb-3afb38be.png",
+      "proposed_fix": "Show trend window beside each trend",
+      "status": "unverified family minimum: missing required states"
+    },
+    {
+      "category": "Feedback and state clarity",
+      "size": [
+        844,
+        390
+      ],
+      "score": null,
+      "observed_subset_score": 6,
+      "weakest_screen": "201C detailed / inspected subset",
+      "reason": "Overview Improving and detailed Stable lack visible explanation of differing windows",
+      "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a99zi-f21ffd39.png",
+      "proposed_fix": "Show trend window beside each trend",
+      "status": "unverified family minimum: missing required states"
+    },
+    {
+      "category": "Feedback and state clarity",
+      "size": [
+        768,
+        1024
+      ],
+      "score": null,
+      "observed_subset_score": 6,
+      "weakest_screen": "201C detailed / inspected subset",
+      "reason": "Overview Improving and detailed Stable lack visible explanation of differing windows",
+      "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a9akw-2df38cf1.png",
+      "proposed_fix": "Show trend window beside each trend",
+      "status": "unverified family minimum: missing required states"
+    },
+    {
+      "category": "Feedback and state clarity",
+      "size": [
+        1024,
+        768
+      ],
+      "score": null,
+      "observed_subset_score": 6,
+      "weakest_screen": "201C detailed / inspected subset",
+      "reason": "Overview Improving and detailed Stable lack visible explanation of differing windows",
+      "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a9b9d-5f86a31e.png",
+      "proposed_fix": "Show trend window beside each trend",
+      "status": "unverified family minimum: missing required states"
+    },
+    {
+      "category": "Feedback and state clarity",
+      "size": [
+        1440,
+        900
+      ],
+      "score": null,
+      "observed_subset_score": 6,
+      "weakest_screen": "201C detailed / inspected subset",
+      "reason": "Overview Improving and detailed Stable lack visible explanation of differing windows",
+      "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a9but-2b3cda38.png",
+      "proposed_fix": "Show trend window beside each trend",
+      "status": "unverified family minimum: missing required states"
+    },
+    {
+      "category": "Professional finish",
+      "size": [
+        390,
+        844
+      ],
+      "score": null,
+      "observed_subset_score": 6,
+      "weakest_screen": "201C detailed / inspected subset",
+      "reason": "Dense analysis chart and inconsistent button treatment reduce finish",
+      "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a99gb-3afb38be.png",
+      "proposed_fix": "Unify controls and simplify chart layers",
+      "status": "unverified family minimum: missing required states"
+    },
+    {
+      "category": "Professional finish",
+      "size": [
+        844,
+        390
+      ],
+      "score": null,
+      "observed_subset_score": 6,
+      "weakest_screen": "201C detailed / inspected subset",
+      "reason": "Dense analysis chart and inconsistent button treatment reduce finish",
+      "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a99zi-f21ffd39.png",
+      "proposed_fix": "Unify controls and simplify chart layers",
+      "status": "unverified family minimum: missing required states"
+    },
+    {
+      "category": "Professional finish",
+      "size": [
+        768,
+        1024
+      ],
+      "score": null,
+      "observed_subset_score": 6,
+      "weakest_screen": "201C detailed / inspected subset",
+      "reason": "Dense analysis chart and inconsistent button treatment reduce finish",
+      "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a9akw-2df38cf1.png",
+      "proposed_fix": "Unify controls and simplify chart layers",
+      "status": "unverified family minimum: missing required states"
+    },
+    {
+      "category": "Professional finish",
+      "size": [
+        1024,
+        768
+      ],
+      "score": null,
+      "observed_subset_score": 6,
+      "weakest_screen": "201C detailed / inspected subset",
+      "reason": "Dense analysis chart and inconsistent button treatment reduce finish",
+      "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a9b9d-5f86a31e.png",
+      "proposed_fix": "Unify controls and simplify chart layers",
+      "status": "unverified family minimum: missing required states"
+    },
+    {
+      "category": "Professional finish",
+      "size": [
+        1440,
+        900
+      ],
+      "score": null,
+      "observed_subset_score": 6,
+      "weakest_screen": "201C detailed / inspected subset",
+      "reason": "Dense analysis chart and inconsistent button treatment reduce finish",
+      "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a9but-2b3cda38.png",
+      "proposed_fix": "Unify controls and simplify chart layers",
+      "status": "unverified family minimum: missing required states"
+    },
+    {
+      "category": "Responsive fit",
+      "size": [
+        390,
+        844
+      ],
+      "score": null,
+      "observed_subset_score": 6,
+      "weakest_screen": "201C detailed / inspected subset",
+      "reason": "Phone overview height controls extend past right edge",
+      "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a99gb-3afb38be.png",
+      "proposed_fix": "Wrap or clearly signal horizontal controls",
+      "status": "unverified family minimum: missing required states"
+    },
+    {
+      "category": "Responsive fit",
+      "size": [
+        844,
+        390
+      ],
+      "score": null,
+      "observed_subset_score": 6,
+      "weakest_screen": "201C detailed / inspected subset",
+      "reason": "Phone overview height controls extend past right edge",
+      "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a99zi-f21ffd39.png",
+      "proposed_fix": "Wrap or clearly signal horizontal controls",
+      "status": "unverified family minimum: missing required states"
+    },
+    {
+      "category": "Responsive fit",
+      "size": [
+        768,
+        1024
+      ],
+      "score": null,
+      "observed_subset_score": 6,
+      "weakest_screen": "201C detailed / inspected subset",
+      "reason": "Phone overview height controls extend past right edge",
+      "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a9akw-2df38cf1.png",
+      "proposed_fix": "Wrap or clearly signal horizontal controls",
+      "status": "unverified family minimum: missing required states"
+    },
+    {
+      "category": "Responsive fit",
+      "size": [
+        1024,
+        768
+      ],
+      "score": null,
+      "observed_subset_score": 6,
+      "weakest_screen": "201C detailed / inspected subset",
+      "reason": "Phone overview height controls extend past right edge",
+      "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a9b9d-5f86a31e.png",
+      "proposed_fix": "Wrap or clearly signal horizontal controls",
+      "status": "unverified family minimum: missing required states"
+    },
+    {
+      "category": "Responsive fit",
+      "size": [
+        1440,
+        900
+      ],
+      "score": null,
+      "observed_subset_score": 6,
+      "weakest_screen": "201C detailed / inspected subset",
+      "reason": "Phone overview height controls extend past right edge",
+      "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a9but-2b3cda38.png",
+      "proposed_fix": "Wrap or clearly signal horizontal controls",
+      "status": "unverified family minimum: missing required states"
+    },
+    {
+      "category": "Next-action discoverability",
+      "size": [
+        390,
+        844
+      ],
+      "score": null,
+      "observed_subset_score": 6,
+      "weakest_screen": "201C detailed / inspected subset",
+      "reason": "Inventory rows and score chips have weak action cues",
+      "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a99gb-3afb38be.png",
+      "proposed_fix": "Add explicit attempt action",
+      "status": "unverified family minimum: missing required states"
+    },
+    {
+      "category": "Next-action discoverability",
+      "size": [
+        844,
+        390
+      ],
+      "score": null,
+      "observed_subset_score": 6,
+      "weakest_screen": "201C detailed / inspected subset",
+      "reason": "Inventory rows and score chips have weak action cues",
+      "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a99zi-f21ffd39.png",
+      "proposed_fix": "Add explicit attempt action",
+      "status": "unverified family minimum: missing required states"
+    },
+    {
+      "category": "Next-action discoverability",
+      "size": [
+        768,
+        1024
+      ],
+      "score": null,
+      "observed_subset_score": 6,
+      "weakest_screen": "201C detailed / inspected subset",
+      "reason": "Inventory rows and score chips have weak action cues",
+      "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a9akw-2df38cf1.png",
+      "proposed_fix": "Add explicit attempt action",
+      "status": "unverified family minimum: missing required states"
+    },
+    {
+      "category": "Next-action discoverability",
+      "size": [
+        1024,
+        768
+      ],
+      "score": null,
+      "observed_subset_score": 6,
+      "weakest_screen": "201C detailed / inspected subset",
+      "reason": "Inventory rows and score chips have weak action cues",
+      "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a9b9d-5f86a31e.png",
+      "proposed_fix": "Add explicit attempt action",
+      "status": "unverified family minimum: missing required states"
+    },
+    {
+      "category": "Next-action discoverability",
+      "size": [
+        1440,
+        900
+      ],
+      "score": null,
+      "observed_subset_score": 6,
+      "weakest_screen": "201C detailed / inspected subset",
+      "reason": "Inventory rows and score chips have weak action cues",
+      "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a9but-2b3cda38.png",
+      "proposed_fix": "Add explicit attempt action",
+      "status": "unverified family minimum: missing required states"
+    }
+  ],
+  "status": "incomplete",
+  "other_families": "unverified",
+  "full_council_gate_satisfied": false,
+  "fresh_full_scope_reevaluation_required": true,
+  "verified_actions": [
+    "player decoded and advancing",
+    "Next 3044 to 3043",
+    "Previous 3043 to 3044",
+    "return to Library",
+    "inventory 1\u201320 to 21\u201340 /409 and Previous",
+    "drawer opened for 2321 after page transition; identity not cross-checked visually"
+  ],
+  "missing_coverage": [
+    "grid four remaining sizes",
+    "player details all sizes",
+    "Next/Previous/return screenshots at every size",
+    "recent clip from expanded 201C all sizes",
+    "Progress below fold heatmap/volume all sizes",
+    "overview secondary sections all sizes",
+    "detailed progression below fold and secondary sections all sizes",
+    "pagination screenshot all sizes"
+  ],
+  "runtime_errors": [
+    "Preview automation click received an invalid selector (23 characters). selector takes CSS; use locator for aria-ref=<ref>, role, or text targets. Recovered using observed DOM button."
+  ],
+  "runtime_failure": false
+}

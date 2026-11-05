@@ -1,3 +1,5 @@
+> Current status (2026-11-05): reviewed SHA cf95a4a8, gate UNMET. Muse min5/70below7; Solmedium familyB min3/34below7, other families not accepted; Sollow partial provisional only, final70null. Active roster Muse xhigh / Solmedium / Sollow, two Sol seats reduce model diversity. All round5 tasks completed. Integrated corrections are NOT yet reevaluated. Historical sections below retain their original state wording.
+
 # Council — numeric scoreboard
 
 Missing cells never pass. “0 below7” on a non-numeric report means there are no numeric cells, not that the reviewer passed. Reported minima are never averages.
@@ -119,3 +121,98 @@ SHA noted6cb6cff7; minimum2;70/70cells below7. [Full per-cell weakest screens an
 |Next-action discoverability|5|3|5|5|5|
 
 2026-11-05 explicit roster change: Opus is replaced for the NEXT round by gpt-6.1-sol low via provider codex. Active council: Muse xhigh, Sol medium, Sol low. Two reviewers now share a model; no three-model diversity claimed. Historical Opus scores remain unchanged. No reviewer is currently running.
+
+## Sol low round5 — incomplete01
+
+SHA cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c. Numeric0/70,missing70,minimum unavailable.0verified cells below7 is not a pass. [Verbatim report](round-05/sol-low-incomplete-01.json). Own account200 and HEAD verified; no UI/media/WS/source-marker proof and no runtime blocker. A fresh Sol low review is required. Muse xhigh and Sol medium remain pending; no poll/replacement of those runs.
+
+|Category|390×844|844×390|768×1024|1024×768|1440×900|
+|---|---|---|---|---|---|
+|Visual hierarchy|—|—|—|—|—|
+|Layout and density|—|—|—|—|—|
+|Typography|—|—|—|—|—|
+|Color and contrast|—|—|—|—|—|
+|Spacing and alignment|—|—|—|—|—|
+|Navigation and orientation|—|—|—|—|—|
+|Control clarity|—|—|—|—|—|
+|Terminology and instructions|—|—|—|—|—|
+|Component consistency|—|—|—|—|—|
+|Task content presentation|—|—|—|—|—|
+|Feedback and state clarity|—|—|—|—|—|
+|Professional finish|—|—|—|—|—|
+|Responsive fit|—|—|—|—|—|
+|Next-action discoverability|—|—|—|—|—|
+
+## Sol low round5 — incomplete02
+
+SHAcf95a4a8. Numeric0/70,missing70,minimum unavailable. All14×5cells remain null, identical to incomplete01;0verified lowcells does not mean pass. [Actual execution record](round-05/sol-low-incomplete-02.json). Auth200 and23decodedLibrary images, no environmental blocker. Method changes to bounded family evidence tasks for this same seat, then a complete independent reevaluation; no partial review acceptance, score inference, roster change or source mutation. Muse/Solmedium remain pending and are not polled.
+
+## Sol medium round5 — incomplete01
+
+SHAcf95a4a8. Minimum unavailable, numeric0,missing70; all14×5cells null.0scored cells below7 is not a pass. [Verbatim report](round-05/sol-medium-incomplete-01.json). Identity/media/WS/source verified,3044decoded all5sizes,Next/Previous,201Cpagination,Classic playback/misseddeadline/results. Required child coverage and timed interactions unfinished; no auth/originblocker. Full independent matrix remains required.
+
+Sol low familyA retry blocked beforeauth:Too many serverbrowser tabs.0numeric70null. [Exact record](round-05/sol-low-A-capacity-blocked.json). Coordinator closed only current ownedtab_x using supportedclose, freeing one slot. Seven old same-thread tabs rejected agentMismatch and were unchanged; no force or other reviewer/human tabs/profile/auth data touched. [Recovery](round-05/tab-capacity-recovery.json). Fresh child preflight still required.
+
+## Sol low Library checkpoint — provisional subset only
+
+SHAcf95a4a8. Final70cells stillnull. Inspected-subset provisional70notes:minimum5,60below7. [Raw report](round-05/sol-low-A-provisional-v2.json),[gaps](round-05/sol-low-A-provisional-summary.json). No family/fullscope approval.
+
+|Category|390×844|844×390|768×1024|1024×768|1440×900|
+|---|---:|---:|---:|---:|---:|
+|Visual hierarchy|6|6|6|6|6|
+|Layout and density|5|5|5|5|5|
+|Typography|7|7|7|7|7|
+|Color and contrast|7|7|7|7|7|
+|Spacing and alignment|6|6|6|6|6|
+|Navigation and orientation|6|6|6|6|6|
+|Control clarity|6|6|6|6|6|
+|Terminology and instructions|5|5|5|5|5|
+|Component consistency|6|6|6|6|6|
+|Task content presentation|6|6|6|6|6|
+|Feedback and state clarity|6|6|6|6|6|
+|Professional finish|6|6|6|6|6|
+|Responsive fit|6|6|6|6|6|
+|Next-action discoverability|6|6|6|6|6|
+
+## Sol medium familyB — actual bounded scores
+
+SHAcf95a4a8. Messages/Community only:minimum3,34/70below7,70numeric. Otherfamiliesunverified,notfullscopeapproval. [Rawpercellreport](round-05/sol-medium-family-B.json). Responsive transitions reveal vanished phonechooser; prior coordinator responsive7selfscore is superseded by this confirmed gap.
+
+|Category|390×844|844×390|768×1024|1024×768|1440×900|
+|---|---:|---:|---:|---:|---:|
+|Visual hierarchy|5|6|7|7|7|
+|Layout and density|4|5|6|6|7|
+|Typography|7|7|7|7|7|
+|Color and contrast|7|7|7|7|7|
+|Spacing and alignment|6|6|7|7|7|
+|Navigation and orientation|5|6|7|7|7|
+|Control clarity|4|6|7|7|7|
+|Terminology and instructions|6|6|6|6|6|
+|Component consistency|5|7|7|7|7|
+|Task content presentation|4|5|6|6|6|
+|Feedback and state clarity|4|7|7|7|7|
+|Professional finish|4|6|6|6|7|
+|Responsive fit|3|5|6|6|7|
+|Next-action discoverability|4|6|7|7|7|
+
+
+## Muse round5 — delivered
+
+SHA `cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c (git rev-parse HEAD; log cf95a4a fix(ui) + 80cab70a + 6cb6cff; status shows only docs/audits/ui-hill-climb audit/gallery dirt, no served source change)`; minimum5;70/70below7. Full report [here](round-05/muse.json). Child coverage limits retained; no fullscope acceptance. Requested xhigh vs self-reported defaults discrepancy retained.
+
+|Category|390×844|844×390|768×1024|1024×768|1440×900|
+|---|---:|---:|---:|---:|---:|
+|Visual hierarchy|6|5|6|6|6|
+|Layout and density|6|5|6|6|6|
+|Typography|6|6|6|6|6|
+|Color and contrast|5|5|5|5|5|
+|Spacing and alignment|6|5|6|6|6|
+|Navigation and orientation|6|6|6|6|6|
+|Control clarity|6|5|6|6|6|
+|Terminology and instructions|5|5|5|5|5|
+|Component consistency|6|6|6|6|6|
+|Task content presentation|6|6|6|6|6|
+|Feedback and state clarity|6|5|6|6|6|
+|Professional finish|5|5|5|5|5|
+|Responsive fit|6|6|6|6|6|
+|Next-action discoverability|6|5|6|6|6|

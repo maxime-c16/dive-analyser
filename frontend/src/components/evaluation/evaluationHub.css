@@ -175,3 +175,11 @@
 .eval-history-text strong { font-size:16px; }
 
 .eval-dive-link{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}.eval-attempt-id{font-size:13px;font-weight:500;color:var(--text-muted)}
+
+.eval-attempt-heading { flex-wrap:wrap; gap:4px 12px; }
+.eval-attempt-heading .eval-attempt-id { font-size:16px; font-weight:600; color:var(--app-text); }
+.eval-attempt-result { display:flex; align-items:baseline; flex-wrap:wrap; gap:8px; margin:6px 0; }
+.eval-attempt-result .eval-mean { font-size:18px; }
+.eval-attempt-result .eval-mean small { font-size:13px; font-weight:400; color:var(--app-muted); }
+.eval-attempt-code { display:block; font-size:14px; color:var(--app-muted); }
+.eval-attempt-code:hover { text-decoration:underline; }

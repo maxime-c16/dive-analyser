@@ -192,11 +192,12 @@ export default function MemberProfile() {
         <div className="ca-kpi"><dt>{t('profile.kpi.last')}</dt><dd>{last ? <><CountUp value={last.count} digits={0} /><small className="ca-kpi-unit">{last.unit}</small></> : '—'}</dd></div>
       </dl>
       {weeks.length > 0 && <>
+        <figure className="cm-weekly-activity"><figcaption>{t('profile.weeklyCounts')}<span>0–{weekMax}</span></figcaption>
         <div className="cm-weeks" aria-label={t('profile.weeksAria', { count: weeks.length })}>
           {weeks.map((week, index) => <i key={week.start} className={week.attempt_count ? '' : 'is-empty'} title={`${week.start} · ${week.attempt_count}`}
             style={{ height: `${Math.max(4, (week.attempt_count / weekMax) * 100)}%`, '--i': index } as CSSProperties} />)}
         </div>
-        <div className="cm-weeks-legend"><span>{format(parseISO(weeks[0].start), 'MMM yy', { locale: appLocale() })}</span><span>{t('profile.thisWeek')}</span></div>
+        <div className="cm-weeks-legend"><span>{format(parseISO(weeks[0].start), 'MMM yy', { locale: appLocale() })}</span><span>{t('profile.thisWeek')}</span></div></figure>
       </>}
       </details>
     </section>}

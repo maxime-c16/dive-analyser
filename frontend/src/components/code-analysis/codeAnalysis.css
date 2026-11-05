@@ -44,9 +44,8 @@
 .ca-code-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
 @media (min-width: 700px) { .ca-code-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (min-width: 1280px) { .ca-code-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-.ca-code-card { position: relative; display: block; min-width: 0; padding: 14px; border: 1px solid var(--app-border); border-radius: var(--ca-r); background: var(--app-panel); color: inherit; cursor: pointer; transition: border-color .2s, background-color .2s, transform .18s; }
-.ca-code-card:hover { border-color: var(--app-border-strong); background: var(--app-panel-elevated); }
-.ca-code-card:active { transform: scale(.985); }
+.ca-code-card { position: relative; display: block; min-width: 0; padding: 14px; border: 1px solid var(--app-border); border-radius: var(--ca-r); background: var(--app-panel); color: inherit; cursor: default; transition: border-color .2s; }
+.ca-code-card:focus-within { border-color: var(--app-border-strong); }
 .ca-code-card:focus-visible { outline: 2px solid var(--app-accent); outline-offset: 2px; }
 .ca-code-top { display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; gap: 12px; align-items: start; }
 .ca-code-top .ca-thumb { width: 64px; aspect-ratio: 1; padding: 0; }
@@ -268,3 +267,14 @@ button.ca-comm-row:active { transform: scale(.985); }
 .ca-diver-chip b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .ca-code-grid { align-items:start; }
+
+.ca-code-analysis { display:inline-flex; align-items:center; gap:3px; min-height:36px; font-size:13px; color:var(--app-accent); }
+.ca-code-analysis:hover { text-decoration:underline; }
+.ca-rating-legend { display:flex; gap:6px 14px; flex-wrap:wrap; margin:8px 0; font-size:12px; color:var(--app-muted); }
+.ca-rating-legend > div { display:flex; align-items:baseline; gap:4px; }
+.ca-rating-legend dd { color:var(--app-text); font-variant-numeric:tabular-nums; }
+.ca-recent-attempts { list-style:none; margin:8px 0 0; padding:0; }
+.ca-recent-attempts button { display:flex; align-items:center; gap:8px; width:100%; min-height:40px; border:0; border-top:1px solid var(--app-border); padding:6px 0; text-align:left; font-size:13px; }
+.ca-recent-attempts button:hover { background:var(--app-panel-elevated); }
+.ca-recent-attempts small { color:var(--app-muted); font-size:12px; }
+.ca-recent-attempts b { margin-left:auto; font-variant-numeric:tabular-nums; }

@@ -121,16 +121,74 @@
       "missing_cells": 0,
       "coverage": "required gaps retained; see full report",
       "state": "FAIL"
+    },
+    {
+      "attempt": 5,
+      "reviewer": "Sol6.1 low Codex, incomplete01",
+      "sha_noted": "cf95a4a8",
+      "minimum": null,
+      "below7": 0,
+      "numeric_cells": 0,
+      "missing_cells": 70,
+      "coverage": "HEAD/account verified; all requested UI flows/media/WS/screenshots missing",
+      "state": "INCOMPLETE, not a design verdict",
+      "report": "round-05/sol-low-incomplete-01.json"
+    },
+    {
+      "attempt": 5,
+      "reviewer": "Sol6.1low Codex incomplete02",
+      "sha_noted": "cf95a4a8",
+      "minimum": null,
+      "below7": 0,
+      "numeric_cells": 0,
+      "missing_cells": 70,
+      "coverage": "account and populatedLibrary only; no five-size inspection",
+      "state": "INCOMPLETE, no design verdict",
+      "report": "round-05/sol-low-incomplete-02.json"
+    },
+    {
+      "attempt": 5,
+      "reviewer": "Sol6.1medium Codex incomplete01",
+      "sha_noted": "cf95a4a8",
+      "minimum": null,
+      "below7": 0,
+      "numeric_cells": 0,
+      "missing_cells": 70,
+      "coverage": "Actual media/navigation/pagination and Classic; required children/timed game interactions incomplete",
+      "state": "INCOMPLETE, not a design verdict",
+      "report": "round-05/sol-medium-incomplete-01.json"
+    },
+    {
+      "attempt": 5,
+      "reviewer": "Solmedium familyB only",
+      "sha_noted": "cf95a4a8",
+      "minimum": 3,
+      "below7": 34,
+      "numeric_cells": 70,
+      "missing_cells": 0,
+      "coverage": "Messages andCommunityall5sizes; otherfamiliesunverified",
+      "state": "FAMILY FAIL; notglobalgate",
+      "report": "round-05/sol-medium-family-B.json"
+    },
+    {
+      "attempt": 5,
+      "reviewer": "Muse Contributor requestedxhigh/selfreporteddefaults",
+      "sha_noted": "cf95a4a8",
+      "minimum": 5,
+      "below7": 70,
+      "numeric_cells": 70,
+      "missing_cells": 0,
+      "coverage": "broad full journeys; drawer4sizes/timedClassic limits retained",
+      "state": "FAIL; nofullscopeacceptance",
+      "report": "round-05/muse.json"
     }
   ],
   "current_gate": {
-    "sha": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "sha": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "threshold": 7,
     "required_cells": 210,
     "accepted_fullscope_cells": 0,
-    "state": "all three round4 reviewers FAIL;176reported cells below7, coverage gaps remain",
-    "threshold": 7,
-    "numeric_reported": 210,
-    "below7_reported": 176
+    "state": "UNMET: Muse70low, Solfullincomplete, family-only results not global acceptance"
   },
   "sha_corrected_not_reevaluated": null,
   "active_roster": [
@@ -149,10 +207,10 @@
       }
     },
     {
-      "provider": "claudeAgent",
-      "model": "claude-opus-5-5",
+      "provider": "codex",
+      "model": "gpt-6.1-sol",
       "options": {
-        "effort": "medium"
+        "reasoningEffort": "low"
       }
     }
   ]

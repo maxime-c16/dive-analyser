@@ -45,8 +45,8 @@
 /* Main product workspace: stable named navigation and task-first content. */
 .professional-shell, .clip-viewer, .gm-page {
   --app-bg:#101820; --app-panel:#17232d; --app-panel-elevated:#1c2b36;
-  --app-border:#344651; --app-border-strong:#617787;
-  --app-text:#eff4f7; --app-muted:#afbcc7; --app-accent:#78bfd1;
+  --app-border:#465b69; --app-border-strong:#78909f;
+  --app-text:#eff4f7; --app-muted:#c0cbd3; --app-accent:#78bfd1;
 }
 .professional-shell .shell-main h1 { font-size:28px; line-height:1.2; letter-spacing:-.025em; font-weight:600; }
 .professional-shell .shell-main h2 { font-size:19px; line-height:1.35; font-weight:600; }
@@ -123,3 +123,22 @@
   .professional-shell:has(.attached-navigation) .calendar-form-header { top:50px; }
 }
 .professional-shell :is(.msg-sheet,.msg-sheet-backdrop,.msg-pick-row,.msg-row,.msg-badge) { animation:none; }
+
+.professional-shell .analysis-page { gap:16px; }
+.professional-shell .analysis-page > :not([hidden]) ~ :not([hidden]) { margin-top:16px; }
+.professional-shell .analysis-page > header { padding-bottom:12px; gap:12px; }
+.professional-shell .ca-page > .ca-span.ca-scroll { flex-wrap:wrap; overflow:visible; }
+.professional-shell .ca-page > .ca-span.ca-scroll .ca-segmented { flex-wrap:wrap; }
+@media(max-width:599px) {
+ .professional-shell .analysis-page > header { gap:8px; }
+ .professional-shell .analysis-page > header p { font-size:13px; }
+ .professional-shell .analysis-page [data-testid="analysis-key-summary"] > div > div { padding:12px; }
+}
+
+.professional-shell .member-avatar-hud, .gm-page .member-avatar-hud { display:none; }
+.professional-shell .member-avatar .member-avatar-face, .gm-page .member-avatar .member-avatar-face { inset:6%; border-radius:50%; }
+.professional-shell :is(.ca-code-meta,.ca-code-name,.ca-code-details summary,.ca-kpi dt,.cm-rank-value,.cm-weeks-legend,.cm-event time,.cm-day > p) { font-size:14px; }
+.professional-shell .cm-day > p { text-transform:none; letter-spacing:0; }
+.professional-shell .ca-hero-code { font-family:inherit; font-size:32px; font-weight:600; line-height:1.2; }
+.professional-shell .ca-hero-name { font-size:16px; }
+.professional-shell .cm-tabpanel[hidden] { display:none; }

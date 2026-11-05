@@ -74,7 +74,7 @@ it('distinguishes repeated codes with the actual attempt time and keeps exact cl
   await screen.findAllByText('101B · 1m')
   expect([...container.querySelectorAll('time')].map(node => node.dateTime)).toEqual(['2026-10-18T17:23:24', '2026-10-18T17:25:08'])
   expect([...container.querySelectorAll('.eval-dive-link')].map(node => node.getAttribute('href'))).toEqual(['/dives?clip=81', '/dives?clip=82'])
-  expect([...container.querySelectorAll('.eval-mean')].map(node => node.textContent)).toEqual(['0.0'])
+  expect([...container.querySelectorAll('.eval-mean')].map(node => node.textContent)).toEqual(['0.0 / 10'])
 })
 
 it('keeps imported attempts distinct when their timestamps are identical', async () => {

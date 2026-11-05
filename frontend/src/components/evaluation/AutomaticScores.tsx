@@ -67,14 +67,15 @@ export default function AutomaticScores() {
         </Link>
         <div className="eval-board-main">
           <div className="eval-attempt-heading">
-            {item.mean_score !== null && <strong className="eval-mean" aria-hidden>{scoreNumber(item.mean_score, i18n.language)}</strong>}
-            <Link to={`/dives?clip=${item.dive_id}`} className="eval-dive-link"><span>{item.dive_code} · {item.height}</span><small className="eval-attempt-id">#{item.dive_id}</small></Link>
+            <Link to={`/dives?clip=${item.dive_id}`} className="eval-dive-link"><span className="eval-attempt-id">#{item.dive_id}</span></Link>
+            {item.identity?.dive_datetime && <time className="eval-attempt-date" dateTime={item.identity.dive_datetime}>{format(parseISO(item.identity.dive_datetime), items.filter(row => row.identity?.dive_datetime === item.identity?.dive_datetime).length > 1 ? 'd MMM yyyy' : 'd MMM yyyy · HH:mm:ss', { locale: appLocale() })}</time>}
           </div>
-          {item.identity?.dive_datetime && <time className="eval-attempt-date" dateTime={item.identity.dive_datetime}>{format(parseISO(item.identity.dive_datetime), items.filter(row => row.identity?.dive_datetime === item.identity?.dive_datetime).length > 1 ? 'd MMM yyyy' : 'd MMM yyyy · HH:mm:ss', { locale: appLocale() })}</time>}
+          <div className="eval-attempt-result">
+            {item.mean_score !== null && <strong className="eval-mean" aria-hidden>{scoreNumber(item.mean_score, i18n.language)}<small> / 10</small></strong>}
+            <span className="eval-pips" aria-hidden><em>{item.rating_count ? t('evaluations.judgesCount', { count: item.rating_count }) : t('evaluations.awaitingReviews')}</em></span>
+          </div>
+          <Link to={`/dives?clip=${item.dive_id}`} className="eval-attempt-code">{item.dive_code} · {item.height}</Link>
           <p className="sr-only">{t('evaluations.communityScore', { score: scoreNumber(item.mean_score, i18n.language), count: item.rating_count })}</p>
-          <span className="eval-pips" aria-hidden>
-            <em>{item.rating_count ? t('evaluations.judgesCount', { count: item.rating_count }) : t('evaluations.awaitingReviews')}</em>
-          </span>
           <OwnedPanelLink requestId={item.dive_id} automatic />
         </div>
         <label className="eval-switch">

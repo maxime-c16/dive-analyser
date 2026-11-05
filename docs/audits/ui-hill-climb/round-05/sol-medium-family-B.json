@@ -1,0 +1,3032 @@
+{
+  "commit": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+  "scope": "Family B only",
+  "auth": {
+    "status": 200,
+    "display_name": "maxime",
+    "signedIn": true
+  },
+  "screens": [
+    {
+      "state": "inbox",
+      "size": [
+        390,
+        844
+      ],
+      "ready": {
+        "height": 844,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 390
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a0kco-8cf67962.png",
+      "snapshot": {
+        "url": "http://localhost:4317/messages",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a0kco-8cf67962.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        780,
+        1688
+      ]
+    },
+    {
+      "state": "inbox",
+      "size": [
+        844,
+        390
+      ],
+      "ready": {
+        "height": 390,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 844
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a0l6m-24707567.png",
+      "snapshot": {
+        "url": "http://localhost:4317/messages",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a0l6m-24707567.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        1280,
+        591
+      ]
+    },
+    {
+      "state": "inbox",
+      "size": [
+        768,
+        1024
+      ],
+      "ready": {
+        "height": 1024,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 768
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a0n4n-349cb602.png",
+      "snapshot": {
+        "url": "http://localhost:4317/messages",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a0n4n-349cb602.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        1280,
+        1707
+      ]
+    },
+    {
+      "state": "inbox",
+      "size": [
+        1024,
+        768
+      ],
+      "ready": {
+        "height": 768,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 1024
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a0o88-f08d6705.png",
+      "snapshot": {
+        "url": "http://localhost:4317/messages",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a0o88-f08d6705.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        1280,
+        960
+      ]
+    },
+    {
+      "state": "inbox",
+      "size": [
+        1440,
+        900
+      ],
+      "ready": {
+        "height": 900,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 1440
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a0oqu-54c9de0f.png",
+      "snapshot": {
+        "url": "http://localhost:4317/messages",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a0oqu-54c9de0f.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        1280,
+        800
+      ]
+    },
+    {
+      "state": "thread4",
+      "size": [
+        390,
+        844
+      ],
+      "ready": {
+        "height": 844,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 390
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a1kci-efbe854b.png",
+      "snapshot": {
+        "url": "http://localhost:4317/messages/4",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a1kci-efbe854b.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        780,
+        1688
+      ]
+    },
+    {
+      "state": "thread4",
+      "size": [
+        844,
+        390
+      ],
+      "ready": {
+        "height": 390,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 844
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a1kwg-986f94df.png",
+      "snapshot": {
+        "url": "http://localhost:4317/messages/4",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a1kwg-986f94df.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        1280,
+        591
+      ]
+    },
+    {
+      "state": "thread4",
+      "size": [
+        768,
+        1024
+      ],
+      "ready": {
+        "height": 1024,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 768
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a1lhc-e3368c1a.png",
+      "snapshot": {
+        "url": "http://localhost:4317/messages/4",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a1lhc-e3368c1a.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        1280,
+        1707
+      ]
+    },
+    {
+      "state": "thread4",
+      "size": [
+        1024,
+        768
+      ],
+      "ready": {
+        "height": 768,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 1024
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a1m0r-c78da199.png",
+      "snapshot": {
+        "url": "http://localhost:4317/messages/4",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a1m0r-c78da199.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        1280,
+        960
+      ]
+    },
+    {
+      "state": "thread4",
+      "size": [
+        1440,
+        900
+      ],
+      "ready": {
+        "height": 900,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 1440
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a1o6u-50bfd4d0.png",
+      "snapshot": {
+        "url": "http://localhost:4317/messages/4",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a1o6u-50bfd4d0.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        1280,
+        800
+      ]
+    },
+    {
+      "state": "new-message",
+      "size": [
+        390,
+        844
+      ],
+      "ready": {
+        "height": 844,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 390
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a1yv9-1a12e193.png",
+      "snapshot": {
+        "url": "http://localhost:4317/messages/4",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a1yv9-1a12e193.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        780,
+        1688
+      ]
+    },
+    {
+      "state": "new-message",
+      "size": [
+        844,
+        390
+      ],
+      "ready": {
+        "height": 390,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 844
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a20zv-6921e120.png",
+      "snapshot": {
+        "url": "http://localhost:4317/messages/4",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a20zv-6921e120.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        1280,
+        591
+      ]
+    },
+    {
+      "state": "new-message",
+      "size": [
+        768,
+        1024
+      ],
+      "ready": {
+        "height": 1024,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 768
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a2362-22b259f4.png",
+      "snapshot": {
+        "url": "http://localhost:4317/messages/4",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a2362-22b259f4.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        1280,
+        1707
+      ]
+    },
+    {
+      "state": "new-message",
+      "size": [
+        1024,
+        768
+      ],
+      "ready": {
+        "height": 768,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 1024
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a24hg-45bbc1aa.png",
+      "snapshot": {
+        "url": "http://localhost:4317/messages/4",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a24hg-45bbc1aa.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        1280,
+        960
+      ]
+    },
+    {
+      "state": "new-message",
+      "size": [
+        1440,
+        900
+      ],
+      "ready": {
+        "height": 900,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 1440
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a2511-05db456f.png",
+      "snapshot": {
+        "url": "http://localhost:4317/messages/4",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a2511-05db456f.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        1280,
+        800
+      ]
+    },
+    {
+      "state": "group-draft",
+      "size": [
+        390,
+        844
+      ],
+      "ready": {
+        "height": 844,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 390
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a2hs2-84c0f39f.png",
+      "snapshot": {
+        "url": "http://localhost:4317/messages/4",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a2hs2-84c0f39f.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        780,
+        1688
+      ]
+    },
+    {
+      "state": "group-draft",
+      "size": [
+        844,
+        390
+      ],
+      "ready": {
+        "height": 390,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 844
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a2ipi-e4b5a3b8.png",
+      "snapshot": {
+        "url": "http://localhost:4317/messages/4",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a2ipi-e4b5a3b8.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        1280,
+        591
+      ]
+    },
+    {
+      "state": "group-draft",
+      "size": [
+        768,
+        1024
+      ],
+      "ready": {
+        "height": 1024,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 768
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a2jrz-ff1ae7ce.png",
+      "snapshot": {
+        "url": "http://localhost:4317/messages/4",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a2jrz-ff1ae7ce.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        1280,
+        1707
+      ]
+    },
+    {
+      "state": "group-draft",
+      "size": [
+        1024,
+        768
+      ],
+      "ready": {
+        "height": 768,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 1024
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a2kb3-144fc2a8.png",
+      "snapshot": {
+        "url": "http://localhost:4317/messages/4",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a2kb3-144fc2a8.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        1280,
+        960
+      ]
+    },
+    {
+      "state": "group-draft",
+      "size": [
+        1440,
+        900
+      ],
+      "ready": {
+        "height": 900,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 1440
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a2kuy-80e856b4.png",
+      "snapshot": {
+        "url": "http://localhost:4317/messages/4",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a2kuy-80e856b4.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        1280,
+        800
+      ]
+    },
+    {
+      "state": "directory",
+      "size": [
+        390,
+        844
+      ],
+      "ready": {
+        "height": 844,
+        "loading": false,
+        "overflow": false,
+        "positive": false,
+        "width": 390
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a2rlg-e418af07.png",
+      "snapshot": {
+        "url": "http://localhost:4317/community",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a2rlg-e418af07.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "rejected-loading-or-incomplete-paint",
+      "pngDimensions": [
+        780,
+        1688
+      ]
+    },
+    {
+      "state": "directory",
+      "size": [
+        844,
+        390
+      ],
+      "ready": {
+        "height": 390,
+        "loading": false,
+        "overflow": false,
+        "positive": false,
+        "width": 844
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a2t7f-d476203c.png",
+      "snapshot": {
+        "url": "http://localhost:4317/community",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a2t7f-d476203c.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "rejected-loading-or-incomplete-paint",
+      "pngDimensions": [
+        1280,
+        591
+      ]
+    },
+    {
+      "state": "directory",
+      "size": [
+        768,
+        1024
+      ],
+      "ready": {
+        "height": 1024,
+        "loading": true,
+        "overflow": false,
+        "positive": true,
+        "width": 768
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a2vks-c45b1625.png",
+      "snapshot": {
+        "url": "http://localhost:4317/community",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a2vks-c45b1625.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "rejected-loading-or-incomplete-paint",
+      "pngDimensions": [
+        1280,
+        1707
+      ]
+    },
+    {
+      "state": "directory",
+      "size": [
+        1024,
+        768
+      ],
+      "ready": {
+        "height": 768,
+        "loading": true,
+        "overflow": false,
+        "positive": true,
+        "width": 1024
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a2xha-962cb9ce.png",
+      "snapshot": {
+        "url": "http://localhost:4317/community",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a2xha-962cb9ce.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "rejected-loading-or-incomplete-paint",
+      "pngDimensions": [
+        1280,
+        960
+      ]
+    },
+    {
+      "state": "directory",
+      "size": [
+        1440,
+        900
+      ],
+      "ready": {
+        "height": 900,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 1440
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a2zts-8545e9c5.png",
+      "snapshot": {
+        "url": "http://localhost:4317/community",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a2zts-8545e9c5.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "rejected-loading-or-incomplete-paint",
+      "pngDimensions": [
+        1280,
+        800
+      ]
+    },
+    {
+      "state": "directory-settled",
+      "size": [
+        390,
+        844
+      ],
+      "ready": {
+        "height": 844,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 390
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a38xt-6352267f.png",
+      "snapshot": {
+        "url": "http://localhost:4317/community",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a38xt-6352267f.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        780,
+        1688
+      ]
+    },
+    {
+      "state": "directory-settled",
+      "size": [
+        844,
+        390
+      ],
+      "ready": {
+        "height": 390,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 844
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a39el-ac4fbf21.png",
+      "snapshot": {
+        "url": "http://localhost:4317/community",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a39el-ac4fbf21.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        1280,
+        591
+      ]
+    },
+    {
+      "state": "directory-settled",
+      "size": [
+        768,
+        1024
+      ],
+      "ready": {
+        "height": 1024,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 768
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a39wu-551c57c9.png",
+      "snapshot": {
+        "url": "http://localhost:4317/community",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a39wu-551c57c9.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        1280,
+        1707
+      ]
+    },
+    {
+      "state": "directory-settled",
+      "size": [
+        1024,
+        768
+      ],
+      "ready": {
+        "height": 768,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 1024
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a3aj7-cd2034a0.png",
+      "snapshot": {
+        "url": "http://localhost:4317/community",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a3aj7-cd2034a0.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        1280,
+        960
+      ]
+    },
+    {
+      "state": "directory-settled",
+      "size": [
+        1440,
+        900
+      ],
+      "ready": {
+        "height": 900,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 1440
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a3b6h-d24a8d93.png",
+      "snapshot": {
+        "url": "http://localhost:4317/community",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a3b6h-d24a8d93.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        1280,
+        800
+      ]
+    },
+    {
+      "state": "profile-dives-stats-closed",
+      "size": [
+        390,
+        844
+      ],
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a44fy-45623139.png",
+      "snapshot": {
+        "url": "http://localhost:4317/users/15",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a44fy-45623139.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        780,
+        1688
+      ]
+    },
+    {
+      "state": "profile-dives-stats-closed",
+      "size": [
+        844,
+        390
+      ],
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a4jo3-427bf04f.png",
+      "snapshot": {
+        "url": "http://localhost:4317/users/15",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a4jo3-427bf04f.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        1280,
+        591
+      ]
+    },
+    {
+      "state": "profile-dives-stats-closed",
+      "size": [
+        768,
+        1024
+      ],
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a4wmh-3bde6f98.png",
+      "snapshot": {
+        "url": "http://localhost:4317/users/15",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a4wmh-3bde6f98.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        1280,
+        1707
+      ]
+    },
+    {
+      "state": "profile-dives-stats-closed",
+      "size": [
+        1024,
+        768
+      ],
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a58nn-ed21784f.png",
+      "snapshot": {
+        "url": "http://localhost:4317/users/15",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a58nn-ed21784f.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        1280,
+        960
+      ]
+    },
+    {
+      "state": "profile-dives-stats-closed",
+      "size": [
+        1440,
+        900
+      ],
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a5krt-8371ac85.png",
+      "snapshot": {
+        "url": "http://localhost:4317/users/15",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a5krt-8371ac85.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        1280,
+        800
+      ]
+    },
+    {
+      "state": "profile-dives-stats-open",
+      "size": [
+        390,
+        844
+      ],
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a5wzv-889d237a.png",
+      "snapshot": {
+        "url": "http://localhost:4317/users/15",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a5wzv-889d237a.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        780,
+        1688
+      ]
+    },
+    {
+      "state": "profile-dives-stats-open",
+      "size": [
+        844,
+        390
+      ],
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a68zf-734f4aa4.png",
+      "snapshot": {
+        "url": "http://localhost:4317/users/15",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a68zf-734f4aa4.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        1280,
+        591
+      ]
+    },
+    {
+      "state": "profile-dives-stats-open",
+      "size": [
+        768,
+        1024
+      ],
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a6mut-7ce3ac60.png",
+      "snapshot": {
+        "url": "http://localhost:4317/users/15",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a6mut-7ce3ac60.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        1280,
+        1707
+      ]
+    },
+    {
+      "state": "profile-dives-stats-open",
+      "size": [
+        1024,
+        768
+      ],
+      "ready": {
+        "height": 768,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 1024
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a6nez-383146e4.png",
+      "snapshot": {
+        "url": "http://localhost:4317/users/15",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a6nez-383146e4.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        1280,
+        960
+      ]
+    },
+    {
+      "state": "profile-dives-stats-open",
+      "size": [
+        1440,
+        900
+      ],
+      "ready": {
+        "height": 900,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 1440
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a6o1y-4fc3c2b0.png",
+      "snapshot": {
+        "url": "http://localhost:4317/users/15",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a6o1y-4fc3c2b0.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        1280,
+        800
+      ]
+    },
+    {
+      "state": "profile-activity-settled",
+      "size": [
+        390,
+        844
+      ],
+      "ready": {
+        "height": 844,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 390
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a8eyo-095ccc45.png",
+      "snapshot": {
+        "url": "http://localhost:4317/users/15?tab=activity",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a8eyo-095ccc45.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        780,
+        1688
+      ]
+    },
+    {
+      "state": "profile-activity-settled",
+      "size": [
+        390,
+        844
+      ],
+      "ready": {
+        "height": 844,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 390
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a8obz-4966ddb8.png",
+      "snapshot": {
+        "url": "http://localhost:4317/users/15?tab=activity",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a8obz-4966ddb8.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        780,
+        1688
+      ]
+    },
+    {
+      "state": "profile-activity-settled",
+      "size": [
+        844,
+        390
+      ],
+      "ready": {
+        "height": 390,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 844
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a8oty-5176b419.png",
+      "snapshot": {
+        "url": "http://localhost:4317/users/15?tab=activity",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a8oty-5176b419.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        1280,
+        591
+      ]
+    },
+    {
+      "state": "profile-activity-settled",
+      "size": [
+        768,
+        1024
+      ],
+      "ready": {
+        "height": 1024,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 768
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a8pcf-8525c3a7.png",
+      "snapshot": {
+        "url": "http://localhost:4317/users/15?tab=activity",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a8pcf-8525c3a7.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        1280,
+        1707
+      ]
+    },
+    {
+      "state": "profile-activity-settled",
+      "size": [
+        1024,
+        768
+      ],
+      "ready": {
+        "height": 768,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 1024
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a8puf-9f016398.png",
+      "snapshot": {
+        "url": "http://localhost:4317/users/15?tab=activity",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a8puf-9f016398.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        1280,
+        960
+      ]
+    },
+    {
+      "state": "profile-activity-settled",
+      "size": [
+        1440,
+        900
+      ],
+      "ready": {
+        "height": 900,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 1440
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a8qek-9b9d0470.png",
+      "snapshot": {
+        "url": "http://localhost:4317/users/15?tab=activity",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a8qek-9b9d0470.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        1280,
+        800
+      ]
+    },
+    {
+      "state": "profile-achievements-closed",
+      "size": [
+        390,
+        844
+      ],
+      "ready": {
+        "height": 844,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 390
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a94u6-1780d632.png",
+      "snapshot": {
+        "url": "http://localhost:4317/users/15?tab=achievements",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a94u6-1780d632.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        780,
+        1688
+      ]
+    },
+    {
+      "state": "profile-achievements-closed",
+      "size": [
+        844,
+        390
+      ],
+      "ready": {
+        "height": 390,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 844
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a96tk-1132a073.png",
+      "snapshot": {
+        "url": "http://localhost:4317/users/15?tab=achievements",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a96tk-1132a073.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "rejected-loading-or-incomplete-paint",
+      "pngDimensions": [
+        1280,
+        591
+      ]
+    },
+    {
+      "state": "profile-achievements-closed",
+      "size": [
+        768,
+        1024
+      ],
+      "ready": {
+        "height": 1024,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 768
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a98z4-d7fbad7d.png",
+      "snapshot": {
+        "url": "http://localhost:4317/users/15?tab=achievements",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a98z4-d7fbad7d.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        1280,
+        1707
+      ]
+    },
+    {
+      "state": "profile-achievements-closed",
+      "size": [
+        1024,
+        768
+      ],
+      "ready": {
+        "height": 768,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 1024
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a9cxf-67446566.png",
+      "snapshot": {
+        "url": "http://localhost:4317/users/15?tab=achievements",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a9cxf-67446566.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        1280,
+        960
+      ]
+    },
+    {
+      "state": "profile-achievements-closed",
+      "size": [
+        1440,
+        900
+      ],
+      "ready": {
+        "height": 900,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 1440
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a9exd-777f42ed.png",
+      "snapshot": {
+        "url": "http://localhost:4317/users/15?tab=achievements",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a9exd-777f42ed.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        1280,
+        800
+      ]
+    },
+    {
+      "state": "profile-achievements-content",
+      "size": [
+        390,
+        844
+      ],
+      "ready": {
+        "height": 844,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 390
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a9ipb-a2097687.png",
+      "snapshot": {
+        "url": "http://localhost:4317/users/15?tab=achievements",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a9ipb-a2097687.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        780,
+        1688
+      ]
+    },
+    {
+      "state": "profile-achievements-content",
+      "size": [
+        844,
+        390
+      ],
+      "ready": {
+        "height": 390,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 844
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a9koo-4c9d5a57.png",
+      "snapshot": {
+        "url": "http://localhost:4317/users/15?tab=achievements",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a9koo-4c9d5a57.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "rejected-loading-or-incomplete-paint",
+      "pngDimensions": [
+        1280,
+        591
+      ]
+    },
+    {
+      "state": "profile-achievements-content",
+      "size": [
+        768,
+        1024
+      ],
+      "ready": {
+        "height": 1024,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 768
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a9ohs-cd07284b.png",
+      "snapshot": {
+        "url": "http://localhost:4317/users/15?tab=achievements",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a9ohs-cd07284b.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        1280,
+        1707
+      ]
+    },
+    {
+      "state": "profile-achievements-content",
+      "size": [
+        1024,
+        768
+      ],
+      "ready": {
+        "height": 768,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 1024
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a9rck-f380402f.png",
+      "snapshot": {
+        "url": "http://localhost:4317/users/15?tab=achievements",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a9rck-f380402f.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        1280,
+        960
+      ]
+    },
+    {
+      "state": "profile-achievements-content",
+      "size": [
+        1440,
+        900
+      ],
+      "ready": {
+        "height": 900,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 1440
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a9tpk-96ec60ea.png",
+      "snapshot": {
+        "url": "http://localhost:4317/users/15?tab=achievements",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a9tpk-96ec60ea.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "rejected-loading-or-incomplete-paint",
+      "pngDimensions": [
+        1280,
+        800
+      ]
+    },
+    {
+      "state": "profile-codes-content",
+      "size": [
+        390,
+        844
+      ],
+      "ready": {
+        "height": 844,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 390
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3aao66-bd6e2abe.png",
+      "snapshot": {
+        "url": "http://localhost:4317/users/15?tab=codes",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3aao66-bd6e2abe.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        780,
+        1688
+      ]
+    },
+    {
+      "state": "profile-codes-content",
+      "size": [
+        844,
+        390
+      ],
+      "ready": {
+        "height": 390,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 844
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3aapp5-bd5a2b3d.png",
+      "snapshot": {
+        "url": "http://localhost:4317/users/15?tab=codes",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3aapp5-bd5a2b3d.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        1280,
+        591
+      ]
+    },
+    {
+      "state": "profile-codes-content",
+      "size": [
+        768,
+        1024
+      ],
+      "ready": {
+        "height": 1024,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 768
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3aascw-705a12af.png",
+      "snapshot": {
+        "url": "http://localhost:4317/users/15?tab=codes",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3aascw-705a12af.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        1280,
+        1707
+      ]
+    },
+    {
+      "state": "profile-codes-content",
+      "size": [
+        1024,
+        768
+      ],
+      "ready": {
+        "height": 768,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 1024
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3aauym-fff16af8.png",
+      "snapshot": {
+        "url": "http://localhost:4317/users/15?tab=codes",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3aauym-fff16af8.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        1280,
+        960
+      ]
+    },
+    {
+      "state": "profile-codes-content",
+      "size": [
+        1440,
+        900
+      ],
+      "ready": {
+        "height": 900,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 1440
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3aaw8w-3298191c.png",
+      "snapshot": {
+        "url": "http://localhost:4317/users/15?tab=codes",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3aaw8w-3298191c.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        1280,
+        800
+      ]
+    },
+    {
+      "state": "profile-dives-content",
+      "size": [
+        390,
+        844
+      ],
+      "ready": {
+        "height": 844,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 390
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3ab0ww-f0de7fe8.png",
+      "snapshot": {
+        "url": "http://localhost:4317/users/15",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3ab0ww-f0de7fe8.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        780,
+        1688
+      ]
+    },
+    {
+      "state": "profile-dives-content",
+      "size": [
+        844,
+        390
+      ],
+      "ready": {
+        "height": 390,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 844
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3ab2b3-91e52b53.png",
+      "snapshot": {
+        "url": "http://localhost:4317/users/15",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3ab2b3-91e52b53.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        1280,
+        591
+      ]
+    },
+    {
+      "state": "profile-dives-content",
+      "size": [
+        768,
+        1024
+      ],
+      "ready": {
+        "height": 1024,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 768
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3ab3ov-75036640.png",
+      "snapshot": {
+        "url": "http://localhost:4317/users/15",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3ab3ov-75036640.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        1280,
+        1707
+      ]
+    },
+    {
+      "state": "profile-dives-content",
+      "size": [
+        1024,
+        768
+      ],
+      "ready": {
+        "height": 768,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 1024
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3ab507-c0b18da9.png",
+      "snapshot": {
+        "url": "http://localhost:4317/users/15",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3ab507-c0b18da9.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        1280,
+        960
+      ]
+    },
+    {
+      "state": "profile-dives-content",
+      "size": [
+        1440,
+        900
+      ],
+      "ready": {
+        "height": 900,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 1440
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3ab6mg-b72e6585.png",
+      "snapshot": {
+        "url": "http://localhost:4317/users/15",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3ab6mg-b72e6585.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        1280,
+        800
+      ]
+    },
+    {
+      "state": "chooser-inbox",
+      "size": [
+        390,
+        844
+      ],
+      "ready": {
+        "height": 844,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 390
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3abmad-4c1d7857.png",
+      "snapshot": {
+        "url": "http://localhost:4317/messages",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3abmad-4c1d7857.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        780,
+        1688
+      ]
+    },
+    {
+      "state": "chooser-inbox",
+      "size": [
+        844,
+        390
+      ],
+      "ready": {
+        "height": 390,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 844
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3abn81-4a73afc1.png",
+      "snapshot": {
+        "url": "http://localhost:4317/messages",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3abn81-4a73afc1.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        1280,
+        591
+      ]
+    },
+    {
+      "state": "chooser-inbox",
+      "size": [
+        768,
+        1024
+      ],
+      "ready": {
+        "height": 1024,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 768
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3aboeo-5ca772db.png",
+      "snapshot": {
+        "url": "http://localhost:4317/messages",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3aboeo-5ca772db.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        1280,
+        1707
+      ]
+    },
+    {
+      "state": "chooser-inbox",
+      "size": [
+        1024,
+        768
+      ],
+      "ready": {
+        "height": 768,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 1024
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3abpdf-afc2317e.png",
+      "snapshot": {
+        "url": "http://localhost:4317/messages",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3abpdf-afc2317e.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        1280,
+        960
+      ]
+    },
+    {
+      "state": "chooser-inbox",
+      "size": [
+        1440,
+        900
+      ],
+      "ready": {
+        "height": 900,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 1440
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3abqct-a113baef.png",
+      "snapshot": {
+        "url": "http://localhost:4317/messages",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3abqct-a113baef.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        1280,
+        800
+      ]
+    },
+    {
+      "state": "group-draft-inbox",
+      "size": [
+        390,
+        844
+      ],
+      "ready": {
+        "height": 844,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 390
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3abrjh-c5c3a940.png",
+      "snapshot": {
+        "url": "http://localhost:4317/messages",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3abrjh-c5c3a940.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        780,
+        1688
+      ]
+    },
+    {
+      "state": "group-draft-inbox",
+      "size": [
+        844,
+        390
+      ],
+      "ready": {
+        "height": 390,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 844
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3absgx-1c37e165.png",
+      "snapshot": {
+        "url": "http://localhost:4317/messages",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3absgx-1c37e165.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        1280,
+        591
+      ]
+    },
+    {
+      "state": "group-draft-inbox",
+      "size": [
+        768,
+        1024
+      ],
+      "ready": {
+        "height": 1024,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 768
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3abtg5-5c3f774c.png",
+      "snapshot": {
+        "url": "http://localhost:4317/messages",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3abtg5-5c3f774c.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        1280,
+        1707
+      ]
+    },
+    {
+      "state": "group-draft-inbox",
+      "size": [
+        1024,
+        768
+      ],
+      "ready": {
+        "height": 768,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 1024
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3abufe-bdce2b9b.png",
+      "snapshot": {
+        "url": "http://localhost:4317/messages",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3abufe-bdce2b9b.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        1280,
+        960
+      ]
+    },
+    {
+      "state": "group-draft-inbox",
+      "size": [
+        1440,
+        900
+      ],
+      "ready": {
+        "height": 900,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 1440
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3abvg6-073a4802.png",
+      "snapshot": {
+        "url": "http://localhost:4317/messages",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3abvg6-073a4802.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        1280,
+        800
+      ]
+    },
+    {
+      "state": "achievements-final",
+      "size": [
+        390,
+        844
+      ],
+      "ready": {
+        "height": 844,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 390
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3acc4j-94394366.png",
+      "snapshot": {
+        "url": "http://localhost:4317/users/15?tab=achievements",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3acc4j-94394366.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        780,
+        1688
+      ]
+    },
+    {
+      "state": "achievements-final",
+      "size": [
+        844,
+        390
+      ],
+      "ready": {
+        "height": 390,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 844
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3acevs-6f6a7ae8.png",
+      "snapshot": {
+        "url": "http://localhost:4317/users/15?tab=achievements",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3acevs-6f6a7ae8.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        1280,
+        591
+      ]
+    },
+    {
+      "state": "achievements-final",
+      "size": [
+        768,
+        1024
+      ],
+      "ready": {
+        "height": 1024,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 768
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3acgnu-58df8f16.png",
+      "snapshot": {
+        "url": "http://localhost:4317/users/15?tab=achievements",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3acgnu-58df8f16.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        1280,
+        1707
+      ]
+    },
+    {
+      "state": "achievements-final",
+      "size": [
+        1024,
+        768
+      ],
+      "ready": {
+        "height": 768,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 1024
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3acjwj-1cb19d93.png",
+      "snapshot": {
+        "url": "http://localhost:4317/users/15?tab=achievements",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3acjwj-1cb19d93.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        1280,
+        960
+      ]
+    },
+    {
+      "state": "achievements-final",
+      "size": [
+        1440,
+        900
+      ],
+      "ready": {
+        "height": 900,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 1440
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3acmb1-b3eb4fbc.png",
+      "snapshot": {
+        "url": "http://localhost:4317/users/15?tab=achievements",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3acmb1-b3eb4fbc.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "rejected-loading-or-incomplete-paint",
+      "pngDimensions": [
+        1280,
+        800
+      ]
+    },
+    {
+      "state": "stats-final-open",
+      "size": [
+        390,
+        844
+      ],
+      "ready": {
+        "height": 844,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 390
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3acpel-d6a9aa4a.png",
+      "snapshot": {
+        "url": "http://localhost:4317/users/15?tab=achievements",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3acpel-d6a9aa4a.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        780,
+        1688
+      ]
+    },
+    {
+      "state": "stats-final-open",
+      "size": [
+        844,
+        390
+      ],
+      "ready": {
+        "height": 390,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 844
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3acrtp-245edd7a.png",
+      "snapshot": {
+        "url": "http://localhost:4317/users/15?tab=achievements",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3acrtp-245edd7a.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "rejected-loading-or-incomplete-paint",
+      "pngDimensions": [
+        1280,
+        591
+      ]
+    },
+    {
+      "state": "stats-final-open",
+      "size": [
+        768,
+        1024
+      ],
+      "ready": {
+        "height": 1024,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 768
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3acw8h-335b622d.png",
+      "snapshot": {
+        "url": "http://localhost:4317/users/15?tab=achievements",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3acw8h-335b622d.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        1280,
+        1707
+      ]
+    },
+    {
+      "state": "stats-final-open",
+      "size": [
+        1024,
+        768
+      ],
+      "ready": {
+        "height": 768,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 1024
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3aczgs-273bf507.png",
+      "snapshot": {
+        "url": "http://localhost:4317/users/15?tab=achievements",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3aczgs-273bf507.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        1280,
+        960
+      ]
+    },
+    {
+      "state": "stats-final-open",
+      "size": [
+        1440,
+        900
+      ],
+      "ready": {
+        "height": 900,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 1440
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3ad1wo-9cc519b8.png",
+      "snapshot": {
+        "url": "http://localhost:4317/users/15?tab=achievements",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3ad1wo-9cc519b8.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        1280,
+        800
+      ]
+    },
+    {
+      "state": "directory-lower",
+      "size": [
+        390,
+        844
+      ],
+      "ready": {
+        "height": 844,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 390
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3ad6b4-be1caaa6.png",
+      "snapshot": {
+        "url": "http://localhost:4317/community",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3ad6b4-be1caaa6.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        780,
+        1688
+      ]
+    },
+    {
+      "state": "directory-lower",
+      "size": [
+        844,
+        390
+      ],
+      "ready": {
+        "height": 390,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 844
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3ad7os-32b777ee.png",
+      "snapshot": {
+        "url": "http://localhost:4317/community",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3ad7os-32b777ee.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        1280,
+        591
+      ]
+    },
+    {
+      "state": "directory-lower",
+      "size": [
+        768,
+        1024
+      ],
+      "ready": {
+        "height": 1024,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 768
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3ad8oh-704d399f.png",
+      "snapshot": {
+        "url": "http://localhost:4317/community",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3ad8oh-704d399f.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        1280,
+        1707
+      ]
+    },
+    {
+      "state": "directory-lower",
+      "size": [
+        1024,
+        768
+      ],
+      "ready": {
+        "height": 768,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 1024
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3ad9od-382c94f5.png",
+      "snapshot": {
+        "url": "http://localhost:4317/community",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3ad9od-382c94f5.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        1280,
+        960
+      ]
+    },
+    {
+      "state": "directory-lower",
+      "size": [
+        1440,
+        900
+      ],
+      "ready": {
+        "height": 900,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 1440
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3adaql-4db6167b.png",
+      "snapshot": {
+        "url": "http://localhost:4317/community",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3adaql-4db6167b.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        1280,
+        800
+      ]
+    },
+    {
+      "state": "thread4-scrolled-bottom",
+      "size": [
+        390,
+        844
+      ],
+      "ready": {
+        "height": 844,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 390
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3aeu9l-cf4e1d8b.png",
+      "snapshot": {
+        "url": "http://localhost:4317/messages/4",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3aeu9l-cf4e1d8b.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        780,
+        1688
+      ]
+    },
+    {
+      "state": "thread4-scrolled-bottom",
+      "size": [
+        844,
+        390
+      ],
+      "ready": {
+        "height": 390,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 844
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3aev90-aae1ac90.png",
+      "snapshot": {
+        "url": "http://localhost:4317/messages/4",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3aev90-aae1ac90.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        1280,
+        591
+      ]
+    },
+    {
+      "state": "thread4-scrolled-bottom",
+      "size": [
+        768,
+        1024
+      ],
+      "ready": {
+        "height": 1024,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 768
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3aew9v-bdffc4a3.png",
+      "snapshot": {
+        "url": "http://localhost:4317/messages/4",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3aew9v-bdffc4a3.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        1280,
+        1707
+      ]
+    },
+    {
+      "state": "thread4-scrolled-bottom",
+      "size": [
+        1024,
+        768
+      ],
+      "ready": {
+        "height": 768,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 1024
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3aexbs-8eb93503.png",
+      "snapshot": {
+        "url": "http://localhost:4317/messages/4",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3aexbs-8eb93503.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        1280,
+        960
+      ]
+    },
+    {
+      "state": "thread4-scrolled-bottom",
+      "size": [
+        1440,
+        900
+      ],
+      "ready": {
+        "height": 900,
+        "loading": false,
+        "overflow": false,
+        "positive": true,
+        "width": 1440
+      },
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3aeyek-ad29d76f.png",
+      "snapshot": {
+        "url": "http://localhost:4317/messages/4",
+        "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3aeyek-ad29d76f.png"
+      },
+      "visuallyInspected": true,
+      "evidenceStatus": "inspected",
+      "pngDimensions": [
+        1280,
+        800
+      ]
+    }
+  ],
+  "matrix": [
+    {
+      "category": "Visual hierarchy",
+      "scores": [
+        5,
+        6,
+        7,
+        7,
+        7
+      ],
+      "cells": [
+        {
+          "score": 5,
+          "weakestScreen": "group-draft",
+          "reason": "On desktop thread \u2192 phone resize the open sheet disappears while selection remains in the DOM; chooser likewise disappears.",
+          "fix": "Render the sheet outside the thread-hidden header/container and preserve visibility across breakpoints.",
+          "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a2hs2-84c0f39f.png"
+        },
+        {
+          "score": 6,
+          "weakestScreen": "group-draft-inbox",
+          "reason": "Sheet starts below page header and extends below short viewport, leaving only one recipient visible.",
+          "fix": "Constrain sheet to visible viewport, keep title/actions fixed and scroll only recipients.",
+          "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3absgx-1c37e165.png"
+        },
+        {
+          "score": 7,
+          "weakestScreen": "profile-dives-stats-open",
+          "reason": "Last does not identify the event; bars show no visible metric or numeric scale.",
+          "fix": null,
+          "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a6mut-7ce3ac60.png"
+        },
+        {
+          "score": 7,
+          "weakestScreen": "profile-dives-stats-open",
+          "reason": "Last does not identify the event; bars show no visible metric or numeric scale.",
+          "fix": null,
+          "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a6nez-383146e4.png"
+        },
+        {
+          "score": 7,
+          "weakestScreen": "profile-dives-stats-open",
+          "reason": "Last does not identify the event; bars show no visible metric or numeric scale.",
+          "fix": null,
+          "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a6o1y-4fc3c2b0.png"
+        }
+      ]
+    },
+    {
+      "category": "Layout and density",
+      "scores": [
+        4,
+        5,
+        6,
+        6,
+        7
+      ],
+      "cells": [
+        {
+          "score": 4,
+          "weakestScreen": "group-draft",
+          "reason": "On desktop thread \u2192 phone resize the open sheet disappears while selection remains in the DOM; chooser likewise disappears.",
+          "fix": "Render the sheet outside the thread-hidden header/container and preserve visibility across breakpoints.",
+          "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a2hs2-84c0f39f.png"
+        },
+        {
+          "score": 5,
+          "weakestScreen": "group-draft-inbox",
+          "reason": "Sheet starts below page header and extends below short viewport, leaving only one recipient visible.",
+          "fix": "Constrain sheet to visible viewport, keep title/actions fixed and scroll only recipients.",
+          "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3absgx-1c37e165.png"
+        },
+        {
+          "score": 6,
+          "weakestScreen": "inbox",
+          "reason": "Narrow inbox column truncates names and previews while the adjacent unselected pane occupies most width.",
+          "fix": "Widen the inbox or use a single pane until a conversation is selected.",
+          "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a0n4n-349cb602.png"
+        },
+        {
+          "score": 6,
+          "weakestScreen": "inbox",
+          "reason": "Narrow inbox column truncates names and previews while the adjacent unselected pane occupies most width.",
+          "fix": "Widen the inbox or use a single pane until a conversation is selected.",
+          "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a0o88-f08d6705.png"
+        },
+        {
+          "score": 7,
+          "weakestScreen": "profile-dives-stats-open",
+          "reason": "Last does not identify the event; bars show no visible metric or numeric scale.",
+          "fix": null,
+          "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a6o1y-4fc3c2b0.png"
+        }
+      ]
+    },
+    {
+      "category": "Typography",
+      "scores": [
+        7,
+        7,
+        7,
+        7,
+        7
+      ],
+      "cells": [
+        {
+          "score": 7,
+          "weakestScreen": "profile-codes-content",
+          "reason": "Code, name and average are legible with clear emphasis.",
+          "fix": null,
+          "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3aao66-bd6e2abe.png"
+        },
+        {
+          "score": 7,
+          "weakestScreen": "profile-codes-content",
+          "reason": "Code, name and average are legible with clear emphasis.",
+          "fix": null,
+          "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3aapp5-bd5a2b3d.png"
+        },
+        {
+          "score": 7,
+          "weakestScreen": "profile-codes-content",
+          "reason": "Code, name and average are legible with clear emphasis.",
+          "fix": null,
+          "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3aascw-705a12af.png"
+        },
+        {
+          "score": 7,
+          "weakestScreen": "profile-codes-content",
+          "reason": "Code, name and average are legible with clear emphasis.",
+          "fix": null,
+          "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3aauym-fff16af8.png"
+        },
+        {
+          "score": 7,
+          "weakestScreen": "profile-codes-content",
+          "reason": "Code, name and average are legible with clear emphasis.",
+          "fix": null,
+          "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3aaw8w-3298191c.png"
+        }
+      ]
+    },
+    {
+      "category": "Color and contrast",
+      "scores": [
+        7,
+        7,
+        7,
+        7,
+        7
+      ],
+      "cells": [
+        {
+          "score": 7,
+          "weakestScreen": "thread4",
+          "reason": "Messages and controls are visually distinguishable; this is visual assessment only.",
+          "fix": null,
+          "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a1kci-efbe854b.png"
+        },
+        {
+          "score": 7,
+          "weakestScreen": "thread4",
+          "reason": "Messages and controls are visually distinguishable; this is visual assessment only.",
+          "fix": null,
+          "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a1kwg-986f94df.png"
+        },
+        {
+          "score": 7,
+          "weakestScreen": "thread4",
+          "reason": "Messages and controls are visually distinguishable; this is visual assessment only.",
+          "fix": null,
+          "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a1lhc-e3368c1a.png"
+        },
+        {
+          "score": 7,
+          "weakestScreen": "thread4",
+          "reason": "Messages and controls are visually distinguishable; this is visual assessment only.",
+          "fix": null,
+          "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a1m0r-c78da199.png"
+        },
+        {
+          "score": 7,
+          "weakestScreen": "thread4",
+          "reason": "Messages and controls are visually distinguishable; this is visual assessment only.",
+          "fix": null,
+          "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a1o6u-50bfd4d0.png"
+        }
+      ]
+    },
+    {
+      "category": "Spacing and alignment",
+      "scores": [
+        6,
+        6,
+        7,
+        7,
+        7
+      ],
+      "cells": [
+        {
+          "score": 6,
+          "weakestScreen": "inbox",
+          "reason": "Narrow inbox column truncates names and previews while the adjacent unselected pane occupies most width.",
+          "fix": "Widen the inbox or use a single pane until a conversation is selected.",
+          "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a0kco-8cf67962.png"
+        },
+        {
+          "score": 6,
+          "weakestScreen": "group-draft-inbox",
+          "reason": "Sheet starts below page header and extends below short viewport, leaving only one recipient visible.",
+          "fix": "Constrain sheet to visible viewport, keep title/actions fixed and scroll only recipients.",
+          "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3absgx-1c37e165.png"
+        },
+        {
+          "score": 7,
+          "weakestScreen": "profile-dives-stats-open",
+          "reason": "Last does not identify the event; bars show no visible metric or numeric scale.",
+          "fix": null,
+          "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a6mut-7ce3ac60.png"
+        },
+        {
+          "score": 7,
+          "weakestScreen": "profile-dives-stats-open",
+          "reason": "Last does not identify the event; bars show no visible metric or numeric scale.",
+          "fix": null,
+          "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a6nez-383146e4.png"
+        },
+        {
+          "score": 7,
+          "weakestScreen": "profile-dives-stats-open",
+          "reason": "Last does not identify the event; bars show no visible metric or numeric scale.",
+          "fix": null,
+          "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a6o1y-4fc3c2b0.png"
+        }
+      ]
+    },
+    {
+      "category": "Navigation and orientation",
+      "scores": [
+        5,
+        6,
+        7,
+        7,
+        7
+      ],
+      "cells": [
+        {
+          "score": 5,
+          "weakestScreen": "group-draft",
+          "reason": "On desktop thread \u2192 phone resize the open sheet disappears while selection remains in the DOM; chooser likewise disappears.",
+          "fix": "Render the sheet outside the thread-hidden header/container and preserve visibility across breakpoints.",
+          "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a2hs2-84c0f39f.png"
+        },
+        {
+          "score": 6,
+          "weakestScreen": "group-draft-inbox",
+          "reason": "Sheet starts below page header and extends below short viewport, leaving only one recipient visible.",
+          "fix": "Constrain sheet to visible viewport, keep title/actions fixed and scroll only recipients.",
+          "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3absgx-1c37e165.png"
+        },
+        {
+          "score": 7,
+          "weakestScreen": "profile-dives-stats-open",
+          "reason": "Last does not identify the event; bars show no visible metric or numeric scale.",
+          "fix": null,
+          "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a6mut-7ce3ac60.png"
+        },
+        {
+          "score": 7,
+          "weakestScreen": "profile-dives-stats-open",
+          "reason": "Last does not identify the event; bars show no visible metric or numeric scale.",
+          "fix": null,
+          "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a6nez-383146e4.png"
+        },
+        {
+          "score": 7,
+          "weakestScreen": "profile-dives-stats-open",
+          "reason": "Last does not identify the event; bars show no visible metric or numeric scale.",
+          "fix": null,
+          "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a6o1y-4fc3c2b0.png"
+        }
+      ]
+    },
+    {
+      "category": "Control clarity",
+      "scores": [
+        4,
+        6,
+        7,
+        7,
+        7
+      ],
+      "cells": [
+        {
+          "score": 4,
+          "weakestScreen": "group-draft",
+          "reason": "On desktop thread \u2192 phone resize the open sheet disappears while selection remains in the DOM; chooser likewise disappears.",
+          "fix": "Render the sheet outside the thread-hidden header/container and preserve visibility across breakpoints.",
+          "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a2hs2-84c0f39f.png"
+        },
+        {
+          "score": 6,
+          "weakestScreen": "group-draft-inbox",
+          "reason": "Sheet starts below page header and extends below short viewport, leaving only one recipient visible.",
+          "fix": "Constrain sheet to visible viewport, keep title/actions fixed and scroll only recipients.",
+          "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3absgx-1c37e165.png"
+        },
+        {
+          "score": 7,
+          "weakestScreen": "profile-dives-stats-open",
+          "reason": "Last does not identify the event; bars show no visible metric or numeric scale.",
+          "fix": null,
+          "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a6mut-7ce3ac60.png"
+        },
+        {
+          "score": 7,
+          "weakestScreen": "profile-dives-stats-open",
+          "reason": "Last does not identify the event; bars show no visible metric or numeric scale.",
+          "fix": null,
+          "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a6nez-383146e4.png"
+        },
+        {
+          "score": 7,
+          "weakestScreen": "profile-dives-stats-open",
+          "reason": "Last does not identify the event; bars show no visible metric or numeric scale.",
+          "fix": null,
+          "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a6o1y-4fc3c2b0.png"
+        }
+      ]
+    },
+    {
+      "category": "Terminology and instructions",
+      "scores": [
+        6,
+        6,
+        6,
+        6,
+        6
+      ],
+      "cells": [
+        {
+          "score": 6,
+          "weakestScreen": "profile-dives-stats-open",
+          "reason": "Last does not identify the event; bars show no visible metric or numeric scale.",
+          "fix": "Name last dive explicitly; label weekly dive counts and provide values.",
+          "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a5wzv-889d237a.png"
+        },
+        {
+          "score": 6,
+          "weakestScreen": "profile-dives-stats-open",
+          "reason": "Last does not identify the event; bars show no visible metric or numeric scale.",
+          "fix": "Name last dive explicitly; label weekly dive counts and provide values.",
+          "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a68zf-734f4aa4.png"
+        },
+        {
+          "score": 6,
+          "weakestScreen": "profile-dives-stats-open",
+          "reason": "Last does not identify the event; bars show no visible metric or numeric scale.",
+          "fix": "Name last dive explicitly; label weekly dive counts and provide values.",
+          "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a6mut-7ce3ac60.png"
+        },
+        {
+          "score": 6,
+          "weakestScreen": "profile-dives-stats-open",
+          "reason": "Last does not identify the event; bars show no visible metric or numeric scale.",
+          "fix": "Name last dive explicitly; label weekly dive counts and provide values.",
+          "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a6nez-383146e4.png"
+        },
+        {
+          "score": 6,
+          "weakestScreen": "profile-dives-stats-open",
+          "reason": "Last does not identify the event; bars show no visible metric or numeric scale.",
+          "fix": "Name last dive explicitly; label weekly dive counts and provide values.",
+          "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a6o1y-4fc3c2b0.png"
+        }
+      ]
+    },
+    {
+      "category": "Component consistency",
+      "scores": [
+        5,
+        7,
+        7,
+        7,
+        7
+      ],
+      "cells": [
+        {
+          "score": 5,
+          "weakestScreen": "group-draft",
+          "reason": "On desktop thread \u2192 phone resize the open sheet disappears while selection remains in the DOM; chooser likewise disappears.",
+          "fix": "Render the sheet outside the thread-hidden header/container and preserve visibility across breakpoints.",
+          "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a2hs2-84c0f39f.png"
+        },
+        {
+          "score": 7,
+          "weakestScreen": "profile-dives-stats-open",
+          "reason": "Last does not identify the event; bars show no visible metric or numeric scale.",
+          "fix": null,
+          "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a68zf-734f4aa4.png"
+        },
+        {
+          "score": 7,
+          "weakestScreen": "profile-dives-stats-open",
+          "reason": "Last does not identify the event; bars show no visible metric or numeric scale.",
+          "fix": null,
+          "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a6mut-7ce3ac60.png"
+        },
+        {
+          "score": 7,
+          "weakestScreen": "profile-dives-stats-open",
+          "reason": "Last does not identify the event; bars show no visible metric or numeric scale.",
+          "fix": null,
+          "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a6nez-383146e4.png"
+        },
+        {
+          "score": 7,
+          "weakestScreen": "profile-dives-stats-open",
+          "reason": "Last does not identify the event; bars show no visible metric or numeric scale.",
+          "fix": null,
+          "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a6o1y-4fc3c2b0.png"
+        }
+      ]
+    },
+    {
+      "category": "Task content presentation",
+      "scores": [
+        4,
+        5,
+        6,
+        6,
+        6
+      ],
+      "cells": [
+        {
+          "score": 4,
+          "weakestScreen": "group-draft",
+          "reason": "On desktop thread \u2192 phone resize the open sheet disappears while selection remains in the DOM; chooser likewise disappears.",
+          "fix": "Render the sheet outside the thread-hidden header/container and preserve visibility across breakpoints.",
+          "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a2hs2-84c0f39f.png"
+        },
+        {
+          "score": 5,
+          "weakestScreen": "group-draft-inbox",
+          "reason": "Sheet starts below page header and extends below short viewport, leaving only one recipient visible.",
+          "fix": "Constrain sheet to visible viewport, keep title/actions fixed and scroll only recipients.",
+          "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3absgx-1c37e165.png"
+        },
+        {
+          "score": 6,
+          "weakestScreen": "inbox",
+          "reason": "Narrow inbox column truncates names and previews while the adjacent unselected pane occupies most width.",
+          "fix": "Widen the inbox or use a single pane until a conversation is selected.",
+          "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a0n4n-349cb602.png"
+        },
+        {
+          "score": 6,
+          "weakestScreen": "inbox",
+          "reason": "Narrow inbox column truncates names and previews while the adjacent unselected pane occupies most width.",
+          "fix": "Widen the inbox or use a single pane until a conversation is selected.",
+          "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a0o88-f08d6705.png"
+        },
+        {
+          "score": 6,
+          "weakestScreen": "profile-dives-stats-open",
+          "reason": "Last does not identify the event; bars show no visible metric or numeric scale.",
+          "fix": "Name last dive explicitly; label weekly dive counts and provide values.",
+          "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a6o1y-4fc3c2b0.png"
+        }
+      ]
+    },
+    {
+      "category": "Feedback and state clarity",
+      "scores": [
+        4,
+        7,
+        7,
+        7,
+        7
+      ],
+      "cells": [
+        {
+          "score": 4,
+          "weakestScreen": "group-draft",
+          "reason": "On desktop thread \u2192 phone resize the open sheet disappears while selection remains in the DOM; chooser likewise disappears.",
+          "fix": "Render the sheet outside the thread-hidden header/container and preserve visibility across breakpoints.",
+          "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a2hs2-84c0f39f.png"
+        },
+        {
+          "score": 7,
+          "weakestScreen": "profile-dives-stats-open",
+          "reason": "Last does not identify the event; bars show no visible metric or numeric scale.",
+          "fix": null,
+          "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a68zf-734f4aa4.png"
+        },
+        {
+          "score": 7,
+          "weakestScreen": "profile-dives-stats-open",
+          "reason": "Last does not identify the event; bars show no visible metric or numeric scale.",
+          "fix": null,
+          "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a6mut-7ce3ac60.png"
+        },
+        {
+          "score": 7,
+          "weakestScreen": "profile-dives-stats-open",
+          "reason": "Last does not identify the event; bars show no visible metric or numeric scale.",
+          "fix": null,
+          "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a6nez-383146e4.png"
+        },
+        {
+          "score": 7,
+          "weakestScreen": "profile-dives-stats-open",
+          "reason": "Last does not identify the event; bars show no visible metric or numeric scale.",
+          "fix": null,
+          "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a6o1y-4fc3c2b0.png"
+        }
+      ]
+    },
+    {
+      "category": "Professional finish",
+      "scores": [
+        4,
+        6,
+        6,
+        6,
+        7
+      ],
+      "cells": [
+        {
+          "score": 4,
+          "weakestScreen": "group-draft",
+          "reason": "On desktop thread \u2192 phone resize the open sheet disappears while selection remains in the DOM; chooser likewise disappears.",
+          "fix": "Render the sheet outside the thread-hidden header/container and preserve visibility across breakpoints.",
+          "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a2hs2-84c0f39f.png"
+        },
+        {
+          "score": 6,
+          "weakestScreen": "group-draft-inbox",
+          "reason": "Sheet starts below page header and extends below short viewport, leaving only one recipient visible.",
+          "fix": "Constrain sheet to visible viewport, keep title/actions fixed and scroll only recipients.",
+          "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3absgx-1c37e165.png"
+        },
+        {
+          "score": 6,
+          "weakestScreen": "profile-dives-content",
+          "reason": "Sparse first date group leaves large blank space; very small muted metadata and inconsistent card density reduce polish.",
+          "fix": "Use compact treatment for sparse groups and a readable metadata size.",
+          "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3ab3ov-75036640.png"
+        },
+        {
+          "score": 6,
+          "weakestScreen": "profile-dives-content",
+          "reason": "Sparse first date group leaves large blank space; very small muted metadata and inconsistent card density reduce polish.",
+          "fix": "Use compact treatment for sparse groups and a readable metadata size.",
+          "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3ab507-c0b18da9.png"
+        },
+        {
+          "score": 7,
+          "weakestScreen": "profile-dives-content",
+          "reason": "Sparse first date group leaves large blank space; very small muted metadata and inconsistent card density reduce polish.",
+          "fix": null,
+          "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3ab6mg-b72e6585.png"
+        }
+      ]
+    },
+    {
+      "category": "Responsive fit",
+      "scores": [
+        3,
+        5,
+        6,
+        6,
+        7
+      ],
+      "cells": [
+        {
+          "score": 3,
+          "weakestScreen": "group-draft",
+          "reason": "On desktop thread \u2192 phone resize the open sheet disappears while selection remains in the DOM; chooser likewise disappears.",
+          "fix": "Render the sheet outside the thread-hidden header/container and preserve visibility across breakpoints.",
+          "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a2hs2-84c0f39f.png"
+        },
+        {
+          "score": 5,
+          "weakestScreen": "group-draft-inbox",
+          "reason": "Sheet starts below page header and extends below short viewport, leaving only one recipient visible.",
+          "fix": "Constrain sheet to visible viewport, keep title/actions fixed and scroll only recipients.",
+          "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3absgx-1c37e165.png"
+        },
+        {
+          "score": 6,
+          "weakestScreen": "inbox",
+          "reason": "Narrow inbox column truncates names and previews while the adjacent unselected pane occupies most width.",
+          "fix": "Widen the inbox or use a single pane until a conversation is selected.",
+          "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a0n4n-349cb602.png"
+        },
+        {
+          "score": 6,
+          "weakestScreen": "inbox",
+          "reason": "Narrow inbox column truncates names and previews while the adjacent unselected pane occupies most width.",
+          "fix": "Widen the inbox or use a single pane until a conversation is selected.",
+          "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a0o88-f08d6705.png"
+        },
+        {
+          "score": 7,
+          "weakestScreen": "profile-dives-stats-open",
+          "reason": "Last does not identify the event; bars show no visible metric or numeric scale.",
+          "fix": null,
+          "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a6o1y-4fc3c2b0.png"
+        }
+      ]
+    },
+    {
+      "category": "Next-action discoverability",
+      "scores": [
+        4,
+        6,
+        7,
+        7,
+        7
+      ],
+      "cells": [
+        {
+          "score": 4,
+          "weakestScreen": "group-draft",
+          "reason": "On desktop thread \u2192 phone resize the open sheet disappears while selection remains in the DOM; chooser likewise disappears.",
+          "fix": "Render the sheet outside the thread-hidden header/container and preserve visibility across breakpoints.",
+          "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a2hs2-84c0f39f.png"
+        },
+        {
+          "score": 6,
+          "weakestScreen": "group-draft-inbox",
+          "reason": "Sheet starts below page header and extends below short viewport, leaving only one recipient visible.",
+          "fix": "Constrain sheet to visible viewport, keep title/actions fixed and scroll only recipients.",
+          "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3absgx-1c37e165.png"
+        },
+        {
+          "score": 7,
+          "weakestScreen": "profile-dives-stats-open",
+          "reason": "Last does not identify the event; bars show no visible metric or numeric scale.",
+          "fix": null,
+          "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a6mut-7ce3ac60.png"
+        },
+        {
+          "score": 7,
+          "weakestScreen": "profile-dives-stats-open",
+          "reason": "Last does not identify the event; bars show no visible metric or numeric scale.",
+          "fix": null,
+          "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a6nez-383146e4.png"
+        },
+        {
+          "score": 7,
+          "weakestScreen": "profile-dives-stats-open",
+          "reason": "Last does not identify the event; bars show no visible metric or numeric scale.",
+          "fix": null,
+          "evidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw3a6o1y-4fc3c2b0.png"
+        }
+      ]
+    }
+  ],
+  "outsideFamily": "Library, Calendar, Evaluations, Room and all other outside-family states remain unverified. New independent full-scope review required; no council acceptance or accessibility certification.",
+  "interactions": {
+    "groupRecipientsSelected": 2,
+    "createClicked": false,
+    "messageSent": false,
+    "followClicked": false,
+    "draftDiscarded": true,
+    "composerEmpty": true,
+    "ownTabClosed": true,
+    "bodyScrolled": true,
+    "messageHistoryScrolled": true
+  },
+  "limitations": [
+    "Frozen commit identifier supplied by coordinator; no git action performed.",
+    "Some evaluate waits timed out on lazy offscreen image decode; later captures wait only visible images.",
+    "Loading and incomplete-paint screenshots are rejected, never treated as passing evidence."
+  ]
+}
