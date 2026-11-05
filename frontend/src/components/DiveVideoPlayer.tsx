@@ -1,4 +1,5 @@
 import PreparedVideo from './PreparedVideo'
+import { getLibraryAudioMuted } from '../utils/libraryAudioPreference'
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { ChevronsUpDown, Clock, DownloadCloud, LogIn, RefreshCw, Video, WifiOff } from 'lucide-react'
 import { Link } from 'react-router-dom'
@@ -489,6 +490,7 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, onPlay
   // still starts. A muted fallback arms sound restoration on the next user
   // gesture (see below), so scrolled-to clips don't stay muted forever.
   const attemptImmersiveAutoplay = (video: HTMLVideoElement) => {
+    if (getLibraryAudioMuted()) video.muted = true
     try {
       const attempt = video.play()
       if (attempt && typeof attempt.catch === 'function') {
@@ -507,7 +509,7 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, onPlay
           }
           // Flagged for gesture restoration: the first tap/keypress with the
           // fallback still in force brings sound back automatically.
-          setAutoMuted(true)
+          setAutoMuted(!getLibraryAudioMuted())
           try {
             const retry = video.play()
             if (retry && typeof retry.catch === 'function') retry.catch(() => {})
@@ -533,6 +535,7 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, onPlay
     const video = soundRef.current || videoRef.current
     if (!video) return
     const restore = (event: Event) => {
+      if (getLibraryAudioMuted()) { setAutoMuted(false); return }
       // The explicit sound toggle keeps its own semantics: it must toggle
       // to unmuted, not be pre-empted by an automatic unmute that its click
       // then flips back to muted. Every other first gesture (content taps,

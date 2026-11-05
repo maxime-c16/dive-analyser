@@ -29,6 +29,7 @@ import {
   performanceLabel,
   type Attempt,
 } from "../utils/attemptPresentation";
+import LibraryAudioControl from '../components/LibraryAudioControl';
 import AddVideos from "../components/AddVideos";
 import { MobileShellActions } from "../navigation/mobileShellActions";
 import DiveThumbnail from "../components/DiveThumbnail";
@@ -970,6 +971,7 @@ function DiveLibrary() {
               {label}
             </button>
           ))}
+          <LibraryAudioControl />
         </div>
       <PendingBanner />
       <section className="mt-4 space-y-2" aria-label={t("dives.filtersAria")}>

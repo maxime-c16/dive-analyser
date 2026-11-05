@@ -1,0 +1,8 @@
+{
+  "id": "library-sound-preference",
+  "date": "2026-11-05",
+  "title": "Choose sound before opening a dive",
+  "body": "Mute videos from the Library before opening a clip. Your sound choice follows you between clips and when you return to the Library.",
+  "audience": "all",
+  "components": ["frontend"]
+}

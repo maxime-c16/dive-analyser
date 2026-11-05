@@ -8,6 +8,7 @@ const en = {
   // Library UX fixes (scope A, dedicated block): keys introduced by the
   // Library-state/search/paginate fixes PR.
   libraryUX: {
+    muteVideos: 'Mute videos', unmuteVideos: 'Turn video sound on', soundOn: 'Sound on', soundMuted: 'Muted',
     periodFilter: 'Period',
     periodAll: 'All periods',
     period30d: 'Past 30 days',

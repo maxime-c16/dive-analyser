@@ -142,3 +142,11 @@
 .professional-shell .ca-hero-code { font-family:inherit; font-size:32px; font-weight:600; line-height:1.2; }
 .professional-shell .ca-hero-name { font-size:16px; }
 .professional-shell .cm-tabpanel[hidden] { display:none; }
+
+.professional-shell .library-mode-tabs .library-audio-toggle { flex:none; min-width:44px; gap:6px; padding-inline:8px; font-size:13px; }
+
+/* Keep tablet footage close to search while retaining every filter on demand. */
+@media (min-width:640px) and (max-width:1100px) and (min-height:501px) {
+  .professional-shell .library-page .library-filter-toggle { display:inline-flex; }
+  .professional-shell .library-page .library-advanced-filters:not([data-open=true]) { display:none; }
+}

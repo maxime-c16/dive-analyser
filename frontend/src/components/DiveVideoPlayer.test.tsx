@@ -1,4 +1,6 @@
 import React from 'react'
+import LibraryAudioControl from './LibraryAudioControl'
+import { setLibraryAudioMuted } from '../utils/libraryAudioPreference'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, expect, it, vi, type Mock } from 'vitest'
@@ -265,7 +267,7 @@ it('non-immersive clips never attempt autoplay', async () => {
   }
 })
 beforeEach(() => { vi.mocked(getMediaStatus).mockResolvedValue(missing); vi.mocked(requestMedia).mockResolvedValue({ ...missing, status: 'queued', created_job: true }) })
-afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals() })
+afterEach(() => { setLibraryAudioMuted(false); vi.useRealTimers(); vi.unstubAllGlobals() })
 
 it('checks status passively without creating a job', async () => { render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="uuid" />); expect(await screen.findByRole('button', { name: /Prepare clip/ })).toBeInTheDocument(); expect(getMediaStatus).toHaveBeenCalledOnce(); expect(requestMedia).not.toHaveBeenCalled() })
 it('Prepare clip explicitly creates one proxy request', async () => { render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="uuid" />); await userEvent.click(await screen.findByRole('button', { name: /Prepare clip/ })); expect(requestMedia).toHaveBeenCalledOnce(); expect(requestMedia).toHaveBeenCalledWith('uuid', 'proxy_720p') })
@@ -1431,4 +1433,26 @@ it('leaves a genuine legacy-only presented preview unchanged', async () => {
   await act(async () => { resolve(legacyOnly) })
   await waitFor(() => expect(video).toHaveAttribute('src', '/sdr-360.mp4'))
   expect(requestMedia).not.toHaveBeenCalled()
+})
+
+
+it('honors pre-entry mute on autoplay and does not restore sound on unrelated gestures', async () => {
+  vi.mocked(getMediaStatus).mockResolvedValue(ready)
+  render(<LibraryAudioControl />)
+  fireEvent.click(screen.getByRole('button', { name: 'Mute videos' }))
+  const play = vi.spyOn(HTMLMediaElement.prototype, 'play').mockImplementation(function(this: HTMLMediaElement) {
+    expect(this.muted).toBe(true)
+    return Promise.resolve()
+  })
+  try {
+    render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="explicitly-muted" immersive />)
+    const video = await screen.findByLabelText('103B 1m dive video') as HTMLVideoElement
+    await waitFor(() => expect(video).toHaveAttribute('src', '/cached.mp4'))
+    fireEvent.loadedMetadata(video)
+    await waitFor(() => expect(play).toHaveBeenCalled())
+    fireEvent.pointerDown(document.body)
+    fireEvent.keyDown(document, { key: 'ArrowDown' })
+    fireEvent.canPlay(video)
+    expect(video.muted).toBe(true)
+  } finally { play.mockRestore() }
 })

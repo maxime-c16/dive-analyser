@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { ArrowLeft, Check, LogOut, Play, Plus, Send, Users, X } from 'lucide-react'
+import { ArrowLeft, Check, LogOut, Play, Plus, Users, X } from 'lucide-react'
 import ConversationAvatar from '../components/messages/ConversationAvatar'
 import type { MemberIdentity } from '../services/communityApi'
 import { format, isToday, isYesterday, differenceInCalendarDays } from 'date-fns'
@@ -271,7 +271,7 @@ function Thread({ id, onLeave }: { id: number; onLeave: (id: number) => void }) 
     }}>
       <label htmlFor="direct-message" className="sr-only">{t('messages.compose')}</label>
       <MentionComposer id="direct-message" placeholder={t('messages.placeholderShort')} value={body} onChange={changeBody} disabled={busy} />
-      <button type="submit" className="msg-send" aria-label={t('messages.send')} disabled={busy || !body.body.trim()}><Send size={18} /></button>
+      <button type="submit" className="msg-send" aria-label={t('messages.send')} disabled={busy || !body.body.trim()}>{t('messages.send')}</button>
     </form>
   </section>
 }

@@ -143,7 +143,7 @@
 .msg-composer .mention-composer textarea { display: block; height: 44px; min-height: 44px; max-height: 140px; padding: 11px 16px; border: 1px solid var(--app-border); border-radius: 22px; background: var(--app-panel-elevated); font-size: 16px; line-height: 1.35; resize: none; transition: border-color .2s; }
 @supports (field-sizing: content) { .msg-composer .mention-composer textarea { height: auto; field-sizing: content; } }
 .msg-composer .mention-composer textarea:focus { border-color: var(--app-accent); outline: 0; }
-.msg-send { display: grid; flex: none; place-items: center; width: 44px; height: 44px; border: 0; border-radius: 999px; background: var(--app-accent); color: #06201b; transition: transform .18s, background-color .2s, color .2s; }
+.msg-send { display: grid; flex: none; place-items: center; min-width: 44px; height: 44px; padding: 0 12px; border: 0; border-radius: 8px; background: var(--app-accent); color: #06201b; font-size:14px; font-weight:600; transition: transform .18s, background-color .2s, color .2s; }
 .msg-send:active:not(:disabled) { transform: scale(.9); }
 .msg-send:disabled { background: var(--app-panel-elevated); color: var(--app-muted); }
 

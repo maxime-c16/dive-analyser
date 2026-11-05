@@ -1,8 +1,9 @@
 import React from 'react'
+import { setLibraryAudioMuted } from '../utils/libraryAudioPreference'
 import { MemoryRouter } from 'react-router-dom'
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import Dives from './Dives'
 
 vi.mock('../services/api', () => ({ api: { get: vi.fn() } }))
@@ -179,4 +180,18 @@ it('keeps clear filters clickable while an empty-library search is still loading
   finish({ data: [] })
   await waitFor(() => expect(screen.queryByRole('button', { name: 'Clear filters' })).not.toBeInTheDocument())
   expect(screen.getByRole('button', { name: 'Community' })).toHaveAttribute('aria-pressed', 'true')
+})
+
+
+afterEach(() => setLibraryAudioMuted(false))
+it('offers sound choice before opening footage and restores that choice on return', async () => {
+  renderPage()
+  const mute = await screen.findByRole('button', { name: 'Mute videos' })
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  await userEvent.click(mute)
+  expect(screen.getByRole('button', { name: 'Turn video sound on' })).toHaveAttribute('aria-pressed', 'true')
+  await userEvent.click((await screen.findAllByRole('button', { name: /Open 103C attempt/ }))[0])
+  await screen.findByRole('dialog')
+  await userEvent.click(screen.getByRole('button', { name: 'Back to Library' }))
+  expect(screen.getByRole('button', { name: 'Turn video sound on' })).toHaveTextContent('Muted')
 })

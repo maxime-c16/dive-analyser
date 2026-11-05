@@ -8,6 +8,7 @@ const fr = {
   // Library UX fixes (périmètre A, bloc dédié) : clés introduites par la PR
   // de corrections Library (état, recherche par nom, pagination, période).
   libraryUX: {
+    muteVideos: 'Couper le son des vidéos', unmuteVideos: 'Activer le son des vidéos', soundOn: 'Son activé', soundMuted: 'Muet',
     periodFilter: 'Période',
     periodAll: 'Toutes les périodes',
     period30d: '30 derniers jours',
