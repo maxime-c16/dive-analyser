@@ -67,7 +67,7 @@ export default function CodeCards({ codes, sort, onSort, onOpenClip, diverId }: 
             {code.analytics && <div className="ca-code-side"><TrendBadge delta={code.trend?.delta} /></div>}
           </div>
           <div className="ca-code-meta">
-            <span>{t('codeAnalysis.attemptsSessions', { attempts: code.attempt_count, sessions: code.session_count })}</span>
+            <span>{t('codeAnalysis.attemptCount', { count: code.attempt_count })} · {t('codeAnalysis.sessionCount', { count: code.session_count })}</span>
             <span>{t('dives.last')} {date(code.last_attempt_at, 'd MMM')}</span>
           </div>
           <details className="ca-code-details" onClick={event => event.stopPropagation()} onKeyDown={event => event.stopPropagation()}>

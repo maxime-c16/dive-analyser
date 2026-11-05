@@ -41,3 +41,85 @@
   .cal-main .cal-stack:has(> .cal-next):not(:has(> .is-past)) > .cal-past-toggle { grid-column:2; grid-row:1; justify-self:start; }
   .cal-main .cal-stack:has(> .cal-next):not(:has(> .is-past)) > .cal-agenda { grid-column:2; grid-row:2; }
 }
+
+/* Main product workspace: stable named navigation and task-first content. */
+.professional-shell, .clip-viewer, .gm-page {
+  --app-bg:#101820; --app-panel:#17232d; --app-panel-elevated:#1c2b36;
+  --app-border:#344651; --app-border-strong:#617787;
+  --app-text:#eff4f7; --app-muted:#afbcc7; --app-accent:#78bfd1;
+}
+.professional-shell .shell-main h1 { font-size:28px; line-height:1.2; letter-spacing:-.025em; font-weight:600; }
+.professional-shell .shell-main h2 { font-size:19px; line-height:1.35; font-weight:600; }
+.professional-shell .app-breadcrumbs { font-size:13px; text-transform:none; letter-spacing:0; margin-bottom:20px; }
+.professional-shell :is(.ca-pop,.ca-arrive,.cm-arrive,.eval-board-row) { animation:none; }
+.professional-shell :is(.ca-pill,.ca-btn,.eval-pass,.eval-sort,.eval-sort button) { border-radius:6px; }
+.professional-shell .ca-code-code { font-size:24px; font-weight:600; }
+.professional-shell .ca-code-card { background:var(--app-panel); border-radius:10px; }
+.professional-shell .ca-code-card:hover { transform:none; }
+.professional-shell .ca-code-meta { font-size:13px; }
+.professional-shell .library-mode-tabs { margin:16px 0; border-bottom:1px solid var(--app-border); }
+.professional-shell .library-mode-tabs button { flex:0 1 auto; min-width:92px; border:0; border-bottom:2px solid transparent; border-radius:0; padding:8px 16px; background:transparent; font-size:15px; }
+.professional-shell .library-mode-tabs button[aria-pressed=true] { border-bottom-color:var(--app-accent); color:var(--app-text); }
+.professional-shell .library-display-options button { width:auto; min-height:40px; padding:0 10px; gap:6px; font-size:13px; border-radius:6px; }
+.professional-shell .eval-warmup { min-height:100px; padding:24px 0; align-content:center; }
+.professional-shell .eval-board-head { margin-bottom:12px; }
+.professional-shell .eval-board-row { border-radius:0; background:transparent; box-shadow:none; border-bottom:1px solid var(--app-border); padding-block:16px; }
+.professional-shell .eval-attempt-heading { align-items:baseline; }
+.professional-shell .eval-attempt-date { font-size:13px; }
+.professional-shell .eval-mean { font-size:24px; }
+.professional-shell .eval-switch small { font-size:12px; }
+.professional-shell .eval-rules { border-radius:6px; }
+.professional-shell .cm-story { box-shadow:none; }
+.professional-shell .cm-hero { background:transparent; border:0; border-bottom:1px solid var(--app-border); border-radius:0; padding:0 0 20px; }
+.professional-shell .cm-hero .cm-name { font-size:28px; }
+.professional-shell .cm-stat b { font-size:24px; }
+.professional-shell .cal-next { box-shadow:none; background:var(--app-panel); }
+.professional-shell .cal-next:before { display:none; }
+.professional-shell .cal-tag { text-transform:none; letter-spacing:0; }
+.professional-shell .attached-navigation { position:sticky; top:0; left:auto; right:auto; bottom:auto; transform:none; margin:0; width:100%; max-width:none; border:0; border-bottom:1px solid var(--app-border); border-radius:0; padding:0 max(4px,env(safe-area-inset-left)); background:var(--app-bg); box-shadow:none; }
+.professional-shell .attached-navigation .mobile-tab { min-height:52px; padding:8px 3px; border-radius:0; border-bottom:2px solid transparent; font-size:12px; font-weight:500; gap:4px; }
+.professional-shell .attached-navigation .mobile-tab-active { background:var(--app-panel); border-bottom-color:var(--app-accent); box-shadow:none; color:var(--app-text); }
+@media (max-width:1023px) {
+  .professional-shell .shell-main { padding-bottom:var(--mobile-notice-offset,0px); }
+  .professional-shell .shell-main > div { padding-top:20px; }
+}
+@media (max-width:699px) {
+  .professional-shell .attached-navigation .mobile-tab > .relative svg { display:none; }
+  .professional-shell .attached-navigation .mobile-tab > .relative > span { position:static; }
+  .professional-shell .attached-navigation .mobile-tab { min-height:48px; font-size:12px; overflow-wrap:normal; }
+  .professional-shell .shell-main h1 { font-size:25px; }
+  .professional-shell .library-mode-tabs button { min-width:0; flex:1; padding-inline:8px; font-size:14px; }
+  .professional-shell .library-display-options span { display:none; }
+}
+@media (min-width:640px) and (max-height:500px) {
+  .professional-shell .attached-navigation .mobile-tab { min-height:42px; flex-direction:row; gap:6px; font-size:13px; }
+  .professional-shell .shell-main > div { padding-top:12px; padding-bottom:12px; }
+  .professional-shell .app-breadcrumbs { margin-bottom:12px; }
+}
+@media (min-width:740px) and (max-height:500px) {
+  .professional-shell .library-page { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:12px; }
+  .professional-shell .library-page > * { grid-column:1 / -1; margin-top:0; }
+  .professional-shell .library-page > header { grid-column:1; grid-row:1; border-bottom:0; padding-bottom:0; gap:8px; }
+  .professional-shell .library-page > .library-mode-tabs { grid-column:2; grid-row:1; margin:0; border-bottom:0; }
+  .professional-shell .library-mode-tabs button { min-width:0; padding-inline:10px; font-size:14px; }
+  .professional-shell .library-page > header h1 { font-size:22px; }
+  .professional-shell .library-page > header .mobile-shell-actions { gap:4px; }
+  .professional-shell .library-page > header > button[title] { min-width:36px; min-height:40px; }
+}
+@media (min-width:740px) and (max-height:500px) {
+  .professional-shell .library-page > section:last-child { padding-top:0; border-top:0; }
+}
+@media (max-width:599px) {
+  .professional-shell .library-page > header { gap:8px; }
+  .professional-shell .library-page > header > button[aria-label] > span { display:inline; }
+  .professional-shell .library-page > header > button.bg-app-accent > svg { display:none; }
+  .professional-shell .library-page > header > button[aria-label] { font-size:13px; }
+}
+.professional-shell .mobile-account-trigger { border-radius:6px; }
+@media (max-width:1023px) {
+  .professional-shell:has(.attached-navigation) .calendar-form-header { top:60px; }
+}
+@media (min-width:640px) and (max-width:1023px) and (max-height:500px) {
+  .professional-shell:has(.attached-navigation) .calendar-form-header { top:50px; }
+}
+.professional-shell :is(.msg-sheet,.msg-sheet-backdrop,.msg-pick-row,.msg-row,.msg-badge) { animation:none; }

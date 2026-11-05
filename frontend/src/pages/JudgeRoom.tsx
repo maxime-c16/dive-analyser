@@ -74,7 +74,8 @@ export default function JudgeRoom() {
   const [joinCode, setJoinCode] = useState("");
   const [filter, setFilter] = useState("");
   const [score, setScore] = useState<number | null>(null);
-  const [suspect, setSuspect] = useState<string | null>(null);
+  const [suspect, setSuspect] = useState<string | null | undefined>(undefined);
+  const moleVote = useRef<string | null | undefined>(undefined);
   const [error, setError] = useState(false);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -98,6 +99,8 @@ export default function JudgeRoom() {
     );
   }, []);
   const accept = (next: Room) => {
+    if (current.current?.code === next.code && next.server_time < current.current.server_time) return;
+    if (current.current?.game_id !== next.game_id) moleVote.current = undefined;
     offset.current = next.server_time - Date.now() / 1000;
     if (current.current?.game_id !== next.game_id) readyDives.current.clear();
     current.current = next;
@@ -166,7 +169,7 @@ export default function JudgeRoom() {
   }, []);
   useEffect(() => {
     setScore(null);
-    setSuspect(null);
+    setSuspect(undefined);
   }, [room?.index, room?.phase]);
   const dive = room?.playlist[Math.min(room.index, room.playlist.length - 1)];
   const roundKey = room ? `${room.game_id}:${room.index}` : "";
@@ -528,17 +531,23 @@ export default function JudgeRoom() {
             </div>
             {host && room.source === "code" && (
               <form
+                className="gm-code-form"
                 onSubmit={(e) => {
                   e.preventDefault();
                   configure(room.mode, "code");
                 }}
               >
                 <input
-                  aria-label={t("room.code")}
+                  className="app-input"
+                  aria-label={t("analysis.diveCode")}
+                  placeholder="112B"
+                  autoCapitalize="characters"
+                  autoCorrect="off"
+                  spellCheck={false}
                   value={filter}
                   onChange={(e) => setFilter(e.target.value)}
                 />
-                <button className="ca-btn">{t("room.apply")}</button>
+                <button className="ca-btn" disabled={busy || !filter.trim()}>{t("room.apply")}</button>
               </form>
             )}
             <div className="gm-posters">
@@ -657,11 +666,12 @@ export default function JudgeRoom() {
                       onClick={() => void action({ action: "score", score })}
                     >
                       {t(
-                        room.my_score !== null
+                        busy ? "common.loading" : room.my_score !== null
                           ? "room.submitted"
                           : "room.submit",
                       )}
                     </button>
+                    {room.my_score === null && <p className="gm-submit-deadline">{t("room.submitBeforeEnd")}</p>}
                   </>
                 )}
               </>
@@ -722,7 +732,7 @@ export default function JudgeRoom() {
                       </div>
                       <div>
                         <small>{t("room.yourScore")}</small>
-                        <b>{number(room.result.scores[room.me])}</b>
+                        <b className={room.result.scores[room.me] == null ? "gm-not-submitted" : undefined}>{room.result.scores[room.me] == null ? t("room.notSubmitted") : number(room.result.scores[room.me])}</b>
                       </div>
                       <div className="is-gain">
                         <small>{t("room.points")}</small>
@@ -750,6 +760,7 @@ export default function JudgeRoom() {
         <>
           <header className="cm-head">
             <h1>{t("room.findMole")}</h1>
+            <span className="gm-timer"><Timer size={14} />{Math.max(0, Math.ceil(room.closes - clock))}s</span>
           </header>
           <ul className="gm-suspects">
             {room.players
@@ -776,10 +787,10 @@ export default function JudgeRoom() {
           </ul>
           <button
             className="gm-cta"
-            disabled={busy || room.has_ballot}
-            onClick={() => void action({ action: "vote", suspect })}
+            disabled={busy || room.has_ballot || suspect === undefined || clock >= room.closes}
+            onClick={() => { moleVote.current = suspect; void action({ action: "vote", suspect }); }}
           >
-            {t("room.vote")}
+            {t(busy ? "common.loading" : room.has_ballot ? "room.voteSubmitted" : "room.vote")}
           </button>
         </>
       )}
@@ -797,6 +808,7 @@ export default function JudgeRoom() {
                     t("room.nobody"),
                 })}
               </b>
+              <p>{t(!room.has_ballot ? "room.noVote" : moleVote.current === undefined ? "room.voteSubmitted" : moleVote.current === room.mole ? "room.voteCorrect" : "room.voteIncorrect")}</p>
             </section>
           )}
           <section className="ca-panel">
@@ -813,29 +825,6 @@ export default function JudgeRoom() {
                   </li>
                 ))}
             </ol>
-          </section>
-          <section className="gm-awards">
-            <div className="ca-panel">
-              <b>{t("room.sharp")}</b>
-              <small>
-                {
-                  [...room.players]
-                    .filter((p) => !p.emoji)
-                    .sort((a, b) => (b.accurate ?? 0) - (a.accurate ?? 0))[0]
-                    ?.name
-                }
-              </small>
-            </div>
-            <div className="ca-panel">
-              <b>{t("room.harsh")}</b>
-              <small>
-                {
-                  [...room.players]
-                    .filter((p) => !p.emoji)
-                    .sort((a, b) => (b.low ?? 0) - (a.low ?? 0))[0]?.name
-                }
-              </small>
-            </div>
           </section>
           <div className="gm-row">
             <button

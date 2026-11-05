@@ -67,19 +67,19 @@ export default function AutomaticScores() {
         </Link>
         <div className="eval-board-main">
           <div className="eval-attempt-heading">
-            <strong className="eval-mean" aria-hidden>{item.mean_score === null ? '—' : scoreNumber(item.mean_score, i18n.language)}</strong>
-            <Link to={`/dives?clip=${item.dive_id}`} className="eval-dive-link">{item.dive_code} · {item.height}</Link>
+            {item.mean_score !== null && <strong className="eval-mean" aria-hidden>{scoreNumber(item.mean_score, i18n.language)}</strong>}
+            <Link to={`/dives?clip=${item.dive_id}`} className="eval-dive-link"><span>{item.dive_code} · {item.height}</span><small className="eval-attempt-id">#{item.dive_id}</small></Link>
           </div>
-          {item.identity?.dive_datetime && <time className="eval-attempt-date" dateTime={item.identity.dive_datetime}>{format(parseISO(item.identity.dive_datetime), 'd MMM yyyy · HH:mm:ss', { locale: appLocale() })}</time>}
+          {item.identity?.dive_datetime && <time className="eval-attempt-date" dateTime={item.identity.dive_datetime}>{format(parseISO(item.identity.dive_datetime), items.filter(row => row.identity?.dive_datetime === item.identity?.dive_datetime).length > 1 ? 'd MMM yyyy' : 'd MMM yyyy · HH:mm:ss', { locale: appLocale() })}</time>}
           <p className="sr-only">{t('evaluations.communityScore', { score: scoreNumber(item.mean_score, i18n.language), count: item.rating_count })}</p>
           <span className="eval-pips" aria-hidden>
-            <em>{t('evaluations.judgesCount', { count: item.rating_count })}</em>
+            <em>{item.rating_count ? t('evaluations.judgesCount', { count: item.rating_count }) : t('evaluations.awaitingReviews')}</em>
           </span>
           <OwnedPanelLink requestId={item.dive_id} automatic />
         </div>
         <label className="eval-switch">
           <input type="checkbox" role="switch" checked={!item.excluded} disabled={busy !== null} onChange={() => void toggle(item)}
-            aria-label={t(item.excluded ? 'evaluations.includeAutomatic' : 'evaluations.excludeAutomatic')} />
+            aria-label={t('evaluations.inSelections')} />
           <span aria-hidden />
           <small>{t('evaluations.inSelections')}</small>
         </label>

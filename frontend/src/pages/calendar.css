@@ -276,3 +276,9 @@
 .calendar-legacy .calendar-member > div > span { color: var(--app-muted); font-size: 13px; }
 .calendar-legacy .calendar-inline-form { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; }
 .calendar-legacy .calendar-inline-form select, .calendar-legacy .calendar-inline-form input { min-height: 40px; padding: 6px 12px; font-size: 14px; }
+
+.calendar-form-header { position:sticky; top:8px; z-index:12; display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px 16px; padding:8px 0; background:var(--app-bg); border-bottom:1px solid var(--app-border); }
+.calendar-form-header .calendar-actions { flex:none; }
+
+.cal-filters { flex-wrap:wrap; overflow:visible; }
+.cal-filters .ca-pill { overflow:visible; text-overflow:clip; }

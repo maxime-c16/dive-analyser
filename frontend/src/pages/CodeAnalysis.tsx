@@ -243,7 +243,7 @@ export default function CodeAnalysis() {
     {diverChip && <div className="ca-topbar-chip">{diverChip}</div>}
   </>
 
-  if (!attempts && !error) return <div className="ca ca-page"><div className="ca-span">{topbar}</div><div className="ca-skeleton" style={{ height: 120 }} /><div className="ca-skeleton" style={{ height: 80 }} /><div className="ca-skeleton" style={{ height: 260 }} /></div>
+  if (!attempts && !error) return <div className="ca ca-page"><div className="ca-span">{topbar}</div><p role="status">{t("common.loading")}</p><div className="ca-skeleton" style={{ height: 120 }} /><div className="ca-skeleton" style={{ height: 80 }} /><div className="ca-skeleton" style={{ height: 260 }} /></div>
   if (error && !attempts) return <div className="ca ca-page"><div className="ca-span">{topbar}</div><div className="ca-note" role="alert">{error} <button type="button" className="ca-btn" onClick={() => setReload(value => value + 1)}>{t('common.retry')}</button></div></div>
 
   const name = diveCodeName(code, lang)

@@ -353,10 +353,10 @@ function MobileShell({ children }: { children: React.ReactNode }) {
       <button type="button" aria-expanded={open} ref={menuTriggerRef} aria-controls="mobile-navigation"
         onClick={() => setOpen(true)} className="mobile-account-trigger touch-target inline-flex items-center justify-center rounded-full border border-app bg-app-panel text-app-text"
         aria-label={t("nav.accountNavigationAria")}>
-        {user ? <MemberAvatar member={user} size={32} /> : <UserRound className="h-5 w-5" />}
+        {user && primaryTabFor(location.pathname) === null ? <MemberAvatar member={user} size={32} /> : <UserRound className="h-5 w-5" />}
       </button>
     </>,
-  }), [claim, open, t, user]);
+  }), [claim, open, t, user, location.pathname]);
 
   return (
     <MobileShellContext.Provider value={shell}>
@@ -408,7 +408,7 @@ function MobileTabLink({ item, active, location, remembered, iconOnly }: {
       {tab === 'messages' && <MessagesUnreadBadge className="absolute -top-1.5 -right-2.5" />}</span><span className={iconOnly ? "sr-only" : undefined}>{t(label)}</span></IntentNavLink>;
 }
 
-function MobileTabBar({ policy, remembered }: { policy: ReturnType<typeof useMobileNavPolicy>; remembered: ReturnType<typeof useTabMemory> }) {
+function MobileTabBar({ policy, remembered, attached = false }: { attached?: boolean; policy: ReturnType<typeof useMobileNavPolicy>; remembered: ReturnType<typeof useTabMemory> }) {
   const { t } = useTranslation();
   const location = useLocation();
   const bar = useRef<HTMLElement>(null);
@@ -421,16 +421,17 @@ function MobileTabBar({ policy, remembered }: { policy: ReturnType<typeof useMob
     const update = () => {
       if (!bar.current) return;
       const rect = bar.current.getBoundingClientRect();
-      root.style.setProperty('--mobile-nav-offset', `${window.innerHeight - rect.top + 8}px`);
+      const inFlow = attached;
+      root.style.setProperty('--mobile-nav-offset', inFlow ? '0px' : `${window.innerHeight - rect.top + 8}px`);
     };
     update();
     const observer = new ResizeObserver(update); observer.observe(bar.current);
     window.addEventListener('resize', update);
     return () => { observer.disconnect(); window.removeEventListener('resize', update); root.style.setProperty('--mobile-nav-offset', '0px'); };
-  }, [policy]);
+  }, [policy, attached]);
   if (policy !== 'visible') return null;
-  return <nav ref={bar} className={`mobile-tab-bar lg:hidden ${five ? "calendar-five-tabs" : ""}`} aria-label={t('nav.primaryNavigationAria')}>
-    {items.map(item => <MobileTabLink key={item.to} item={item} active={active} location={location} remembered={remembered} iconOnly={five} />)}
+  return <nav ref={bar} className={`mobile-tab-bar lg:hidden ${attached ? "attached-navigation" : ""} ${five ? "calendar-five-tabs" : ""}`} aria-label={t('nav.primaryNavigationAria')}>
+    {items.map(item => <MobileTabLink key={item.to} item={item} active={active} location={location} remembered={remembered} iconOnly={five && !attached} />)}
   </nav>;
 }
 
@@ -476,8 +477,10 @@ function Layout({ children }: { children: React.ReactNode }) {
   const remembered = useTabMemory(user?.user_id);
   const primaryNavItems = usePrimaryNav();
   const skipToMainContent = useSkipToMainContent();
+  const location = useLocation();
+  const professional = primaryTabFor(location.pathname) !== null;
   return (
-    <div className="min-h-screen bg-app text-app-text">
+    <div className={`min-h-screen bg-app text-app-text${professional ? " professional-shell" : ""}`}>
       <a href="#main-content" className="skip-link" onClick={skipToMainContent}>
         {t("nav.skipToContent")}
       </a>
@@ -525,6 +528,7 @@ function Layout({ children }: { children: React.ReactNode }) {
 
         <div className="flex min-w-0 flex-1 flex-col">
           <MobileShell>
+            {professional && <MobileTabBar policy={policy} remembered={remembered} attached />}
             <main id="main-content" tabIndex={-1} className="shell-main flex-1">
               <div className="mx-auto w-full max-w-[1440px] px-4 py-5 sm:px-6 lg:px-8 lg:py-8">
                 <Breadcrumbs />
@@ -532,7 +536,7 @@ function Layout({ children }: { children: React.ReactNode }) {
               </div>
             </main>
           </MobileShell>
-          <MobileTabBar policy={policy} remembered={remembered} />
+          {!professional && <MobileTabBar policy={policy} remembered={remembered} />}
         </div>
       </div>
     </div>

@@ -1,0 +1,427 @@
+{
+  "cells": [
+    {
+      "category": "Visual hierarchy",
+      "size": "390x844",
+      "score": 4,
+      "weakest_screen_reason": "My dives: every row leads with an unlabeled '\u2014' and identical timestamp; no focal attempt"
+    },
+    {
+      "category": "Visual hierarchy",
+      "size": "844x390",
+      "score": 3,
+      "weakest_screen_reason": "Landscape: dock + header consume viewport, primary content (chart/thread/grid) below or under dock"
+    },
+    {
+      "category": "Visual hierarchy",
+      "size": "768x1024",
+      "score": 4,
+      "weakest_screen_reason": "201C details: 4 collapsed same-weight accordions, no summary priority"
+    },
+    {
+      "category": "Visual hierarchy",
+      "size": "1024x768",
+      "score": 4,
+      "weakest_screen_reason": "201C details: flat accordion list, KPI row small"
+    },
+    {
+      "category": "Visual hierarchy",
+      "size": "1440x900",
+      "score": 4,
+      "weakest_screen_reason": "201C details: narrow column with flat collapsed sections; Judge Room screens small centered column"
+    },
+    {
+      "category": "Layout and density",
+      "size": "390x844",
+      "score": 3,
+      "weakest_screen_reason": "By code cards/recent chips dense; 201C details tables 8 columns at phone; group-draft sheet empty band"
+    },
+    {
+      "category": "Layout and density",
+      "size": "844x390",
+      "score": 2,
+      "weakest_screen_reason": "Messages thread shows ~1 message line; profile Stats-open pushes tabs off-screen; Calendar month grid under dock"
+    },
+    {
+      "category": "Layout and density",
+      "size": "768x1024",
+      "score": 4,
+      "weakest_screen_reason": "Judge Room lobby/scoring top-heavy, >50% empty below; details dense tables"
+    },
+    {
+      "category": "Layout and density",
+      "size": "1024x768",
+      "score": 4,
+      "weakest_screen_reason": "By code: opening one disclosure stretches sibling card into large empty box"
+    },
+    {
+      "category": "Layout and density",
+      "size": "1440x900",
+      "score": 3,
+      "weakest_screen_reason": "201C details ~620px column in 1260px; Judge Room ~520px column with huge empty space; By code stretched empty sibling card"
+    },
+    {
+      "category": "Typography",
+      "size": "390x844",
+      "score": 4,
+      "weakest_screen_reason": "Details/history/My dives secondary text 11-12px; tiny 'In selections' 13px"
+    },
+    {
+      "category": "Typography",
+      "size": "844x390",
+      "score": 4,
+      "weakest_screen_reason": "Mixed huge headings vs tiny meta"
+    },
+    {
+      "category": "Typography",
+      "size": "768x1024",
+      "score": 4,
+      "weakest_screen_reason": "Details 11-12px tables; room panel labels tiny"
+    },
+    {
+      "category": "Typography",
+      "size": "1024x768",
+      "score": 4,
+      "weakest_screen_reason": "Same"
+    },
+    {
+      "category": "Typography",
+      "size": "1440x900",
+      "score": 4,
+      "weakest_screen_reason": "Details & room text small relative to canvas"
+    },
+    {
+      "category": "Color and contrast",
+      "size": "390x844",
+      "score": 5,
+      "weakest_screen_reason": "Score-distribution bars dark grey on dark (near invisible); muted meta text"
+    },
+    {
+      "category": "Color and contrast",
+      "size": "844x390",
+      "score": 5,
+      "weakest_screen_reason": "same"
+    },
+    {
+      "category": "Color and contrast",
+      "size": "768x1024",
+      "score": 5,
+      "weakest_screen_reason": "same"
+    },
+    {
+      "category": "Color and contrast",
+      "size": "1024x768",
+      "score": 5,
+      "weakest_screen_reason": "same"
+    },
+    {
+      "category": "Color and contrast",
+      "size": "1440x900",
+      "score": 5,
+      "weakest_screen_reason": "same"
+    },
+    {
+      "category": "Spacing and alignment",
+      "size": "390x844",
+      "score": 4,
+      "weakest_screen_reason": "Group draft: empty gap above list with cut row; filter chips clipped at edge (analysis, calendar)"
+    },
+    {
+      "category": "Spacing and alignment",
+      "size": "844x390",
+      "score": 3,
+      "weakest_screen_reason": "Floating dock overlaps last rows/composer area on Library, By code, Progress, Community, Calendar, event detail, new-event form"
+    },
+    {
+      "category": "Spacing and alignment",
+      "size": "768x1024",
+      "score": 4,
+      "weakest_screen_reason": "Lobby input grey bar misaligned with chip styling"
+    },
+    {
+      "category": "Spacing and alignment",
+      "size": "1024x768",
+      "score": 4,
+      "weakest_screen_reason": "By code stretched card"
+    },
+    {
+      "category": "Spacing and alignment",
+      "size": "1440x900",
+      "score": 4,
+      "weakest_screen_reason": "Room/details left-weighted narrow column"
+    },
+    {
+      "category": "Navigation and orientation",
+      "size": "390x844",
+      "score": 5,
+      "weakest_screen_reason": "Phone Library uses Clips/By code/Progress segmented while wider sizes use My dives/Community + 4 icon buttons \u2014 two IA for same view"
+    },
+    {
+      "category": "Navigation and orientation",
+      "size": "844x390",
+      "score": 3,
+      "weakest_screen_reason": "Dock covers content on most landscape screens; orientation lost when content scrolls under it"
+    },
+    {
+      "category": "Navigation and orientation",
+      "size": "768x1024",
+      "score": 5,
+      "weakest_screen_reason": "Ok sidebar/dock; breadcrumbs present"
+    },
+    {
+      "category": "Navigation and orientation",
+      "size": "1024x768",
+      "score": 5,
+      "weakest_screen_reason": "ok"
+    },
+    {
+      "category": "Navigation and orientation",
+      "size": "1440x900",
+      "score": 5,
+      "weakest_screen_reason": "Breadcrumbs ok; analysis details back link only"
+    },
+    {
+      "category": "Control clarity",
+      "size": "390x844",
+      "score": 4,
+      "weakest_screen_reason": "My dives switch accessible name 'Exclude from automatic selections' while checked shows 'In selections' (inverted semantics); By code row has \u25b6 disclosure + \u203a chevron with different actions"
+    },
+    {
+      "category": "Control clarity",
+      "size": "844x390",
+      "score": 4,
+      "weakest_screen_reason": "Room: score selected but not Submitted is dropped at timeout"
+    },
+    {
+      "category": "Control clarity",
+      "size": "768x1024",
+      "score": 4,
+      "weakest_screen_reason": "Mole vote: 'Nobody' preselected, no countdown"
+    },
+    {
+      "category": "Control clarity",
+      "size": "1024x768",
+      "score": 4,
+      "weakest_screen_reason": "Icon-only '#' code view / trend icon"
+    },
+    {
+      "category": "Control clarity",
+      "size": "1440x900",
+      "score": 4,
+      "weakest_screen_reason": "Same as other sizes; Analyze button text tight"
+    },
+    {
+      "category": "Terminology and instructions",
+      "size": "390x844",
+      "score": 3,
+      "weakest_screen_reason": "Raw i18n key 'analysis.period' in Attempts-to-review header; '1 attempts \u00b7 1 sessions'; 'First judge' on every History row; DB/SD/HU/3mp/IQR; mixed date formats (18 Oct 2026 / Saturday, November 7 / Oct 9, 2026 / 2024-11-26 / 11/04/2026 10:00 AM vs 18:30\u201320:30)"
+    },
+    {
+      "category": "Terminology and instructions",
+      "size": "844x390",
+      "score": 3,
+      "weakest_screen_reason": "Raw i18n key 'analysis.period' in Attempts-to-review header; '1 attempts \u00b7 1 sessions'; 'First judge' on every History row; DB/SD/HU/3mp/IQR; mixed date formats (18 Oct 2026 / Saturday, November 7 / Oct 9, 2026 / 2024-11-26 / 11/04/2026 10:00 AM vs 18:30\u201320:30)"
+    },
+    {
+      "category": "Terminology and instructions",
+      "size": "768x1024",
+      "score": 3,
+      "weakest_screen_reason": "Raw i18n key 'analysis.period' in Attempts-to-review header; '1 attempts \u00b7 1 sessions'; 'First judge' on every History row; DB/SD/HU/3mp/IQR; mixed date formats (18 Oct 2026 / Saturday, November 7 / Oct 9, 2026 / 2024-11-26 / 11/04/2026 10:00 AM vs 18:30\u201320:30)"
+    },
+    {
+      "category": "Terminology and instructions",
+      "size": "1024x768",
+      "score": 3,
+      "weakest_screen_reason": "Raw i18n key 'analysis.period' in Attempts-to-review header; '1 attempts \u00b7 1 sessions'; 'First judge' on every History row; DB/SD/HU/3mp/IQR; mixed date formats (18 Oct 2026 / Saturday, November 7 / Oct 9, 2026 / 2024-11-26 / 11/04/2026 10:00 AM vs 18:30\u201320:30)"
+    },
+    {
+      "category": "Terminology and instructions",
+      "size": "1440x900",
+      "score": 3,
+      "weakest_screen_reason": "Raw i18n key 'analysis.period' in Attempts-to-review header; '1 attempts \u00b7 1 sessions'; 'First judge' on every History row; DB/SD/HU/3mp/IQR; mixed date formats (18 Oct 2026 / Saturday, November 7 / Oct 9, 2026 / 2024-11-26 / 11/04/2026 10:00 AM vs 18:30\u201320:30)"
+    },
+    {
+      "category": "Component consistency",
+      "size": "390x844",
+      "score": 3,
+      "weakest_screen_reason": "201C details uses a different (older) visual language than overview; native-styled new-event form; room lobby code input grey unstyled; two Library toolbars"
+    },
+    {
+      "category": "Component consistency",
+      "size": "844x390",
+      "score": 3,
+      "weakest_screen_reason": "201C details uses a different (older) visual language than overview; native-styled new-event form; room lobby code input grey unstyled; two Library toolbars"
+    },
+    {
+      "category": "Component consistency",
+      "size": "768x1024",
+      "score": 3,
+      "weakest_screen_reason": "201C details uses a different (older) visual language than overview; native-styled new-event form; room lobby code input grey unstyled; two Library toolbars"
+    },
+    {
+      "category": "Component consistency",
+      "size": "1024x768",
+      "score": 3,
+      "weakest_screen_reason": "201C details uses a different (older) visual language than overview; native-styled new-event form; room lobby code input grey unstyled; two Library toolbars"
+    },
+    {
+      "category": "Component consistency",
+      "size": "1440x900",
+      "score": 3,
+      "weakest_screen_reason": "201C details uses a different (older) visual language than overview; native-styled new-event form; room lobby code input grey unstyled; two Library toolbars"
+    },
+    {
+      "category": "Task content presentation",
+      "size": "390x844",
+      "score": 4,
+      "weakest_screen_reason": "My dives: 19/20 rows share timestamp 2026-10-18T17:23:24 \u2192 attempts still indistinguishable except thumbnail; clip 3028 row has no poster"
+    },
+    {
+      "category": "Task content presentation",
+      "size": "844x390",
+      "score": 3,
+      "weakest_screen_reason": "Messages thread ~1 line visible; analysis chart below fold; Calendar grid 1.5 weeks visible"
+    },
+    {
+      "category": "Task content presentation",
+      "size": "768x1024",
+      "score": 4,
+      "weakest_screen_reason": "Scores chart very noisy (dense vertical session bars)"
+    },
+    {
+      "category": "Task content presentation",
+      "size": "1024x768",
+      "score": 4,
+      "weakest_screen_reason": "same chart"
+    },
+    {
+      "category": "Task content presentation",
+      "size": "1440x900",
+      "score": 4,
+      "weakest_screen_reason": "same chart; details half empty"
+    },
+    {
+      "category": "Feedback and state clarity",
+      "size": "390x844",
+      "score": 4,
+      "weakest_screen_reason": "Room: selected 6 not submitted \u2192 'Your score \u2014, +0' silently; after Submit button stays enabled \u2265800ms; results award 'Eagle eye'/'The harshest' to 0-point player (Classic timeout & Guess the Code); mole vote auto-ended ~20s with no visible timer; Library clip first load MEDIA_ELEMENT_ERROR format error until Retry; analysis page blank (no loader) while loading; calendar detail 'today' + RSVP for ended session; profile stats 143 dives vs directory '152 shared dives'"
+    },
+    {
+      "category": "Feedback and state clarity",
+      "size": "844x390",
+      "score": 4,
+      "weakest_screen_reason": "Room: selected 6 not submitted \u2192 'Your score \u2014, +0' silently; after Submit button stays enabled \u2265800ms; results award 'Eagle eye'/'The harshest' to 0-point player (Classic timeout & Guess the Code); mole vote auto-ended ~20s with no visible timer; Library clip first load MEDIA_ELEMENT_ERROR format error until Retry; analysis page blank (no loader) while loading; calendar detail 'today' + RSVP for ended session; profile stats 143 dives vs directory '152 shared dives'"
+    },
+    {
+      "category": "Feedback and state clarity",
+      "size": "768x1024",
+      "score": 4,
+      "weakest_screen_reason": "Room: selected 6 not submitted \u2192 'Your score \u2014, +0' silently; after Submit button stays enabled \u2265800ms; results award 'Eagle eye'/'The harshest' to 0-point player (Classic timeout & Guess the Code); mole vote auto-ended ~20s with no visible timer; Library clip first load MEDIA_ELEMENT_ERROR format error until Retry; analysis page blank (no loader) while loading; calendar detail 'today' + RSVP for ended session; profile stats 143 dives vs directory '152 shared dives'"
+    },
+    {
+      "category": "Feedback and state clarity",
+      "size": "1024x768",
+      "score": 4,
+      "weakest_screen_reason": "Room: selected 6 not submitted \u2192 'Your score \u2014, +0' silently; after Submit button stays enabled \u2265800ms; results award 'Eagle eye'/'The harshest' to 0-point player (Classic timeout & Guess the Code); mole vote auto-ended ~20s with no visible timer; Library clip first load MEDIA_ELEMENT_ERROR format error until Retry; analysis page blank (no loader) while loading; calendar detail 'today' + RSVP for ended session; profile stats 143 dives vs directory '152 shared dives'"
+    },
+    {
+      "category": "Feedback and state clarity",
+      "size": "1440x900",
+      "score": 4,
+      "weakest_screen_reason": "Room: selected 6 not submitted \u2192 'Your score \u2014, +0' silently; after Submit button stays enabled \u2265800ms; results award 'Eagle eye'/'The harshest' to 0-point player (Classic timeout & Guess the Code); mole vote auto-ended ~20s with no visible timer; Library clip first load MEDIA_ELEMENT_ERROR format error until Retry; analysis page blank (no loader) while loading; calendar detail 'today' + RSVP for ended session; profile stats 143 dives vs directory '152 shared dives'"
+    },
+    {
+      "category": "Professional finish",
+      "size": "390x844",
+      "score": 3,
+      "weakest_screen_reason": "Raw key visible; award logic bug; pluralization; stretched empty cards"
+    },
+    {
+      "category": "Professional finish",
+      "size": "844x390",
+      "score": 3,
+      "weakest_screen_reason": "Raw key visible; award logic bug; pluralization; stretched empty cards"
+    },
+    {
+      "category": "Professional finish",
+      "size": "768x1024",
+      "score": 3,
+      "weakest_screen_reason": "Raw key visible; award logic bug; pluralization; stretched empty cards"
+    },
+    {
+      "category": "Professional finish",
+      "size": "1024x768",
+      "score": 3,
+      "weakest_screen_reason": "Raw key visible; award logic bug; pluralization; stretched empty cards"
+    },
+    {
+      "category": "Professional finish",
+      "size": "1440x900",
+      "score": 3,
+      "weakest_screen_reason": "Raw key visible; award logic bug; pluralization; stretched empty cards"
+    },
+    {
+      "category": "Responsive fit",
+      "size": "390x844",
+      "score": 4,
+      "weakest_screen_reason": "Chip rows clipped; group sheet gap"
+    },
+    {
+      "category": "Responsive fit",
+      "size": "844x390",
+      "score": 2,
+      "weakest_screen_reason": "Dock overlay across most screens; results/reveal primary actions below fold inside inner scroller"
+    },
+    {
+      "category": "Responsive fit",
+      "size": "768x1024",
+      "score": 5,
+      "weakest_screen_reason": "ok-ish"
+    },
+    {
+      "category": "Responsive fit",
+      "size": "1024x768",
+      "score": 5,
+      "weakest_screen_reason": "ok-ish"
+    },
+    {
+      "category": "Responsive fit",
+      "size": "1440x900",
+      "score": 4,
+      "weakest_screen_reason": "Room and details don't use width"
+    },
+    {
+      "category": "Next-action discoverability",
+      "size": "390x844",
+      "score": 5,
+      "weakest_screen_reason": "'Show the jury panel' offered on 0-judge rows; By code chevron meaning unclear"
+    },
+    {
+      "category": "Next-action discoverability",
+      "size": "844x390",
+      "score": 3,
+      "weakest_screen_reason": "Reveal 'See results' and results 'Play again' (y402-446 in 390 viewport) below fold"
+    },
+    {
+      "category": "Next-action discoverability",
+      "size": "768x1024",
+      "score": 5,
+      "weakest_screen_reason": "ok"
+    },
+    {
+      "category": "Next-action discoverability",
+      "size": "1024x768",
+      "score": 5,
+      "weakest_screen_reason": "ok"
+    },
+    {
+      "category": "Next-action discoverability",
+      "size": "1440x900",
+      "score": 5,
+      "weakest_screen_reason": "ok"
+    }
+  ],
+  "minimum": 2,
+  "count_below_7": 70,
+  "numeric": 70
+}

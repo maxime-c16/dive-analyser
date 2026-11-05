@@ -1,8 +1,10 @@
 {
   "id": "ui-hill-climb-main-journeys",
   "date": "2026-11-04",
-  "title": "Clearer Library and review screens",
-  "body": "Browse larger dive previews, expand statistics when needed, and keep conversation controls and room setup within reach.",
+  "title": "Clearer navigation and dive reviews",
+  "body": "Find named sections, review footage with visible controls, and open detailed statistics when needed. Conversation and group-judging controls fit smaller screens.",
   "audience": "all",
-  "components": ["frontend"]
+  "components": [
+    "frontend"
+  ]
 }

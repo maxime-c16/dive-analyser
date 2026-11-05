@@ -266,3 +266,5 @@ button.ca-comm-row:active { transform: scale(.985); }
 .ca-diver-chip .member-avatar-face { inset: 0; border-radius: 50%; }
 .ca-diver-chip { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 14px 0 3px; border: 1px solid var(--app-border); border-radius: 999px; font-size: 14px; color: var(--app-text); min-width: 0; }
 .ca-diver-chip b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.ca-code-grid { align-items:start; }

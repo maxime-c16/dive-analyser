@@ -1,0 +1,16 @@
+{
+  "minimum": 5,
+  "below7": 51,
+  "numeric": 70,
+  "missing_numeric": 0,
+  "fullscope": false,
+  "scope_gaps": [
+    "judging interactions844/768/1024",
+    "new-message/group draft beyondphone",
+    "molevote/code gameplay beyonddesktop",
+    "newform844",
+    "viewerexit844",
+    "footage playback not established"
+  ],
+  "reported_matrix_preserved": true
+}

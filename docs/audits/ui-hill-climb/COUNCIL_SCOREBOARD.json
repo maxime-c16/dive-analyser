@@ -1,0 +1,159 @@
+{
+  "aggregation": "minimum observed screen per category and size; no average; missing is not a pass",
+  "rows": [
+    {
+      "attempt": 1,
+      "reviewer": "Codex low",
+      "sha_noted": "056b5a63",
+      "minimum": null,
+      "below7": 0,
+      "numeric_cells": 0,
+      "missing_cells": 70,
+      "coverage": "blocked before entry",
+      "state": "not a design verdict"
+    },
+    {
+      "attempt": 2,
+      "reviewer": "Codex low",
+      "sha_noted": "056b5a63",
+      "minimum": null,
+      "below7": 0,
+      "numeric_cells": 0,
+      "missing_cells": 70,
+      "coverage": "one phone Library view",
+      "state": "incomplete"
+    },
+    {
+      "attempt": 2,
+      "reviewer": "Muse xhigh requested",
+      "sha_noted": "056b5a63",
+      "minimum": 2,
+      "below7": 70,
+      "numeric_cells": 70,
+      "missing_cells": 0,
+      "coverage": "partial; children missing",
+      "state": "FAIL; reported scores retained, not accepted fullscope"
+    },
+    {
+      "attempt": 2,
+      "reviewer": "GLM max oc2",
+      "sha_noted": "056b5a63",
+      "minimum": null,
+      "below7": 0,
+      "numeric_cells": 0,
+      "missing_cells": 70,
+      "coverage": "interrupted at STOP, no final matrix",
+      "state": "no final verdict"
+    },
+    {
+      "attempt": 3,
+      "reviewer": "Codex low",
+      "sha_noted": "056b5a63",
+      "minimum": null,
+      "below7": 0,
+      "numeric_cells": 0,
+      "missing_cells": 70,
+      "coverage": "preflight only",
+      "state": "incomplete"
+    },
+    {
+      "attempt": 3,
+      "reviewer": "fallback GLM max oc1",
+      "sha_noted": "056b5a63",
+      "minimum": null,
+      "below7": 0,
+      "numeric_cells": 0,
+      "missing_cells": 70,
+      "coverage": "interrupted at STOP, no final matrix",
+      "state": "no final verdict"
+    },
+    {
+      "attempt": 4,
+      "reviewer": "Muse xhigh oc1",
+      "sha_noted": "6cb6cff7",
+      "minimum": 5,
+      "below7": 51,
+      "numeric_cells": 70,
+      "missing_cells": 0,
+      "coverage": "partial; see round-04/muse-summary.json",
+      "state": "FAIL; not fullscope accepted"
+    },
+    {
+      "attempt": 4,
+      "reviewer": "GLM max oc2",
+      "sha_noted": "6cb6cff7",
+      "minimum": null,
+      "below7": 0,
+      "numeric_cells": 0,
+      "missing_cells": 70,
+      "coverage": "pending delivery; not polled",
+      "state": "cancel requested at explicit user replacement by Opus5.5 medium; no verdict inferred"
+    },
+    {
+      "attempt": 4,
+      "reviewer": "fallback GLM max oc1",
+      "sha_noted": "6cb6cff7",
+      "minimum": null,
+      "below7": 0,
+      "numeric_cells": 0,
+      "missing_cells": 70,
+      "coverage": "pending delivery; not polled",
+      "state": "cancel requested at explicit user replacement; no verdict inferred"
+    },
+    {
+      "attempt": 4,
+      "reviewer": "GPT6.1Sol medium, Codex account",
+      "sha_noted": "6cb6cff7",
+      "minimum": 4,
+      "below7": 55,
+      "numeric_cells": 70,
+      "missing_cells": 0,
+      "coverage": "351captures; interactions not independently repeated at every size; see report",
+      "state": "FAIL"
+    },
+    {
+      "attempt": 4,
+      "reviewer": "Claude Opus5.5 medium, Claude provider",
+      "sha_noted": "6cb6cff7",
+      "minimum": 2,
+      "below7": 70,
+      "numeric_cells": 70,
+      "missing_cells": 0,
+      "coverage": "required gaps retained; see full report",
+      "state": "FAIL"
+    }
+  ],
+  "current_gate": {
+    "sha": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "required_cells": 210,
+    "accepted_fullscope_cells": 0,
+    "state": "all three round4 reviewers FAIL;176reported cells below7, coverage gaps remain",
+    "threshold": 7,
+    "numeric_reported": 210,
+    "below7_reported": 176
+  },
+  "sha_corrected_not_reevaluated": null,
+  "active_roster": [
+    {
+      "provider": "oc1",
+      "model": "opencode-go/muse-spark-1.3-contributor",
+      "options": {
+        "variant": "xhigh"
+      }
+    },
+    {
+      "provider": "codex",
+      "model": "gpt-6.1-sol",
+      "options": {
+        "reasoningEffort": "medium"
+      }
+    },
+    {
+      "provider": "claudeAgent",
+      "model": "claude-opus-5-5",
+      "options": {
+        "effort": "medium"
+      }
+    }
+  ]
+}

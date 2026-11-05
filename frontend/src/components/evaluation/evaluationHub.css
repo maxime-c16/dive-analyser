@@ -169,3 +169,9 @@
 @media(max-width:500px) { .eval-board-row { grid-template-columns:48px minmax(0,1fr) auto; gap:10px; } .eval-attempt-preview { width:48px; height:76px; grid-column:1; grid-row:1 / span 2; } .eval-board-main { grid-column:2; grid-row:1; } .eval-board-row > .eval-switch { grid-column:3; grid-row:1 / span 2; } }
 
 .eval-attempt-heading { display:flex; align-items:baseline; gap:12px; }
+
+.eval-history-summary { min-height:76px; }
+.eval-history-text { font-size:14px; line-height:1.4; }
+.eval-history-text strong { font-size:16px; }
+
+.eval-dive-link{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}.eval-attempt-id{font-size:13px;font-weight:500;color:var(--text-muted)}

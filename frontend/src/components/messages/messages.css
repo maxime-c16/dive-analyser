@@ -202,3 +202,6 @@
 .msg-title-row input:focus { border-color: var(--app-accent); }
 .msg-menu-pop .msg-title-save { display: grid; flex: none; place-items: center; width: 40px; min-height: 40px; padding: 0; border-radius: 999px; background: var(--app-accent); color: #06201b; animation: msg-badge 280ms var(--msg-spring, cubic-bezier(.3, 1.4, .5, 1)) backwards; }
 .msg-name-field { flex: none; color: var(--app-text); }
+
+.msg-sheet-head, .msg-mode, .msg-name-field { flex-shrink:0; }
+@media(min-width:768px) and (max-height:500px) { .msg-head { margin-bottom:8px; } .msg-thread-head { min-height:40px; padding:6px 10px; } .msg-thread { height:calc(100dvh - var(--message-top,80px) - 8px); } .msg-sheet { max-height:calc(100dvh - 76px); } }
