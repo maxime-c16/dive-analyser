@@ -118,5 +118,21 @@
   },
   "browser_capacity": "Sol low blockedTooManyTabs. Owncurrenttab_xclosed freeing1slot. Seven old same-thread tabs agentMismatch, not closed. One new Sol low retry reservedslot; otherspending notpolled. Noauthchanges.",
   "visual_blocker": "Native snapshot host repeatedly timesout15000ms, independently reproduced by parent; repeated loops stopped. No alternative supported authenticated browser exposed.",
-  "audio_constraint": "No new playback after explicit user silence request; own currentpagesmediafree; no active reviewers; lockedtabsuntouched"
+  "audio_constraint": "No new playback after explicit user silence request; own currentpagesmediafree; no active reviewers; lockedtabsuntouched",
+  "latest_resumption": {
+    "date": "2026-11-05",
+    "vite_session": 72895,
+    "tunnel_session": 64724,
+    "proxy_target": "https://localhost:6002",
+    "own_tab": "tab_1e_c539092e-8e18-4ced-b1f1-786e334b7451",
+    "auth_me": 200,
+    "library": 200,
+    "checks": "117files960tests PASS; typecheck/buildPASS",
+    "private_manifest": "/tmp/dive-ui-qa-latest-private.json",
+    "threshold_reached": false,
+    "source_sha": "2c07abee70c41844d981ebdb9fa95a3f585bbdc4",
+    "capture_attempts": 230,
+    "room_modes": "Actual5size mutedplayback/scoring/reveal/vote/results with phase-validated captures",
+    "remaining": "run-05/README.md"
+  }
 }
