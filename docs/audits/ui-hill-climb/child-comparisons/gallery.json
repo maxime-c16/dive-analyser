@@ -1,0 +1,92 @@
+[
+  {
+    "flow": "analysis-details",
+    "viewport": [
+      390,
+      844
+    ],
+    "image": "images/analysis-details-390x844.png",
+    "before_source": "baseline ef05e126",
+    "before_original": "browser-screenshot-localhost-mw1eeyho-11a38e12.png",
+    "before_sha256": "73f70d32036b7ae4c9cde7e58757e934f7be20dfde52ae876b0fb00517ead9c5",
+    "after_original": "browser-screenshot-localhost-mw1hmdcv-842e83b8.png",
+    "after_sha256": "ffe14124e245decdc09c8ae5ebbf3de985f987f4568b50ff98fd694946389394",
+    "privacy": "media blur; originals retained outside Git",
+    "council_score": null
+  },
+  {
+    "flow": "analysis-details",
+    "viewport": [
+      1440,
+      900
+    ],
+    "image": "images/analysis-details-1440x900.png",
+    "before_source": "baseline ef05e126",
+    "before_original": "browser-screenshot-localhost-mw1eez2u-7d16cfc3.png",
+    "before_sha256": "6c79c509e1938b6539395acebc129b993d27db7f83f3d4898ed319f31c0cf86b",
+    "after_original": "browser-screenshot-localhost-mw1hmejr-ba95b796.png",
+    "after_sha256": "4ce859b538d1b83a5557543bb7e92af1ffc9d7512a62a7181adbebdb58baa54a",
+    "privacy": "media blur; originals retained outside Git",
+    "council_score": null
+  },
+  {
+    "flow": "code-disclosure",
+    "viewport": [
+      390,
+      844
+    ],
+    "image": "images/code-disclosure-390x844.png",
+    "before_source": "baseline ef05e126",
+    "before_original": "browser-screenshot-localhost-mw1gfl0c-59407b00.png",
+    "before_sha256": "350135153abe7392a6338d60342d27ebad1fb28ca55daa5aff73da955f387e30",
+    "after_original": "browser-screenshot-localhost-mw1gch3d-237bfa5f.png",
+    "after_sha256": "86974aa43fa5d0ded567a61c38775e9fdeb753ce00d18b47abe8e72bdc6bce33",
+    "privacy": "media blur; originals retained outside Git",
+    "council_score": null
+  },
+  {
+    "flow": "code-disclosure",
+    "viewport": [
+      1440,
+      900
+    ],
+    "image": "images/code-disclosure-1440x900.png",
+    "before_source": "baseline ef05e126",
+    "before_original": "browser-screenshot-localhost-mw1gfmfg-393e588f.png",
+    "before_sha256": "f345b34b0d272a6da0f1ad86792e93199d6101fa1b5d218078da4db895f808cb",
+    "after_original": "browser-screenshot-localhost-mw1gcm4h-0177832d.png",
+    "after_sha256": "01a96951d2a77a9ebf0e0bc03b199396e12b5876e8f798e6e12e33b870b7821c",
+    "privacy": "media blur; originals retained outside Git",
+    "council_score": null
+  },
+  {
+    "flow": "room-results",
+    "viewport": [
+      390,
+      844
+    ],
+    "image": "images/room-results-390x844.png",
+    "before_source": "intermediate UI before results rewrite",
+    "before_original": "browser-screenshot-localhost-mw1f7ifo-9432dd96.png",
+    "before_sha256": "4fd80662cb29df531b61bf90b27003d6926ba573a7c41d436b8271e34679e0af",
+    "after_original": "browser-screenshot-localhost-mw1gzuqy-79f912c6.png",
+    "after_sha256": "9a4553e9ef253b472e87f10a8e34019cfa47ebd60379a8c29d15df172fc1bc79",
+    "privacy": "media blur; originals retained outside Git",
+    "council_score": null
+  },
+  {
+    "flow": "room-results",
+    "viewport": [
+      1440,
+      900
+    ],
+    "image": "images/room-results-1440x900.png",
+    "before_source": "intermediate UI before results rewrite",
+    "before_original": "browser-screenshot-localhost-mw1f7j9k-3d4cfbe3.png",
+    "before_sha256": "61b7ba6087b877ac14dbbdb7598c4ce458fd93cec814bb247e75af9c1603a433",
+    "after_original": "browser-screenshot-localhost-mw1gzvrf-eeca4a26.png",
+    "after_sha256": "f85b8ee2984194949527a83818a136a46c1955fe46e41b8000a999dab304959f",
+    "privacy": "media blur; originals retained outside Git",
+    "council_score": null
+  }
+]

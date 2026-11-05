@@ -1,0 +1,932 @@
+[
+  {
+    "review": "Muse attempt2",
+    "category": "Visual hierarchy",
+    "viewport": "390x844",
+    "score": 3,
+    "sha_noted": "056b5a638876f5b7602334616124eb1bdd984a2c",
+    "correction_or_recheck_paths": [
+      "My dives identity",
+      "Library hierarchy"
+    ],
+    "sha_corrected_not_reevaluated": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "state": "pending independent reevaluation; no score increase inferred"
+  },
+  {
+    "review": "Muse attempt2",
+    "category": "Visual hierarchy",
+    "viewport": "844x390",
+    "score": 3,
+    "sha_noted": "056b5a638876f5b7602334616124eb1bdd984a2c",
+    "correction_or_recheck_paths": [
+      "My dives identity",
+      "Library hierarchy"
+    ],
+    "sha_corrected_not_reevaluated": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "state": "pending independent reevaluation; no score increase inferred"
+  },
+  {
+    "review": "Muse attempt2",
+    "category": "Visual hierarchy",
+    "viewport": "768x1024",
+    "score": 3,
+    "sha_noted": "056b5a638876f5b7602334616124eb1bdd984a2c",
+    "correction_or_recheck_paths": [
+      "My dives identity",
+      "Library hierarchy"
+    ],
+    "sha_corrected_not_reevaluated": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "state": "pending independent reevaluation; no score increase inferred"
+  },
+  {
+    "review": "Muse attempt2",
+    "category": "Visual hierarchy",
+    "viewport": "1024x768",
+    "score": 4,
+    "sha_noted": "056b5a638876f5b7602334616124eb1bdd984a2c",
+    "correction_or_recheck_paths": [
+      "My dives identity",
+      "Library hierarchy"
+    ],
+    "sha_corrected_not_reevaluated": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "state": "pending independent reevaluation; no score increase inferred"
+  },
+  {
+    "review": "Muse attempt2",
+    "category": "Visual hierarchy",
+    "viewport": "1440x900",
+    "score": 4,
+    "sha_noted": "056b5a638876f5b7602334616124eb1bdd984a2c",
+    "correction_or_recheck_paths": [
+      "My dives identity",
+      "Library hierarchy"
+    ],
+    "sha_corrected_not_reevaluated": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "state": "pending independent reevaluation; no score increase inferred"
+  },
+  {
+    "review": "Muse attempt2",
+    "category": "Layout and density",
+    "viewport": "390x844",
+    "score": 2,
+    "sha_noted": "056b5a638876f5b7602334616124eb1bdd984a2c",
+    "correction_or_recheck_paths": [
+      "My dives density",
+      "short lobby"
+    ],
+    "sha_corrected_not_reevaluated": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "state": "pending independent reevaluation; no score increase inferred"
+  },
+  {
+    "review": "Muse attempt2",
+    "category": "Layout and density",
+    "viewport": "844x390",
+    "score": 2,
+    "sha_noted": "056b5a638876f5b7602334616124eb1bdd984a2c",
+    "correction_or_recheck_paths": [
+      "My dives density",
+      "short lobby"
+    ],
+    "sha_corrected_not_reevaluated": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "state": "pending independent reevaluation; no score increase inferred"
+  },
+  {
+    "review": "Muse attempt2",
+    "category": "Layout and density",
+    "viewport": "768x1024",
+    "score": 3,
+    "sha_noted": "056b5a638876f5b7602334616124eb1bdd984a2c",
+    "correction_or_recheck_paths": [
+      "My dives density",
+      "short lobby"
+    ],
+    "sha_corrected_not_reevaluated": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "state": "pending independent reevaluation; no score increase inferred"
+  },
+  {
+    "review": "Muse attempt2",
+    "category": "Layout and density",
+    "viewport": "1024x768",
+    "score": 3,
+    "sha_noted": "056b5a638876f5b7602334616124eb1bdd984a2c",
+    "correction_or_recheck_paths": [
+      "My dives density",
+      "short lobby"
+    ],
+    "sha_corrected_not_reevaluated": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "state": "pending independent reevaluation; no score increase inferred"
+  },
+  {
+    "review": "Muse attempt2",
+    "category": "Layout and density",
+    "viewport": "1440x900",
+    "score": 4,
+    "sha_noted": "056b5a638876f5b7602334616124eb1bdd984a2c",
+    "correction_or_recheck_paths": [
+      "My dives density",
+      "short lobby"
+    ],
+    "sha_corrected_not_reevaluated": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "state": "pending independent reevaluation; no score increase inferred"
+  },
+  {
+    "review": "Muse attempt2",
+    "category": "Typography",
+    "viewport": "390x844",
+    "score": 4,
+    "sha_noted": "056b5a638876f5b7602334616124eb1bdd984a2c",
+    "correction_or_recheck_paths": [
+      "consistent page type scale"
+    ],
+    "sha_corrected_not_reevaluated": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "state": "pending independent reevaluation; no score increase inferred"
+  },
+  {
+    "review": "Muse attempt2",
+    "category": "Typography",
+    "viewport": "844x390",
+    "score": 3,
+    "sha_noted": "056b5a638876f5b7602334616124eb1bdd984a2c",
+    "correction_or_recheck_paths": [
+      "consistent page type scale"
+    ],
+    "sha_corrected_not_reevaluated": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "state": "pending independent reevaluation; no score increase inferred"
+  },
+  {
+    "review": "Muse attempt2",
+    "category": "Typography",
+    "viewport": "768x1024",
+    "score": 4,
+    "sha_noted": "056b5a638876f5b7602334616124eb1bdd984a2c",
+    "correction_or_recheck_paths": [
+      "consistent page type scale"
+    ],
+    "sha_corrected_not_reevaluated": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "state": "pending independent reevaluation; no score increase inferred"
+  },
+  {
+    "review": "Muse attempt2",
+    "category": "Typography",
+    "viewport": "1024x768",
+    "score": 4,
+    "sha_noted": "056b5a638876f5b7602334616124eb1bdd984a2c",
+    "correction_or_recheck_paths": [
+      "consistent page type scale"
+    ],
+    "sha_corrected_not_reevaluated": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "state": "pending independent reevaluation; no score increase inferred"
+  },
+  {
+    "review": "Muse attempt2",
+    "category": "Typography",
+    "viewport": "1440x900",
+    "score": 4,
+    "sha_noted": "056b5a638876f5b7602334616124eb1bdd984a2c",
+    "correction_or_recheck_paths": [
+      "consistent page type scale"
+    ],
+    "sha_corrected_not_reevaluated": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "state": "pending independent reevaluation; no score increase inferred"
+  },
+  {
+    "review": "Muse attempt2",
+    "category": "Color and contrast",
+    "viewport": "390x844",
+    "score": 5,
+    "sha_noted": "056b5a638876f5b7602334616124eb1bdd984a2c",
+    "correction_or_recheck_paths": [
+      "contrast visual recheck"
+    ],
+    "sha_corrected_not_reevaluated": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "state": "pending independent reevaluation; no score increase inferred"
+  },
+  {
+    "review": "Muse attempt2",
+    "category": "Color and contrast",
+    "viewport": "844x390",
+    "score": 5,
+    "sha_noted": "056b5a638876f5b7602334616124eb1bdd984a2c",
+    "correction_or_recheck_paths": [
+      "contrast visual recheck"
+    ],
+    "sha_corrected_not_reevaluated": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "state": "pending independent reevaluation; no score increase inferred"
+  },
+  {
+    "review": "Muse attempt2",
+    "category": "Color and contrast",
+    "viewport": "768x1024",
+    "score": 5,
+    "sha_noted": "056b5a638876f5b7602334616124eb1bdd984a2c",
+    "correction_or_recheck_paths": [
+      "contrast visual recheck"
+    ],
+    "sha_corrected_not_reevaluated": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "state": "pending independent reevaluation; no score increase inferred"
+  },
+  {
+    "review": "Muse attempt2",
+    "category": "Color and contrast",
+    "viewport": "1024x768",
+    "score": 5,
+    "sha_noted": "056b5a638876f5b7602334616124eb1bdd984a2c",
+    "correction_or_recheck_paths": [
+      "contrast visual recheck"
+    ],
+    "sha_corrected_not_reevaluated": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "state": "pending independent reevaluation; no score increase inferred"
+  },
+  {
+    "review": "Muse attempt2",
+    "category": "Color and contrast",
+    "viewport": "1440x900",
+    "score": 5,
+    "sha_noted": "056b5a638876f5b7602334616124eb1bdd984a2c",
+    "correction_or_recheck_paths": [
+      "contrast visual recheck"
+    ],
+    "sha_corrected_not_reevaluated": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "state": "pending independent reevaluation; no score increase inferred"
+  },
+  {
+    "review": "Muse attempt2",
+    "category": "Spacing and alignment",
+    "viewport": "390x844",
+    "score": 3,
+    "sha_noted": "056b5a638876f5b7602334616124eb1bdd984a2c",
+    "correction_or_recheck_paths": [
+      "short lobby",
+      "measured conversation height"
+    ],
+    "sha_corrected_not_reevaluated": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "state": "pending independent reevaluation; no score increase inferred"
+  },
+  {
+    "review": "Muse attempt2",
+    "category": "Spacing and alignment",
+    "viewport": "844x390",
+    "score": 2,
+    "sha_noted": "056b5a638876f5b7602334616124eb1bdd984a2c",
+    "correction_or_recheck_paths": [
+      "short lobby",
+      "measured conversation height"
+    ],
+    "sha_corrected_not_reevaluated": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "state": "pending independent reevaluation; no score increase inferred"
+  },
+  {
+    "review": "Muse attempt2",
+    "category": "Spacing and alignment",
+    "viewport": "768x1024",
+    "score": 3,
+    "sha_noted": "056b5a638876f5b7602334616124eb1bdd984a2c",
+    "correction_or_recheck_paths": [
+      "short lobby",
+      "measured conversation height"
+    ],
+    "sha_corrected_not_reevaluated": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "state": "pending independent reevaluation; no score increase inferred"
+  },
+  {
+    "review": "Muse attempt2",
+    "category": "Spacing and alignment",
+    "viewport": "1024x768",
+    "score": 3,
+    "sha_noted": "056b5a638876f5b7602334616124eb1bdd984a2c",
+    "correction_or_recheck_paths": [
+      "short lobby",
+      "measured conversation height"
+    ],
+    "sha_corrected_not_reevaluated": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "state": "pending independent reevaluation; no score increase inferred"
+  },
+  {
+    "review": "Muse attempt2",
+    "category": "Spacing and alignment",
+    "viewport": "1440x900",
+    "score": 4,
+    "sha_noted": "056b5a638876f5b7602334616124eb1bdd984a2c",
+    "correction_or_recheck_paths": [
+      "short lobby",
+      "measured conversation height"
+    ],
+    "sha_corrected_not_reevaluated": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "state": "pending independent reevaluation; no score increase inferred"
+  },
+  {
+    "review": "Muse attempt2",
+    "category": "Navigation and orientation",
+    "viewport": "390x844",
+    "score": 3,
+    "sha_noted": "056b5a638876f5b7602334616124eb1bdd984a2c",
+    "correction_or_recheck_paths": [
+      "Room Back",
+      "directory before rankings"
+    ],
+    "sha_corrected_not_reevaluated": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "state": "pending independent reevaluation; no score increase inferred"
+  },
+  {
+    "review": "Muse attempt2",
+    "category": "Navigation and orientation",
+    "viewport": "844x390",
+    "score": 3,
+    "sha_noted": "056b5a638876f5b7602334616124eb1bdd984a2c",
+    "correction_or_recheck_paths": [
+      "Room Back",
+      "directory before rankings"
+    ],
+    "sha_corrected_not_reevaluated": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "state": "pending independent reevaluation; no score increase inferred"
+  },
+  {
+    "review": "Muse attempt2",
+    "category": "Navigation and orientation",
+    "viewport": "768x1024",
+    "score": 3,
+    "sha_noted": "056b5a638876f5b7602334616124eb1bdd984a2c",
+    "correction_or_recheck_paths": [
+      "Room Back",
+      "directory before rankings"
+    ],
+    "sha_corrected_not_reevaluated": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "state": "pending independent reevaluation; no score increase inferred"
+  },
+  {
+    "review": "Muse attempt2",
+    "category": "Navigation and orientation",
+    "viewport": "1024x768",
+    "score": 4,
+    "sha_noted": "056b5a638876f5b7602334616124eb1bdd984a2c",
+    "correction_or_recheck_paths": [
+      "Room Back",
+      "directory before rankings"
+    ],
+    "sha_corrected_not_reevaluated": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "state": "pending independent reevaluation; no score increase inferred"
+  },
+  {
+    "review": "Muse attempt2",
+    "category": "Navigation and orientation",
+    "viewport": "1440x900",
+    "score": 5,
+    "sha_noted": "056b5a638876f5b7602334616124eb1bdd984a2c",
+    "correction_or_recheck_paths": [
+      "Room Back",
+      "directory before rankings"
+    ],
+    "sha_corrected_not_reevaluated": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "state": "pending independent reevaluation; no score increase inferred"
+  },
+  {
+    "review": "Muse attempt2",
+    "category": "Control clarity",
+    "viewport": "390x844",
+    "score": 4,
+    "sha_noted": "056b5a638876f5b7602334616124eb1bdd984a2c",
+    "correction_or_recheck_paths": [
+      "exact clip link",
+      "native disclosure",
+      "foreground score retest"
+    ],
+    "sha_corrected_not_reevaluated": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "state": "pending independent reevaluation; no score increase inferred"
+  },
+  {
+    "review": "Muse attempt2",
+    "category": "Control clarity",
+    "viewport": "844x390",
+    "score": 3,
+    "sha_noted": "056b5a638876f5b7602334616124eb1bdd984a2c",
+    "correction_or_recheck_paths": [
+      "exact clip link",
+      "native disclosure",
+      "foreground score retest"
+    ],
+    "sha_corrected_not_reevaluated": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "state": "pending independent reevaluation; no score increase inferred"
+  },
+  {
+    "review": "Muse attempt2",
+    "category": "Control clarity",
+    "viewport": "768x1024",
+    "score": 4,
+    "sha_noted": "056b5a638876f5b7602334616124eb1bdd984a2c",
+    "correction_or_recheck_paths": [
+      "exact clip link",
+      "native disclosure",
+      "foreground score retest"
+    ],
+    "sha_corrected_not_reevaluated": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "state": "pending independent reevaluation; no score increase inferred"
+  },
+  {
+    "review": "Muse attempt2",
+    "category": "Control clarity",
+    "viewport": "1024x768",
+    "score": 4,
+    "sha_noted": "056b5a638876f5b7602334616124eb1bdd984a2c",
+    "correction_or_recheck_paths": [
+      "exact clip link",
+      "native disclosure",
+      "foreground score retest"
+    ],
+    "sha_corrected_not_reevaluated": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "state": "pending independent reevaluation; no score increase inferred"
+  },
+  {
+    "review": "Muse attempt2",
+    "category": "Control clarity",
+    "viewport": "1440x900",
+    "score": 4,
+    "sha_noted": "056b5a638876f5b7602334616124eb1bdd984a2c",
+    "correction_or_recheck_paths": [
+      "exact clip link",
+      "native disclosure",
+      "foreground score retest"
+    ],
+    "sha_corrected_not_reevaluated": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "state": "pending independent reevaluation; no score increase inferred"
+  },
+  {
+    "review": "Muse attempt2",
+    "category": "Terminology and instructions",
+    "viewport": "390x844",
+    "score": 2,
+    "sha_noted": "056b5a638876f5b7602334616124eb1bdd984a2c",
+    "correction_or_recheck_paths": [
+      "plain variability",
+      "existing acronym help discoverability"
+    ],
+    "sha_corrected_not_reevaluated": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "state": "pending independent reevaluation; no score increase inferred"
+  },
+  {
+    "review": "Muse attempt2",
+    "category": "Terminology and instructions",
+    "viewport": "844x390",
+    "score": 2,
+    "sha_noted": "056b5a638876f5b7602334616124eb1bdd984a2c",
+    "correction_or_recheck_paths": [
+      "plain variability",
+      "existing acronym help discoverability"
+    ],
+    "sha_corrected_not_reevaluated": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "state": "pending independent reevaluation; no score increase inferred"
+  },
+  {
+    "review": "Muse attempt2",
+    "category": "Terminology and instructions",
+    "viewport": "768x1024",
+    "score": 2,
+    "sha_noted": "056b5a638876f5b7602334616124eb1bdd984a2c",
+    "correction_or_recheck_paths": [
+      "plain variability",
+      "existing acronym help discoverability"
+    ],
+    "sha_corrected_not_reevaluated": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "state": "pending independent reevaluation; no score increase inferred"
+  },
+  {
+    "review": "Muse attempt2",
+    "category": "Terminology and instructions",
+    "viewport": "1024x768",
+    "score": 2,
+    "sha_noted": "056b5a638876f5b7602334616124eb1bdd984a2c",
+    "correction_or_recheck_paths": [
+      "plain variability",
+      "existing acronym help discoverability"
+    ],
+    "sha_corrected_not_reevaluated": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "state": "pending independent reevaluation; no score increase inferred"
+  },
+  {
+    "review": "Muse attempt2",
+    "category": "Terminology and instructions",
+    "viewport": "1440x900",
+    "score": 2,
+    "sha_noted": "056b5a638876f5b7602334616124eb1bdd984a2c",
+    "correction_or_recheck_paths": [
+      "plain variability",
+      "existing acronym help discoverability"
+    ],
+    "sha_corrected_not_reevaluated": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "state": "pending independent reevaluation; no score increase inferred"
+  },
+  {
+    "review": "Muse attempt2",
+    "category": "Component consistency",
+    "viewport": "390x844",
+    "score": 3,
+    "sha_noted": "056b5a638876f5b7602334616124eb1bdd984a2c",
+    "correction_or_recheck_paths": [
+      "shared control radius",
+      "heading scale"
+    ],
+    "sha_corrected_not_reevaluated": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "state": "pending independent reevaluation; no score increase inferred"
+  },
+  {
+    "review": "Muse attempt2",
+    "category": "Component consistency",
+    "viewport": "844x390",
+    "score": 3,
+    "sha_noted": "056b5a638876f5b7602334616124eb1bdd984a2c",
+    "correction_or_recheck_paths": [
+      "shared control radius",
+      "heading scale"
+    ],
+    "sha_corrected_not_reevaluated": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "state": "pending independent reevaluation; no score increase inferred"
+  },
+  {
+    "review": "Muse attempt2",
+    "category": "Component consistency",
+    "viewport": "768x1024",
+    "score": 3,
+    "sha_noted": "056b5a638876f5b7602334616124eb1bdd984a2c",
+    "correction_or_recheck_paths": [
+      "shared control radius",
+      "heading scale"
+    ],
+    "sha_corrected_not_reevaluated": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "state": "pending independent reevaluation; no score increase inferred"
+  },
+  {
+    "review": "Muse attempt2",
+    "category": "Component consistency",
+    "viewport": "1024x768",
+    "score": 3,
+    "sha_noted": "056b5a638876f5b7602334616124eb1bdd984a2c",
+    "correction_or_recheck_paths": [
+      "shared control radius",
+      "heading scale"
+    ],
+    "sha_corrected_not_reevaluated": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "state": "pending independent reevaluation; no score increase inferred"
+  },
+  {
+    "review": "Muse attempt2",
+    "category": "Component consistency",
+    "viewport": "1440x900",
+    "score": 3,
+    "sha_noted": "056b5a638876f5b7602334616124eb1bdd984a2c",
+    "correction_or_recheck_paths": [
+      "shared control radius",
+      "heading scale"
+    ],
+    "sha_corrected_not_reevaluated": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "state": "pending independent reevaluation; no score increase inferred"
+  },
+  {
+    "review": "Muse attempt2",
+    "category": "Task content presentation",
+    "viewport": "390x844",
+    "score": 2,
+    "sha_noted": "056b5a638876f5b7602334616124eb1bdd984a2c",
+    "correction_or_recheck_paths": [
+      "real attempt identity",
+      "session medians",
+      "statistics disclosure"
+    ],
+    "sha_corrected_not_reevaluated": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "state": "pending independent reevaluation; no score increase inferred"
+  },
+  {
+    "review": "Muse attempt2",
+    "category": "Task content presentation",
+    "viewport": "844x390",
+    "score": 2,
+    "sha_noted": "056b5a638876f5b7602334616124eb1bdd984a2c",
+    "correction_or_recheck_paths": [
+      "real attempt identity",
+      "session medians",
+      "statistics disclosure"
+    ],
+    "sha_corrected_not_reevaluated": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "state": "pending independent reevaluation; no score increase inferred"
+  },
+  {
+    "review": "Muse attempt2",
+    "category": "Task content presentation",
+    "viewport": "768x1024",
+    "score": 3,
+    "sha_noted": "056b5a638876f5b7602334616124eb1bdd984a2c",
+    "correction_or_recheck_paths": [
+      "real attempt identity",
+      "session medians",
+      "statistics disclosure"
+    ],
+    "sha_corrected_not_reevaluated": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "state": "pending independent reevaluation; no score increase inferred"
+  },
+  {
+    "review": "Muse attempt2",
+    "category": "Task content presentation",
+    "viewport": "1024x768",
+    "score": 3,
+    "sha_noted": "056b5a638876f5b7602334616124eb1bdd984a2c",
+    "correction_or_recheck_paths": [
+      "real attempt identity",
+      "session medians",
+      "statistics disclosure"
+    ],
+    "sha_corrected_not_reevaluated": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "state": "pending independent reevaluation; no score increase inferred"
+  },
+  {
+    "review": "Muse attempt2",
+    "category": "Task content presentation",
+    "viewport": "1440x900",
+    "score": 3,
+    "sha_noted": "056b5a638876f5b7602334616124eb1bdd984a2c",
+    "correction_or_recheck_paths": [
+      "real attempt identity",
+      "session medians",
+      "statistics disclosure"
+    ],
+    "sha_corrected_not_reevaluated": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "state": "pending independent reevaluation; no score increase inferred"
+  },
+  {
+    "review": "Muse attempt2",
+    "category": "Feedback and state clarity",
+    "viewport": "390x844",
+    "score": 3,
+    "sha_noted": "056b5a638876f5b7602334616124eb1bdd984a2c",
+    "correction_or_recheck_paths": [
+      "nonblocking metadata",
+      "Retry recovery evidence",
+      "foreground score retest"
+    ],
+    "sha_corrected_not_reevaluated": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "state": "pending independent reevaluation; no score increase inferred"
+  },
+  {
+    "review": "Muse attempt2",
+    "category": "Feedback and state clarity",
+    "viewport": "844x390",
+    "score": 3,
+    "sha_noted": "056b5a638876f5b7602334616124eb1bdd984a2c",
+    "correction_or_recheck_paths": [
+      "nonblocking metadata",
+      "Retry recovery evidence",
+      "foreground score retest"
+    ],
+    "sha_corrected_not_reevaluated": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "state": "pending independent reevaluation; no score increase inferred"
+  },
+  {
+    "review": "Muse attempt2",
+    "category": "Feedback and state clarity",
+    "viewport": "768x1024",
+    "score": 3,
+    "sha_noted": "056b5a638876f5b7602334616124eb1bdd984a2c",
+    "correction_or_recheck_paths": [
+      "nonblocking metadata",
+      "Retry recovery evidence",
+      "foreground score retest"
+    ],
+    "sha_corrected_not_reevaluated": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "state": "pending independent reevaluation; no score increase inferred"
+  },
+  {
+    "review": "Muse attempt2",
+    "category": "Feedback and state clarity",
+    "viewport": "1024x768",
+    "score": 3,
+    "sha_noted": "056b5a638876f5b7602334616124eb1bdd984a2c",
+    "correction_or_recheck_paths": [
+      "nonblocking metadata",
+      "Retry recovery evidence",
+      "foreground score retest"
+    ],
+    "sha_corrected_not_reevaluated": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "state": "pending independent reevaluation; no score increase inferred"
+  },
+  {
+    "review": "Muse attempt2",
+    "category": "Feedback and state clarity",
+    "viewport": "1440x900",
+    "score": 4,
+    "sha_noted": "056b5a638876f5b7602334616124eb1bdd984a2c",
+    "correction_or_recheck_paths": [
+      "nonblocking metadata",
+      "Retry recovery evidence",
+      "foreground score retest"
+    ],
+    "sha_corrected_not_reevaluated": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "state": "pending independent reevaluation; no score increase inferred"
+  },
+  {
+    "review": "Muse attempt2",
+    "category": "Professional finish",
+    "viewport": "390x844",
+    "score": 2,
+    "sha_noted": "056b5a638876f5b7602334616124eb1bdd984a2c",
+    "correction_or_recheck_paths": [
+      "ordered rankings",
+      "removed generic room copy",
+      "real attempt previews"
+    ],
+    "sha_corrected_not_reevaluated": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "state": "pending independent reevaluation; no score increase inferred"
+  },
+  {
+    "review": "Muse attempt2",
+    "category": "Professional finish",
+    "viewport": "844x390",
+    "score": 2,
+    "sha_noted": "056b5a638876f5b7602334616124eb1bdd984a2c",
+    "correction_or_recheck_paths": [
+      "ordered rankings",
+      "removed generic room copy",
+      "real attempt previews"
+    ],
+    "sha_corrected_not_reevaluated": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "state": "pending independent reevaluation; no score increase inferred"
+  },
+  {
+    "review": "Muse attempt2",
+    "category": "Professional finish",
+    "viewport": "768x1024",
+    "score": 2,
+    "sha_noted": "056b5a638876f5b7602334616124eb1bdd984a2c",
+    "correction_or_recheck_paths": [
+      "ordered rankings",
+      "removed generic room copy",
+      "real attempt previews"
+    ],
+    "sha_corrected_not_reevaluated": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "state": "pending independent reevaluation; no score increase inferred"
+  },
+  {
+    "review": "Muse attempt2",
+    "category": "Professional finish",
+    "viewport": "1024x768",
+    "score": 3,
+    "sha_noted": "056b5a638876f5b7602334616124eb1bdd984a2c",
+    "correction_or_recheck_paths": [
+      "ordered rankings",
+      "removed generic room copy",
+      "real attempt previews"
+    ],
+    "sha_corrected_not_reevaluated": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "state": "pending independent reevaluation; no score increase inferred"
+  },
+  {
+    "review": "Muse attempt2",
+    "category": "Professional finish",
+    "viewport": "1440x900",
+    "score": 3,
+    "sha_noted": "056b5a638876f5b7602334616124eb1bdd984a2c",
+    "correction_or_recheck_paths": [
+      "ordered rankings",
+      "removed generic room copy",
+      "real attempt previews"
+    ],
+    "sha_corrected_not_reevaluated": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "state": "pending independent reevaluation; no score increase inferred"
+  },
+  {
+    "review": "Muse attempt2",
+    "category": "Responsive fit",
+    "viewport": "390x844",
+    "score": 3,
+    "sha_noted": "056b5a638876f5b7602334616124eb1bdd984a2c",
+    "correction_or_recheck_paths": [
+      "short lobby",
+      "short scoring layout",
+      "conversation height"
+    ],
+    "sha_corrected_not_reevaluated": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "state": "pending independent reevaluation; no score increase inferred"
+  },
+  {
+    "review": "Muse attempt2",
+    "category": "Responsive fit",
+    "viewport": "844x390",
+    "score": 2,
+    "sha_noted": "056b5a638876f5b7602334616124eb1bdd984a2c",
+    "correction_or_recheck_paths": [
+      "short lobby",
+      "short scoring layout",
+      "conversation height"
+    ],
+    "sha_corrected_not_reevaluated": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "state": "pending independent reevaluation; no score increase inferred"
+  },
+  {
+    "review": "Muse attempt2",
+    "category": "Responsive fit",
+    "viewport": "768x1024",
+    "score": 3,
+    "sha_noted": "056b5a638876f5b7602334616124eb1bdd984a2c",
+    "correction_or_recheck_paths": [
+      "short lobby",
+      "short scoring layout",
+      "conversation height"
+    ],
+    "sha_corrected_not_reevaluated": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "state": "pending independent reevaluation; no score increase inferred"
+  },
+  {
+    "review": "Muse attempt2",
+    "category": "Responsive fit",
+    "viewport": "1024x768",
+    "score": 4,
+    "sha_noted": "056b5a638876f5b7602334616124eb1bdd984a2c",
+    "correction_or_recheck_paths": [
+      "short lobby",
+      "short scoring layout",
+      "conversation height"
+    ],
+    "sha_corrected_not_reevaluated": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "state": "pending independent reevaluation; no score increase inferred"
+  },
+  {
+    "review": "Muse attempt2",
+    "category": "Responsive fit",
+    "viewport": "1440x900",
+    "score": 5,
+    "sha_noted": "056b5a638876f5b7602334616124eb1bdd984a2c",
+    "correction_or_recheck_paths": [
+      "short lobby",
+      "short scoring layout",
+      "conversation height"
+    ],
+    "sha_corrected_not_reevaluated": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "state": "pending independent reevaluation; no score increase inferred"
+  },
+  {
+    "review": "Muse attempt2",
+    "category": "Next-action discoverability",
+    "viewport": "390x844",
+    "score": 4,
+    "sha_noted": "056b5a638876f5b7602334616124eb1bdd984a2c",
+    "correction_or_recheck_paths": [
+      "exact clip link",
+      "visible Start",
+      "Back during playback"
+    ],
+    "sha_corrected_not_reevaluated": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "state": "pending independent reevaluation; no score increase inferred"
+  },
+  {
+    "review": "Muse attempt2",
+    "category": "Next-action discoverability",
+    "viewport": "844x390",
+    "score": 3,
+    "sha_noted": "056b5a638876f5b7602334616124eb1bdd984a2c",
+    "correction_or_recheck_paths": [
+      "exact clip link",
+      "visible Start",
+      "Back during playback"
+    ],
+    "sha_corrected_not_reevaluated": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "state": "pending independent reevaluation; no score increase inferred"
+  },
+  {
+    "review": "Muse attempt2",
+    "category": "Next-action discoverability",
+    "viewport": "768x1024",
+    "score": 4,
+    "sha_noted": "056b5a638876f5b7602334616124eb1bdd984a2c",
+    "correction_or_recheck_paths": [
+      "exact clip link",
+      "visible Start",
+      "Back during playback"
+    ],
+    "sha_corrected_not_reevaluated": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "state": "pending independent reevaluation; no score increase inferred"
+  },
+  {
+    "review": "Muse attempt2",
+    "category": "Next-action discoverability",
+    "viewport": "1024x768",
+    "score": 4,
+    "sha_noted": "056b5a638876f5b7602334616124eb1bdd984a2c",
+    "correction_or_recheck_paths": [
+      "exact clip link",
+      "visible Start",
+      "Back during playback"
+    ],
+    "sha_corrected_not_reevaluated": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "state": "pending independent reevaluation; no score increase inferred"
+  },
+  {
+    "review": "Muse attempt2",
+    "category": "Next-action discoverability",
+    "viewport": "1440x900",
+    "score": 4,
+    "sha_noted": "056b5a638876f5b7602334616124eb1bdd984a2c",
+    "correction_or_recheck_paths": [
+      "exact clip link",
+      "visible Start",
+      "Back during playback"
+    ],
+    "sha_corrected_not_reevaluated": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "state": "pending independent reevaluation; no score increase inferred"
+  }
+]

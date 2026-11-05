@@ -1,0 +1,23 @@
+[
+  {
+    "id": "R06-01",
+    "decision": "confirmed current inconsistency",
+    "evidence": "Sol medium fresh390x844 room entry screenshot plus primaryTabFor excludes room and router professional-shell depends on it",
+    "fix": "Map only /room entry (and trailing slash) to evaluations; leave /room/:code isolated game route untouched",
+    "paths": [
+      "frontend/src/navigation/mobileNavigation.ts",
+      "frontend/src/navigation/mobileNavigation.test.ts"
+    ],
+    "state": "prepared outside served worktree, pending Muse completion before candidate update"
+  },
+  {
+    "id": "R06-02",
+    "decision": "accepted subjective density objection with concrete source cause",
+    "evidence": "Sol medium fresh768x1024 and1024x768 images; sm:flex forces advanced filters open from640px even though disclosure state is false",
+    "fix": "Use existing disclosure control at tablet widths640\u20131100 with height>500; all filter choices and active badge retained; short landscape retains prior rule",
+    "paths": [
+      "frontend/src/mainJourneys.css"
+    ],
+    "state": "prepared outside served worktree, needs real expanded/collapsed image recheck after applying"
+  }
+]

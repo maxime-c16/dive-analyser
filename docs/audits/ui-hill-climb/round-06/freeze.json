@@ -1,0 +1,58 @@
+{
+  "sha": "ae1a07b627e4850732981a58610bfbe3347ac2da",
+  "productSource": "2c07abee70c41844d981ebdb9fa95a3f585bbdc4",
+  "trackedProductDiff": false,
+  "coverageGate": false,
+  "seats": [
+    {
+      "seat": "muse-xhigh",
+      "taskId": "node:delegated-task:command%3Amcp%3A6ae2cfba-028a-40df-9f60-fc9ace47a9f6%3Adelegate-task%3A0b6a132a-9fe7-4be8-9021-f569256f92e2",
+      "threadId": "thread:delegated-task:command%3Amcp%3A6ae2cfba-028a-40df-9f60-fc9ace47a9f6%3Adelegate-task%3A0b6a132a-9fe7-4be8-9021-f569256f92e2",
+      "link": "<t3-thread://v2/c8abc587-3d8d-497c-89ca-3b0284ca4c13/thread:delegated-task:command%3Amcp%3A6ae2cfba-028a-40df-9f60-fc9ace47a9f6%3Adelegate-task%3A0b6a132a-9fe7-4be8-9021-f569256f92e2>",
+      "providerInstanceId": "oc1",
+      "model": "opencode-go/muse-spark-1.3-contributor",
+      "options": [
+        {
+          "id": "variant",
+          "value": "xhigh"
+        }
+      ],
+      "status": "running"
+    },
+    {
+      "seat": "sol-medium",
+      "taskId": "node:delegated-task:command%3Amcp%3A6ae2cfba-028a-40df-9f60-fc9ace47a9f6%3Adelegate-task%3A3f3e7ba4-bf77-4702-ae11-c2fa5a302b39",
+      "threadId": "thread:delegated-task:command%3Amcp%3A6ae2cfba-028a-40df-9f60-fc9ace47a9f6%3Adelegate-task%3A3f3e7ba4-bf77-4702-ae11-c2fa5a302b39",
+      "link": "<t3-thread://v2/c8abc587-3d8d-497c-89ca-3b0284ca4c13/thread:delegated-task:command%3Amcp%3A6ae2cfba-028a-40df-9f60-fc9ace47a9f6%3Adelegate-task%3A3f3e7ba4-bf77-4702-ae11-c2fa5a302b39>",
+      "providerInstanceId": "codex",
+      "model": "gpt-6.1-sol",
+      "options": [
+        {
+          "id": "reasoningEffort",
+          "value": "medium"
+        },
+        {
+          "id": "serviceTier",
+          "value": "default"
+        }
+      ],
+      "status": "running"
+    },
+    {
+      "seat": "sol-low",
+      "taskId": "node:delegated-task:command%3Amcp%3A6ae2cfba-028a-40df-9f60-fc9ace47a9f6%3Adelegate-task%3A11bebc18-7759-4d85-a37b-ab674073c24e",
+      "threadId": "thread:delegated-task:command%3Amcp%3A6ae2cfba-028a-40df-9f60-fc9ace47a9f6%3Adelegate-task%3A11bebc18-7759-4d85-a37b-ab674073c24e",
+      "link": "<t3-thread://v2/c8abc587-3d8d-497c-89ca-3b0284ca4c13/thread:delegated-task:command%3Amcp%3A6ae2cfba-028a-40df-9f60-fc9ace47a9f6%3Adelegate-task%3A11bebc18-7759-4d85-a37b-ab674073c24e>",
+      "providerInstanceId": "codex_c1b5874b-d343-42e0-a0b9-40c36b87ec34",
+      "model": "gpt-6.1-sol",
+      "options": [
+        {
+          "id": "reasoningEffort",
+          "value": "low"
+        }
+      ],
+      "status": "tool-blocked"
+    }
+  ],
+  "technicalChecks": "117 files / 960 tests, typecheck, build and release validation pass; independent design acceptance false"
+}

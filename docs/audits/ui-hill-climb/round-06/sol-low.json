@@ -1,0 +1,254 @@
+{
+  "round": "06",
+  "reviewer": {
+    "provider": "OpenAI",
+    "providerInstanceId": "codex_c1b5874b-d343-42e0-a0b9-40c36b87ec34",
+    "model": "gpt-6.1-sol",
+    "reasoningEffort": "low",
+    "delegates": false
+  },
+  "reviewedSHA": "ae1a07b627e4850732981a58610bfbe3347ac2da",
+  "shaVerification": "User-supplied frozen candidate; not independently verified",
+  "candidate": "http://localhost:4317",
+  "fullscope_pass": false,
+  "status": "tool-blocked",
+  "preflight": {
+    "ownDefaultProfileTab": true,
+    "firstPath": "/account",
+    "signedInAsMaxime": true,
+    "GET /api/v1/auth/me": 200,
+    "authorizedMedia200Decode": "unverified",
+    "webSocketOpen": "unverified",
+    "playbackStarted": false
+  },
+  "screenshots": [],
+  "interactions": [
+    "Opened exactly one separate default-profile tab at /account",
+    "Read account identity and fetched auth/me without exposing credentials",
+    "Attempted saved visual snapshot twice",
+    "Closed own tab"
+  ],
+  "blockers": [
+    {
+      "operation": "preview_snapshot",
+      "attempts": 2,
+      "error": "Preview automation snapshot timed out after 15000ms.",
+      "screen": "/account",
+      "viewport": "1280x800",
+      "settledState": "Not visually verified",
+      "fallback": "No supported alternate browser tool available; unsupported fallback not retried"
+    }
+  ],
+  "viewports": [
+    "390x844",
+    "844x390",
+    "768x1024",
+    "1024x768",
+    "1440x900"
+  ],
+  "coverageLegend": {
+    "U": "Unverified at all five sizes: visual capture blocked before flow inspection"
+  },
+  "coverageMatrix": {
+    "Library grid/list/filters/player/details/next/back": [
+      "U",
+      "U",
+      "U",
+      "U",
+      "U"
+    ],
+    "By code collapsed/open/recent attempts/analysis": [
+      "U",
+      "U",
+      "U",
+      "U",
+      "U"
+    ],
+    "Progress": [
+      "U",
+      "U",
+      "U",
+      "U",
+      "U"
+    ],
+    "201C overview/progression/changes/comparison/phases/inventory pagination/attempt drawer": [
+      "U",
+      "U",
+      "U",
+      "U",
+      "U"
+    ],
+    "Messages inbox/thread/composer/recipient/group draft": [
+      "U",
+      "U",
+      "U",
+      "U",
+      "U"
+    ],
+    "Community rankings/profile Dives/Codes/Activity/Achievements/stats": [
+      "U",
+      "U",
+      "U",
+      "U",
+      "U"
+    ],
+    "Calendar upcoming/month/detail/new/schedule form": [
+      "U",
+      "U",
+      "U",
+      "U",
+      "U"
+    ],
+    "Evaluations Judge/My dives/History/disclosure/draft/Quit": [
+      "U",
+      "U",
+      "U",
+      "U",
+      "U"
+    ],
+    "Room entry/lobby/playback/scoring/Classic reveal/results": [
+      "U",
+      "U",
+      "U",
+      "U",
+      "U"
+    ],
+    "Mole scoring/reveal/empty vote/Nobody vote/results": [
+      "U",
+      "U",
+      "U",
+      "U",
+      "U"
+    ],
+    "GuessCode choices/reveal/results": [
+      "U",
+      "U",
+      "U",
+      "U",
+      "U"
+    ]
+  },
+  "categoryOrder": [
+    "Visual hierarchy",
+    "Layout and density",
+    "Typography",
+    "Color and contrast",
+    "Spacing and alignment",
+    "Navigation and orientation",
+    "Control clarity",
+    "Terminology and instructions",
+    "Component consistency",
+    "Task content presentation",
+    "Feedback and state clarity",
+    "Professional finish",
+    "Responsive fit",
+    "Next-action discoverability"
+  ],
+  "scores14x5": [
+    [
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    [
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    [
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    [
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    [
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    [
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    [
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    [
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    [
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    [
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    [
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    [
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    [
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    [
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  ],
+  "weakestScreenExplanation": "For every category and size: no directly observed screenshot; weakest screen cannot be established.",
+  "findings": [],
+  "productDefectsEstablished": false,
+  "accessibilityCertification": false,
+  "ownTabClosed": true,
+  "filesChanged": false,
+  "prCreated": false
+}

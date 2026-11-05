@@ -1,0 +1,56 @@
+[
+  {
+    "route": "/calendar/o/10",
+    "viewport": [
+      390,
+      844
+    ],
+    "original": "browser-screenshot-localhost-mw1hkb5l-6b835553.png",
+    "reason": "Historical capture replaced after manual galleryQA found phone loading placeholder or to keep companion sizes on same recapture; not passing evidence."
+  },
+  {
+    "route": "/calendar/o/10",
+    "viewport": [
+      844,
+      390
+    ],
+    "original": "browser-screenshot-localhost-mw1hkd67-18ec8caf.png",
+    "reason": "Historical capture replaced after manual galleryQA found phone loading placeholder or to keep companion sizes on same recapture; not passing evidence."
+  },
+  {
+    "route": "/calendar/o/10",
+    "viewport": [
+      1440,
+      900
+    ],
+    "original": "browser-screenshot-localhost-mw1hke54-66e328d4.png",
+    "reason": "Historical capture replaced after manual galleryQA found phone loading placeholder or to keep companion sizes on same recapture; not passing evidence."
+  },
+  {
+    "route": "/dives/analysis/201C",
+    "viewport": [
+      390,
+      844
+    ],
+    "original": "browser-screenshot-localhost-mw1hlsws-4c900865.png",
+    "reason": "Historical capture replaced after manual galleryQA found phone loading placeholder or to keep companion sizes on same recapture; not passing evidence."
+  },
+  {
+    "route": "/dives/analysis/201C",
+    "viewport": [
+      844,
+      390
+    ],
+    "original": "browser-screenshot-localhost-mw1hlvfv-7604731e.png",
+    "reason": "Historical capture replaced after manual galleryQA found phone loading placeholder or to keep companion sizes on same recapture; not passing evidence."
+  },
+  {
+    "route": "/dives/analysis/201C",
+    "viewport": [
+      1440,
+      900
+    ],
+    "original": "browser-screenshot-localhost-mw1hlza1-70bd515b.png",
+    "reason": "Historical capture replaced after manual galleryQA found phone loading placeholder or to keep companion sizes on same recapture; not passing evidence."
+  }
+]

@@ -1,0 +1,42 @@
+{
+  "baseSHA": "ae1a07b627e4850732981a58610bfbe3347ac2da",
+  "preparedDirectory": "/tmp/dive-ui-audio-candidate",
+  "patch": "/tmp/dive-ui-r06-audio-and-confirmed-fixes.patch",
+  "servedSourceChanged": false,
+  "files": [
+    "frontend/src/utils/libraryAudioPreference.ts",
+    "frontend/src/components/LibraryAudioControl.tsx",
+    "frontend/src/components/LibraryAudioControl.test.tsx",
+    "frontend/src/components/PreparedVideo.tsx",
+    "frontend/src/components/DiveVideoPlayer.tsx",
+    "frontend/src/components/DiveVideoPlayer.test.tsx",
+    "frontend/src/components/clip-viewer/ImmersiveControls.tsx",
+    "frontend/src/pages/Dives.tsx",
+    "frontend/src/pages/Dives.test.tsx",
+    "frontend/src/navigation/mobileNavigation.ts",
+    "frontend/src/navigation/mobileNavigation.test.ts",
+    "frontend/src/mainJourneys.css",
+    "frontend/src/i18n/locales/en.ts",
+    "frontend/src/i18n/locales/fr.ts",
+    "backend/release-notes/library-sound-preference.json"
+  ],
+  "behavior": [
+    "Visible Library sound control before opening clips; default remains sound on",
+    "Device preference follows explicit player toggle, clip adoption, next/previous and viewer cleanup",
+    "PreparedVideo sets muted before enabling autoplay or attaching ready cached video",
+    "Autoplay fallback and its gesture recovery cannot undo explicit mute",
+    "Room entry gets named Evaluation navigation; actual room routes remain isolated",
+    "Tablet advanced filters use existing disclosure and retain all options/active count"
+  ],
+  "checks": {
+    "audio_and_transport": "4 files /88 tests pass",
+    "library_and_navigation": "3 files /70 tests pass",
+    "typecheck": "pass",
+    "production_build": "pass"
+  },
+  "notYetVerified": [
+    "Real pre-entry mute and standalone player five-size QA, after safe candidate switch",
+    "Fresh council matrices for new source"
+  ],
+  "applyOnlyAfter": "Active review of frozen candidate finishes; no current served product edits"
+}

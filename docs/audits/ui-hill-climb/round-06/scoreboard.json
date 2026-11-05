@@ -1,0 +1,35 @@
+{
+  "reviewedSHA": "ae1a07b627e4850732981a58610bfbe3347ac2da",
+  "status": "completed-incomplete",
+  "acceptance": false,
+  "reviewers": [
+    {
+      "seat": "Muse xhigh",
+      "status": "partial-objections-open",
+      "numeric": 70,
+      "unverified": "coverage gaps; numeric matrix not fullscope",
+      "below7": 65,
+      "minimum": 5,
+      "report": "muse.json"
+    },
+    {
+      "seat": "Sol medium",
+      "status": "tool-blocked-partial",
+      "numeric": 0,
+      "unverified": 70,
+      "report": "sol-medium.json",
+      "findings": [
+        "R06-01",
+        "R06-02"
+      ]
+    },
+    {
+      "seat": "Sol low",
+      "status": "tool-blocked",
+      "numeric": 0,
+      "unverified": 70,
+      "report": "sol-low.json"
+    }
+  ],
+  "note": "Running seats have not delivered matrices. Nulls are unverified, not failing numeric scores or passes."
+}
