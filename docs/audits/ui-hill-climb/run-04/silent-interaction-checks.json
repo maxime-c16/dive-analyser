@@ -1,0 +1,48 @@
+{
+  "candidateSHA": "75f89baa66dd2d18c74ee63b6f01db1f15a78094",
+  "mechanism": "Live own-tab DOM + normal UI controls; NOT screenshot or design certification",
+  "calendarNew844x390": {
+    "SaveBottom": 124,
+    "DiscardBottom": 111,
+    "viewportHeight": 390,
+    "saved": false
+  },
+  "groupDraft844x390": {
+    "dialogTop": 12,
+    "dialogBottom": 378,
+    "viewportHeight": 390,
+    "recipientCount": 10,
+    "listClientHeight": 169,
+    "listScrollHeight": 578,
+    "createDisabledBeforePicking": true,
+    "selectedCountAfterUI": 2,
+    "createDisabledAfterPicking": false,
+    "closedWithoutCreate": true
+  },
+  "analysis201C": {
+    "allAttempts": 409,
+    "height3mAttempts": 114,
+    "height3mSessions": 37,
+    "activeFiltersText": "Filters(1)",
+    "errorAlerts": 0
+  },
+  "profile15": {
+    "Activity": "distinct empty activity panel",
+    "Achievements": "distinct achievements panel2of17unlocked",
+    "inactiveDivesDisplay": "none",
+    "weeklyChartLabel": "Dives per week",
+    "weeklyChartRange": "0\u201320",
+    "lastLabel": "Last dive"
+  },
+  "myDives": {
+    "canonicalIDs": 20,
+    "identityFirst": true
+  },
+  "audio": {
+    "newPlaybackAfterConstraint": false,
+    "videoAudioElementsOnCheckedSilentPages": 0,
+    "activeReviewersToSteer": 0,
+    "lockedOrphansUntouched": true
+  },
+  "scores": null
+}

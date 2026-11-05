@@ -1,7 +1,7 @@
 {
   "candidate_before_corrections": "056b5a638876f5b7602334616124eb1bdd984a2c",
-  "source_changes": "Confirmed round5 UI corrections committed d27eb728; design unverified, no fresh councils while own auth/me401",
-  "authentication": "Own new defaulttab16 /account redirected/login; GET auth/me4012026-11-05. No specific expiry/revocation diagnosis. Parent notified; source/unit work continues.",
+  "source_changes": "Frozen75f89baa source correctionsd27eb728; no new design scores",
+  "authentication": "Restored: own new default tab19 Signedinmaxime/API200, WSopen, image200; video3044decoded4 advancing before audio constraint. Noauthchanges.",
   "runtime": {
     "candidate": "http://localhost:4317",
     "profile": "default",
@@ -89,13 +89,13 @@
     "fullscope_pass": false
   },
   "private_current_evidence": "/tmp/dive-ui-r5-shots-v10-private.json (latest cumulative originals/metrics), functions store r5shots",
-  "own_current_tab": "tab_16_c539092e-8e18-4ced-b1f1-786e334b7451",
+  "own_current_tab": "tab_1a_c539092e-8e18-4ced-b1f1-786e334b7451",
   "room_private": "own room stored privately in functions store r5roomURL; never publish invite code",
   "outstanding": [
-    "Finish confirmed round5 corrections and source verification",
-    "Run tests/build and actual five-size own-account QA",
-    "New SHA and fresh three fullscope council reviews; threshold unmet",
-    "Sanitized annotated gallery and PR"
+    "Restore supported settled screenshots without authchanges/newlogin",
+    "Complete5size real visualQA and silent timedRoom coverage",
+    "Newfull3councils on correctedSHA; no acceptance yet",
+    "Finish annotated comparable childgallery andPR"
   ],
   "running_checks": {},
   "candidate_source_sha": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
@@ -116,5 +116,7 @@
     "snapshot_recovery": "Own tab fiveLibrarygrid native snapshotsPASS exact sizes/fonts/0animations, documented; no root cause claim",
     "method": "Bounded FAMILY ONLY scorecards to obtain concrete criticisms; not fullscope approval; a fresh complete final evaluator remains required. Musefull pending, no polling."
   },
-  "browser_capacity": "Sol low blockedTooManyTabs. Owncurrenttab_xclosed freeing1slot. Seven old same-thread tabs agentMismatch, not closed. One new Sol low retry reservedslot; otherspending notpolled. Noauthchanges."
+  "browser_capacity": "Sol low blockedTooManyTabs. Owncurrenttab_xclosed freeing1slot. Seven old same-thread tabs agentMismatch, not closed. One new Sol low retry reservedslot; otherspending notpolled. Noauthchanges.",
+  "visual_blocker": "Native snapshot host repeatedly timesout15000ms, independently reproduced by parent; repeated loops stopped. No alternative supported authenticated browser exposed.",
+  "audio_constraint": "No new playback after explicit user silence request; own currentpagesmediafree; no active reviewers; lockedtabsuntouched"
 }

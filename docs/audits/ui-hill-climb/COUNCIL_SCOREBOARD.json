@@ -190,7 +190,7 @@
     "accepted_fullscope_cells": 0,
     "state": "UNMET: Muse70low, Solfullincomplete, family-only results not global acceptance"
   },
-  "sha_corrected_not_reevaluated": null,
+  "sha_corrected_not_reevaluated": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
   "active_roster": [
     {
       "provider": "oc1",
@@ -213,5 +213,7 @@
         "reasoningEffort": "low"
       }
     }
-  ]
+  ],
+  "current_candidate_HEAD": "75f89baa66dd2d18c74ee63b6f01db1f15a78094",
+  "current_blocker": "Snapshot automation host timeout independently reproduced; auth restored, DOM-only QA proceeds, no visual gate inferred"
 }

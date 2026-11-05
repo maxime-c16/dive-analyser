@@ -1,3 +1,5 @@
+> Latest correction: source d27eb728 / capture HEAD75f89baa. Auth restored200; current snapshot host fails independently in coordinator and parent. [Five actual corrected dialog captures](run-04/GALLERY.md), [silent interaction QA](run-04/silent-interaction-checks.json). Other new DOM-only measurements do not establish design acceptance. No new delegates launched into the known capture failure.
+
 > Current status (2026-11-05): reviewed SHA cf95a4a8, gate UNMET. Muse min5/70below7; Solmedium familyB min3/34below7, other families not accepted; Sollow partial provisional only, final70null. Active roster Muse xhigh / Solmedium / Sollow, two Sol seats reduce model diversity. All round5 tasks completed. Integrated corrections are NOT yet reevaluated. Historical sections below retain their original state wording.
 
 # Council — numeric scoreboard

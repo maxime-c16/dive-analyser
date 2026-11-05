@@ -1,0 +1,121 @@
+[
+  {
+    "flow": "messages-group-thread-resize",
+    "viewport": [
+      1024,
+      768
+    ],
+    "original": "browser-screenshot-localhost-mw3e167d-4ed7367f.png",
+    "sha256": "7945e75684a30c07b7b3e2211ad67fe3e27c05dcf352b9fedd1d919454f51042",
+    "cropCSS": [
+      560,
+      24,
+      1000,
+      665.5
+    ],
+    "derived": "images/group-draft-1024x768-clean.png",
+    "candidateSHA": "75f89baa66dd2d18c74ee63b6f01db1f15a78094",
+    "privacy": "Cropped exactly to real dialog; private conversation background removed, portraits blurred only. Original unchanged outside Git.",
+    "designAcceptance": false
+  },
+  {
+    "flow": "messages-group-thread-resize",
+    "viewport": [
+      1440,
+      900
+    ],
+    "original": "browser-screenshot-localhost-mw3e1705-d0b704c6.png",
+    "sha256": "e09eeb2c5e4ec0fd2da68c10c8fa025e8398e03602043f6a80f06a8c45ba8b4d",
+    "cropCSS": [
+      976,
+      24,
+      1416,
+      665.5
+    ],
+    "derived": "images/group-draft-1440x900-clean.png",
+    "candidateSHA": "75f89baa66dd2d18c74ee63b6f01db1f15a78094",
+    "privacy": "Cropped exactly to real dialog; private conversation background removed, portraits blurred only. Original unchanged outside Git.",
+    "designAcceptance": false
+  },
+  {
+    "flow": "messages-group-thread-resize",
+    "viewport": [
+      390,
+      844
+    ],
+    "original": "browser-screenshot-localhost-mw3e24jz-b8334b0f.png",
+    "sha256": "4fb0e585ada837cbbf9bad332eac1c1de5c43e361deb29517723b77ffa1265e6",
+    "cropCSS": [
+      0,
+      24,
+      390,
+      844
+    ],
+    "derived": "images/group-draft-390x844-clean.png",
+    "candidateSHA": "75f89baa66dd2d18c74ee63b6f01db1f15a78094",
+    "privacy": "Cropped exactly to real dialog; private conversation background removed, portraits blurred only. Original unchanged outside Git.",
+    "designAcceptance": false
+  },
+  {
+    "flow": "messages-group-thread-resize",
+    "viewport": [
+      844,
+      390
+    ],
+    "original": "browser-screenshot-localhost-mw3e2ka4-06bc3607.png",
+    "sha256": "c434fb56dc13a4750e3f105db2603c243f666e2a29a3ba0c7be2d3c123a54df0",
+    "cropCSS": [
+      268,
+      12,
+      828,
+      378
+    ],
+    "derived": "images/group-draft-844x390-clean.png",
+    "candidateSHA": "75f89baa66dd2d18c74ee63b6f01db1f15a78094",
+    "privacy": "Cropped exactly to real dialog; private conversation background removed, portraits blurred only. Original unchanged outside Git.",
+    "designAcceptance": false
+  },
+  {
+    "flow": "messages-group-thread-resize",
+    "viewport": [
+      768,
+      1024
+    ],
+    "original": "browser-screenshot-localhost-mw3e2l79-ac039b25.png",
+    "sha256": "bd9e20dc27ce65fb637fd9a62292b630ac8f453652f3fb1114a436a3e891fed9",
+    "cropCSS": [
+      304,
+      24,
+      744,
+      665.5
+    ],
+    "derived": "images/group-draft-768x1024-clean.png",
+    "candidateSHA": "75f89baa66dd2d18c74ee63b6f01db1f15a78094",
+    "privacy": "Cropped exactly to real dialog; private conversation background removed, portraits blurred only. Original unchanged outside Git.",
+    "designAcceptance": false
+  },
+  {
+    "flow": "group draft desktop thread resized to phone",
+    "viewport": [
+      390,
+      844
+    ],
+    "cropCSS": [
+      0,
+      0,
+      390,
+      110
+    ],
+    "beforeSHA": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "afterSHA": "75f89baa66dd2d18c74ee63b6f01db1f15a78094",
+    "beforeOriginal": "browser-screenshot-localhost-mw3a2hs2-84c0f39f.png",
+    "beforeSha256": "5a6cb3b3795de0ce8206768e14bd93267faa343dc527b0a23f8436f012d86fd7",
+    "afterOriginal": "browser-screenshot-localhost-mw3e24jz-b8334b0f.png",
+    "derived": "images/group-phone-header-before-after.png",
+    "cleanDerivatives": [
+      "images/group-phone-header-before-clean.png",
+      "images/group-phone-header-after-clean.png"
+    ],
+    "limits": "Same viewport/journey and header crop; before had2 selected recipients, after0. This affects Create enablement; comparison claims only dialog visibility and explicit Close. A narrow piece of private message text below the before header is masked. Other body/child screenshots remain unavailable from host; no scores inferred."
+  }
+]
