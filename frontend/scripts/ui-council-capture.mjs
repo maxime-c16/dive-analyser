@@ -168,10 +168,10 @@ async function settle(page, selector, slow = false) {
   const quiet = await page.quiet()
   await page.evaluate(() => document.fonts.ready)
   const busy = '[aria-busy="true"], .skeleton, [class*="skeleton"], .page-loading, .eval-warmup'
-  await page.waitForFunction(sel => ![...document.querySelectorAll(sel)].some(n => n.getClientRects().length), busy, { timeout: slow ? 45000 : 8000 }).catch(() => {})
+  await page.waitForFunction(sel => ![...document.querySelectorAll(sel)].some(n => n.getClientRects().length), busy, { timeout: slow ? 15000 : 8000 }).catch(error => { throw Object.assign(error, { unsettled: true }) })
   await page.quiet(300, 3000)
   await page.waitForTimeout(250)
-  return quiet
+  return quiet && await page.quiet(300, 3000)
 }
 
 async function metrics(page) {
@@ -182,11 +182,12 @@ async function metrics(page) {
     }).slice(0, 5).map(n => n.tagName.toLowerCase() + (n.className && typeof n.className === 'string' ? '.' + n.className.trim().split(/\s+/).slice(0, 2).join('.') : ''))
     const loaders = [...document.querySelectorAll('[aria-busy="true"], [class*="skeleton"], .page-loading, .eval-warmup')].filter(n => n.getClientRects().length).length
     const videos = [...document.querySelectorAll('video')].map(v => ({ ready: v.readyState, paused: v.paused, muted: v.muted }))
+    const alertsVisible = [...document.querySelectorAll('[role="alert"]')].filter(n => n.getClientRects().length).length
     const h1 = document.querySelector('h1')?.textContent?.trim() || null
     const smallTargets = [...document.querySelectorAll('button, a, [role="button"], input, select')].filter(n => {
       const r = n.getBoundingClientRect(); return r.width > 0 && r.height > 0 && (r.width < 24 || r.height < 24)
     }).length
-    return { url: location.pathname + location.search, h1, horizontalOverflow: doc.scrollWidth > doc.clientWidth, overflowing, scrollHeight: doc.scrollHeight, loadersVisible: loaders, videos, smallTargets }
+    return { alertsVisible, url: location.pathname + location.search, h1, horizontalOverflow: doc.scrollWidth > doc.clientWidth, overflowing, scrollHeight: doc.scrollHeight, loadersVisible: loaders, videos, smallTargets }
   })
 }
 
@@ -238,11 +239,12 @@ async function run(args, rev, scenarios, sizes) {
         rec = await captureOne(context, sc, w, h, dir)
         rec.attempt = attempt
         attempts.push({ ...rec })
-        if (rec.status === 'ok') break
+        if (rec.status === 'ok' || rec.status === 'unsettled') break
         if (attempt < 3) rec.retried = true
       }
       rec.attempts = attempts
       results.push(rec)
+      writeManifest(dir, rev, me, scenarios, sizes, results)
       process.stdout.write(`${rec.status === 'ok' ? '.' : rec.status[0].toUpperCase()}`)
     } }))
     await context.close()
@@ -272,7 +274,8 @@ async function captureOne(context, sc, w, h, dir) {
       if (!target) throw new Error('no data to open this child view')
       await page.goto(BASE + target, { waitUntil: 'domcontentloaded', timeout: 30000 })
     }
-    await settle(page, sc.settle, sc.slow)
+    const ready = await settle(page, sc.settle, sc.slow)
+    if (!ready) throw Object.assign(new Error('network did not settle within budget'), { unsettled: true })
     if (sc.settle && !await page.locator(sc.settle).first().isVisible()) throw new Error('required scenario element missing')
     if (new URL(page.url()).pathname === '/login') throw new Error('session redirected to login')
     const m = await metrics(page)
@@ -282,6 +285,7 @@ async function captureOne(context, sc, w, h, dir) {
     const full = m.scrollHeight > h * 1.2
     if (full) await page.screenshot({ path: path.join(sub, `${w}x${h}.full.png`), fullPage: true, clip: { x: 0, y: 0, width: w, height: Math.min(m.scrollHeight, h * 4) }, animations: 'disabled', caret: 'hide' })
     Object.assign(rec, m, { full })
+    if (m.alertsVisible) { rec.status = 'error-state'; rec.error = 'visible alert; diagnostic capture only' }
   } catch (e) {
     rec.status = e.unsettled ? 'unsettled' : 'failed'; rec.error = String(e.message).split('\n')[0]
     if (e.m) Object.assign(rec, e.m)

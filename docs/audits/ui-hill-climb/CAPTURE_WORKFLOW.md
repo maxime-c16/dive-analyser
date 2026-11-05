@@ -27,3 +27,13 @@ product tests passed. Previous 105-image bundle took 162 seconds but inspection
 found a PageLoading frame falsely classified settled; `.eval-warmup` is now
 included in both waiting and final loader checks. Previous bundle is historical,
 not final acceptance evidence.
+
+Continuation: full frontend suite passed with Node 26 experimental webstorage
+disabled (`NODE_OPTIONS=--no-experimental-webstorage`): 118 files, 969 tests.
+The default Node run had 81 failures and is not reported green. Local pre-push
+failed because nproc/timeout/Docker prerequisites are absent; published using the
+repository's documented DIVE_CI_SKIP option for authoritative GitHub checks.
+Round 7 is an explicitly provisional screenshot diagnostic, not an acceptance
+round. Sol observed only Library grid (5.5/10); matrix retained in round-07.
+The script now rejects unsuccessful network quiet waiting and checkpoints its
+manifest after every capture so slow pages do not hide completed evidence.

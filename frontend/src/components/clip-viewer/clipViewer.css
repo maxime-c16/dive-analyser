@@ -2308,3 +2308,5 @@
 .clip-viewer:not(.is-studio) .clip-mobile-summary .clip-actions :is(button,a) { flex-direction:row; }
 .clip-viewer:not(.is-studio) .clip-mobile-summary .clip-actions svg { color:currentColor; }
 .clip-viewer:not(.is-studio) .clip-mobile-summary .clip-caption h2 { font-family:inherit; }
+
+.clip-viewer:not(.is-studio) .clip-mobile-summary .clip-actions { flex-wrap:wrap; }

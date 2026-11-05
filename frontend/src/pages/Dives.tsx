@@ -976,7 +976,7 @@ function DiveLibrary() {
       <PendingBanner />
       <section className="mt-4 space-y-2" aria-label={t("dives.filtersAria")}>
         <div className="flex flex-wrap items-center gap-2">
-          <div className={`${filtersOpen ? "flex" : "hidden"} order-last h-11 w-full gap-1 border border-app bg-app-panel p-1 sm:order-none sm:flex sm:w-auto sm:shrink-0`}>
+          <div className={`flex order-last h-11 w-full gap-1 border border-app bg-app-panel p-1 sm:order-none sm:w-auto sm:shrink-0`}>
             {(
               [
                 ["self", t("dives.myDives")],
@@ -1117,7 +1117,7 @@ function DiveLibrary() {
                 }
                 aria-pressed={modifiers.includes(modifier)}
                 title={t(`dives.modifierDescriptions.${modifier}`)}
-                className={`min-h-0 min-w-10 flex-1 border px-2 text-xs ${modifiers.includes(modifier) ? "border-app-accent bg-app-panel-elevated text-app-accent" : "border-transparent text-app-muted"}`}
+                className={`min-h-0 min-w-10 flex-1 whitespace-nowrap border px-2 text-xs ${modifiers.includes(modifier) ? "border-app-accent bg-app-panel-elevated text-app-accent" : "border-transparent text-app-muted"}`}
               >
                 {t(`dives.modifierNames.${modifier}`)}
               </button>
