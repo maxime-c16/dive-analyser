@@ -179,6 +179,9 @@ export default function MemberProfile() {
     </header>
     {editing && <ProfileEditor profile={profile} onChange={identity => setProfile(previous => previous ? { ...previous, ...identity } : previous)} onClose={() => setEditing(false)} />}
 
+    <Segmented label={t('community.profileSections')} value={tab} onChange={setTab}
+      options={PROFILE_TABS.map(value => [value, t(`community.${value}`)] as const)} />
+
     {totals && totals.attempt_count > 0 && <section className="ca-panel" aria-label={t('profile.stats')}>
       <details className="cm-stats">
       <summary>{t('profile.stats')}</summary>
@@ -198,8 +201,7 @@ export default function MemberProfile() {
       </details>
     </section>}
 
-    <Segmented label={t('community.profileSections')} value={tab} onChange={setTab}
-      options={PROFILE_TABS.map(value => [value, t(`community.${value}`)] as const)} />
+
 
     {PROFILE_TABS.filter(key => key === tab || opened.has(key)).map(key => <div key={key} className="cm-tabpanel" role="tabpanel" aria-label={t(`community.${key}`)} hidden={key !== tab}>
       {key === 'dives' && <ProfileDiveGrid key={profile.user_id} userId={profile.user_id} />}
