@@ -37,3 +37,16 @@ Round 7 is an explicitly provisional screenshot diagnostic, not an acceptance
 round. Sol observed only Library grid (5.5/10); matrix retained in round-07.
 The script now rejects unsuccessful network quiet waiting and checkpoints its
 manifest after every capture so slow pages do not hide completed evidence.
+
+Fresh f1afe9bb Library grid captured at five sizes in the focused run: header
+collision corrected, phone scope visible. Raw bundle:
+`.ui-council/f1afe9bb80c1-a251437a502d-1793889489032/`.
+Phone/landscape player actions wrap correctly. Player images at desktop/tablet/
+landscape still contain `.clip-loading`: rejected as settled video evidence;
+added that loader to both waiting and metrics. No player acceptance inferred.
+The header comparison in round-07/images is a top-only crop with separate
+numbered annotations. Originals stay in the private ignored bundle; no media or
+DM text appears in the crop. This compares the pre-fix product and f1afe9bb at
+390×844. Historical full run completed in 561s (20 failed/unsettled); focused
+Library grid/player run completed in about 30s. Incremental manifests and
+no automatic retries of unsettled frames avoid the original long feedback loop.

@@ -167,7 +167,7 @@ async function settle(page, selector, slow = false) {
   if (selector) await page.locator(selector).first().waitFor({ timeout: 10000 }).catch(() => {})
   const quiet = await page.quiet()
   await page.evaluate(() => document.fonts.ready)
-  const busy = '[aria-busy="true"], .skeleton, [class*="skeleton"], .page-loading, .eval-warmup'
+  const busy = '[aria-busy="true"], .skeleton, [class*="skeleton"], .page-loading, .eval-warmup, .clip-loading'
   await page.waitForFunction(sel => ![...document.querySelectorAll(sel)].some(n => n.getClientRects().length), busy, { timeout: slow ? 15000 : 8000 }).catch(error => { throw Object.assign(error, { unsettled: true }) })
   await page.quiet(300, 3000)
   await page.waitForTimeout(250)
@@ -180,7 +180,7 @@ async function metrics(page) {
     const overflowing = [...document.querySelectorAll('body *')].filter(n => {
       const r = n.getBoundingClientRect(); return r.width > 0 && r.right > doc.clientWidth + 1
     }).slice(0, 5).map(n => n.tagName.toLowerCase() + (n.className && typeof n.className === 'string' ? '.' + n.className.trim().split(/\s+/).slice(0, 2).join('.') : ''))
-    const loaders = [...document.querySelectorAll('[aria-busy="true"], [class*="skeleton"], .page-loading, .eval-warmup')].filter(n => n.getClientRects().length).length
+    const loaders = [...document.querySelectorAll('[aria-busy="true"], [class*="skeleton"], .page-loading, .eval-warmup, .clip-loading')].filter(n => n.getClientRects().length).length
     const videos = [...document.querySelectorAll('video')].map(v => ({ ready: v.readyState, paused: v.paused, muted: v.muted }))
     const alertsVisible = [...document.querySelectorAll('[role="alert"]')].filter(n => n.getClientRects().length).length
     const h1 = document.querySelector('h1')?.textContent?.trim() || null
