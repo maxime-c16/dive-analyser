@@ -7,7 +7,7 @@ import {
 } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, Check, Copy, Link2, Play, Timer, User, Volume2 } from "lucide-react";
+import { ArrowLeft, Check, Copy, Link2, Play, Timer, User, Volume2, VolumeX } from "lucide-react";
 import MemberAvatar from "../components/MemberAvatar";
 import { ScoreCard } from "../components/evaluation/ScoreCards";
 import EvaluationPlayer from "../components/evaluation/EvaluationPlayer";
@@ -57,8 +57,9 @@ export default function JudgeRoom() {
   const videoA = useRef<HTMLVideoElement>(null);
   const videoB = useRef<HTMLVideoElement>(null);
   const [soundBlocked, setSoundBlocked] = useState(false);
+  const [roomMuted, setRoomMuted] = useState(false);
   const unlock = () => {
-    void unlockRoomAudio([videoA.current, videoB.current]);
+    void unlockRoomAudio([videoA.current, videoB.current], undefined, roomMuted);
   };
   const [room, setRoom] = useState<Room | null>(null);
   const preloaded = useRoomPreload(code, room?.playlist ?? []);
@@ -301,10 +302,27 @@ export default function JudgeRoom() {
     <div
       className={`ca gm-page gm-phase-${room?.phase ?? "join"}${watching ? " gm-watching" : ""}${scoring ? " gm-scoring" : ""}`}
     >
-      <Link className="gm-exit" to="/evaluations" aria-label={t("common.back")}>
-        <ArrowLeft size={18} aria-hidden="true" />
-        {t("common.back")}
-      </Link>
+      <div className="gm-toolbar">
+        <Link className="gm-exit" to="/evaluations" aria-label={t("common.back")}>
+          <ArrowLeft size={18} aria-hidden="true" />{t("common.back")}
+        </Link>
+        <button type="button" className="gm-audio-toggle" data-muted={roomMuted || soundBlocked}
+          aria-label={t(roomMuted || soundBlocked ? "room.soundOn" : "room.soundOff")}
+          onClick={() => {
+            const muted = !(roomMuted || soundBlocked);
+            setRoomMuted(muted);
+            for (const video of [videoA.current, videoB.current]) if (video) video.muted = muted;
+            if (muted) setSoundBlocked(false);
+            else {
+              const activeVideo = room && room.index % 2 === 1 ? videoB.current : videoA.current;
+              void unlockRoomAudio([videoA.current, videoB.current], watching ? activeVideo ?? undefined : undefined)
+                .then(results => { if (results[room?.index ? room.index % 2 : 0]) setSoundBlocked(false); });
+            }
+          }}>
+          {roomMuted || soundBlocked ? <VolumeX size={16} aria-hidden="true" /> : <Volume2 size={16} aria-hidden="true" />}
+          {t(roomMuted || soundBlocked ? "room.muted" : "room.soundEnabled")}
+        </button>
+      </div>
       {error && (
         <p role="alert" className="eval-error">
           {t("room.error")}
@@ -333,6 +351,7 @@ export default function JudgeRoom() {
                   poster: clip?.poster_url ?? "",
                   startsAt: source && active && mediaActive ? room!.starts : 0,
                   serverOffset: offset.current,
+                  muted: roomMuted || soundBlocked,
                   playToken: `${room?.game_id}:${assigned}`,
                 }}
                 onRoomReady={() => {
@@ -371,7 +390,7 @@ export default function JudgeRoom() {
                   {t("common.loading")}
                 </span>
               )}
-              {visible && soundBlocked && (
+              {visible && soundBlocked && !roomMuted && (
                 <button
                   className="gm-sound"
                   onClick={() => {

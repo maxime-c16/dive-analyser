@@ -342,3 +342,20 @@ it('falls back to muted playback only after an audible play is rejected', async 
   expect(video.play).toHaveBeenCalledTimes(2)
   unmount();vi.useRealTimers()
 })
+
+it('retains the explicit room mute before timed playback and when a slot receives the next dive', async () => {
+  vi.useFakeTimers()
+  const media={src:'/room-video-1',poster:'',startsAt:Date.now()/1000,serverOffset:0,muted:true,playToken:'one'}
+  const {container,rerender,unmount}=render(<EvaluationPlayer roomMedia={media}/>)
+  try {
+    const video=container.querySelector('video')!
+    expect(video.muted).toBe(true)
+    await act(async()=>{vi.advanceTimersByTime(1)})
+    expect(video.play).toHaveBeenCalledOnce()
+    expect(video.muted).toBe(true)
+    rerender(<EvaluationPlayer roomMedia={{...media,src:'/room-video-2',playToken:'two'}}/>)
+    await act(async()=>{vi.advanceTimersByTime(1)})
+    expect(video.play).toHaveBeenCalledTimes(2)
+    expect(video.muted).toBe(true)
+  } finally {unmount();vi.useRealTimers()}
+})

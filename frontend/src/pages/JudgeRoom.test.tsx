@@ -46,3 +46,22 @@ it('ignores an older socket snapshot arriving after the ballot response',async()
   await act(async()=>message?.({data:JSON.stringify({...base,phase:'mole',has_ballot:false,server_time:base.server_time-1})}))
   expect(screen.getByRole('button',{name:'Vote submitted'})).toBeDisabled()
 })
+
+it('keeps both room slots muted when Start primes playback after a deliberate mute', async () => {
+  const play = vi.spyOn(HTMLMediaElement.prototype, 'play').mockImplementation(function(this:HTMLMediaElement) {
+    expect(this.muted).toBe(true)
+    return Promise.resolve()
+  })
+  const pause = vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(()=>{})
+  const {container}=mount({...base,phase:'lobby',playlist:[{id:1,dive_code:'112B',height:'1m',poster_url:'',playback_url:'/room-media'}] as Room['playlist']})
+  try {
+    const mute = await screen.findByRole('button',{name:'Mute sound'})
+    expect([...container.querySelectorAll('video')].every(v=>!v.muted)).toBe(true)
+    fireEvent.click(mute)
+    expect(screen.getByRole('button',{name:'Turn sound on'})).toBeInTheDocument()
+    expect([...container.querySelectorAll('video')].every(v=>v.muted)).toBe(true)
+    fireEvent.click(screen.getByRole('button',{name:'Start'}))
+    await waitFor(()=>expect(play).toHaveBeenCalledTimes(2))
+    expect([...container.querySelectorAll('video')].every(v=>v.muted)).toBe(true)
+  } finally { play.mockRestore();pause.mockRestore() }
+})
