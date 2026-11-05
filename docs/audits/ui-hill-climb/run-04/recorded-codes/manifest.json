@@ -1,0 +1,72 @@
+[
+  {
+    "flow": "codes-collapsed",
+    "viewport": [
+      390,
+      844
+    ],
+    "image": "codes-390x844.png",
+    "mechanism": "Frame extracted from native preview recording; originals retained privately",
+    "capture": "Prior interrupted run, recovered 2026-11-05",
+    "source_sha": null,
+    "current_candidate_validation": false,
+    "settled": true,
+    "overflow": false
+  },
+  {
+    "flow": "codes-collapsed",
+    "viewport": [
+      844,
+      390
+    ],
+    "image": "codes-844x390.png",
+    "mechanism": "Frame extracted from native preview recording; originals retained privately",
+    "capture": "Prior interrupted run, recovered 2026-11-05",
+    "source_sha": null,
+    "current_candidate_validation": false,
+    "settled": true,
+    "overflow": false
+  },
+  {
+    "flow": "codes-collapsed",
+    "viewport": [
+      768,
+      1024
+    ],
+    "image": "codes-768x1024.png",
+    "mechanism": "Frame extracted from native preview recording; originals retained privately",
+    "capture": "Prior interrupted run, recovered 2026-11-05",
+    "source_sha": null,
+    "current_candidate_validation": false,
+    "settled": true,
+    "overflow": false
+  },
+  {
+    "flow": "codes-collapsed",
+    "viewport": [
+      1024,
+      768
+    ],
+    "image": "codes-1024x768.png",
+    "mechanism": "Frame extracted from native preview recording; originals retained privately",
+    "capture": "Prior interrupted run, recovered 2026-11-05",
+    "source_sha": null,
+    "current_candidate_validation": false,
+    "settled": true,
+    "overflow": false
+  },
+  {
+    "flow": "codes-collapsed",
+    "viewport": [
+      1440,
+      900
+    ],
+    "image": "codes-1440x900.png",
+    "mechanism": "Frame extracted from native preview recording; originals retained privately",
+    "capture": "Prior interrupted run, recovered 2026-11-05",
+    "source_sha": null,
+    "current_candidate_validation": false,
+    "settled": true,
+    "overflow": false
+  }
+]

@@ -1457,9 +1457,10 @@
     "animations": 0,
     "phase_matches_expected": null,
     "eligible_for_visual_inspection": true,
-    "visually_reviewed": false,
+    "visually_reviewed": true,
     "source_sha": "2c07abee",
-    "score": null
+    "score": null,
+    "inspection": "Five-size contact sheet, supplementary coordinator QA; no design score"
   },
   {
     "flow": "profile-codes-final",
@@ -1474,9 +1475,10 @@
     "animations": 0,
     "phase_matches_expected": null,
     "eligible_for_visual_inspection": true,
-    "visually_reviewed": false,
+    "visually_reviewed": true,
     "source_sha": "2c07abee",
-    "score": null
+    "score": null,
+    "inspection": "Five-size contact sheet, supplementary coordinator QA; no design score"
   },
   {
     "flow": "profile-codes-final",
@@ -1491,9 +1493,10 @@
     "animations": 0,
     "phase_matches_expected": null,
     "eligible_for_visual_inspection": true,
-    "visually_reviewed": false,
+    "visually_reviewed": true,
     "source_sha": "2c07abee",
-    "score": null
+    "score": null,
+    "inspection": "Five-size contact sheet, supplementary coordinator QA; no design score"
   },
   {
     "flow": "profile-codes-final",
@@ -1508,9 +1511,10 @@
     "animations": 0,
     "phase_matches_expected": null,
     "eligible_for_visual_inspection": true,
-    "visually_reviewed": false,
+    "visually_reviewed": true,
     "source_sha": "2c07abee",
-    "score": null
+    "score": null,
+    "inspection": "Five-size contact sheet, supplementary coordinator QA; no design score"
   },
   {
     "flow": "profile-codes-final",
@@ -1525,9 +1529,10 @@
     "animations": 0,
     "phase_matches_expected": null,
     "eligible_for_visual_inspection": true,
-    "visually_reviewed": false,
+    "visually_reviewed": true,
     "source_sha": "2c07abee",
-    "score": null
+    "score": null,
+    "inspection": "Five-size contact sheet, supplementary coordinator QA; no design score"
   },
   {
     "flow": "profile-activity",
@@ -1542,9 +1547,10 @@
     "animations": 2,
     "phase_matches_expected": null,
     "eligible_for_visual_inspection": true,
-    "visually_reviewed": false,
+    "visually_reviewed": true,
     "source_sha": "2c07abee",
-    "score": null
+    "score": null,
+    "inspection": "Five-size contact sheet, supplementary coordinator QA; no design score"
   },
   {
     "flow": "profile-activity",
@@ -1559,9 +1565,10 @@
     "animations": 0,
     "phase_matches_expected": null,
     "eligible_for_visual_inspection": true,
-    "visually_reviewed": false,
+    "visually_reviewed": true,
     "source_sha": "2c07abee",
-    "score": null
+    "score": null,
+    "inspection": "Five-size contact sheet, supplementary coordinator QA; no design score"
   },
   {
     "flow": "profile-activity",
@@ -1576,9 +1583,10 @@
     "animations": 0,
     "phase_matches_expected": null,
     "eligible_for_visual_inspection": true,
-    "visually_reviewed": false,
+    "visually_reviewed": true,
     "source_sha": "2c07abee",
-    "score": null
+    "score": null,
+    "inspection": "Five-size contact sheet, supplementary coordinator QA; no design score"
   },
   {
     "flow": "profile-activity",
@@ -1593,9 +1601,10 @@
     "animations": 0,
     "phase_matches_expected": null,
     "eligible_for_visual_inspection": true,
-    "visually_reviewed": false,
+    "visually_reviewed": true,
     "source_sha": "2c07abee",
-    "score": null
+    "score": null,
+    "inspection": "Five-size contact sheet, supplementary coordinator QA; no design score"
   },
   {
     "flow": "profile-activity",
@@ -1610,9 +1619,10 @@
     "animations": 0,
     "phase_matches_expected": null,
     "eligible_for_visual_inspection": true,
-    "visually_reviewed": false,
+    "visually_reviewed": true,
     "source_sha": "2c07abee",
-    "score": null
+    "score": null,
+    "inspection": "Five-size contact sheet, supplementary coordinator QA; no design score"
   },
   {
     "flow": "profile-achievements",
@@ -1627,9 +1637,10 @@
     "animations": 4,
     "phase_matches_expected": null,
     "eligible_for_visual_inspection": true,
-    "visually_reviewed": false,
+    "visually_reviewed": true,
     "source_sha": "2c07abee",
-    "score": null
+    "score": null,
+    "inspection": "Five-size contact sheet, supplementary coordinator QA; no design score"
   },
   {
     "flow": "profile-achievements",
@@ -1643,10 +1654,12 @@
     "overflow": false,
     "animations": 4,
     "phase_matches_expected": null,
-    "eligible_for_visual_inspection": true,
-    "visually_reviewed": false,
+    "eligible_for_visual_inspection": false,
+    "visually_reviewed": true,
     "source_sha": "2c07abee",
-    "score": null
+    "score": null,
+    "inspection": "Five-size contact sheet, supplementary coordinator QA; no design score",
+    "exclusion": "Contact inspection: landscape contains unsettled tab placeholders; desktop appears incomplete/corrupt. Not a confirmed product defect; fresh evidence needed."
   },
   {
     "flow": "profile-achievements",
@@ -1661,9 +1674,10 @@
     "animations": 4,
     "phase_matches_expected": null,
     "eligible_for_visual_inspection": true,
-    "visually_reviewed": false,
+    "visually_reviewed": true,
     "source_sha": "2c07abee",
-    "score": null
+    "score": null,
+    "inspection": "Five-size contact sheet, supplementary coordinator QA; no design score"
   },
   {
     "flow": "profile-achievements",
@@ -1678,9 +1692,10 @@
     "animations": 4,
     "phase_matches_expected": null,
     "eligible_for_visual_inspection": true,
-    "visually_reviewed": false,
+    "visually_reviewed": true,
     "source_sha": "2c07abee",
-    "score": null
+    "score": null,
+    "inspection": "Five-size contact sheet, supplementary coordinator QA; no design score"
   },
   {
     "flow": "profile-achievements",
@@ -1694,10 +1709,12 @@
     "overflow": false,
     "animations": 4,
     "phase_matches_expected": null,
-    "eligible_for_visual_inspection": true,
-    "visually_reviewed": false,
+    "eligible_for_visual_inspection": false,
+    "visually_reviewed": true,
     "source_sha": "2c07abee",
-    "score": null
+    "score": null,
+    "inspection": "Five-size contact sheet, supplementary coordinator QA; no design score",
+    "exclusion": "Contact inspection: landscape contains unsettled tab placeholders; desktop appears incomplete/corrupt. Not a confirmed product defect; fresh evidence needed."
   },
   {
     "flow": "evaluation-history",
@@ -1712,9 +1729,10 @@
     "animations": 0,
     "phase_matches_expected": null,
     "eligible_for_visual_inspection": true,
-    "visually_reviewed": false,
+    "visually_reviewed": true,
     "source_sha": "2c07abee",
-    "score": null
+    "score": null,
+    "inspection": "Five-size contact sheet, supplementary coordinator QA; no design score"
   },
   {
     "flow": "evaluation-history",
@@ -1729,9 +1747,10 @@
     "animations": 0,
     "phase_matches_expected": null,
     "eligible_for_visual_inspection": true,
-    "visually_reviewed": false,
+    "visually_reviewed": true,
     "source_sha": "2c07abee",
-    "score": null
+    "score": null,
+    "inspection": "Five-size contact sheet, supplementary coordinator QA; no design score"
   },
   {
     "flow": "evaluation-history",
@@ -1746,9 +1765,10 @@
     "animations": 0,
     "phase_matches_expected": null,
     "eligible_for_visual_inspection": true,
-    "visually_reviewed": false,
+    "visually_reviewed": true,
     "source_sha": "2c07abee",
-    "score": null
+    "score": null,
+    "inspection": "Five-size contact sheet, supplementary coordinator QA; no design score"
   },
   {
     "flow": "evaluation-history",
@@ -1763,9 +1783,10 @@
     "animations": 0,
     "phase_matches_expected": null,
     "eligible_for_visual_inspection": true,
-    "visually_reviewed": false,
+    "visually_reviewed": true,
     "source_sha": "2c07abee",
-    "score": null
+    "score": null,
+    "inspection": "Five-size contact sheet, supplementary coordinator QA; no design score"
   },
   {
     "flow": "evaluation-history",
@@ -1780,9 +1801,10 @@
     "animations": 0,
     "phase_matches_expected": null,
     "eligible_for_visual_inspection": true,
-    "visually_reviewed": false,
+    "visually_reviewed": true,
     "source_sha": "2c07abee",
-    "score": null
+    "score": null,
+    "inspection": "Five-size contact sheet, supplementary coordinator QA; no design score"
   },
   {
     "flow": "room-muted-lobby-final",

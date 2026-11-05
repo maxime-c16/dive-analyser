@@ -1,0 +1,346 @@
+--- a/frontend/src/mainJourneys.css
++++ b/frontend/src/mainJourneys.css
+@@ -123,3 +123,14 @@
+   .professional-shell:has(.attached-navigation) .calendar-form-header { top:50px; }
+ }
+ .professional-shell :is(.msg-sheet,.msg-sheet-backdrop,.msg-pick-row,.msg-row,.msg-badge) { animation:none; }
++
++.professional-shell .analysis-page { gap:16px; }
++.professional-shell .analysis-page > :not([hidden]) ~ :not([hidden]) { margin-top:16px; }
++.professional-shell .analysis-page > header { padding-bottom:12px; gap:12px; }
++.professional-shell .ca-page > .ca-span.ca-scroll { flex-wrap:wrap; overflow:visible; }
++.professional-shell .ca-page > .ca-span.ca-scroll .ca-segmented { flex-wrap:wrap; }
++@media(max-width:599px) {
++ .professional-shell .analysis-page > header { gap:8px; }
++ .professional-shell .analysis-page > header p { font-size:13px; }
++ .professional-shell .analysis-page [data-testid="analysis-key-summary"] > div > div { padding:12px; }
++}
+--- a/frontend/src/pages/Messages.test.tsx
++++ b/frontend/src/pages/Messages.test.tsx
+@@ -232,3 +232,26 @@
+   await waitFor(() => expect(api.startGroup).toHaveBeenCalledTimes(1))
+   expect(vi.mocked(api.startGroup).mock.calls[0][0]).toHaveLength(15)
+ })
++
++it('keeps a group draft outside the phone-hidden heading when an open thread resizes', async () => {
++  const width = window.innerWidth
++  vi.mocked(searchMembers).mockResolvedValue({items:[], next_after:null})
++  try {
++    Object.defineProperty(window, 'innerWidth', {configurable:true, value:1440})
++    show()
++    await screen.findByText(message.body)
++    fireEvent.click(screen.getByRole('button', {name:'New'}))
++    fireEvent.click(screen.getByRole('button', {name:'New group'}))
++    const dialog = screen.getByRole('dialog', {name:'New group'})
++    Object.defineProperty(window, 'innerWidth', {configurable:true, value:390})
++    fireEvent(window, new Event('resize'))
++    // The phone thread hides this heading; its draft must survive outside it.
++    expect(dialog.closest('.messages-heading')).toBeNull()
++    expect(dialog).toHaveAttribute('aria-modal', 'true')
++    fireEvent.click(screen.getByRole('button', {name:'Close'}))
++    expect(screen.queryByRole('dialog', {name:'New group'})).toBeNull()
++    expect(api.startGroup).not.toHaveBeenCalled()
++  } finally {
++    Object.defineProperty(window, 'innerWidth', {configurable:true, value:width})
++  }
++})
+--- a/frontend/src/pages/DiveAnalysis.test.tsx
++++ b/frontend/src/pages/DiveAnalysis.test.tsx
+@@ -220,3 +220,12 @@
+   expect(screen.getByRole('button',{name:/^Comparison/})).toHaveAttribute('aria-expanded','false')
+   expect(screen.getByTestId('attempt-progression-chart')).toBeInTheDocument()
+ })
++
++it('labels a Library return as Library, preserving its exact filters', async () => {
++ vi.mocked(getDiveAnalysis).mockResolvedValue(payload)
++ renderPage({pathname:'/dives/analysis/103B',search:'',state:{returnTo:'/dives?view=codes&scope=all'}})
++ await screen.findByTestId('analysis-key-summary')
++ expect(screen.getByTestId('analysis-back')).toHaveTextContent('Back to Library')
++ await userEvent.click(screen.getByTestId('analysis-back'))
++ expect(screen.getByTestId('location')).toHaveTextContent('view=codes&scope=all')
++})
+--- a/frontend/src/pages/MemberProfile.tsx
++++ b/frontend/src/pages/MemberProfile.tsx
+@@ -192,11 +192,12 @@
+         <div className="ca-kpi"><dt>{t('profile.kpi.last')}</dt><dd>{last ? <><CountUp value={last.count} digits={0} /><small className="ca-kpi-unit">{last.unit}</small></> : '—'}</dd></div>
+       </dl>
+       {weeks.length > 0 && <>
++        <figure className="cm-weekly-activity"><figcaption>{t('profile.weeklyCounts')}<span>0–{weekMax}</span></figcaption>
+         <div className="cm-weeks" aria-label={t('profile.weeksAria', { count: weeks.length })}>
+           {weeks.map((week, index) => <i key={week.start} className={week.attempt_count ? '' : 'is-empty'} title={`${week.start} · ${week.attempt_count}`}
+             style={{ height: `${Math.max(4, (week.attempt_count / weekMax) * 100)}%`, '--i': index } as CSSProperties} />)}
+         </div>
+-        <div className="cm-weeks-legend"><span>{format(parseISO(weeks[0].start), 'MMM yy', { locale: appLocale() })}</span><span>{t('profile.thisWeek')}</span></div>
++        <div className="cm-weeks-legend"><span>{format(parseISO(weeks[0].start), 'MMM yy', { locale: appLocale() })}</span><span>{t('profile.thisWeek')}</span></div></figure>
+       </>}
+       </details>
+     </section>}
+--- a/frontend/src/pages/DiveAnalysis.tsx
++++ b/frontend/src/pages/DiveAnalysis.tsx
+@@ -457,6 +457,7 @@
+   const [data, setData] = useState<AnalysisData | null>(null), [divers, setDivers] = useState<Diver[]>([]), [periods, setPeriods] = useState<TrainingPeriod[]>([])
+   const [representatives, setRepresentatives] = useState<RepresentativeCard[]>([])
+   const [personalValues, setPersonalValues] = useState<PersonalDiveValue[] | null>(null)
++  const [filtersOpen, setFiltersOpen] = useState(false)
+   const [loading, setLoading] = useState(true), [refreshing, setRefreshing] = useState(false), [error, setError] = useState<string | null>(null), [selected, setSelected] = useState<DiveAttempt | null>(null)
+   const [reloadKey, setReloadKey] = useState(0)
+   const [attemptPage, setAttemptPage] = useState(0)
+@@ -549,7 +550,7 @@
+   // Only same-app Library destinations are honored.
+   const locationState = location.state as { returnTo?: unknown } | null
+   const returnTo = typeof locationState?.returnTo === 'string' && locationState.returnTo.startsWith('/dives') ? locationState.returnTo : null
+-  const backIsClip = returnTo != null || selectedAttempt != null
++  const backIsClip = returnTo != null ? new URL(returnTo, 'https://local.invalid').searchParams.has('clip') : selectedAttempt != null
+   const backLabel = backIsClip ? i18n.t('analysis.backToClip') : i18n.t('notFound.backToLibrary')
+   const backHref = returnTo ?? (selectedAttempt ? `/dives?clip=${selectedAttempt.id}` : `/dives?q=${encodeURIComponent(diveCode.toUpperCase())}`)
+   const goBack = () => navigate(backHref)
+@@ -574,17 +575,17 @@
+   const mixedContext = attempts.length > 0 && (heights.length > 1 || positions.length > 1 || syncStates.length > 1 || Object.keys(modifierCounts).length > 1)
+ 
+   return <div className="analysis-page mx-auto w-full max-w-[1480px] space-y-6">
+-    <div className="flex items-center gap-2"><button type="button" onClick={goBack} data-testid="analysis-back" className="touch-target inline-flex items-center gap-2 border border-app bg-app-panel px-3 py-1.5 text-sm text-app-text"><ArrowLeft className="h-4 w-4" aria-hidden="true" />{backLabel}</button><span className="flex-1" /><MobileShellActions /></div>
+-    <header className="flex flex-col gap-4 border-b border-app pb-5 md:flex-row md:items-end md:justify-between"><div><div className="flex items-center gap-3"><h1 className="text-3xl font-semibold tracking-tight text-app-text">{diveCode.toUpperCase()}</h1><span className="text-base text-app-muted">{diveCodeName(diveCode.toUpperCase(), i18n.language.startsWith('fr') ? 'fr' : 'en')}</span></div><p className="mt-2 text-sm text-app-muted" aria-live="polite" data-testid="analysis-scope">{data?.sample.attempt_count ?? 0} {i18n.t('analysis.attempts')} {i18n.t('analysis.in')} {data?.sample.session_count ?? 0} {i18n.t('analysis.sessionsLabel')} · {dateRange}</p>{selectedAttempt && <p className="mt-2 text-sm text-app-text" data-testid="analysis-attempt-context">{i18n.t('analysis.thisAttempt')} · {format(parseISO(selectedAttempt.dive_datetime), 'd MMM yyyy, HH:mm', { locale: appLocale() })} · {selectedAttempt.height} · {divePositionName(selectedAttempt.position, selectedAttempt.dive_code)} · {i18n.t('analysis.execution')} {selectedAttempt.performance_numeric.toFixed(1)}</p>}{attemptMismatch && <p className="mt-2 text-sm text-app-muted" data-testid="analysis-attempt-mismatch">{i18n.t('analysis.attemptNotInScope', { code: diveCode.toUpperCase() })}</p>}</div><form className="flex gap-2" onSubmit={submitCode}><label className="sr-only" htmlFor="analysis-code">{i18n.t('analysis.diveCode')}</label><input id="analysis-code" value={codeInput} onChange={(event) => setCodeInput(event.target.value)} className="app-input w-32 uppercase" /><button className="border border-app-accent bg-transparent text-sm text-app-accent">{i18n.t('analysis.analyze')}</button></form></header>
+-
+-    <AnalysisSection id="filters" title={i18n.t('analysis.filters')}><div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
++    <div className="flex items-center gap-2"><button type="button" onClick={goBack} data-testid="analysis-back" className="touch-target inline-flex items-center gap-2 border border-app bg-app-panel px-3 py-1.5 text-sm text-app-text"><ArrowLeft className="h-4 w-4" aria-hidden="true" />{backLabel}</button><button type="button" className="ca-btn" aria-expanded={filtersOpen} aria-controls="analysis-filters" onClick={() => setFiltersOpen(open => !open)}>{i18n.t('analysis.filters')}</button><span className="flex-1" /><MobileShellActions /></div>
++    <header className="flex flex-col gap-4 border-b border-app pb-5 md:flex-row md:items-end md:justify-between"><div><div className="flex items-center gap-3"><h1 className="text-3xl font-semibold tracking-tight text-app-text">{diveCode.toUpperCase()}</h1><span className="text-base text-app-muted">{diveCodeName(diveCode.toUpperCase(), i18n.language.startsWith('fr') ? 'fr' : 'en')}</span></div><p className="mt-2 text-sm text-app-muted" aria-live="polite" data-testid="analysis-scope">{data?.sample.attempt_count ?? 0} {i18n.t('analysis.attempts')} {i18n.t('analysis.in')} {data?.sample.session_count ?? 0} {i18n.t('analysis.sessionsLabel')} · {dateRange}</p>{selectedAttempt && <p className="mt-2 text-sm text-app-text" data-testid="analysis-attempt-context">{i18n.t('analysis.thisAttempt')} · {format(parseISO(selectedAttempt.dive_datetime), 'd MMM yyyy, HH:mm', { locale: appLocale() })} · {selectedAttempt.height} · {divePositionName(selectedAttempt.position, selectedAttempt.dive_code)} · {i18n.t('analysis.execution')} {selectedAttempt.performance_numeric.toFixed(1)}</p>}{attemptMismatch && <p className="mt-2 text-sm text-app-muted" data-testid="analysis-attempt-mismatch">{i18n.t('analysis.attemptNotInScope', { code: diveCode.toUpperCase() })}</p>}</div><form className="flex gap-2" onSubmit={submitCode}><label className="sr-only" htmlFor="analysis-code">{i18n.t('analysis.diveCode')}</label><input id="analysis-code" value={codeInput} onChange={(event) => setCodeInput(event.target.value)} className="app-input w-32 uppercase" /><button className="ca-btn border-app-accent px-4 text-app-accent">{i18n.t('analysis.analyze')}</button></form></header>
++
++    {filtersOpen && <section id="analysis-filters" aria-label={i18n.t('analysis.filters')} className="rounded-lg border border-app bg-app-panel p-4"><div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
+       <label className="text-xs text-app-muted">{i18n.t('analysis.dateFrom')}<input type="date" value={searchParams.get('date_from') || ''} onChange={(event) => updateFilter('date_from', event.target.value)} className="app-input mt-1 w-full text-sm" /></label><label className="text-xs text-app-muted">{i18n.t('analysis.dateTo')}<input type="date" value={searchParams.get('date_to') || ''} onChange={(event) => updateFilter('date_to', event.target.value)} className="app-input mt-1 w-full text-sm" /></label>
+       <label className="text-xs text-app-muted">{i18n.t('attemptDetail.height')}<select value={filters.height || ''} onChange={(event) => updateFilter('height', event.target.value)} className="app-input mt-1 w-full text-sm"><option value="">{i18n.t('analysis.any')}</option>{['1m', '3m', '5m', '7m', '10m'].map((value) => <option key={value}>{value}</option>)}</select></label><label className="text-xs text-app-muted">{i18n.t('analysis.position')}<select value={filters.position || ''} onChange={(event) => updateFilter('position', event.target.value)} className="app-input mt-1 w-full text-sm"><option value="">{i18n.t('analysis.allPositions')}</option>{DIVE_POSITION_CODES.map((code) => <option key={code} value={code}>{i18n.t(`jargon.positions.${code}`)}</option>)}</select></label>
+       <label className="text-xs text-app-muted">SYNC<select value={searchParams.get('is_sync') || ''} onChange={(event) => updateFilter('is_sync', event.target.value)} className="app-input mt-1 w-full text-sm"><option value="">{i18n.t('analysis.any')}</option><option value="false">{i18n.t('analysis.individual')}</option><option value="true">SYNC</option></select></label><label className="text-xs text-app-muted">{i18n.t('analysis.modifierMatch')}<select value={filters.modifier_mode} onChange={(event) => updateFilter('modifier_mode', event.target.value)} className="app-input mt-1 w-full text-sm"><option value="any">{i18n.t('analysis.modifierAny')}</option><option value="all">{i18n.t('analysis.modifierAll')}</option><option value="none">{i18n.t('analysis.noModifiers')}</option></select></label>
+       <label className="text-xs text-app-muted">{i18n.t('analysis.diverScope')}<select value={filters.diver_scope || 'self'} onChange={(event) => { const next = new URLSearchParams(searchParams); next.delete('diver_ids'); event.target.value === 'self' ? next.delete('diver_scope') : next.set('diver_scope', event.target.value); setSearchParams(next) }} className="app-input mt-1 w-full text-sm"><option value="self">{i18n.t('dives.myDives')}</option><option value="all">{i18n.t('analysis.allDivers')}</option><option value="selected">{i18n.t('analysis.selectedDivers')}</option></select></label>
+       <label className="text-xs text-app-muted">{i18n.t('analysis.selectedDivers')}<select multiple disabled={filters.diver_scope !== 'selected'} value={(filters.diver_ids || []).map(String)} onChange={(event) => updateMulti('diver_ids', [...event.currentTarget.selectedOptions].map((option) => option.value))} className="app-input mt-1 h-20 w-full text-sm disabled:opacity-45">{divers.map((diver) => <option key={diver.id} value={diver.id}>{diver.display_name}{diver.is_primary_user ? ` (${i18n.t('analysis.primary')})` : ''}</option>)}</select></label>
+       <label className="text-xs text-app-muted">{i18n.t('analysis.trainingPeriod')}<select multiple value={(filters.training_period_ids || []).map(String)} onChange={(event) => updateMulti('training_period_ids', [...event.currentTarget.selectedOptions].map((option) => option.value))} className="app-input mt-1 h-20 w-full text-sm"><option value="">{i18n.t('analysis.allPeriods')}</option>{periods.map((period) => <option key={period.id} value={period.id}>{period.name}</option>)}</select></label>
+-    </div><div className="mt-4 flex flex-wrap items-center gap-2 border-t border-app pt-4">{MODIFIERS.map((modifier) => <button type="button" aria-pressed={filters.modifiers?.includes(modifier)} key={modifier} onClick={() => toggleModifier(modifier)} className={`touch-target border px-3 py-1.5 text-sm ${filters.modifiers?.includes(modifier) ? 'border-app-accent text-app-accent' : 'border-app bg-transparent text-app-muted'}`}>{i18n.t(`dives.modifierNames.${modifier}`)}</button>)}<span className="mx-2 h-5 border-l border-app" /><button type="button" onClick={() => setPeriod(3)} className="touch-target border border-app bg-transparent px-3 py-1.5 text-sm text-app-muted">{i18n.t('analysis.last3Months')}</button><button type="button" onClick={() => setPeriod(6)} className="touch-target border border-app bg-transparent px-3 py-1.5 text-sm text-app-muted">{i18n.t('analysis.last6Months')}</button><label className="ml-2 flex items-center gap-2 text-sm text-app-muted">{i18n.t('analysis.weighting')}<select aria-label={i18n.t('analysis.weightingAria')} value={filters.weighting} onChange={(event) => updateFilter('weighting', event.target.value)} className="app-input py-1.5 text-sm"><option value="attempts">{i18n.t('analysis.byAttempts')}</option><option value="sessions">{i18n.t('analysis.bySessionMedians')}</option></select></label><button type="button" onClick={() => setSearchParams(new URLSearchParams())} className="ml-auto flex items-center gap-2 border-0 bg-transparent px-2 text-sm text-app-muted"><RotateCcw className="h-4 w-4" /> {i18n.t('dives.resetFilters')}</button></div><p className="mt-3 text-xs text-app-muted">{i18n.t('analysis.weightingHint')}</p><div className="mt-4 flex flex-wrap gap-2 border-t border-app pt-4"><button type="button" onClick={() => setSearchParams(new URLSearchParams())} className="touch-target inline-flex items-center gap-2 border border-app bg-transparent px-3 py-1.5 text-xs text-app-muted"><RotateCcw className="h-3.5 w-3.5" />{i18n.t('analysis.resetAll')}</button><button type="button" onClick={() => navigator.clipboard?.writeText(window.location.href)} className="touch-target inline-flex items-center gap-2 border border-app bg-transparent px-3 py-1.5 text-xs text-app-muted"><Copy className="h-3.5 w-3.5" />{i18n.t('analysis.copyLink')}</button></div></AnalysisSection>
++    </div><div className="mt-4 flex flex-wrap items-center gap-2 border-t border-app pt-4">{MODIFIERS.map((modifier) => <button type="button" aria-pressed={filters.modifiers?.includes(modifier)} key={modifier} onClick={() => toggleModifier(modifier)} className={`touch-target border px-3 py-1.5 text-sm ${filters.modifiers?.includes(modifier) ? 'border-app-accent text-app-accent' : 'border-app bg-transparent text-app-muted'}`}>{i18n.t(`dives.modifierNames.${modifier}`)}</button>)}<span className="mx-2 h-5 border-l border-app" /><button type="button" onClick={() => setPeriod(3)} className="touch-target border border-app bg-transparent px-3 py-1.5 text-sm text-app-muted">{i18n.t('analysis.last3Months')}</button><button type="button" onClick={() => setPeriod(6)} className="touch-target border border-app bg-transparent px-3 py-1.5 text-sm text-app-muted">{i18n.t('analysis.last6Months')}</button><label className="ml-2 flex items-center gap-2 text-sm text-app-muted">{i18n.t('analysis.weighting')}<select aria-label={i18n.t('analysis.weightingAria')} value={filters.weighting} onChange={(event) => updateFilter('weighting', event.target.value)} className="app-input py-1.5 text-sm"><option value="attempts">{i18n.t('analysis.byAttempts')}</option><option value="sessions">{i18n.t('analysis.bySessionMedians')}</option></select></label><button type="button" onClick={() => setSearchParams(new URLSearchParams())} className="ml-auto flex items-center gap-2 border-0 bg-transparent px-2 text-sm text-app-muted"><RotateCcw className="h-4 w-4" /> {i18n.t('dives.resetFilters')}</button></div><p className="mt-3 text-xs text-app-muted">{i18n.t('analysis.weightingHint')}</p><div className="mt-4 flex flex-wrap gap-2 border-t border-app pt-4"><button type="button" onClick={() => setSearchParams(new URLSearchParams())} className="touch-target inline-flex items-center gap-2 border border-app bg-transparent px-3 py-1.5 text-xs text-app-muted"><RotateCcw className="h-3.5 w-3.5" />{i18n.t('analysis.resetAll')}</button><button type="button" onClick={() => navigator.clipboard?.writeText(window.location.href)} className="touch-target inline-flex items-center gap-2 border border-app bg-transparent px-3 py-1.5 text-xs text-app-muted"><Copy className="h-3.5 w-3.5" />{i18n.t('analysis.copyLink')}</button></div></section>}
+ 
+     {loading && !data && <PageLoading />}
+     {refreshing && data && <div className="sticky top-0 z-30 border border-app-accent/40 bg-app-panel/95 px-4 py-2 text-center text-xs text-app-muted backdrop-blur" role="status">{i18n.t('repMedia.refreshing')}</div>}
+@@ -606,9 +607,9 @@
+       </AnalysisSection>}
+       <section aria-label={i18n.t('analysis.keySummary')} data-testid="analysis-key-summary"><p className="text-xs text-app-muted">{aggregateScope}</p><div className="mt-2 grid grid-cols-2 gap-px border border-app bg-app-panel lg:grid-cols-4">{[
+         [i18n.t('analysis.attempts'), `${data.summary.attempt_count}`, `${data.summary.session_count} ${i18n.t('analysis.sessionsLabel')} · ${data.summary.scored_attempt_count} ${i18n.t('analysis.scored')}`],
+-        [i18n.t('analysis.medianExecution'), scoreText(data.summary.median), `${deltaText(data.summary.median, data.comparison.previous?.median)} · ${i18n.t('analysis.avg')} ${scoreText(data.summary.average)}`],
+-        [i18n.t('analysis.consistency'), data.summary.iqr == null ? '—' : data.summary.iqr >= 2 ? i18n.t('analysis.highVariability') : i18n.t('analysis.tighterSpread'), `IQR ${scoreText(data.summary.iqr)}`],
+-        [i18n.t('analysis.trend'), i18n.t(`analysis.trendDirection.${data.trend.direction}`, { defaultValue: data.trend.direction.replace(/_/g, ' ') })],
++        [i18n.t('analysis.medianExecution'), scoreText(data.summary.median), `${data.comparison.previous?.median != null ? deltaText(data.summary.median, data.comparison.previous.median) + ' · ' : ''}${i18n.t('analysis.avg')} ${scoreText(data.summary.average)}`],
++        [i18n.t('analysis.consistency'), data.summary.iqr == null ? '—' : data.summary.iqr >= 2 ? i18n.t('analysis.highVariability') : i18n.t('analysis.tighterSpread'), i18n.t('analysis.middleScoreRange', { value: scoreText(data.summary.iqr) })],
++        [i18n.t('analysis.trend'), i18n.t(`analysis.trendDirection.${data.trend.direction}`, { defaultValue: data.trend.direction.replace(/_/g, ' ') }), i18n.t('analysis.trendWindow')],
+       ].map(([term, value, note]) => <div key={term} className="bg-app-panel p-4"><div className="text-xs text-app-muted">{term}</div><div className="mt-2 text-xl font-semibold capitalize text-app-text">{value}</div><div className="mt-1 text-xs leading-5 text-app-muted">{note}</div></div>)}</div></section>
+       <AnalysisSection id="progression" defaultOpen title={i18n.t('analysis.progression')}><div className="mb-4 grid grid-cols-2 gap-3 text-xs sm:flex sm:flex-wrap sm:gap-2"><label className="text-app-muted">{i18n.t('analysis.view')}<select aria-label={i18n.t('analysis.chartView')} value={chartView} onChange={(event) => setChartParam('chart_view', event.target.value)} className="app-input mt-1 w-full py-1 text-xs sm:ml-2 sm:mt-0 sm:w-auto"><option value="session">{i18n.t('analysis.sessionSummary')}</option><option value="range">{i18n.t('analysis.performanceRange')}</option><option value="attempts">{i18n.t('analysis.allAttempts')}</option></select></label><label className="text-app-muted">{i18n.t('analysis.splitBy')}<select aria-label={i18n.t('analysis.splitByAria')} value={splitBy} onChange={(event) => setChartParam('split_by', event.target.value)} className="app-input mt-1 w-full py-1 text-xs sm:ml-2 sm:mt-0 sm:w-auto"><option value="none">{i18n.t('analysis.none')}</option><option value="height">{i18n.t('attemptDetail.height')}</option><option value="position">{i18n.t('analysis.position')}</option><option value="modifier">{i18n.t('analysis.modifier')}</option><option value="sync">SYNC</option><option value="diver">{i18n.t('analysis.diver')}</option></select></label></div><div><PointTimeline points={timelinePoints} label={chartView === 'range' ? i18n.t('analysis.rangeByPeriod') : i18n.t('analysis.scoreProgression')} selectedId={selected?.id} view={chartView} splitBy={splitBy} onSelect={(id, trigger) => { const attempt = data.attempts.find((item) => item.id === id); if (attempt) openAttempt(attempt, trigger) }} /><p className="sr-only">{i18n.t('analysis.scoresRange', { min: scoreText(data.summary.minimum), max: scoreText(data.summary.maximum), median: scoreText(data.summary.median), spread: data.summary.iqr != null && data.summary.iqr >= 2 ? i18n.t('analysis.spreadWide') : i18n.t('analysis.spreadModerate'), attempts: data.summary.attempt_count })}</p></div></AnalysisSection>
+ 
+--- a/frontend/src/pages/Messages.tsx
++++ b/frontend/src/pages/Messages.tsx
+@@ -336,9 +336,11 @@
+       <h1>{t('messages.title')}</h1>
+       <button type="button" className="msg-new-btn" onClick={() => choose ? closeSheet() : setChoose(true)} aria-expanded={choose} aria-label={t('messages.new')}><Plus size={18} /><span>{t('messages.newShort')}</span></button>
+       {(!(id > 0) || !phone) && <MobileShellActions />}
++
++    </div>
+       {choose && <>
+         <div className="msg-sheet-backdrop" onClick={closeSheet} aria-hidden="true" />
+-        <div className="msg-sheet" role="dialog" style={phone ? { bottom: `${Math.max(0, window.innerHeight - visible.top - visible.height)}px`, maxHeight: `${Math.max(240, visible.height - 24)}px` } : undefined} aria-label={t(groupMode ? 'messages.newGroup' : 'messages.new')} onKeyDown={e => { if (e.key === 'Escape') closeSheet() }}>
++        <div className="msg-sheet" role="dialog" aria-modal="true" style={phone ? { bottom: `${Math.max(0, window.innerHeight - visible.top - visible.height)}px`, maxHeight: `${Math.max(0, visible.height - 24)}px` } : undefined} aria-label={t(groupMode ? 'messages.newGroup' : 'messages.new')} onKeyDown={e => { if (e.key === 'Escape') closeSheet() }}>
+           <div className="msg-sheet-head">
+             {groupMode && <button type="button" className="msg-icon-btn" aria-label={t('common.back')} onClick={() => { setGroupMode(false); setPicked([]) }}><ArrowLeft size={18} /></button>}
+             <b>{t(groupMode ? 'messages.newGroup' : 'messages.new')}</b>
+@@ -346,6 +348,7 @@
+               ? <button type="button" className="msg-new-btn msg-create" disabled={picked.length < 2 || picked.length > GROUP_MAX_OTHERS || starting} onClick={() => void createGroup()}
+                   aria-label={picked.length < 2 ? t('messages.pickTwo') : t('messages.createGroup', { count: picked.length + 1 })}>{t('messages.create')}{picked.length >= 2 && <span className="msg-create-count">{picked.length + 1}</span>}</button>
+               : <button type="button" className="msg-icon-btn" aria-label={t('common.close')} onClick={closeSheet}><X size={18} /></button>}
++            {groupMode && <button type="button" className="msg-icon-btn" aria-label={t('common.close')} onClick={closeSheet}><X size={18} /></button>}
+           </div>
+           {!groupMode && <button type="button" className="msg-mode" onClick={() => setGroupMode(true)}><span className="msg-mode-icon"><Users size={20} /></span><b>{t('messages.newGroup')}</b></button>}
+           {groupMode && <label className="msg-search msg-name-field"><span className="sr-only">{t('messages.groupName')}</span>
+@@ -360,7 +363,6 @@
+           {groupMode && picked.length >= GROUP_MAX_OTHERS && <p className="msg-hint">{t('messages.groupFull', { count: GROUP_MAX_OTHERS + 1 })}</p>}
+         </div>
+       </>}
+-    </div>
+     {error && <p role="alert" className="msg-alert">{t('messages.error')} <button type="button" onClick={() => setRetry(n => n + 1)}>{t('common.retry')}</button></p>}
+     <div className="messages-grid msg-grid">
+       <aside className={`msg-inbox${id ? ' is-behind' : ''}`} aria-label={t('messages.inbox')}>
+@@ -388,7 +390,7 @@
+         })}
+         {before && <button type="button" className="msg-older" onClick={async () => { try { const page = await api.listConversations(before); setItems(rows => [...new Map([...rows, ...page.items].map(c => [c.id,c])).values()]); setBefore(page.next_before) } catch { setError(true) } }}>{t('messages.more')}</button>}
+       </aside>
+-      {Number.isSafeInteger(id) && id > 0 ? <Thread key={`${user?.user_id}:${id}`} id={id} onLeave={removeConversation} /> : <div className="msg-pane-empty"><p>{t('messages.choose')}</p></div>}
++      {Number.isSafeInteger(id) && id > 0 ? <Thread key={`${user?.user_id}:${id}`} id={id} onLeave={removeConversation} /> : null}
+     </div>
+   </div>
+ }
+--- a/frontend/src/i18n/locales/en.ts
++++ b/frontend/src/i18n/locales/en.ts
+@@ -1397,7 +1397,8 @@
+   profile: {
+     ago: { hours: 'h', days: 'd', months_one: 'mo', months_other: 'mo', years_one: 'yr', years_other: 'yr' },
+     stats: 'Stats',
+-    kpi: { dives: 'Dives', codes: 'Codes', sessions: 'Sessions', last: 'Last' },
++    kpi: { dives: 'Dives', codes: 'Codes', sessions: 'Sessions', last: 'Last dive' },
++    weeklyCounts: 'Dives per week',
+     weeksAria: 'Dives per week over {{count}} weeks',
+     thisWeek: 'this week',
+     breadcrumb: 'Member profile',
+@@ -1775,6 +1776,8 @@
+     periodComparison: 'Period comparison',
+     pickDateRange: 'Pick a date range to compare with the previous period.',
+     measure: 'Measure',
++    middleScoreRange: 'Middle 50%: {{value}} points',
++    trendWindow: 'Across the selected period',
+     selectedPeriod: 'Selected period',
+     previousPeriod: 'Previous equal period',
+     change: 'Change',
+--- a/frontend/src/i18n/locales/fr.ts
++++ b/frontend/src/i18n/locales/fr.ts
+@@ -1399,7 +1399,8 @@
+   profile: {
+     ago: { hours: 'h', days: 'j', months_one: 'mois', months_other: 'mois', years_one: 'an', years_other: 'ans' },
+     stats: 'Statistiques',
+-    kpi: { dives: 'Plongeons', codes: 'Codes', sessions: 'Séances', last: 'Dernier' },
++    kpi: { dives: 'Plongeons', codes: 'Codes', sessions: 'Séances', last: 'Dernier plongeon' },
++    weeklyCounts: 'Plongeons par semaine',
+     weeksAria: 'Plongeons par semaine sur {{count}} semaines',
+     thisWeek: 'cette semaine',
+     breadcrumb: 'Profil du membre',
+@@ -1777,6 +1778,8 @@
+     periodComparison: 'Comparaison par période',
+     pickDateRange: 'Choisissez une plage de dates à comparer avec la période précédente.',
+     measure: 'Mesure',
++    middleScoreRange: '50 % centraux : {{value}} points',
++    trendWindow: 'Sur la période sélectionnée',
+     selectedPeriod: 'Période sélectionnée',
+     previousPeriod: 'Période précédente équivalente',
+     change: 'Changement',
+--- a/frontend/src/components/messages/messages.css
++++ b/frontend/src/components/messages/messages.css
+@@ -205,3 +205,16 @@
+ 
+ .msg-sheet-head, .msg-mode, .msg-name-field { flex-shrink:0; }
+ @media(min-width:768px) and (max-height:500px) { .msg-head { margin-bottom:8px; } .msg-thread-head { min-height:40px; padding:6px 10px; } .msg-thread { height:calc(100dvh - var(--message-top,80px) - 8px); } .msg-sheet { max-height:calc(100dvh - 76px); } }
++
++/* Compose remains visible across thread/phone breakpoints and short windows. */
++.msg-page > .msg-sheet { position:fixed; top:auto; bottom:0; left:0; right:0; width:auto; max-height:calc(100dvh - 24px); }
++.msg-sheet .msg-pick-list { flex:1; min-height:0; }
++.msg-page:not(.messages-page-thread) .msg-grid { grid-template-columns:minmax(0,1fr); max-width:960px; }
++@media(min-width:768px) {
++ .msg-page > .msg-sheet { top:24px; bottom:auto; left:auto; right:24px; width:min(440px,calc(100vw - 48px)); max-height:calc(100dvh - 48px); }
++ .msg-page > .msg-sheet-backdrop { background:rgba(0,0,0,.35); }
++}
++@media(min-width:768px) and (max-height:500px) {
++ .msg-page > .msg-sheet { top:12px; right:16px; width:min(560px,calc(100vw - 32px)); max-height:calc(100dvh - 24px); gap:8px; padding:12px; }
++ .msg-sheet .msg-sheet-head, .msg-sheet .msg-name-field, .msg-sheet .msg-pick > .msg-search { min-height:40px; }
++}
+--- a/frontend/src/components/code-analysis/codeAnalysis.css
++++ b/frontend/src/components/code-analysis/codeAnalysis.css
+@@ -44,9 +44,8 @@
+ .ca-code-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+ @media (min-width: 700px) { .ca-code-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+ @media (min-width: 1280px) { .ca-code-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+-.ca-code-card { position: relative; display: block; min-width: 0; padding: 14px; border: 1px solid var(--app-border); border-radius: var(--ca-r); background: var(--app-panel); color: inherit; cursor: pointer; transition: border-color .2s, background-color .2s, transform .18s; }
+-.ca-code-card:hover { border-color: var(--app-border-strong); background: var(--app-panel-elevated); }
+-.ca-code-card:active { transform: scale(.985); }
++.ca-code-card { position: relative; display: block; min-width: 0; padding: 14px; border: 1px solid var(--app-border); border-radius: var(--ca-r); background: var(--app-panel); color: inherit; cursor: default; transition: border-color .2s; }
++.ca-code-card:focus-within { border-color: var(--app-border-strong); }
+ .ca-code-card:focus-visible { outline: 2px solid var(--app-accent); outline-offset: 2px; }
+ .ca-code-top { display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; gap: 12px; align-items: start; }
+ .ca-code-top .ca-thumb { width: 64px; aspect-ratio: 1; padding: 0; }
+@@ -268,3 +267,14 @@
+ .ca-diver-chip b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+ 
+ .ca-code-grid { align-items:start; }
++
++.ca-code-analysis { display:inline-flex; align-items:center; gap:3px; min-height:36px; font-size:13px; color:var(--app-accent); }
++.ca-code-analysis:hover { text-decoration:underline; }
++.ca-rating-legend { display:flex; gap:6px 14px; flex-wrap:wrap; margin:8px 0; font-size:12px; color:var(--app-muted); }
++.ca-rating-legend > div { display:flex; align-items:baseline; gap:4px; }
++.ca-rating-legend dd { color:var(--app-text); font-variant-numeric:tabular-nums; }
++.ca-recent-attempts { list-style:none; margin:8px 0 0; padding:0; }
++.ca-recent-attempts button { display:flex; align-items:center; gap:8px; width:100%; min-height:40px; border:0; border-top:1px solid var(--app-border); padding:6px 0; text-align:left; font-size:13px; }
++.ca-recent-attempts button:hover { background:var(--app-panel-elevated); }
++.ca-recent-attempts small { color:var(--app-muted); font-size:12px; }
++.ca-recent-attempts b { margin-left:auto; font-variant-numeric:tabular-nums; }
+--- a/frontend/src/components/code-analysis/CodeCards.tsx
++++ b/frontend/src/components/code-analysis/CodeCards.tsx
+@@ -1,14 +1,14 @@
+ import React, { useMemo } from 'react'
+ import { useTranslation } from 'react-i18next'
+-import { useLocation, useNavigate } from 'react-router-dom'
++import { Link, useLocation } from 'react-router-dom'
+ import { format, parseISO } from 'date-fns'
+ import { ChevronRight } from 'lucide-react'
+ import DiveThumbnail from '../DiveThumbnail'
+ import { diveCodeName } from '../../i18n/diveNames'
+ import { appLocale } from '../../utils/dateLocale'
+-import type { Attempt } from '../../utils/attemptPresentation'
++import { performanceLabel, type Attempt } from '../../utils/attemptPresentation'
+ import type { CodeSummary } from '../../services/codeSummariesApi'
+-import { RatingBar, ScoreChip, TrendBadge } from './parts'
++import { RatingBar, TrendBadge } from './parts'
+ import { fmtScore } from '../../utils/codeStats'
+ 
+ export type CodeSort = 'recent' | 'volume' | 'progress'
+@@ -34,12 +34,8 @@
+ }) {
+   const { t, i18n } = useTranslation()
+   const lang = i18n.language?.startsWith('fr') ? 'fr' : 'en'
+-  const navigate = useNavigate()
+   const location = useLocation()
+   const ordered = useMemo(() => sortCodes(codes, sort), [codes, sort])
+-  const open = (code: string) => diverId
+-    ? navigate(`/dives/analysis/${encodeURIComponent(code)}?diver=${diverId}`, { state: { codeDiverOpened: true, fromProfile: true } })
+-    : navigate(`/dives/analysis/${encodeURIComponent(code)}`, { state: { returnTo: `${location.pathname}${location.search}` } })
+   const date = (value: string, pattern: string) => format(parseISO(value), pattern, { locale: appLocale() })
+   return <div className="ca">
+     <div className="ca-scroll" role="group" aria-label={t('codeAnalysis.sortAria')} style={{ marginBottom: 12 }}>
+@@ -48,10 +44,9 @@
+     <div className="ca-code-grid">
+       {ordered.map((code, index) => {
+         const name = diveCodeName(code.dive_code, lang)
+-        return <div key={code.dive_code} role="link" tabIndex={0} className="ca-code-card ca-pop" style={{ '--i': Math.min(index, 12) } as React.CSSProperties}
+-          aria-label={t('codeAnalysis.openCode', { code: code.dive_code })}
+-          onClick={() => open(code.dive_code)}
+-          onKeyDown={event => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); open(code.dive_code) } }}>
++        const analysisHref = `/dives/analysis/${encodeURIComponent(code.dive_code)}${diverId ? `?diver=${diverId}` : ''}`
++        const analysisState = diverId ? {codeDiverOpened:true,fromProfile:true} : {returnTo:`${location.pathname}${location.search}`}
++        return <article key={code.dive_code} className="ca-code-card" style={{ '--i': Math.min(index, 12) } as React.CSSProperties}>
+           <div className="ca-code-top">
+             <button type="button" className="ca-thumb" aria-label={t('dives.openLatestAttempt', { code: code.dive_code })}
+               onClick={event => { event.stopPropagation(); onOpenClip(code.latest.id) }}>
+@@ -64,7 +59,7 @@
+                 <span>{t('dives.avg')} <b>{fmtScore(code.average)}</b></span>
+               </div>}
+             </div>
+-            {code.analytics && <div className="ca-code-side"><TrendBadge delta={code.trend?.delta} /></div>}
++            <div className="ca-code-side">{code.analytics && <TrendBadge delta={code.trend?.delta} />}<Link className="ca-code-analysis" to={analysisHref} state={analysisState} aria-label={t('codeAnalysis.openCode',{code:code.dive_code})}>{t('clipViewer.analysis')}<ChevronRight size={14} aria-hidden="true" /></Link></div>
+           </div>
+           <div className="ca-code-meta">
+             <span>{t('codeAnalysis.attemptCount', { count: code.attempt_count })} · {t('codeAnalysis.sessionCount', { count: code.session_count })}</span>
+@@ -77,14 +72,12 @@
+             <span>{t('dives.best')} <b>{fmtScore(code.best)}</b></span>
+           </div>}
+           <RatingBar ratings={code.ratings} />
+-          <div className="ca-chips" aria-label={t('dives.recentAttemptsFor', { code: code.dive_code })}>
+-            {code.recent.map(item => <ScoreChip key={item.id} id={item.id} performance={item.performance} score={item.score ?? 0} onOpen={onOpenClip}
+-              label={t('dives.openAttemptFrom', { code: code.dive_code, date: date(item.dive_datetime, 'd MMM HH:mm') })} />)}
+-            {code.attempt_count > code.recent.length && <span className="ca-flat" style={{ alignSelf: 'center', paddingLeft: 4, fontSize: 12 }}>+{code.attempt_count - code.recent.length}</span>}
+-          </div>
++          <dl className="ca-rating-legend">{(['P','G','M','B','F'] as const).filter(rating => code.ratings[rating]).map(rating => <div key={rating}><dt>{performanceLabel(rating)}</dt><dd>{code.ratings[rating]}</dd></div>)}</dl>
++          <ul className="ca-recent-attempts" aria-label={t('dives.recentAttemptsFor',{code:code.dive_code})}>
++            {code.recent.map(item => <li key={item.id}><button type="button" data-attempt-id={item.id} aria-label={t('dives.openAttemptFrom',{code:code.dive_code,date:date(item.dive_datetime,'d MMM HH:mm')})} onClick={() => onOpenClip(item.id)}><time dateTime={item.dive_datetime}>{date(item.dive_datetime,'d MMM HH:mm')}</time><small>#{item.id}</small><b>{fmtScore(item.score)} / 10</b><ChevronRight size={14} aria-hidden="true" /></button></li>)}
++          </ul>
+           </details>
+-          <ChevronRight className="ca-code-go h-4 w-4" aria-hidden="true" />
+-        </div>
++        </article>
+       })}
+     </div>
+   </div>
+--- a/frontend/src/components/community/community.css
++++ b/frontend/src/components/community/community.css
+@@ -113,3 +113,5 @@
+ .cm-event-icon { display: inline-grid; place-items: center; width: 18px; height: 18px; margin-right: 4px; border-radius: 999px; background: var(--app-panel-elevated); color: var(--app-muted); vertical-align: -3px; }
+ 
+ @media (prefers-reduced-motion: reduce) { .cm-page *, .cm-profile * { animation: none !important; transition: none !important; } }
++
++.cm-weekly-activity { margin:16px 0 0; }.cm-weekly-activity figcaption { display:flex; justify-content:space-between; gap:12px; margin-bottom:8px; color:var(--app-muted); font-size:13px; }.cm-weekly-activity figcaption span { font-variant-numeric:tabular-nums; }
