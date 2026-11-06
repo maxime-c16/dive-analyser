@@ -20,7 +20,7 @@
 .eval-score-card > span { font-size: 12px; color: var(--app-muted); }
 .eval-score-controls { display: grid; gap: 10px; }
 .eval-half-row { display: flex; align-items: center; gap: 10px; }
-.eval-half-toggle { height: 44px; min-width: 64px; border: 1px solid var(--app-border); border-radius: 999px; background: var(--app-panel-elevated); }
+.eval-half-toggle { height: 44px; min-width: 64px; border: 1px solid var(--app-border); border-radius: var(--app-control-radius); background: var(--app-panel-elevated); }
 .eval-half-toggle[aria-pressed=true] { color: #06251f; background: var(--app-accent); }
 .eval-score-readout { font-size: 16px; color: var(--app-muted); }
 .eval-keypad { display: grid; grid-template-columns: repeat(6,minmax(44px,1fr)); gap: 6px; }

@@ -33,7 +33,8 @@ function renderPage(entry: string | { pathname: string; search: string; state?: 
 // after the aggregate result arrives; wait for data, then open one.
 async function openSection(name: string | RegExp) {
   await screen.findByTestId('analysis-key-summary')
-  await userEvent.click(screen.getByRole('button', { name }))
+  const toggle = screen.getByRole('button', { name })
+  if (toggle.getAttribute('aria-expanded') !== 'true') await userEvent.click(toggle)
 }
 
 describe('Per-dive intelligence V2', () => {
@@ -41,7 +42,7 @@ describe('Per-dive intelligence V2', () => {
   it('hydrates canonical route and URL filters', async () => { renderPage('/dives/analysis/103B?modifiers=DB&modifier_mode=all&diver_ids=1'); expect(await screen.findByRole('heading', { name: '103B' })).toBeInTheDocument(); expect(filtersFromSearchParams(new URLSearchParams('modifiers=DB&diver_ids=1')).diver_ids).toEqual([1]) })
   it('defaults to my dives and makes all divers explicit', async () => { renderPage(); await openSection(/^Filters/); expect(screen.getByLabelText('Diver scope')).toHaveValue('self'); await userEvent.selectOptions(screen.getByLabelText('Diver scope'), 'all'); await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('diver_scope=all')) })
   it('changing weighting updates the URL and request', async () => { renderPage(); await openSection(/^Filters/); await screen.findByLabelText('Analysis weighting'); await userEvent.selectOptions(screen.getByLabelText('Analysis weighting'), 'sessions'); await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('weighting=sessions')); const calls = vi.mocked(getDiveAnalysis).mock.calls; expect(calls[calls.length - 1]?.[1].weighting).toBe('sessions') })
-  it('modifier buttons update URL without submitting media jobs', async () => { const fetchSpy = vi.spyOn(globalThis, 'fetch'); renderPage(); await openSection(/^Filters/); await screen.findByText('Progression'); await userEvent.click(screen.getByRole('button', { name: 'DB' })); expect(screen.getByTestId('location')).toHaveTextContent('modifiers=DB'); expect(fetchSpy.mock.calls.some(([url, init]) => String(url).includes('/media/') && (init as RequestInit)?.method === 'POST')).toBe(false) })
+  it('modifier buttons update URL without submitting media jobs', async () => { const fetchSpy = vi.spyOn(globalThis, 'fetch'); renderPage(); await openSection(/^Filters/); await screen.findByText('Progression'); await userEvent.click(screen.getByRole('button', { name: 'Double bounce' })); expect(screen.getByTestId('location')).toHaveTextContent('modifiers=DB'); expect(fetchSpy.mock.calls.some(([url, init]) => String(url).includes('/media/') && (init as RequestInit)?.method === 'POST')).toBe(false) })
   it('supports any all and none modifier modes', () => { expect(filtersFromSearchParams(new URLSearchParams('modifier_mode=any')).modifier_mode).toBe('any'); expect(filtersFromSearchParams(new URLSearchParams('modifier_mode=all')).modifier_mode).toBe('all'); expect(filtersFromSearchParams(new URLSearchParams('modifier_mode=none')).modifier_mode).toBe('none') })
   it('chart point opens its exact attempt', async () => { renderPage(); await openSection(/^Progression/); const point = await screen.findByLabelText(/1 Jan 2026.*score 7.0/); fireEvent.click(point); expect(screen.getByRole('heading', { name: '103B · 7.0' })).toBeInTheDocument(); expect(screen.getByText('Player uuid-1')).toBeInTheDocument() })
   it('keyboard attempt row opens exact attempt', async () => { renderPage(); await openSection(/^Attempts to review/); await screen.findByText('Progression'); const rows = screen.getAllByRole('row'); const sourceRow = rows.find((row) => row.textContent?.includes('1 Jan 2026')); fireEvent.keyDown(sourceRow!, { key: 'Enter' }); expect(screen.getByRole('heading', { name: '103B · 7.0' })).toBeInTheDocument() })
@@ -194,4 +195,37 @@ describe('UI-U7 progressive disclosure and review continuity', () => {
     expect(screen.getByTestId('analysis-key-summary')).toHaveTextContent('103B')
     expect(screen.getByRole('button', { name: /^Comparison & history/ })).toBeInTheDocument()
   })
+})
+
+it('pages a dense attempt inventory without dropping aggregate data or the last attempt', async () => {
+  vi.mocked(getDiveAnalysis).mockResolvedValue(densePayload)
+  renderPage()
+  await openSection(/^Attempts to review/)
+  expect(screen.getByText('1–20 / 130')).toBeInTheDocument()
+  expect(screen.getAllByRole('row')).toHaveLength(21)
+  for (let page=0; page<6; page++) await userEvent.click(screen.getByRole('button', {name:'Next'}))
+  expect(screen.getByText('121–130 / 130')).toBeInTheDocument()
+  expect(screen.getByRole('button', {name:'Next'})).toBeDisabled()
+  const rows=screen.getAllByRole('row')
+  expect(rows).toHaveLength(11)
+  fireEvent.keyDown(rows[rows.length-1], {key:'Enter'})
+  expect(await screen.findByRole('heading', {name:'103B · 4.0'})).toBeInTheDocument()
+})
+
+it('opens the main progression while keeping secondary comparison details collapsed', async () => {
+  vi.mocked(getDiveAnalysis).mockResolvedValue(payload)
+  renderPage()
+  await screen.findByTestId('analysis-key-summary')
+  expect(screen.getByRole('button',{name:/^Progression/})).toHaveAttribute('aria-expanded','true')
+  expect(screen.getByRole('button',{name:/^Comparison/})).toHaveAttribute('aria-expanded','false')
+  expect(screen.getByTestId('attempt-progression-chart')).toBeInTheDocument()
+})
+
+it('labels a Library return as Library, preserving its exact filters', async () => {
+ vi.mocked(getDiveAnalysis).mockResolvedValue(payload)
+ renderPage({pathname:'/dives/analysis/103B',search:'',state:{returnTo:'/dives?view=codes&scope=all'}})
+ await screen.findByTestId('analysis-key-summary')
+ expect(screen.getByTestId('analysis-back')).toHaveTextContent('Back to Library')
+ await userEvent.click(screen.getByTestId('analysis-back'))
+ expect(screen.getByTestId('location')).toHaveTextContent('view=codes&scope=all')
 })

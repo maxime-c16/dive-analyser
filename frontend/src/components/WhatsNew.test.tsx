@@ -3,7 +3,7 @@ import React, { useRef, useState } from 'react'
 import { useModalOverlay } from '../utils/overlays'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest'
-import { WhatsNewProvider, WhatsNewButton, parseManifest } from './WhatsNew'
+import { WhatsNewProvider, WhatsNewButton, WhatsNewNotice, parseManifest } from './WhatsNew'
 
 vi.mock('../contexts/AuthContext', () => ({ useAuth: () => ({ user: { user_id: 42 } }) }))
 const key = 'dive-analyser:updates:v1:42'
@@ -11,7 +11,7 @@ const note = { id: 'first', date: '2026-10-05', title: 'First improvement', body
 const second = { ...note, id: 'second', title: 'Second improvement' }
 const manifest = (notes = [note]) => ({ schema: 1, version: '', frontend_sha: 'a'.repeat(40), notes })
 let current = manifest()
-function mount() { return render(<WhatsNewProvider><WhatsNewButton /><button>Workspace action</button></WhatsNewProvider>) }
+function mount() { return render(<WhatsNewProvider><WhatsNewNotice /><WhatsNewButton /><button>Workspace action</button></WhatsNewProvider>) }
 
 beforeEach(() => {
   const values = new Map<string, string>()
@@ -122,7 +122,7 @@ it('does not claim an automatic hint behind a registered overlay, then permits i
     useModalOverlay(ref, { enabled: open, onClose: () => setOpen(false) })
     return open ? <div ref={ref} tabIndex={-1} role="dialog"><button onClick={() => setOpen(false)}>close fixture</button></div> : null
   }
-  render(<WhatsNewProvider><WhatsNewButton /><Surface /></WhatsNewProvider>)
+  render(<WhatsNewProvider><WhatsNewNotice /><WhatsNewButton /><Surface /></WhatsNewProvider>)
   await waitFor(() => expect(fetch).toHaveBeenCalled())
   expect(screen.queryByRole('status', { hidden: true })).toBeNull()
   expect(localStorage.getItem(key)).toBeNull()

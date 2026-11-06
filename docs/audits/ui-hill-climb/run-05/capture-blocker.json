@@ -1,0 +1,12 @@
+{
+  "source_sha": "2c07abee70c41844d981ebdb9fa95a3f585bbdc4",
+  "affected_flow": "ready native-video attempt drawer",
+  "snapshot_error": "Preview automation snapshot timed out after15000ms",
+  "recording_error": "Preview automation recordingStart timed out after15000ms",
+  "control": "Closing drawer restores same-page snapshot; text evaluation confirms video paused,readyState4,autoplayfalse",
+  "native_fallback": "T3 native screenshot shows an external-app Miro prompt, not the browser candidate; no action taken on other work",
+  "auth": "No actual401 observed; no login requested",
+  "acceptance": false,
+  "alternate_integrated_browser": "Supported CUA createBrowserTab(iab, localhost/account, visible=false) rejected: Browser is not available: iab",
+  "user_visible_panel_retry": "After user done, document.visibilityState became visible; ready native-video drawer snapshot still timed out15000ms. Closing drawer restored snapshot."
+}

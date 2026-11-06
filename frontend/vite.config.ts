@@ -1,7 +1,15 @@
 import fs from 'node:fs'
+import https from 'node:https'
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+
+const devProxyTarget = new URL(process.env.PROXY_TARGET || 'http://localhost:8000')
+// Keep the browser Host for session Origin checks, but route TLS using the
+// upstream hostname. Otherwise Node may derive SNI from the localhost Host.
+const devProxyAgent = devProxyTarget.protocol === 'https:'
+  ? new https.Agent({ servername: devProxyTarget.hostname })
+  : undefined
 
 // Optional HTTPS for the production preview so browser credentials stored
 // with the Secure attribute (real session auth) work exactly as in
@@ -55,9 +63,18 @@ export default defineConfig({
     // In Docker: uses PROXY_TARGET from docker-compose.yml (http://backend:8000)
     proxy: {
       '/api': {
-        target: process.env.PROXY_TARGET || 'http://localhost:8000',
+        target: devProxyTarget.href,
         ws: true,
-        changeOrigin: true,
+        changeOrigin: false,
+        agent: devProxyAgent,
+        secure: false,
+      },
+      // Signed media paths must reach the same front door as the API.
+      // Vite's SPA fallback cannot serve thumbnails or byte-range video.
+      '/media': {
+        target: devProxyTarget.href,
+        changeOrigin: false,
+        agent: devProxyAgent,
         secure: false,
       },
     },
@@ -75,6 +92,11 @@ export default defineConfig({
     // before an authorized production deployment.
     proxy: {
       '/api': {
+        target: process.env.PREVIEW_PROXY_TARGET || 'http://127.0.0.1:6002',
+        changeOrigin: true,
+        secure: false,
+      },
+      '/media': {
         target: process.env.PREVIEW_PROXY_TARGET || 'http://127.0.0.1:6002',
         changeOrigin: true,
         secure: false,

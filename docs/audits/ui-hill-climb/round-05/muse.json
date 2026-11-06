@@ -1,0 +1,564 @@
+{
+  "actualProviderModelOptions": {
+    "effort": null,
+    "model": "muse-spark-1.3-contributor",
+    "note": "No variant flag passed to this review sub-agent; running self defaults. Coordinator brief mentions oc1 xhigh / Codex Sol medium/low, Opus replaced. Launch-variant != self-defaults; do not conflate. Provider account/model reported as runtime identity, not roster claim.",
+    "provider": "opencode-go",
+    "toolSettingsDiscrepancy": "Brief asks preview_open reuseExistingTab=false profileId=default http://localhost:4317/account, preview_resize verify innerWidth/Height, visibility visible for timed scores, own tab throughout, no other tabs/rooms except own auditroom via NORMAL UI. Followed: own tab tab_11_c539092e-8e18-4ced-b1f1-786e334b7451, profile default, reuseExistingTab=false, verified innerWidth/Height per size, visibility visible for scoring/vote, touched only own room, no other agents tabs. preview_resize returns stale viewport (1280x800) before apply; used innerWidth/Height as truth per instruction. No auth writes, no Evaluations Confirm, no message Create/send, no Calendar RSVP/follow/save, no share/download, no subagents, no git writes/PR/watch.",
+    "variant": null
+  },
+  "candidateSHA": "cf95a4a8e325d09ffd2fb7f3d3e82e97c3e32c7c",
+  "candidateURL": "http://localhost:4317",
+  "categories": [
+    "1 Visual hierarchy",
+    "2 Layout and density",
+    "3 Typography",
+    "4 Color and contrast",
+    "5 Spacing and alignment",
+    "6 Navigation and orientation",
+    "7 Control clarity",
+    "8 Terminology and instructions",
+    "9 Component consistency",
+    "10 Task content presentation",
+    "11 Feedback and state clarity",
+    "12 Professional finish",
+    "13 Responsive fit",
+    "14 Next-action discoverability"
+  ],
+  "countBelow7": 70,
+  "coveragePerFlowSize": {
+    "ByCodeCollapsed": {
+      "390x844": "53 cards, openCount 0, modes named",
+      "844x390": "same",
+      "768x1024": "same",
+      "1024x768": "same",
+      "1440x900": "same"
+    },
+    "ByCodeExpanded201C": {
+      "390x844": "201C open, 16 chips, median 4.5 best 10.0",
+      "844x390": "same",
+      "768x1024": "same",
+      "1024x768": "same",
+      "1440x900": "same + chip->?clip=3038 recent clip link works"
+    },
+    "CalendarDetail_o10": {
+      "390x844": "Nov4 Group Confirm detail, Follow/Add/Organize, no RSVP clicked",
+      "844x390": "same",
+      "768x1024": "same",
+      "1024x768": "same",
+      "1440x900": "same"
+    },
+    "CalendarNewformNoSave": {
+      "390x844": "Save/Discard header, no Save clicked",
+      "844x390": "same",
+      "768x1024": "same",
+      "1024x768": "same",
+      "1440x900": "same"
+    },
+    "CalendarUpcoming_Month": {
+      "390x844": "Upcoming + November 2026 month, no overflow",
+      "844x390": "same",
+      "768x1024": "same",
+      "1024x768": "same",
+      "1440x900": "same"
+    },
+    "CommunityDirectory": {
+      "390x844": "Recently active, Divers, Other members, Rankings",
+      "844x390": "same",
+      "768x1024": "same",
+      "1024x768": "same",
+      "1440x900": "same"
+    },
+    "EvaluationsHistoryDisclosure": {
+      "390x844": "170 judgements, disclosure expands to You/No other judge",
+      "844x390": "same",
+      "768x1024": "same",
+      "1024x768": "same",
+      "1440x900": "same"
+    },
+    "EvaluationsJudging6DraftQuitNoConfirm": {
+      "390x844": "FANNY 401C 1/5, choose 6 =>6.0/10 Confirm enabled, Quit=>Stay/Quit session=>board, Confirm never clicked",
+      "844x390": "same",
+      "768x1024": "same",
+      "1024x768": "same",
+      "1440x900": "same"
+    },
+    "EvaluationsMyDivesIDsAwaiting": {
+      "390x844": "#3023-#3044, 18 Oct 2026, Awaiting reviews, jury panel, In selections",
+      "844x390": "same",
+      "768x1024": "same",
+      "1024x768": "same",
+      "1440x900": "same"
+    },
+    "GuessCodeLobbyScoringRevealResults": {
+      "390x844": "lobby Guess pressed + By code 1 dive; scoring 112B/103C/102C/105B 5-size shots; submit timeout on first run (timer 1s left), second run 112B selected locked => Game over maxime 22pts (5-size results)",
+      "844x390": "same",
+      "768x1024": "same",
+      "1024x768": "same",
+      "1440x900": "same"
+    },
+    "LibraryGrid": {
+      "390x844": "populated, Clips/By code/Progress named, nav 5 names",
+      "844x390": "same",
+      "768x1024": "same",
+      "1024x768": "same",
+      "1440x900": "same"
+    },
+    "LibraryPlayer3044": {
+      "390x844": "video rs4 ct advancing, contain, Previous/Next/Details/Like/Comments/Share/Analysis/Back to Library, info outside, Next->3043 Previous->3044",
+      "844x390": "same (shot ok)",
+      "768x1024": "same",
+      "1024x768": "same",
+      "1440x900": "same"
+    },
+    "MoleLobbyScoringVoteResults": {
+      "390x844": "lobby Mole pressed; scoring Choose 0-10 Submit before timer; 5-size scoring; submit 6=>Your score 6 Panel 6.3 Points+20; vote Is there mole? countdown, Nobody+Vote 5-size; results The mole Nobody maxime 20",
+      "844x390": "same",
+      "768x1024": "same",
+      "1024x768": "same",
+      "1440x900": "same"
+    },
+    "Profile15Achievements": {
+      "390x844": "tab exercised",
+      "844x390": "same",
+      "768x1024": "same",
+      "1024x768": "same",
+      "1440x900": "same"
+    },
+    "Profile15Activity": {
+      "390x844": "tab exercised (content mirrors Dives list in this build - noted)",
+      "844x390": "same",
+      "768x1024": "same",
+      "1024x768": "same",
+      "1440x900": "same"
+    },
+    "Profile15Codes": {
+      "390x844": "codes list",
+      "844x390": "same",
+      "768x1024": "same",
+      "1024x768": "same",
+      "1440x900": "same"
+    },
+    "Profile15DivesDefault": {
+      "390x844": "143 dives, tabs before Stats",
+      "844x390": "same",
+      "768x1024": "same",
+      "1024x768": "same",
+      "1440x900": "same"
+    },
+    "Profile15StatsClosedOpen": {
+      "390x844": "Stats details closed by default, opens to KPIs/weeks",
+      "844x390": "same",
+      "768x1024": "same",
+      "1024x768": "same",
+      "1440x900": "same"
+    },
+    "ProgressHub": {
+      "390x844": "Attempts/Sessions/Codes/Median, Improving/Dropping",
+      "844x390": "same (hasProg check text variant, settled shots ok)",
+      "768x1024": "same",
+      "1024x768": "same",
+      "1440x900": "same"
+    },
+    "RoomHome_CreateJoin": {
+      "390x844": "Create a room / Join",
+      "844x390": "same",
+      "768x1024": "same",
+      "1024x768": "same",
+      "1440x900": "same"
+    },
+    "RoomOwnLobby112B1Dive": {
+      "390x844": "By code 112B Apply=>Dives 1 Start enabled; Classic lobby 5-size; Mole lobby 5-size; Guess lobby 5-size",
+      "844x390": "same",
+      "768x1024": "same",
+      "1024x768": "same",
+      "1440x900": "same"
+    },
+    "Thread4_Djo": {
+      "390x844": "Djo conversation, history + composer, no send",
+      "844x390": "same",
+      "768x1024": "same",
+      "1024x768": "same",
+      "1440x900": "same"
+    }
+  },
+  "fullSHA": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c (git rev-parse HEAD; log cf95a4a fix(ui) + 80cab70a + 6cb6cff; status shows only docs/audits/ui-hill-climb audit/gallery dirt, no served source change)",
+  "gapsAndLimitations": [
+    "Attempt drawer 5-size evidence partial: inventory 5-size + drawer read-only proven at 1440 (201C 7.0, Previous/Open session/Next, Personal review priority collapsed, video Checking). Drawer at other 4 sizes not separately snapshotted; inventory parent verified at 5 sizes, drawer content is same component. Not inferring other sizes; scored on verified weakest (inventory density) not assumed drawer layout.",
+    "Classic submitted 5-size captures exceed 10s timer: scoring 5-size captured unselected and selected (6.0/10), Submit enabled + deadline proven, but Submit before timeout only proven single-size (second run) and via Mole 5-size+submit success. First Classic run correctly shows Not submitted reveal (no auto-vote). Honest limitation, not a pass.",
+    "Guess first run timed out (1s timer left after 5 captures) to 0pts results; second run immediate 112B selection locked and scored 22pts with 5-size results. Both states evidenced; timer tightness noted under Feedback.",
+    "Activity/Achievements tabs at profile15: clicks exercised at 5 sizes with snapshots, but content text mirrors Dives list in this build (possible tab wiring or slow load). Not marking as pass; scored Task content on verified Codes/Dives/Stats, flagged for fix.",
+    "No accessibility certification. UI scores are subjective. Transient snapshot/evaluate timeouts recovered (player 390 retry, details 768/1024 longer waits, /room navigate wait). Root causes unknown; no diagnosis invented. Earlier Calendar 500/ERR_NETWORK_CHANGED not re-observed; no claim.",
+    "Spiral score-card artwork is intentional, not duplicated digits. Collapsed code cards have no sparkline by design. Profile Stats starts closed by design. Imported timestamps identical with dive_number null is source truth; canonical clip IDs distinguish. Selected-but-unsubmitted correctly does not auto-vote. Today remains valid calendar date. Disagreements preserved without masking scores."
+  ],
+  "interactionsExercisedAndGaps": [
+    "Library: grid populated; By code collapsed->201C expanded (median/best/chips/distribution); chip->?clip=3038 recent clip link navigates; Progress tab; player 3044 decoded rs4 ct 1.41->5.81 advancing, contain, Next->3043 Previous->3044, Back to Library, Details; return/details present.",
+    "Progress/Analysis: Progression first/open; What changed/Comparison/Phase/Attempts secondary; Attempts to review opens 20-row 5-col Date/Score/Height/Context/Media, pagination 1-20/409 Previous/Next; row click opens read-only drawer with Close/Previous/Open session/Next, Send not sent; Personal review priority collapsed.",
+    "Messages: inbox 5 (Sara/Djo/Fouiny), thread /messages/4 Djo history+composer (no send), New chooser dialog 5, New group draft with 3 chips Create enabled but Create NOT clicked, Back+Close to dismiss.",
+    "Community: directory 5; profile15 Dives/Codes/Activity/Achievements/Stats closed+open each 5; Stats details closed default.",
+    "Calendar: Upcoming+November 2026 month 5; detail o/10 Nov4 Group Confirm 5 (Follow/Add/Organize visible, none clicked); newform Save/Discard 5, Save NOT clicked.",
+    "Evaluations: My dives IDs/dates/Awaiting 5; History 170 + disclosure expands 5; Judge FANNY 401C choose 6 draft 5 then Quit->Quit session without Confirm (Confirm never clicked).",
+    "Room OWN auditroom via NORMAL UI only: /room home 5; own lobby Classic/Mole/Guess + By code empty Apply disabled + 112B typed + Apply=>1 dive + Start enabled (Apply/Start via UI); Classic scoring blob rs4 ct8.902 vis visible deadline instruction, 5-size unselected + 5-size selected, Not submitted reveal 5 + results 0pts 5 + submitted single-size 6pts+20; Mole scoring 5 + submit 6=>6.3 panel +20 + vote countdown Nobody+Vote 5 + results Nobody maxime20 5; Guess scoring options 112B correct 5 + selection locked + results maxime22 5. No invite code reported. No other rooms. WS open then close test socket in-page. No auth writes."
+  ],
+  "matrix14x5_minimumWeakestScreen": {
+    "columns": [
+      "390x844",
+      "844x390",
+      "768x1024",
+      "1024x768",
+      "1440x900"
+    ],
+    "rows": [
+      {
+        "cat": 1,
+        "fixIfBelow7": "Promote attempt identity over score in My dives rows: ID+date first line, Awaiting badge second, score/code third; compress short-height scoring context strip.",
+        "name": "Visual hierarchy",
+        "reason": "My dives rows still code/score-first with shared 18 Oct date; imported batch distinguished only by canonical #ID. Scoring context strip compressed at short height.",
+        "scores": [
+          6,
+          5,
+          6,
+          6,
+          6
+        ],
+        "weakest": [
+          "Evaluations My dives rows (score-first, shared date, ID second)",
+          "Short-height room scoring context",
+          "My dives rows",
+          "My dives rows",
+          "My dives rows"
+        ]
+      },
+      {
+        "cat": 2,
+        "fixIfBelow7": "Reduce short-height scoring chrome; keep 2-col phone / 3-col small / 4-col large density; preserve grid start alignment.",
+        "name": "Layout and density",
+        "reason": "Dense but bounded; short height most constrained. Grid start-aligned (no forced equal height) verified.",
+        "scores": [
+          6,
+          5,
+          6,
+          6,
+          6
+        ],
+        "weakest": [
+          "Room scoring 844x390 (compressed)",
+          "Room scoring short-height",
+          "By code expanded dense",
+          "Analysis inventory dense",
+          "Desktop grid dense"
+        ]
+      },
+      {
+        "cat": 3,
+        "fixIfBelow7": "Keep 28px titles, 18-20px section heads, 14-16px task, 13px meta; avoid smaller meta in drawer/inventory.",
+        "name": "Typography",
+        "reason": "Scale system applied consistently; meta at 12-13px in chips/inventory is smallest legible, not a 7.",
+        "scores": [
+          6,
+          6,
+          6,
+          6,
+          6
+        ],
+        "weakest": [
+          "Chip/inventory meta 13px",
+          "Short-height meta",
+          "Tablet meta",
+          "Tablet meta",
+          "Desktop meta"
+        ]
+      },
+      {
+        "cat": 4,
+        "fixIfBelow7": "Lift muted text/borders one step; keep marine #78bfd1 for actions only.",
+        "name": "Color and contrast",
+        "reason": "Dark diving workspace intentional; muted #98a2aa and quiet borders are low contrast by design, not certified.",
+        "scores": [
+          5,
+          5,
+          5,
+          5,
+          5
+        ],
+        "weakest": [
+          "Muted meta on panel",
+          "Short-height muted",
+          "Tablet muted",
+          "Tablet muted",
+          "Desktop muted"
+        ]
+      },
+      {
+        "cat": 5,
+        "fixIfBelow7": "Preserve left alignment and quiet borders; keep phone nav offset var; avoid centering task content.",
+        "name": "Spacing and alignment",
+        "reason": "Left-aligned, no horizontal overflow (13 pages x5 sizes zero overflow). Short height tightest.",
+        "scores": [
+          6,
+          5,
+          6,
+          6,
+          6
+        ],
+        "weakest": [
+          "Thread/group sheets phone ok",
+          "Short-height sheets tight",
+          "Tablet spacing",
+          "Tablet spacing",
+          "Desktop spacing"
+        ]
+      },
+      {
+        "cat": 6,
+        "fixIfBelow7": "Keep attached named nav at phone/tablet above content with 5 destinations; keep desktop labeled sidebar; keep Library mode names + return/transport always visible.",
+        "name": "Navigation and orientation",
+        "reason": "Attached named navigation verified (attached-navigation marker, 5 names at all sizes); Library Clips/By code/Progress named; player return/Previous/Next/Details visible; room Back visible. Orientation still requires learning for new adult.",
+        "scores": [
+          6,
+          6,
+          6,
+          6,
+          6
+        ],
+        "weakest": [
+          "Phone attached nav (above content)",
+          "Short-height nav",
+          "Tablet nav",
+          "Tablet nav",
+          "Desktop sidebar"
+        ]
+      },
+      {
+        "cat": 7,
+        "fixIfBelow7": "Keep 112B named input + disabled empty Apply; keep explicit Submit/Vote/Quit/Create states; keep short-height composer/sheet controls non-shrinking.",
+        "name": "Control clarity",
+        "reason": "Apply disabled when empty, enabled after 112B; Submit/Vote/Quit/Create states explicit; judging keypad +\u00bd clear. Short-height composer most constrained.",
+        "scores": [
+          6,
+          5,
+          6,
+          6,
+          6
+        ],
+        "weakest": [
+          "Thread composer phone",
+          "Short-height composer/scoring",
+          "Tablet controls",
+          "Tablet controls",
+          "Desktop controls"
+        ]
+      },
+      {
+        "cat": 8,
+        "fixIfBelow7": "Replace remaining code jargon with plain adult language where possible; keep DB/SD/SYNC legend; use proper singular/plural and date-only on repeated timestamps.",
+        "name": "Terminology and instructions",
+        "reason": "No raw translation keys observed; legend for DB/SD/SYNC present; modifiers/phases from domain. Codes (112B/201C) and SYNC/DB remain jargon for new adult despite legend.",
+        "scores": [
+          5,
+          5,
+          5,
+          5,
+          5
+        ],
+        "weakest": [
+          "By code cards (code-first)",
+          "Short-height scoring jargon",
+          "Analysis filters jargon",
+          "Evaluations jargon",
+          "Desktop jargon"
+        ]
+      },
+      {
+        "cat": 9,
+        "fixIfBelow7": "Unify pills/cards/disclosures/sheets; keep score-card spiral as intentional artwork.",
+        "name": "Component consistency",
+        "reason": "Pills, code cards, tables, dialogs, sheets consistent; spiral retained intentional. Activity/Achievements content mirroring Dives needs wiring check.",
+        "scores": [
+          6,
+          6,
+          6,
+          6,
+          6
+        ],
+        "weakest": [
+          "Profile Activity/Achievements vs Dives",
+          "Short-height consistency",
+          "Tablet consistency",
+          "Tablet consistency",
+          "Desktop consistency"
+        ]
+      },
+      {
+        "cat": 10,
+        "fixIfBelow7": "Keep canonical #ID + date-only on repeated timestamps; keep Awaiting reviews and actual 0.0; keep 20-row 5-col inventory with pagination; keep drawer read-only with collapsed advanced metrics.",
+        "name": "Task content presentation",
+        "reason": "Real IDs #3023-#3044 + 18 Oct + Awaiting verified; 409 attempts 1-20/409 5 cols verified; drawer read-only with collapsed Personal review priority verified at 1440. Identical timestamps are source truth.",
+        "scores": [
+          6,
+          6,
+          6,
+          6,
+          6
+        ],
+        "weakest": [
+          "My dives shared date rows",
+          "Short-height inventory",
+          "Analysis inventory dense",
+          "Drawer secondary",
+          "Desktop inventory"
+        ]
+      },
+      {
+        "cat": 11,
+        "fixIfBelow7": "Keep Submit before timer ends + Not submitted + no auto-vote; keep mole countdown + no default + persisted submission; keep full ranking + points with no awards.",
+        "name": "Feedback and state clarity",
+        "reason": "Classic deadline + Not submitted + no auto-vote verified; Mole countdown (8s seen) + Nobody + Vote verified; submitted 6=>+20 verified; results full ranking no awards verified. 10s timer tight with captures; short height most compressed.",
+        "scores": [
+          6,
+          5,
+          6,
+          6,
+          6
+        ],
+        "weakest": [
+          "Classic Not submitted reveal",
+          "Short-height scoring compressed",
+          "Mole vote countdown",
+          "Guess timer",
+          "Desktop states"
+        ]
+      },
+      {
+        "cat": 12,
+        "fixIfBelow7": "Remove any residual ornamental uppercase/entrance motion; keep utility loading neutral; keep sticky Save/Discard header.",
+        "name": "Professional finish",
+        "reason": "No floating pill nav; no decorative entrance motion observed; sticky Save header verified; boot/ops neutral. HUD Orbit/Reticle/Depth + Diver score still playful for sellable adult product.",
+        "scores": [
+          5,
+          5,
+          5,
+          5,
+          5
+        ],
+        "weakest": [
+          "HUD/diver-score playfulness",
+          "Short-height finish",
+          "Tablet finish",
+          "Tablet finish",
+          "Desktop finish"
+        ]
+      },
+      {
+        "cat": 13,
+        "fixIfBelow7": "Preserve zero horizontal overflow; keep attached nav offset and measured sheet heights; keep video contain.",
+        "name": "Responsive fit",
+        "reason": "Zero horizontal overflow on 13 pages x5 sizes (scrollWidth-clientWidth<=1). Video contain (whole frame). Details heavy load caused transient waits but settled. Not a 7 due to heavy details load timeouts.",
+        "scores": [
+          6,
+          6,
+          6,
+          6,
+          6
+        ],
+        "weakest": [
+          "Details heavy load",
+          "Short-height fit",
+          "Tablet fit",
+          "Tablet fit",
+          "Desktop fit"
+        ]
+      },
+      {
+        "cat": 14,
+        "fixIfBelow7": "Keep Start/Save/See results/Play again/Next/Previous/Open session always visible; keep 1-dive Start enabled only after Apply.",
+        "name": "Next-action discoverability",
+        "reason": "Start/Save/Play again/Next/Previous/Open session visible at all sizes; By code Apply disabled->enabled->1 dive->Start clear. Short height tightest but actions reachable.",
+        "scores": [
+          6,
+          5,
+          6,
+          6,
+          6
+        ],
+        "weakest": [
+          "Library Add videos",
+          "Short-height Start",
+          "Progress actions",
+          "Analysis pagination",
+          "Desktop actions"
+        ]
+      }
+    ]
+  },
+  "minimum": 5,
+  "numericCells": 70,
+  "ownIdentityMediaWSSourceProof": {
+    "authMe": {
+      "display_name": "maxime",
+      "role": "owner",
+      "status": 200,
+      "user_id": 1
+    },
+    "headSHA": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "mediaIndependentlyAuthenticated": {
+      "avatarImageDecoded256x256": true,
+      "avatarStatus200": true,
+      "roomPosterAuthenticated": true,
+      "videoBlobDecodedReadyState4 AdvancingCurrentTime": true,
+      "videoObjectFitContainWholeFrame": true,
+      "videoSrcSamples": [
+        "blob:http://localhost:4317/ad609d04...",
+        "/dives?clip=3044"
+      ]
+    },
+    "noAuthChanges": "Read-only fetches + own-room UI creation/play only. No login/logout, no cookie/secret export, no password/avatar change, no Evaluations Confirm, no message Create/send, no Calendar RSVP/follow/save, no share/download. Persistent login reused; no login requested (proven 200, no 401).",
+    "ownNewTab": "reuseExistingTab=false profileId=default url=http://localhost:4317/account ownedByCaller=true tab tab_11_c539092e-8e18-4ced-b1f1-786e334b7451, own separate tab throughout, no other agents tabs/rooms touched.",
+    "servedViteMarkers": "Vite dev markers served: /@vite/client + /src/main.tsx; liveDOM markers clip-mobile-summary + attached-navigation + eval-attempt-id all true; HEAD title Dive Analyser, theme #0d1113, viewport-fit cover.",
+    "settledAccountText": "Signed in as maxime",
+    "visibility": "visible (scoring/vote visibilityState visible verified)",
+    "webSocket": "Console WebSocket connected + Heartbeat received (x2); in-page WS open then close test to ws://localhost:4317/api/v1/ws/sync?client_id=audit_test => openOk true closeOk true err null. No production substitution (fixed :4317)."
+  },
+  "role": "independent-read-only-UI-council-round5",
+  "screenshotsEvidencePathsPrivate": {
+    "dir": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/",
+    "note": "~100+ settled save:true PNGs this session on own tab; raw private, paths reported, no DM text or invite code",
+    "samples": [
+      "Library grid 5: mw39o0ir/mw39o29p/mw39o53d/mw39o7bx/mw39occ4",
+      "By code collapsed 5: mw39ok9k/mw39oq9a/mw39ovrk/mw39p141/mw39p9q2",
+      "By code 201C expanded 5: mw39ph1w/mw39plwp/mw39pqoj/mw39pty6/mw39pyjz",
+      "Player 3044 5: mw39twi9/mw39sy9r/mw39tb9a/mw39tieo/mw39tr4i",
+      "Progress 5: mw39u23k/mw39u4du/mw39u95b/mw39ug7d/mw39uj0n",
+      "Analysis overview 5: mw39w95c/mw39wc39/mw39wesp/mw39wibs/mw39wmfx",
+      "Details inventory 5: mw39y50c/mw39y8j4/mw39zy2p/mw3a1yxo/mw3a2g02/mw3a31c7",
+      "Messages inbox 5 / thread4 5 / new chooser 5 / group draft 5",
+      "Community directory 5 / profile15 Dives/Codes/Activity/Achievements/Stats-open each 5",
+      "Calendar Upcoming/month/detail/newform each 5",
+      "Evaluations My dives/History/judging6-draft-quit each 5",
+      "Room home 5 / own 112B lobby Classic+Mole+Guess each 5 / Classic scoring unselected+selected 5+5 / Classic Not-submitted reveal 5 / Classic results 0pts 5 / Mole scoring 5 / Mole reveal 5 / Mole vote 5 / Mole results 5 / Guess scoring 5 / Guess results 22pts 5"
+    ]
+  },
+  "sizes": [
+    [
+      390,
+      844
+    ],
+    [
+      844,
+      390
+    ],
+    [
+      768,
+      1024
+    ],
+    [
+      1024,
+      768
+    ],
+    [
+      1440,
+      900
+    ]
+  ],
+  "toolTimingCompliance": "preview_resize can return stale viewport; verified actual innerWidth/Height per size. Awaited fonts/data/images, rejected skeleton/loading (Loading page / Loading... / 409 waits), ensured no entrance animation. Background timers misleading: visibilityState visible verified for timed scores/vote. Start->gm-scoring awaited in same orchestration (clip ~9s, 10s timer). Quickly captured 5 sizes then chose 6 + Submit; Classic first run timed to Not submitted (honest), Mole 5-size+submit succeeded, Guess second run succeeded. Polling own page phase only; no delegate polling. Existing coordinator old room expired; created OWN fresh room; invite code not reported."
+}

@@ -68,7 +68,7 @@ export default function Evaluations() {
   return (
     <div className="evaluations-page" data-judging={judging ? 'true' : undefined}>
       <div className="evaluations-heading"><h1 className="evaluations-title">{t('evaluations.title')}</h1><MobileShellActions /></div>
-      <Link className="ca-btn" to="/room">{t("room.title")}</Link>
+      <Link className="ca-btn justify-self-start" to="/room">{t("room.title")}</Link>
       <Tabs tab={tab} onTab={setTab} />
       <div key={tab} className="evaluations-body" role="tabpanel" id={`evaluations-panel-${tab}`} aria-labelledby={`evaluations-tab-${tab}`}>
         {tab === 'judge' && <JudgeHub key={user?.user_id ?? 'guest'} paused={paused} onPause={() => setPaused(true)} onStageChange={setJudging} onHistory={() => setTab('history')} />}

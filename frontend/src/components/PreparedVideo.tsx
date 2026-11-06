@@ -1,3 +1,4 @@
+import { getLibraryAudioMuted, useLibraryAudioMuted } from '../utils/libraryAudioPreference'
 import { useLayoutEffect, useRef, type RefObject } from 'react'
 import { acquirePlaybackVideo, releasePlaybackVideo, onPreparedPlaybackReset } from '../utils/preparedPlayback'
 
@@ -22,6 +23,7 @@ interface Props {
 // player's poster covers startup until its first frame; no whole-file gate,
 // hidden original decoder or separate audio clock is needed.
 export default function PreparedVideo(props: Props) {
+  const preferredMuted = useLibraryAudioMuted()
   const hostRef = useRef<HTMLDivElement>(null)
   const primaryRef = useRef<HTMLVideoElement | null>(null)
   const latest = useRef(props)
@@ -50,9 +52,10 @@ export default function PreparedVideo(props: Props) {
     ;(props.soundRef as { current: HTMLVideoElement | null }).current = video
     setVideo(video)
     const unlisten = listen(video)
+    // Apply the explicit choice before enabling autoplay or attaching a warm element.
+    video.muted = getLibraryAudioMuted()
     video.autoplay = true
     video.loop = true
-    video.muted = false
     hostRef.current!.appendChild(video)
     return () => {
       unlisten()
@@ -65,6 +68,9 @@ export default function PreparedVideo(props: Props) {
       releasePlaybackVideo(props.videoUuid, video)
     }
   }, [props.videoUuid, props.videoRef])
+  useLayoutEffect(() => {
+    if (primaryRef.current) primaryRef.current.muted = preferredMuted
+  }, [preferredMuted, props.videoUuid])
   useLayoutEffect(() => {
     const video = primaryRef.current
     if (!video) return

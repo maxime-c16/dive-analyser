@@ -35,8 +35,27 @@ export default function useRoomPreload(
           urls[dive.id] = url;
         } catch {
           if (abort.signal.aborted) return;
-          // Keep normal scoped streaming available when a preload fails.
-          urls[dive.id] = dive.playback_url;
+          // A light-derivative redirect can fail fetch/CORS at the provider.
+          // Retry the existing room-scoped cached preview before streaming.
+          const preview = new URL(dive.playback_url, location.origin)
+          if (preview.origin === location.origin && preview.pathname.startsWith('/api/v1/rooms/')) {
+            preview.searchParams.set('q', 'preview')
+            try {
+              const response = await fetch(preview.pathname + preview.search, { credentials: 'same-origin', signal: abort.signal })
+              if (!response.ok) throw new Error('Room preview unavailable')
+              const blob = await response.blob()
+              if (abort.signal.aborted) return
+              if (!blob.size) throw new Error('Empty room preview')
+              const url = URL.createObjectURL(blob)
+              blobs.push(url)
+              urls[dive.id] = url
+            } catch {
+              if (abort.signal.aborted) return
+              urls[dive.id] = dive.playback_url
+            }
+          } else {
+            urls[dive.id] = dive.playback_url
+          }
         }
         setLoaded({ key, urls: { ...urls } });
       }

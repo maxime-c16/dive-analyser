@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Flame, Rocket, TrendingUp, Compass } from 'lucide-react'
 import MemberAvatar from '../MemberAvatar'
-import { CountUp, Segmented } from '../code-analysis/parts'
+import { Segmented } from '../code-analysis/parts'
 import { getLeaderboard, type Leaderboard as Board, type LeaderboardMember, type LeaderboardPeriod } from '../../services/communityApi'
 import { fmtScore } from '../../utils/codeStats'
 
@@ -16,8 +16,7 @@ const CATEGORIES = [
 type Category = (typeof CATEGORIES)[number]['key']
 
 /**
- * Community rankings for the week or the month: a podium for the top three,
- * then everyone else with a bar. You are always shown, highlighted, even
+ * Community rankings for the week or the month. You are always shown, highlighted, even
  * outside the top. Accounts bound to your own diver are left out.
  */
 export default function Leaderboard({ excluded, me }: { excluded: Set<number>; me?: number }) {
@@ -45,15 +44,11 @@ export default function Leaderboard({ excluded, me }: { excluded: Set<number>; m
     // The viewer stays visible (highlighted below the top 10) even with a zero score.
     .filter(member => !excluded.has(member.user_id) && (spec.value(member) > 0 || member.user_id === me))
     .sort((a, b) => spec.value(b) - spec.value(a) || b.attempts - a.attempts), [board, excluded, me, spec])
-  const top = ranked.slice(0, 3)
-  const rest = ranked.slice(3, 10)
+  const leaders = ranked.slice(0, 10)
   const mine = me != null ? ranked.findIndex(member => member.user_id === me) : -1
   const max = ranked.length ? spec.value(ranked[0]) : 1
   const label = (member: LeaderboardMember) => t(`community.board.unit.${category}`, { count: spec.value(member), value: category === 'progress' ? `+${fmtScore(spec.value(member))}` : spec.value(member) })
   const replay = `${period}-${category}-${board?.end ?? ''}`
-  const Value = ({ member }: { member: LeaderboardMember }) => category === 'progress'
-    ? <>+<CountUp value={spec.value(member)} /></>
-    : <CountUp value={spec.value(member)} digits={0} />
 
   return <section className="ca-panel cm-board ca-arrive" aria-labelledby="cm-board">
     <div className="ca-panel-h">
@@ -70,20 +65,10 @@ export default function Leaderboard({ excluded, me }: { excluded: Set<number>; m
       : !board ? <div className="ca-skeleton" style={{ height: 220 }} />
       : !ranked.length ? <p className="cm-empty">{t(`community.board.empty.${category}`)}</p>
       : <div key={replay}>
-        <ol className="cm-podium" aria-label={t('community.board.podium')}>
-          {[top[1], top[0], top[2]].map((member, slot) => member && <li key={member.user_id} className={`cm-step is-${[2, 1, 3][slot]}${member.user_id === me ? ' is-me' : ''}`} style={{ '--i': [1, 0, 2][slot] } as CSSProperties}>
-            <Link to={`/users/${member.user_id}`} className="cm-step-who" aria-label={`${[2, 1, 3][slot]}. ${member.display_name} · ${label(member)}`}>
-              <span className="cm-step-avatar"><MemberAvatar member={member} size={[2, 1, 3][slot] === 1 ? 64 : 52} />{[2, 1, 3][slot] === 1 && <span className="cm-crown" aria-hidden="true">👑</span>}</span>
-              <b>{member.user_id === me ? t('community.you') : member.display_name}</b>
-              <span className="cm-step-value"><Value member={member} /></span>
-            </Link>
-            <span className="cm-step-block" aria-hidden="true">{[2, 1, 3][slot]}</span>
-          </li>)}
+        <ol className="cm-ranks" aria-label={t('community.board.title')}>
+          {leaders.map((member, index) => <RankRow key={member.user_id} rank={index + 1} member={member} me={me} share={spec.value(member) / max} label={label(member)} index={index} />)}
+          {mine >= 10 && <RankRow rank={mine + 1} member={ranked[mine]} me={me} share={spec.value(ranked[mine]) / max} label={label(ranked[mine])} index={leaders.length} gap />}
         </ol>
-        {(rest.length > 0 || mine >= 10) && <ol className="cm-ranks" start={4}>
-          {rest.map((member, index) => <RankRow key={member.user_id} rank={index + 4} member={member} me={me} share={spec.value(member) / max} label={label(member)} index={index} />)}
-          {mine >= 10 && <RankRow rank={mine + 1} member={ranked[mine]} me={me} share={spec.value(ranked[mine]) / max} label={label(ranked[mine])} index={rest.length} gap />}
-        </ol>}
       </div>}
   </section>
 }

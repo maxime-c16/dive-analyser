@@ -1,0 +1,425 @@
+{
+  "role": "independent-read-only-UI-council-round4",
+  "fullSHA": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+  "candidateURL": "http://localhost:4317",
+  "actualProviderModelOptions": {
+    "provider": "opencode-go",
+    "model": "muse-spark-1.3-contributor",
+    "variant": null,
+    "note": "No variant flag was passed to this review sub-agent; running self defaults. The coordinator brief's council variants (xhigh/max) are launch variants for other members and are NOT inherited or assumed here. Must be distinguished: launch-variant != self-defaults."
+  },
+  "ownIdentityMediaWSSourceProof": {
+    "previewStatusBefore": "available:false, profiles:[default, incognito], defaultProfileId:default",
+    "ownNewTab": "reuseExistingTab=false, profileId=default, url=http://localhost:4317/account, ownedByCaller=true",
+    "settledAccountText": "Signed in as maxime",
+    "authMe": {
+      "status": 200,
+      "display_name": "maxime",
+      "user_id": 1,
+      "role": "owner",
+      "is_admin": true
+    },
+    "mediaRead": {
+      "url": "/api/v1/users/1/avatar",
+      "status": 200,
+      "contentType": "image/jpeg"
+    },
+    "webSocket": "ws://localhost:4317/api/v1/ws/sync \u2014 console shows 'WebSocket connected' + 'Heartbeat received' (x2 connections)",
+    "visibility": "visible",
+    "headSHA": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4 (git rev-parse HEAD; log matches fix(ui) commit; only untracked run-01 gallery draft, irrelevant)",
+    "servedViteMarkers": {
+      "AutomaticScores.tsx": "loadAutomaticIdentities import + call site + class eval-attempt-date served with 200",
+      "judgeRoom.css": "gm-phase-lobby > .gm-lobby-mode two-column short-height block served",
+      "JudgeRoom.tsx": "section className cm-section gm-lobby-mode served"
+    },
+    "liveDOMMarkers": {
+      "time.eval-attempt-date": "9 nodes at 390, 9 at desktop after progressive load",
+      "section.gm-lobby-mode": "present, mole pill aria-pressed=true after select",
+      " lobbyGrid": "gridTemplateColumns '289px 391px' at 844x390, Start bottom=314 in 390-high viewport"
+    },
+    "noAuthChanges": "No cookies/secrets/login/auth changes; read-only fetches only. No production substitution (fixed :4317 throughout)."
+  },
+  "sizes": [
+    [
+      390,
+      844
+    ],
+    [
+      844,
+      390
+    ],
+    [
+      768,
+      1024
+    ],
+    [
+      1024,
+      768
+    ],
+    [
+      1440,
+      900
+    ]
+  ],
+  "matrix14x5_minimumWeakestScreen": {
+    "columns": [
+      "390x844",
+      "844x390",
+      "768x1024",
+      "1024x768",
+      "1440x900"
+    ],
+    "rows": [
+      {
+        "cat": 1,
+        "name": "Visual hierarchy",
+        "scores": [
+          6,
+          6,
+          6,
+          6,
+          6
+        ],
+        "weakest": [
+          "Evaluations My dives rows (score-first, imported batch shares identical timestamp)",
+          "Short-height room scoring (context strip compressed)",
+          "My dives rows (same)",
+          "My dives rows (same)",
+          "My dives rows (same)"
+        ],
+        "reason": "My dives identity improved (thumb+date/time) but row hierarchy still score/code-first; imported batch shares one timestamp so attempts are not distinguishable by date."
+      },
+      {
+        "cat": 2,
+        "name": "Layout and density",
+        "scores": [
+          6,
+          5,
+          6,
+          6,
+          6
+        ],
+        "weakest": [
+          "201C overview phone (dense chart, period chips scroll)",
+          "Short-height calendar + scoring (everything scrolls, tight two-col scoring)",
+          "201C tablet (dense but legible)",
+          "201C + details (dense metric blocks)",
+          "Details Progression tab (dense chart, legible at width)"
+        ],
+        "reason": "Landscape short height forces scroll on every route; scoring two-column works but is tight. No root overflow at any size (scrollWidth<=innerWidth verified per resize)."
+      },
+      {
+        "cat": 3,
+        "name": "Typography",
+        "scores": [
+          7,
+          7,
+          7,
+          7,
+          7
+        ],
+        "weakest": [
+          "Secondary metadata small but tabular",
+          "Same",
+          "Same",
+          "Same",
+          "Detailed analysis secondary metadata"
+        ],
+        "reason": "No truncation of primary content except filter chips (see cat5/12). Hierarchy consistent."
+      },
+      {
+        "cat": 4,
+        "name": "Color and contrast",
+        "scores": [
+          7,
+          7,
+          7,
+          7,
+          7
+        ],
+        "weakest": [
+          "Muted secondary labels",
+          "Same",
+          "Same",
+          "Same",
+          "Same"
+        ],
+        "reason": "Visual judgement only, not accessibility certification. Selected states (teal) distinct; HIGH/LOW flags distinct."
+      },
+      {
+        "cat": 5,
+        "name": "Spacing and alignment",
+        "scores": [
+          6,
+          6,
+          6,
+          6,
+          7
+        ],
+        "weakest": [
+          "Calendar filter chip truncated ('Competition:'), floating nav overlaps resting content",
+          "Same class of short-height compromises",
+          "Floating nav overlap pattern",
+          "None observed at width (filters fit)",
+          "None observed"
+        ],
+        "reason": "Phone filter-row chip truncation is real but minor; floating bottom nav covers resting content on phone (content scrolls above it)."
+      },
+      {
+        "cat": 6,
+        "name": "Navigation and orientation",
+        "scores": [
+          7,
+          6,
+          7,
+          7,
+          7
+        ],
+        "weakest": [
+          "Back actions everywhere incl. player/room exit",
+          "Clip viewer exit untested at this size (viewer opened, exit not exercised)",
+          "Same as phone",
+          "Same as phone",
+          "Breadcrumb + Back + room exit all present"
+        ],
+        "reason": "Landscape navigation capped: clip-viewer immersive exit path not exercised at 844 (viewer opened, Back-to-Library not clicked there)."
+      },
+      {
+        "cat": 7,
+        "name": "Control clarity",
+        "scores": [
+          6,
+          6,
+          6,
+          6,
+          6
+        ],
+        "weakest": [
+          "Room By-code chooser dead-end NOT at this size; judging draft 9.5 distinct, Confirm unclicked",
+          "By-code expanded state not opened at this size; scoring Submit verified",
+          "Profile child tabs opened at 390 only; Codes/Activity/Achievements not re-opened here",
+          "Calendar detail Retry->recovery; room Choose dead-end observed at desktop only",
+          "Room By-code tab: 'No public dives ready to play', Choose button opens no picker; mole-vote pressed visual ambiguous (aria-pressed true + correct outcome confirm)"
+        ],
+        "reason": "Real control defect: room By-code source with 0 dives offers a Choose button that does nothing observable. Mole vote selection proved by aria-pressed=true and correct mole-caught outcome; screenshot pressed-ring ambiguous, so no higher claim."
+      },
+      {
+        "cat": 8,
+        "name": "Terminology and instructions",
+        "scores": [
+          5,
+          5,
+          5,
+          5,
+          5
+        ],
+        "weakest": [
+          "Grid modifiers DB/SD/HU + SYNC/DD unexplained at point of use",
+          "Same",
+          "Same",
+          "Same + IQR term present (demoted under plain 'High Variability')",
+          "Same; dives.modifierHelp exists in source but discoverability from grid unproven"
+        ],
+        "reason": "Technical labels persist at point of use in Library grid/filters and analysis. IQR already demoted beneath plain wording (verified in details), but acronyms remain."
+      },
+      {
+        "cat": 9,
+        "name": "Component consistency",
+        "scores": [
+          6,
+          6,
+          6,
+          6,
+          6
+        ],
+        "weakest": [
+          "Square analysis panels vs rounded journey surfaces; mixed CTA styles",
+          "Same",
+          "Same",
+          "Same",
+          "Same"
+        ],
+        "reason": "Unchanged cross-journey styling mix; native disclosures behave consistently (all closed by default, verified)."
+      },
+      {
+        "cat": 10,
+        "name": "Task content presentation",
+        "scores": [
+          6,
+          6,
+          6,
+          6,
+          6
+        ],
+        "weakest": [
+          "My dives identical timestamps for import batch; 201C phone chart crowded",
+          "Room playback footage rendering unverified (playback states show minimal UI; external S3 media fetch errors in console); posters/thumbs render",
+          "Same playback caveat; profile dive thumbs caught unloaded in one shot",
+          "Same playback caveat",
+          "Code gameplay poster+choices verified; room video vs timeout-fallback not distinguished; profile Activity empty despite populated dives (different data contract, no bug asserted)"
+        ],
+        "reason": "Room scoring/reveal/vote/results flows fully verified, but whether room playback renders footage or advances on fallback timeout is NOT established (console shows external blob fetch failures; localhost media fine). Task footage outside rooms is real (clip viewer 0:01/0:11 progress seen)."
+      },
+      {
+        "cat": 11,
+        "name": "Feedback and state clarity",
+        "scores": [
+          6,
+          6,
+          6,
+          6,
+          6
+        ],
+        "weakest": [
+          "Loading/retry/pending visible; Previous-disabled at first clip correct",
+          "Reveal HIGH/LOW + Panel/Your/Points clear; timer visible",
+          "Same",
+          "Calendar detail 'could not be loaded' -> Retry recovered (transient, cause unknown, no root cause invented)",
+          "Judging draft readout 9.5/10 distinct from unset; spiral is intentional SVG binding, not duplicated digits (confirmed visually)"
+        ],
+        "reason": "One transient calendar-detail failure with successful Retry recovery retained as observed; 201C 500->200 history noted, not reproduced, no cause claimed."
+      },
+      {
+        "cat": 12,
+        "name": "Professional finish",
+        "scores": [
+          5,
+          5,
+          5,
+          6,
+          6
+        ],
+        "weakest": [
+          "Chip truncation + nav overlap + black progressive-thumbnail placeholders + empty Activity",
+          "Short-height crowding",
+          "Same class as phone",
+          "Empty Activity + mixed panel radii remain",
+          "Mixed radii remain; spiral intentionally retained; no truncation at width"
+        ],
+        "reason": "Below-7 polish findings retained honestly; not masked by desktop."
+      },
+      {
+        "cat": 13,
+        "name": "Responsive fit",
+        "scores": [
+          7,
+          6,
+          7,
+          7,
+          7
+        ],
+        "weakest": [
+          "No overflow; 2-col phone grid readable",
+          "Lobby two-col verified (Start bottom 314/390); scoring tight but operable",
+          "No overflow; 4/8 scoring verified",
+          "No overflow; 5/8 scoring+reveal verified; detail Retry recovery",
+          "No overflow; all flows verified incl. vote/results/code results"
+        ],
+        "reason": "Exact innerWidth/Height verified after every resize; scrollWidth<=innerWidth at every capture. Landscape operable but tight, hence 6."
+      },
+      {
+        "cat": 14,
+        "name": "Next-action discoverability",
+        "scores": [
+          6,
+          6,
+          6,
+          6,
+          6
+        ],
+        "weakest": [
+          "Create/open-clip/judge/quit/Start all explicit",
+          "Same; lobby Start visible without scroll",
+          "Same",
+          "Same",
+          "Same except room By-code Choose dead-end caps this cell"
+        ],
+        "reason": "All primary next actions explicit; one dead-end (room By-code Choose with 0 dives) prevents higher score."
+      }
+    ]
+  },
+  "honestyFlags": {
+    "below7Retained": true,
+    "nullCells": "None claimed null: every category has >=1 settled observed screen per size. Gaps (judging interaction at 844/768/1024; mole vote and code gameplay below desktop; By-code expanded below 390/desktop; new-message/group draft below 390) are recorded as caps/reasons inside cells, not hidden.",
+    "notCopied": "Scores/reasons are own observations from this session's DOM/screenshots; coordinator self-scorecard and prior Codex/Muse scores not reused. Prior objections used only as checklists and explicitly re-verified (collapsed vs expanded states inspected separately).",
+    "noApprovalClaim": "This matrix does not meet the >=7 bar and is not an approval. User needs 3 complete >=7 matrices on the same final SHA; this is one honest matrix, not a pass."
+  },
+  "perFlowSizeCoverage": {
+    "390x844": "Library grid/codes(collapsed+112B expanded)/progress; clip3044 viewer + Next->3043 + Previous-disabled-first; 201C overview + details(full tabs listed, body read); Messages inbox/thread4/chooser/group-draft(Create never clicked, nothing sent); Community directory; profile15 Dives + Stats(collapsed+expanded) + Codes + Activity(empty) + Achievements(2/17); Calendar November list + detail10 + new form (no RSVP/follow/save); Evaluations Mydives(9 dates/6 thumbs/40 clip links) + History(170) + judging FANNY-401C draft 9.5 + Quit-without-Confirm (queue retained, no vote); Room home + Classic lobby/scoring(1/8: 6 pressed-true, Submit enabled, submitted)/reveal/2-8 progression/results + mole lobby; auth/media/WS/source preflight.",
+    "844x390": "Grid, codes, progress, clip+viewer, 201C (settled recapture), detail10, thread4 (composer reachable), profile15, calendar list, mydives, history, room home; Classic scoring 3/8 (6 pressed-true/Submit/submit) + reveal; mole lobby two-column (289px 391px, Start 270-314/390) + screenshots; mole results via resize; NO judging tab visit; NO new-message draft; NO new-event form.",
+    "768x1024": "Grid, codes, progress, clip+viewer, 201C (settled), messages, thread4, community, profile15, calendar, detail10, new form, mydives, history, room home; Classic 4/8 scoring(pressed-true/submit)+reveal; classic+mole results via resize; NO judging tab visit; NO chooser/group draft.",
+    "1024x768": "Grid, codes(+recapture), progress, clip+viewer(dialog open), messages, thread4, community, profile15, calendar, detail10 (transient 'could not be loaded' -> Retry recovered with screenshot of both states), new form, mydives, history, room home, 201C (settled), details (header+tabs, Progression covered at desktop); Classic 5/8 scoring+reveal; NO judging tab visit.",
+    "1440x900": "Grid, codes(collapsed+112B expanded), progress, clip+viewer, messages, thread4 (composer bottom 873/900, Send present), community, profile15-Dives, calendar, detail10 (clean load), new form, mydives (9 dates/5 thumbs progressive), history, room home, 201C, details + Progression tab (legend + plain summary), judging scoring (observed, no draft change; queue retained FANNY-401C proving no prior vote); mole full game 1-8 + vote (suspect pressed-true, Vote submitted, mole caught, results) + results; code lobby (incl. By-code 0-dives dead-end) + gameplay (4 choices, pick->reveal +Points) + full 8-round game + results."
+  },
+  "settledOriginalPathsInteractionsFindings": {
+    "screenshotDir": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/",
+    "keyPaths390": [
+      "browser-screenshot-localhost-mw2liiy6-8201c46a.png (grid 2-col, inspected)",
+      "browser-screenshot-localhost-mw2lixye-02281a05.png (codes collapsed, inspected)",
+      "browser-screenshot-localhost-mw2lj44c-f2d34a82.png (112B expanded)",
+      "browser-screenshot-localhost-mw2lj7yf-bce37c46.png (progress)",
+      "browser-screenshot-localhost-mw2ljgz7-90560019.png (player immersive, inspected)",
+      "browser-screenshot-localhost-mw2ljs86-822a2ba3.png (next->3043)",
+      "browser-screenshot-localhost-mw2ljwo4-8a299ea9.png (201C, inspected)",
+      "browser-screenshot-localhost-mw2lk52j-75ea5e3c.png (details loaded)",
+      "browser-screenshot-localhost-mw2lkalz-d0bc3230.png (inbox)",
+      "browser-screenshot-localhost-mw2lkm2e-2e899b06.png (thread4)",
+      "browser-screenshot-localhost-mw2llnli-bcb40579.png (chooser)",
+      "browser-screenshot-localhost-mw2llrjs-d152fd59.png (group draft, Create disabled, inspected)",
+      "browser-screenshot-localhost-mw2llvlq-ac595439.png (community)",
+      "browser-screenshot-localhost-mw2lm1yz-18b0f3af.png (profile Dives, inspected)",
+      "browser-screenshot-localhost-mw2lm5re-d105f086.png (stats expanded)",
+      "browser-screenshot-localhost-mw2lm9cv-a77e3cec.png (profile codes)",
+      "browser-screenshot-localhost-mw2lmckm-ebfb9f37.png (activity empty)",
+      "browser-screenshot-localhost-mw2lmgdw-3da2b179.png (achievements 2/17)",
+      "browser-screenshot-localhost-mw2lmkgt-01e7f825.png (calendar, inspected)",
+      "browser-screenshot-localhost-mw2ln3n9-5f200237.png (detail10)",
+      "browser-screenshot-localhost-mw2ln7zn-c12c3fc8.png (new form)",
+      "browser-screenshot-localhost-mw2lnbrv-c05e3500.png (mydives, inspected)",
+      "browser-screenshot-localhost-mw2lnfj0-16f0b81d.png (history)",
+      "browser-screenshot-localhost-mw2lnxdm-af5cd834.png (judging 9.5 draft, Confirm unclicked, inspected)",
+      "browser-screenshot-localhost-mw2lo6cf-2c9d47f1.png (room home)",
+      "browser-screenshot-localhost-mw2lorbi-029646c5.png (classic lobby)",
+      "browser-screenshot-localhost-mw2lp5m4-ce2c2704.png (1/8 scoring)",
+      "browser-screenshot-localhost-mw2lpbpq-878f8700.png (6 selected)",
+      "browser-screenshot-localhost-mw2lpdch-cc9d0b68.png (reveal)",
+      "browser-screenshot-localhost-mw2lt508-de996a81.png (classic results, inspected)"
+    ],
+    "keyPathsOtherSizes": [
+      "844: mw2m2t38,mw2m2vk5,mw2m2x2l,mw2m2ykc,mw2m348y,mw2m37u1,mw2m39bi,mw2m3adn,mw2m3cbc(inspected thread+composer),mw2m3g5o,mw2m3k8y,mw2m3ljg(premature, recaptured mw2meuxp),mw2m3rd4,mw2m3twg; scoring mw2lqk91(inspected), reveal mw2lqp3a; lobby mw2ltifl(inspected two-col); mole results mw2ly45u; 201C recapture mw2meuxp",
+      "768: mw2m3z8s,mw2m41r7,mw2m44ox,mw2m47r0,mw2m49u6(premature, recaptured mw2m4jtv),mw2m4o41,mw2m4skm,mw2m4vie,mw2m4zy0,mw2m52ee,mw2m574v,mw2m593k,mw2m5dft,mw2m5ffz,mw2m5gze; 4/8 scoring mw2lr1ic; reveal mw2lr5uv; results classic mw2lt599 + mole mw2ly4bq",
+      "1024: mw2m5l65,mw2m6dha,mw2m6i7w,mw2m6mi8,mw2m70we,mw2m76wh,mw2m7bt6,mw2m7gof,mw2m7lgj,mw2m7zir(error)+mw2m8dfj(error-state)+mw2m8jsh(recovered detail),mw2m8mqt,mw2m8qyi,mw2m8wxl,mw2m94v7,mw2m9jui(201C settled),mw2m9tmv(details); 5/8 scoring mw2lrhzh, reveal mw2lrmk1; results classic mw2lt5dz + mole mw2ly4gp",
+      "1440: mw2m9ysd(inspected grid),mw2ma3z5,mw2ma7g9(112B expanded),mw2mac0w,mw2mahy9,mw2mane3,mw2mb1uh,mw2mb97l,mw2mbgnm,mw2mbl7e,mw2mbsgg,mw2mbws7,mw2mcaen(mydives 9/5),mw2mceyn,mw2mcos3,mw2mcyn2(inspected 201C),mw2mdc59(details),mw2mdjhn(progression),mw2meaed(judging scoring); classic results mw2lt2ti; mole scoring mw2ltyee, 8/8 mw2lxmq1, vote mw2lxtea(inspected)+mw2lxvl9, mole results mw2ly1q7 + resized mw2ly419/mw2ly45u/mw2ly4bq/mw2ly4gp; code lobby mw2lyc6v, bycode-empty mw2lyf5b/mw2lyqde, gameplay mw2lzdcv(inspected), reveal mw2lzhlc, results mw2m2ozm"
+    ],
+    "interactions": [
+      "clip Next 3044->3043 + URL change; Previous disabled at first clip; By-code disclosure open (112B median/best/chips revealed, 54 details 0-open baseline); profile Stats disclosure open (143/32/22/28d); details Progression tab; group sheet open + Create untouched; judging 9 + half -> 9.5 readout, Confirm never clicked, Quit pressed with no destructive effect, queue retained; Classic 6 pressed-true + Submit enabled + submitted at 1/8,2/8,3/8,4/8,5/8,6/8 + See results; mole suspect aria-pressed-true + Vote -> mole caught + results; code pick 103C -> +16 Points -> full game -> results; calendar Retry -> recovery; room Choose dead-end (no-op observed)"
+    ],
+    "writes": "Only own-audit-room normal-UI game actions (3 rooms created via Create-a-room, Start, scoring Submit, Next, mole Vote, code picks). NO Eval Confirm votes, NO messages sent, NO group created, NO RSVP/follow/save/calendar writes, NO guest joins, NO invite codes recorded. One tab renderer crash (chrome-error) recovered via same-tab reopen; judging queue intact afterwards.",
+    "findings": [
+      "By-code collapsed state clean (no sparkline/median/best/chips) at 390+desktop; expanded reveals them (Muse stale descriptions contradicted, do not restore decorations)",
+      "Stats behind closed disclosure (collapsed default verified 390+desktop)",
+      "My dives real thumb/date/time-to-second + exact clip links verified (9 dates/40 links), but imported batch shares one timestamp",
+      "Lobby two-column fix verified at 844 (grid cols + Start in viewport)",
+      "Foreground scoring 6/Submit/reveal/results verified all modes; background-tab failure not re-tested (no claim)",
+      "Spiral is intentional binding decoration (seen on judging card)",
+      "Calendar transient failure + Retry recovery observed once (1024 detail); cause unknown",
+      "Room By-code Choose with 0 dives is a dead-end control",
+      "Room playback footage rendering unverified (external S3 blob errors in console; localhost media OK); game timing suggests possible timeout fallback",
+      "Mole-vote pressed-ring visually ambiguous in one screenshot; aria-pressed=true + correct outcome are the evidence",
+      "Phone filter-chip truncation + floating-nav resting overlap; Activity empty vs populated dives (contract difference, no bug asserted)",
+      "Judging queue retained task after quit+reload (no draft reset observed)"
+    ]
+  },
+  "checks": "Not re-run by reviewer (read-only council). Coordinator self-scorecard claims 116 files/951 tests, tsc+Vite build, typecheck, release/diff PASS; global gate Mac-tools unavailable. Taken as reported, not verified here.",
+  "verdict": "Honest independent matrix above: many cells below 7, several findings open. NOT an approval and NOT a >=7 matrix. Do not coerce or average into a pass.",
+  "launch_tool_metadata": {
+    "providerInstanceId": "oc1",
+    "model": "opencode-go/muse-spark-1.3-contributor",
+    "options": [
+      {
+        "id": "variant",
+        "value": "xhigh"
+      }
+    ]
+  }
+}

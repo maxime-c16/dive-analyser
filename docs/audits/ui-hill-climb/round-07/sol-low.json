@@ -1,0 +1,136 @@
+{
+  "source": "b47ea9f4",
+  "provider": "codex_c1b5874b-d343-42e0-a0b9-40c36b87ec34",
+  "model": "gpt-6.1-sol",
+  "reasoningEffort": "low",
+  "scope": "Library grid only; provisional static diagnostic",
+  "score": 5.5,
+  "acceptance": false,
+  "sizes": [
+    "390x844",
+    "844x390",
+    "768x1024",
+    "1024x768",
+    "1440x900"
+  ],
+  "matrix": [
+    [
+      4,
+      4,
+      6,
+      6,
+      7
+    ],
+    [
+      4,
+      4,
+      5,
+      5,
+      7
+    ],
+    [
+      6,
+      6,
+      7,
+      7,
+      7
+    ],
+    [
+      7,
+      7,
+      7,
+      7,
+      7
+    ],
+    [
+      4,
+      4,
+      6,
+      6,
+      7
+    ],
+    [
+      5,
+      6,
+      7,
+      7,
+      7
+    ],
+    [
+      6,
+      6,
+      7,
+      7,
+      7
+    ],
+    [
+      7,
+      7,
+      7,
+      7,
+      7
+    ],
+    [
+      6,
+      6,
+      6,
+      6,
+      6
+    ],
+    [
+      5,
+      4,
+      6,
+      6,
+      7
+    ],
+    [
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    [
+      4,
+      4,
+      6,
+      6,
+      7
+    ],
+    [
+      3,
+      4,
+      6,
+      6,
+      7
+    ],
+    [
+      6,
+      6,
+      7,
+      7,
+      7
+    ]
+  ],
+  "findings": [
+    "Title overlaps upload action at phone and landscape",
+    "Announcement obscures content",
+    "Scope hidden on phone",
+    "Tablet toolbar wraps inefficiently",
+    "settle return ignored"
+  ],
+  "decisions": {
+    "title": "corrected, pending fresh capture",
+    "scope": "made always visible, pending fresh capture",
+    "settle": "enforced network quiet and checkpoint manifests",
+    "announcement": "pending",
+    "tablet_toolbar": "pending"
+  },
+  "excluded": [
+    "Other screen families",
+    "Interactions",
+    "Independent reviewer authentication",
+    "Judge Room phases"
+  ]
+}

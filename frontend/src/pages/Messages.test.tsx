@@ -232,3 +232,26 @@ it('caps group selection at 15 others and explains the limit', async () => {
   await waitFor(() => expect(api.startGroup).toHaveBeenCalledTimes(1))
   expect(vi.mocked(api.startGroup).mock.calls[0][0]).toHaveLength(15)
 })
+
+it('keeps a group draft outside the phone-hidden heading when an open thread resizes', async () => {
+  const width = window.innerWidth
+  vi.mocked(searchMembers).mockResolvedValue({items:[], next_after:null})
+  try {
+    Object.defineProperty(window, 'innerWidth', {configurable:true, value:1440})
+    show()
+    await screen.findByText(message.body)
+    fireEvent.click(screen.getByRole('button', {name:'New'}))
+    fireEvent.click(screen.getByRole('button', {name:'New group'}))
+    const dialog = screen.getByRole('dialog', {name:'New group'})
+    Object.defineProperty(window, 'innerWidth', {configurable:true, value:390})
+    fireEvent(window, new Event('resize'))
+    // The phone thread hides this heading; its draft must survive outside it.
+    expect(dialog.closest('.messages-heading')).toBeNull()
+    expect(dialog).toHaveAttribute('aria-modal', 'true')
+    fireEvent.click(screen.getByRole('button', {name:'Close'}))
+    expect(screen.queryByRole('dialog', {name:'New group'})).toBeNull()
+    expect(api.startGroup).not.toHaveBeenCalled()
+  } finally {
+    Object.defineProperty(window, 'innerWidth', {configurable:true, value:width})
+  }
+})

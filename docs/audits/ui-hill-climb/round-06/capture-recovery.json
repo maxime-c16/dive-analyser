@@ -1,0 +1,194 @@
+{
+  "candidateSHA": "ae1a07b627e4850732981a58610bfbe3347ac2da",
+  "status": "ready native-video drawer capture recovered at all five sizes; standalone player silent path remains to verify",
+  "observed_trigger": "Ready paused native-video drawer associated with repeated snapshot/recording timeouts; not proven sole root cause",
+  "supported_recovery": [
+    "Wait for exact CSS viewport and video readyState>=2, paused=true, autoplay=false",
+    "Use supported preview_act scroll on role=dialog +650 then-650; no DOM/style/video mutations",
+    "Verify actual scrollTop0 and readyState4/paused/time0",
+    "Save real PNG and inspect it; check raster aspect against CSS viewport"
+  ],
+  "control": "Explicitly closed drawer, verified videos0, no-image/no-save snapshot388ms with AX; initial ready-drawer no-image attempt timed out too",
+  "confounder": "One browser host reconnection interrupted an experiment; rejected. No host restart/kill performed.",
+  "root_cause": "Unknown; supported scroll/repaint recovery reproduced five times. No claim of global tool fix.",
+  "proofs": [
+    {
+      "viewport": [
+        390,
+        844
+      ],
+      "png_dimensions": [
+        780,
+        1688
+      ],
+      "aspect_matches": true,
+      "snapshot_ms": 826,
+      "video": [
+        {
+          "autoplay": false,
+          "paused": true,
+          "ready": 4,
+          "rect": {
+            "bottom": 305.4609375,
+            "height": 198.8125,
+            "left": 18,
+            "right": 373,
+            "top": 106.6484375,
+            "width": 355,
+            "x": 18,
+            "y": 106.6484375
+          },
+          "time": 0
+        }
+      ],
+      "dialog_scroll": 0,
+      "visibility": "visible",
+      "original": "browser-screenshot-localhost-mw3kq7o7-0698749a.png",
+      "sha256": "7399d3073fc8b9acab9237ff04921ce60db1e7ca29a4ce356ed8d1cf911309b9",
+      "visually_inspected": true
+    },
+    {
+      "viewport": [
+        844,
+        390
+      ],
+      "png_dimensions": [
+        1280,
+        591
+      ],
+      "aspect_matches": true,
+      "snapshot_ms": 307,
+      "video": [
+        {
+          "autoplay": false,
+          "paused": true,
+          "ready": 4,
+          "rect": {
+            "bottom": 462.5859375,
+            "height": 343.9375,
+            "left": 202,
+            "right": 815,
+            "top": 118.6484375,
+            "width": 613,
+            "x": 202,
+            "y": 118.6484375
+          },
+          "time": 0
+        }
+      ],
+      "dialog_scroll": 0,
+      "visibility": "visible",
+      "original": "browser-screenshot-localhost-mw3kq8as-e3fbc8a0.png",
+      "sha256": "568ef55ccbc586e33a9d5c65cd7e54d8bd22aaf7732393677431d52e0e5c25cd",
+      "visually_inspected": true
+    },
+    {
+      "viewport": [
+        768,
+        1024
+      ],
+      "png_dimensions": [
+        1280,
+        1707
+      ],
+      "aspect_matches": true,
+      "snapshot_ms": 456,
+      "video": [
+        {
+          "autoplay": false,
+          "paused": true,
+          "ready": 4,
+          "rect": {
+            "bottom": 462.5859375,
+            "height": 343.9375,
+            "left": 126,
+            "right": 739,
+            "top": 118.6484375,
+            "width": 613,
+            "x": 126,
+            "y": 118.6484375
+          },
+          "time": 0
+        }
+      ],
+      "dialog_scroll": 0,
+      "visibility": "visible",
+      "original": "browser-screenshot-localhost-mw3kq92k-d597d64a.png",
+      "sha256": "872d50b2084b09e01088a7ab30d6f94396e66314ad0ad7358f843cc491ab2d9c",
+      "visually_inspected": true
+    },
+    {
+      "viewport": [
+        1024,
+        768
+      ],
+      "png_dimensions": [
+        1280,
+        960
+      ],
+      "aspect_matches": true,
+      "snapshot_ms": 322,
+      "video": [
+        {
+          "autoplay": false,
+          "paused": true,
+          "ready": 4,
+          "rect": {
+            "bottom": 462.5859375,
+            "height": 343.9375,
+            "left": 382,
+            "right": 995,
+            "top": 118.6484375,
+            "width": 613,
+            "x": 382,
+            "y": 118.6484375
+          },
+          "time": 0
+        }
+      ],
+      "dialog_scroll": 0,
+      "visibility": "visible",
+      "original": "browser-screenshot-localhost-mw3kqazt-2cf35309.png",
+      "sha256": "f251ebb27090619e7b0686a9d352c97b259c53205aff08d564683bb03c260916",
+      "visually_inspected": true
+    },
+    {
+      "viewport": [
+        1440,
+        900
+      ],
+      "png_dimensions": [
+        1280,
+        800
+      ],
+      "aspect_matches": true,
+      "snapshot_ms": 789,
+      "video": [
+        {
+          "autoplay": false,
+          "paused": true,
+          "ready": 4,
+          "rect": {
+            "bottom": 462.5859375,
+            "height": 343.9375,
+            "left": 798,
+            "right": 1411,
+            "top": 118.6484375,
+            "width": 613,
+            "x": 798,
+            "y": 118.6484375
+          },
+          "time": 0
+        }
+      ],
+      "dialog_scroll": 0,
+      "visibility": "visible",
+      "original": "browser-screenshot-localhost-mw3kqbw6-2b8fe637.png",
+      "sha256": "be9082460ede0f3f267ad5fb4d7f060f332eef40aba28ec60dc928d313777b88",
+      "visually_inspected": true
+    }
+  ],
+  "privacy": "Private originals retained; this record contains no media URL, room code, cookies or DM text",
+  "sourceChanged": false,
+  "audioPlayed": false
+}

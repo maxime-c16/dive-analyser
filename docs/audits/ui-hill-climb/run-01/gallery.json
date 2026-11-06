@@ -1,0 +1,622 @@
+[
+  {
+    "route": "/dives?view=grid",
+    "viewport": [
+      390,
+      844
+    ],
+    "derived": "images/01-390x844.png",
+    "before": {
+      "source": "ef05e126 UI plus dev proxy",
+      "original": "browser-screenshot-localhost-mw1gfa6n-ddbf55e1.png",
+      "sha256": "0937dd784afdafe3edf56ff87366a470177736458c82421d2355a8597215f9cf"
+    },
+    "after": {
+      "source": "run01 UI retained in current candidate; see run record",
+      "original": "browser-screenshot-localhost-mw1h9392-e1e4e919.png",
+      "sha256": "b8d6677e438ae0f52faac2d15c99d4f934ea604c4e03424ae44c224a0e10e70f"
+    },
+    "privacy": "media blur and private text masks; originals retained outside git",
+    "scoring": "no council score inferred from this image"
+  },
+  {
+    "route": "/dives?view=grid",
+    "viewport": [
+      844,
+      390
+    ],
+    "derived": "images/01-844x390.png",
+    "before": {
+      "source": "ef05e126 UI plus dev proxy",
+      "original": "browser-screenshot-localhost-mw1gfbee-7894cd7a.png",
+      "sha256": "fb945b305674d0b2c865ef41fe9784e568f68dd8809732dbd43a74fe3c43e1dd"
+    },
+    "after": {
+      "source": "run01 UI retained in current candidate; see run record",
+      "original": "browser-screenshot-localhost-mw1h93lj-eb35a41f.png",
+      "sha256": "2e48774106118d1a213a1f0659c1f451f9ce437066f4eb32f44cb96fc92aaaa4"
+    },
+    "privacy": "media blur and private text masks; originals retained outside git",
+    "scoring": "no council score inferred from this image"
+  },
+  {
+    "route": "/dives?view=grid",
+    "viewport": [
+      1440,
+      900
+    ],
+    "derived": "images/01-1440x900.png",
+    "before": {
+      "source": "ef05e126 UI plus dev proxy",
+      "original": "browser-screenshot-localhost-mw1gfenh-6feccaeb.png",
+      "sha256": "fadc008523d51565e42a3ac39a6484b729ac7a0aab767acd2980875acb46aa08"
+    },
+    "after": {
+      "source": "run01 UI retained in current candidate; see run record",
+      "original": "browser-screenshot-localhost-mw1h95v3-9610952a.png",
+      "sha256": "3edf93605a09247ff45a9786c06e4e466701252ff70162d79fe24580679b9394"
+    },
+    "privacy": "media blur and private text masks; originals retained outside git",
+    "scoring": "no council score inferred from this image"
+  },
+  {
+    "route": "/dives?view=codes",
+    "viewport": [
+      390,
+      844
+    ],
+    "derived": "images/02-390x844.png",
+    "before": {
+      "source": "ef05e126 UI plus dev proxy",
+      "original": "browser-screenshot-localhost-mw1gfl0c-59407b00.png",
+      "sha256": "350135153abe7392a6338d60342d27ebad1fb28ca55daa5aff73da955f387e30"
+    },
+    "after": {
+      "source": "run01 UI retained in current candidate; see run record",
+      "original": "browser-screenshot-localhost-mw1hc9ie-353fddf2.png",
+      "sha256": "3f6c6a00ca7ed935d4fb87703f04262a05ce6fc85c2e6cfd94c025dae8ae1dfb"
+    },
+    "privacy": "media blur and private text masks; originals retained outside git",
+    "scoring": "no council score inferred from this image"
+  },
+  {
+    "route": "/dives?view=codes",
+    "viewport": [
+      844,
+      390
+    ],
+    "derived": "images/02-844x390.png",
+    "before": {
+      "source": "ef05e126 UI plus dev proxy",
+      "original": "browser-screenshot-localhost-mw1gfl9t-dc94de5d.png",
+      "sha256": "08134d8770fbdef26e215d0abf9c966e6b3b59e18425eccf4c4a555144774420"
+    },
+    "after": {
+      "source": "run01 UI retained in current candidate; see run record",
+      "original": "browser-screenshot-localhost-mw1hcaqm-5d398422.png",
+      "sha256": "1fdcb4f02c1cd14547b018edc76d81d89f3be0d9772f0a7c77b06e2fb8863ffe"
+    },
+    "privacy": "media blur and private text masks; originals retained outside git",
+    "scoring": "no council score inferred from this image"
+  },
+  {
+    "route": "/dives?view=codes",
+    "viewport": [
+      1440,
+      900
+    ],
+    "derived": "images/02-1440x900.png",
+    "before": {
+      "source": "ef05e126 UI plus dev proxy",
+      "original": "browser-screenshot-localhost-mw1gfmfg-393e588f.png",
+      "sha256": "f345b34b0d272a6da0f1ad86792e93199d6101fa1b5d218078da4db895f808cb"
+    },
+    "after": {
+      "source": "run01 UI retained in current candidate; see run record",
+      "original": "browser-screenshot-localhost-mw1hceob-ce50e8f0.png",
+      "sha256": "146e3302413dbf701318018d792fd512c153313bdfc659c10176e10c9c2d5119"
+    },
+    "privacy": "media blur and private text masks; originals retained outside git",
+    "scoring": "no council score inferred from this image"
+  },
+  {
+    "route": "/community",
+    "viewport": [
+      390,
+      844
+    ],
+    "derived": "images/04-390x844.png",
+    "before": {
+      "source": "ef05e126 UI plus dev proxy",
+      "original": "browser-screenshot-localhost-mw1gftkp-f15c6a2c.png",
+      "sha256": "aa872750c6f34bda1ecdf762e3d5cec5b41868a4bf7b50941bcf586022c6e65a"
+    },
+    "after": {
+      "source": "run01 UI retained in current candidate; see run record",
+      "original": "browser-screenshot-localhost-mw1h9hy6-3d1bd8c8.png",
+      "sha256": "a1242bebcf0171fdb871a4d63b9f155d76b7667b4b74134807c926dd4ceab3c9"
+    },
+    "privacy": "media blur and private text masks; originals retained outside git",
+    "scoring": "no council score inferred from this image"
+  },
+  {
+    "route": "/community",
+    "viewport": [
+      844,
+      390
+    ],
+    "derived": "images/04-844x390.png",
+    "before": {
+      "source": "ef05e126 UI plus dev proxy",
+      "original": "browser-screenshot-localhost-mw1gfve1-b61bb3f4.png",
+      "sha256": "52bcee5aff1d44876907053a89d5087504e3897a206c91731c4686189e1dd521"
+    },
+    "after": {
+      "source": "run01 UI retained in current candidate; see run record",
+      "original": "browser-screenshot-localhost-mw1h9j4c-215cb44c.png",
+      "sha256": "2f90d0ef6510c320613d822a437fdc60e4a8f1a1024fd6f4144b0de71ddd5699"
+    },
+    "privacy": "media blur and private text masks; originals retained outside git",
+    "scoring": "no council score inferred from this image"
+  },
+  {
+    "route": "/community",
+    "viewport": [
+      1440,
+      900
+    ],
+    "derived": "images/04-1440x900.png",
+    "before": {
+      "source": "ef05e126 UI plus dev proxy",
+      "original": "browser-screenshot-localhost-mw1gfw78-6facce80.png",
+      "sha256": "1df35f635eb2ec455897effa3f69373577d15e0c2c4fd9ae71f5c618551ed983"
+    },
+    "after": {
+      "source": "run01 UI retained in current candidate; see run record",
+      "original": "browser-screenshot-localhost-mw1h9k0p-130c5b13.png",
+      "sha256": "cc3d36910621b86dd9cac6d09e55b580a72ad2b665916c9c5173eb313d17e24f"
+    },
+    "privacy": "media blur and private text masks; originals retained outside git",
+    "scoring": "no council score inferred from this image"
+  },
+  {
+    "route": "/users/15",
+    "viewport": [
+      390,
+      844
+    ],
+    "derived": "images/05-390x844.png",
+    "before": {
+      "source": "ef05e126 UI plus dev proxy",
+      "original": "browser-screenshot-localhost-mw1gfyww-22bc1eed.png",
+      "sha256": "94ca42c9812e7faa670dc09f5eb15bcd4f36de5495dd0dfd128759fff1b683a9"
+    },
+    "after": {
+      "source": "run01 UI retained in current candidate; see run record",
+      "original": "browser-screenshot-localhost-mw1hclh2-8e185357.png",
+      "sha256": "6850792b314935d314654c6362e8f300615d8ed16bcbd8b47ab4af2a3a06ceef"
+    },
+    "privacy": "media blur and private text masks; originals retained outside git",
+    "scoring": "no council score inferred from this image"
+  },
+  {
+    "route": "/users/15",
+    "viewport": [
+      844,
+      390
+    ],
+    "derived": "images/05-844x390.png",
+    "before": {
+      "source": "ef05e126 UI plus dev proxy",
+      "original": "browser-screenshot-localhost-mw1gfzd6-01172d13.png",
+      "sha256": "d35fd2b62d0af7d91e668446578453daa32051e44d4367919bbc33d348a33a73"
+    },
+    "after": {
+      "source": "run01 UI retained in current candidate; see run record",
+      "original": "browser-screenshot-localhost-mw1hcmp8-25ad7676.png",
+      "sha256": "5e4479bafc32fcc9e0fd4a07d84a45c18256a74f18c331702099fc1a7df22b79"
+    },
+    "privacy": "media blur and private text masks; originals retained outside git",
+    "scoring": "no council score inferred from this image"
+  },
+  {
+    "route": "/users/15",
+    "viewport": [
+      1440,
+      900
+    ],
+    "derived": "images/05-1440x900.png",
+    "before": {
+      "source": "ef05e126 UI plus dev proxy",
+      "original": "browser-screenshot-localhost-mw1gg0dh-7ccd528c.png",
+      "sha256": "9acac3e197b97c7b7b0697c5d8fb83dc414e98c39f25868097c5cce4b5c43c08"
+    },
+    "after": {
+      "source": "run01 UI retained in current candidate; see run record",
+      "original": "browser-screenshot-localhost-mw1hcnyd-4830a74b.png",
+      "sha256": "d0c1ec82063e4a6f57c70e2e91d4e8d30e8f74919febbf088ff072a8d93e06f1"
+    },
+    "privacy": "media blur and private text masks; originals retained outside git",
+    "scoring": "no council score inferred from this image"
+  },
+  {
+    "route": "/users/15?tab=codes",
+    "viewport": [
+      390,
+      844
+    ],
+    "derived": "images/06-390x844.png",
+    "before": {
+      "source": "ef05e126 UI plus dev proxy",
+      "original": "browser-screenshot-localhost-mw1ghdno-0e728792.png",
+      "sha256": "3f0e6065890aa0255994ae9ef4879f360957a6f8cbd76a0b7a3ce46f2a43290a"
+    },
+    "after": {
+      "source": "run01 UI retained in current candidate; see run record",
+      "original": "browser-screenshot-localhost-mw1hcq6g-4c148fe8.png",
+      "sha256": "ea250e36aea375e6d8dec7c7b1240f350df3b78f6aead31ac86ecda60009d6a5"
+    },
+    "privacy": "media blur and private text masks; originals retained outside git",
+    "scoring": "no council score inferred from this image"
+  },
+  {
+    "route": "/users/15?tab=codes",
+    "viewport": [
+      844,
+      390
+    ],
+    "derived": "images/06-844x390.png",
+    "before": {
+      "source": "ef05e126 UI plus dev proxy",
+      "original": "browser-screenshot-localhost-mw1ghe4t-4c1ec002.png",
+      "sha256": "d35fd2b62d0af7d91e668446578453daa32051e44d4367919bbc33d348a33a73"
+    },
+    "after": {
+      "source": "run01 UI retained in current candidate; see run record",
+      "original": "browser-screenshot-localhost-mw1hcre6-a99af97c.png",
+      "sha256": "146f166ea89bfc34d890be11e90f1d8d612f5e86355898964cfd4e80e6540a71"
+    },
+    "privacy": "media blur and private text masks; originals retained outside git",
+    "scoring": "no council score inferred from this image"
+  },
+  {
+    "route": "/users/15?tab=codes",
+    "viewport": [
+      1440,
+      900
+    ],
+    "derived": "images/06-1440x900.png",
+    "before": {
+      "source": "ef05e126 UI plus dev proxy",
+      "original": "browser-screenshot-localhost-mw1ghezq-af524628.png",
+      "sha256": "73107a89852116317506288c59f31f627015b576356427088c27591280b79f39"
+    },
+    "after": {
+      "source": "run01 UI retained in current candidate; see run record",
+      "original": "browser-screenshot-localhost-mw1hcvd6-8cd8db9e.png",
+      "sha256": "5fb21a3185bab9319378a277250316760ec119c211aa692a5053610093a3b211"
+    },
+    "privacy": "media blur and private text masks; originals retained outside git",
+    "scoring": "no council score inferred from this image"
+  },
+  {
+    "route": "/messages",
+    "viewport": [
+      844,
+      390
+    ],
+    "derived": "images/07-844x390.png",
+    "before": {
+      "source": "ef05e126 UI plus dev proxy",
+      "original": "browser-screenshot-localhost-mw1git98-11f55672.png",
+      "sha256": "2dccd4eaaef5511502872fb659af5b2a33582c0c6906d14cd3e1e0d603e7431d"
+    },
+    "after": {
+      "source": "run01 UI retained in current candidate; see run record",
+      "original": "browser-screenshot-localhost-mw1hkuv2-221e3e1f.png",
+      "sha256": "84e9f9a037609438c3164e961da8a3021b70b24ac6b83e8d5da0c15d1bc2e733"
+    },
+    "privacy": "media blur and private text masks; originals retained outside git",
+    "scoring": "no council score inferred from this image"
+  },
+  {
+    "route": "/messages",
+    "viewport": [
+      1440,
+      900
+    ],
+    "derived": "images/07-1440x900.png",
+    "before": {
+      "source": "ef05e126 UI plus dev proxy",
+      "original": "browser-screenshot-localhost-mw1giu0d-18c9cede.png",
+      "sha256": "6906d52ffa5eca333baeb4fa1ddc4695f201d7c4c851de599224667c7b232d23"
+    },
+    "after": {
+      "source": "run01 UI retained in current candidate; see run record",
+      "original": "browser-screenshot-localhost-mw1hkvq2-94467255.png",
+      "sha256": "6e0573d18993f822e6b9e5a058a6e514d68309e1643631b363e730446f274d20"
+    },
+    "privacy": "media blur and private text masks; originals retained outside git",
+    "scoring": "no council score inferred from this image"
+  },
+  {
+    "route": "/messages/4",
+    "viewport": [
+      844,
+      390
+    ],
+    "derived": "images/08-844x390.png",
+    "before": {
+      "source": "ef05e126 UI plus dev proxy",
+      "original": "browser-screenshot-localhost-mw1gixdz-f1ecbaf9.png",
+      "sha256": "9582a8c14ca4ac727b8f72fd8bcfde698fa0123d68928ac7acae72c691455f91"
+    },
+    "after": {
+      "source": "run01 UI retained in current candidate; see run record",
+      "original": "browser-screenshot-localhost-mw1hcxzf-7f19e1a9.png",
+      "sha256": "777f6f5dab685f388ae29311fd704e84b5be11c487d6c4d1e5c78b2fc3b0bcfd"
+    },
+    "privacy": "media blur and private text masks; originals retained outside git",
+    "scoring": "no council score inferred from this image"
+  },
+  {
+    "route": "/messages/4",
+    "viewport": [
+      1440,
+      900
+    ],
+    "derived": "images/08-1440x900.png",
+    "before": {
+      "source": "ef05e126 UI plus dev proxy",
+      "original": "browser-screenshot-localhost-mw1giy98-f6063bba.png",
+      "sha256": "0c990edb8f0b13ae32125546661ba515d1ecdec6d7b04f7b4dd208370528d658"
+    },
+    "after": {
+      "source": "run01 UI retained in current candidate; see run record",
+      "original": "browser-screenshot-localhost-mw1hcz64-fb0089c5.png",
+      "sha256": "58bd5c4587c21611b1e9fc42656b873b05875af3c19432d67ab243bf16e04a1b"
+    },
+    "privacy": "media blur and private text masks; originals retained outside git",
+    "scoring": "no council score inferred from this image"
+  },
+  {
+    "route": "/calendar",
+    "viewport": [
+      390,
+      844
+    ],
+    "derived": "images/09-390x844.png",
+    "before": {
+      "source": "ef05e126 UI plus dev proxy",
+      "original": "browser-screenshot-localhost-mw1ghiop-13ebf72f.png",
+      "sha256": "3751c7cf3a6c45529b414ea9dda4e01fcd9a503177d13cc72762c9723f2564f3"
+    },
+    "after": {
+      "source": "run01 UI retained in current candidate; see run record",
+      "original": "browser-screenshot-localhost-mw1h993g-68357e65.png",
+      "sha256": "778207e67d38ba54ffc126721ca4769c73896a4de7ffd728e1f04c7bed252ae7"
+    },
+    "privacy": "media blur and private text masks; originals retained outside git",
+    "scoring": "no council score inferred from this image"
+  },
+  {
+    "route": "/calendar",
+    "viewport": [
+      844,
+      390
+    ],
+    "derived": "images/09-844x390.png",
+    "before": {
+      "source": "ef05e126 UI plus dev proxy",
+      "original": "browser-screenshot-localhost-mw1ghj67-3436b45d.png",
+      "sha256": "8a9eeb21f53f8ebc65f058a2da14f287bbf8feb1ec9db5aa31bc44cf11d6ef42"
+    },
+    "after": {
+      "source": "run01 UI retained in current candidate; see run record",
+      "original": "browser-screenshot-localhost-mw1h99l0-3930a68f.png",
+      "sha256": "c3934f8ecb33e1c02d93cb37e8c68dca58f27b11d7fecf1e7796ec7b1c0dd630"
+    },
+    "privacy": "media blur and private text masks; originals retained outside git",
+    "scoring": "no council score inferred from this image"
+  },
+  {
+    "route": "/calendar",
+    "viewport": [
+      1440,
+      900
+    ],
+    "derived": "images/09-1440x900.png",
+    "before": {
+      "source": "ef05e126 UI plus dev proxy",
+      "original": "browser-screenshot-localhost-mw1ghk3j-10928139.png",
+      "sha256": "e460c4f06205b6e651fbf65955b6a946143b0397830fdbb1debefdbf19ee7111"
+    },
+    "after": {
+      "source": "run01 UI retained in current candidate; see run record",
+      "original": "browser-screenshot-localhost-mw1h9aql-5f7fef40.png",
+      "sha256": "00841a3b8c4aea2a42a0c2e5d3b1ae0d363861b9d1781552ddbee62126e640ac"
+    },
+    "privacy": "media blur and private text masks; originals retained outside git",
+    "scoring": "no council score inferred from this image"
+  },
+  {
+    "route": "/calendar/o/10",
+    "viewport": [
+      390,
+      844
+    ],
+    "derived": "images/10-390x844.png",
+    "before": {
+      "source": "ef05e126 UI plus dev proxy",
+      "original": "browser-screenshot-localhost-mw1ghmqh-473c48df.png",
+      "sha256": "db01117354d4439b120a8efe61c9aebcc71a47ef1123ca4a39cc1456d9078bd5"
+    },
+    "after": {
+      "source": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+      "original": "browser-screenshot-localhost-mw2lozkc-1378947c.png",
+      "sha256": "2b36f7e171b603b37b59d106a75ed9dd6c6cd6824740f552e64d305dca9f3900"
+    },
+    "privacy": "media blur and private text masks; originals retained outside git",
+    "scoring": "no council score inferred from this image"
+  },
+  {
+    "route": "/calendar/o/10",
+    "viewport": [
+      844,
+      390
+    ],
+    "derived": "images/10-844x390.png",
+    "before": {
+      "source": "ef05e126 UI plus dev proxy",
+      "original": "browser-screenshot-localhost-mw1ghmxv-c5ec5dbb.png",
+      "sha256": "f22ccacf436eef36ade65bddbcf63536bc6952d664309c3ae71c9f741191bb9d"
+    },
+    "after": {
+      "source": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+      "original": "browser-screenshot-localhost-mw2lozzk-be25a751.png",
+      "sha256": "988ecba72d7d6313b62fc85cd6490e5dc83867a91184484555507dace2ddf56a"
+    },
+    "privacy": "media blur and private text masks; originals retained outside git",
+    "scoring": "no council score inferred from this image"
+  },
+  {
+    "route": "/calendar/o/10",
+    "viewport": [
+      1440,
+      900
+    ],
+    "derived": "images/10-1440x900.png",
+    "before": {
+      "source": "ef05e126 UI plus dev proxy",
+      "original": "browser-screenshot-localhost-mw1ghnvt-0f976fb3.png",
+      "sha256": "9cbc81110169f15bd82068ad9d7c8f6c945a9f82ad81468cda628dfd8a4dc413"
+    },
+    "after": {
+      "source": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+      "original": "browser-screenshot-localhost-mw2lp0iw-3303ce5e.png",
+      "sha256": "5dc8d9d4223a0f1c691281752e7b8e5bf13c61f7efe97c226730ca1a82cbb800"
+    },
+    "privacy": "media blur and private text masks; originals retained outside git",
+    "scoring": "no council score inferred from this image"
+  },
+  {
+    "route": "/dives/analysis/201C",
+    "viewport": [
+      390,
+      844
+    ],
+    "derived": "images/14-390x844.png",
+    "before": {
+      "source": "ef05e126 UI plus dev proxy",
+      "original": "browser-screenshot-localhost-mw1gj4nc-f6f21fb4.png",
+      "sha256": "457246bfad305e8b90a1711c24f6017d26da7f6c23cb3311bc174fe83b193e95"
+    },
+    "after": {
+      "source": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+      "original": "browser-screenshot-localhost-mw2lp4lk-85f0db61.png",
+      "sha256": "df5d6a906622c6ac5ab71ac9633f2fbdb95d5b2ea63dee1e2dd6f70c080453c9"
+    },
+    "privacy": "media blur and private text masks; originals retained outside git",
+    "scoring": "no council score inferred from this image"
+  },
+  {
+    "route": "/dives/analysis/201C",
+    "viewport": [
+      844,
+      390
+    ],
+    "derived": "images/14-844x390.png",
+    "before": {
+      "source": "ef05e126 UI plus dev proxy",
+      "original": "browser-screenshot-localhost-mw1gj5po-53562c19.png",
+      "sha256": "ae9fead4d63ea21252f15671eb2f8b21e4452a812c6f6eb40d31e001dd83593d"
+    },
+    "after": {
+      "source": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+      "original": "browser-screenshot-localhost-mw2lp6x0-149779af.png",
+      "sha256": "23d4ef3a2e25a3fec9948ee07f0d7ee00d0d760e8dc9fd161fb353e5aaf796f7"
+    },
+    "privacy": "media blur and private text masks; originals retained outside git",
+    "scoring": "no council score inferred from this image"
+  },
+  {
+    "route": "/dives/analysis/201C",
+    "viewport": [
+      1440,
+      900
+    ],
+    "derived": "images/14-1440x900.png",
+    "before": {
+      "source": "ef05e126 UI plus dev proxy",
+      "original": "browser-screenshot-localhost-mw1gj98e-f459b93c.png",
+      "sha256": "032b8d377cfec7a2eae692024561781681946db0295dacd8081d326f3cd3320e"
+    },
+    "after": {
+      "source": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+      "original": "browser-screenshot-localhost-mw2lp86y-2fbd7db0.png",
+      "sha256": "0200c5597bcffeca29444efadafecdee5080f2ed991b0bc0fc73c35ce5649fda"
+    },
+    "privacy": "media blur and private text masks; originals retained outside git",
+    "scoring": "no council score inferred from this image"
+  },
+  {
+    "route": "/room",
+    "viewport": [
+      390,
+      844
+    ],
+    "derived": "images/16-390x844.png",
+    "before": {
+      "source": "ef05e126 UI plus dev proxy",
+      "original": "browser-screenshot-localhost-mw1gjr5v-69cfa252.png",
+      "sha256": "e11eb9873ea13f2d6000271bd7e82ba87a5cc5f1fb45bfd25d4dcde643ae3305"
+    },
+    "after": {
+      "source": "run01 UI retained in current candidate; see run record",
+      "original": "browser-screenshot-localhost-mw1hmg2v-c15f3896.png",
+      "sha256": "6db2a538dcf647685d1beadc4f4c3e0af4988de45ed2d5d7463aa1d8e8937e1c"
+    },
+    "privacy": "media blur and private text masks; originals retained outside git",
+    "scoring": "no council score inferred from this image"
+  },
+  {
+    "route": "/room",
+    "viewport": [
+      844,
+      390
+    ],
+    "derived": "images/16-844x390.png",
+    "before": {
+      "source": "ef05e126 UI plus dev proxy",
+      "original": "browser-screenshot-localhost-mw1gjsyf-2a1b7b4a.png",
+      "sha256": "9746037dfeed16962660c44cab9595a9213730358cea4c652a0863d64487056b"
+    },
+    "after": {
+      "source": "run01 UI retained in current candidate; see run record",
+      "original": "browser-screenshot-localhost-mw1hmhvc-e016e70a.png",
+      "sha256": "0e76689273591b3c48181b239885e2110855bf63f9ab5323fa7334ea022eac8c"
+    },
+    "privacy": "media blur and private text masks; originals retained outside git",
+    "scoring": "no council score inferred from this image"
+  },
+  {
+    "route": "/room",
+    "viewport": [
+      1440,
+      900
+    ],
+    "derived": "images/16-1440x900.png",
+    "before": {
+      "source": "ef05e126 UI plus dev proxy",
+      "original": "browser-screenshot-localhost-mw1gjtr9-20982f35.png",
+      "sha256": "8231c5c29fe651fcdddf60d4599e1ae0e4b1f1fc4a6f2229a3c8c74194190dde"
+    },
+    "after": {
+      "source": "run01 UI retained in current candidate; see run record",
+      "original": "browser-screenshot-localhost-mw1hmiuc-8facffa0.png",
+      "sha256": "26e3efbd0d0c7772c48b5355227dce5e3f44ae07832cd3de2953b14fec6b1ed3"
+    },
+    "privacy": "media blur and private text masks; originals retained outside git",
+    "scoring": "no council score inferred from this image"
+  }
+]

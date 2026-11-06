@@ -568,7 +568,7 @@ function SynchronizedEvaluationPlayer({ roomMedia, onFailure, onRoomReady, onEnd
   const video = roomVideoRef ?? internalVideo
   const callbacks = useRef({ onFailure, onRoomReady, onEnded, onSoundBlocked })
   callbacks.current = { onFailure, onRoomReady, onEnded, onSoundBlocked }
-  const { src, poster, startsAt, serverOffset, playToken } = roomMedia
+  const { src, poster, startsAt, serverOffset, playToken, muted = false } = roomMedia
   const clockOffset = useRef(serverOffset)
   clockOffset.current = serverOffset
   const started = useRef(false)
@@ -601,11 +601,11 @@ function SynchronizedEvaluationPlayer({ roomMedia, onFailure, onRoomReady, onEnd
     const timer = setTimeout(start, Math.max(0, (startsAt - Date.now() / 1000 - clockOffset.current) * 1000))
     return () => clearTimeout(timer)
   }, [src, startsAt, playToken])
-  return <div className="eval-player eval-room-player"><video ref={video} src={src} poster={poster} playsInline preload="auto" onEnded={() => callbacks.current.onEnded?.()} onError={onFailure} /></div>
+  return <div className="eval-player eval-room-player"><video ref={video} muted={muted} src={src} poster={poster} playsInline preload="auto" onEnded={() => callbacks.current.onEnded?.()} onError={onFailure} /></div>
 }
 
 type RoomPlayerProps = {
-  roomMedia: { src: string; poster: string; startsAt: number; serverOffset: number; playToken?: string }
+  roomMedia: { src: string; poster: string; startsAt: number; serverOffset: number; playToken?: string; muted?: boolean }
   onFailure?: () => void
   roomVideoRef?: React.RefObject<HTMLVideoElement>
   onSoundBlocked?: () => void

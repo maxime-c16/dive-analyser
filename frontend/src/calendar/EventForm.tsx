@@ -171,7 +171,13 @@ export default function EventForm({ ctx, eventId, defaultDate }: { ctx: Calendar
 
   return (
     <form noValidate onSubmit={submit} className="calendar-form" aria-busy={busy}>
+      <header className="calendar-form-header">
       <h1>{eventId ? t.editEvent : t.create}</h1>
+      <div className="calendar-actions">
+        <button type="submit" disabled={busy || reloading} {...keepFocusOnPress}>{busy ? t.saving : t.save}</button>
+        <Link to={`/calendar${location.search}`} onClick={(e) => { if (dirty && !window.confirm(t.leaveWarning)) e.preventDefault(); }}>{t.discard}</Link>
+      </div>
+      </header>
       {!eventId && (
         <label>{t.calendarField}
           <select value={form.calendar} onChange={(e) => set("calendar", e.target.value)}>
@@ -266,10 +272,7 @@ export default function EventForm({ ctx, eventId, defaultDate }: { ctx: Calendar
           {error === t.stale && <button type="button" disabled={reloading} onClick={() => { setReloading(true); setRevision((r) => r + 1); }}>{t.reload}</button>}
         </p>
       )}
-      <div className="calendar-actions">
-        <button type="submit" disabled={busy || reloading} {...keepFocusOnPress}>{busy ? t.saving : t.save}</button>
-        <Link to={`/calendar${location.search}`} onClick={(e) => { if (dirty && !window.confirm(t.leaveWarning)) e.preventDefault(); }}>{t.discard}</Link>
-      </div>
+
     </form>
   );
 }

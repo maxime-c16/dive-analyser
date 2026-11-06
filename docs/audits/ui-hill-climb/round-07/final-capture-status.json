@@ -1,0 +1,591 @@
+{
+  "source": "59641d6a6908fbaf6778f5b7735260b79265cd65",
+  "productSource": "f1afe9bb",
+  "identityAtStart": "maxime",
+  "durationSeconds": 306,
+  "acceptance": false,
+  "captureCounts": {
+    "ok": 60,
+    "unsettled": 16,
+    "failed": 29
+  },
+  "captures": [
+    {
+      "scenario": "library-grid",
+      "size": "390x844",
+      "status": "ok"
+    },
+    {
+      "scenario": "library-grid",
+      "size": "844x390",
+      "status": "ok"
+    },
+    {
+      "scenario": "library-grid",
+      "size": "1024x768",
+      "status": "ok"
+    },
+    {
+      "scenario": "library-grid",
+      "size": "1440x900",
+      "status": "ok"
+    },
+    {
+      "scenario": "library-grid",
+      "size": "768x1024",
+      "status": "ok"
+    },
+    {
+      "scenario": "library-player",
+      "size": "768x1024",
+      "status": "ok"
+    },
+    {
+      "scenario": "library-player",
+      "size": "1440x900",
+      "status": "ok"
+    },
+    {
+      "scenario": "library-player",
+      "size": "1024x768",
+      "status": "ok"
+    },
+    {
+      "scenario": "library-player",
+      "size": "844x390",
+      "status": "ok"
+    },
+    {
+      "scenario": "library-player",
+      "size": "390x844",
+      "status": "ok"
+    },
+    {
+      "scenario": "library-by-code",
+      "size": "1440x900",
+      "status": "ok"
+    },
+    {
+      "scenario": "library-by-code",
+      "size": "768x1024",
+      "status": "ok"
+    },
+    {
+      "scenario": "library-by-code",
+      "size": "1024x768",
+      "status": "ok"
+    },
+    {
+      "scenario": "library-by-code",
+      "size": "844x390",
+      "status": "ok"
+    },
+    {
+      "scenario": "library-by-code",
+      "size": "390x844",
+      "status": "ok"
+    },
+    {
+      "scenario": "library-progress",
+      "size": "1440x900",
+      "status": "ok"
+    },
+    {
+      "scenario": "library-progress",
+      "size": "768x1024",
+      "status": "ok"
+    },
+    {
+      "scenario": "library-progress",
+      "size": "1024x768",
+      "status": "ok"
+    },
+    {
+      "scenario": "library-progress",
+      "size": "844x390",
+      "status": "ok"
+    },
+    {
+      "scenario": "library-progress",
+      "size": "390x844",
+      "status": "ok"
+    },
+    {
+      "scenario": "code-analysis",
+      "size": "768x1024",
+      "status": "unsettled",
+      "error": "network did not settle within budget"
+    },
+    {
+      "scenario": "code-analysis",
+      "size": "1440x900",
+      "status": "unsettled",
+      "error": "network did not settle within budget"
+    },
+    {
+      "scenario": "code-analysis",
+      "size": "844x390",
+      "status": "unsettled",
+      "error": "network did not settle within budget"
+    },
+    {
+      "scenario": "code-analysis",
+      "size": "1024x768",
+      "status": "unsettled",
+      "error": "network did not settle within budget"
+    },
+    {
+      "scenario": "code-analysis",
+      "size": "390x844",
+      "status": "ok"
+    },
+    {
+      "scenario": "code-analysis-details",
+      "size": "768x1024",
+      "status": "unsettled",
+      "error": "page.waitForFunction: Timeout 15000ms exceeded."
+    },
+    {
+      "scenario": "code-analysis-details",
+      "size": "1440x900",
+      "status": "unsettled",
+      "error": "page.waitForFunction: Timeout 15000ms exceeded."
+    },
+    {
+      "scenario": "code-analysis-details",
+      "size": "844x390",
+      "status": "unsettled",
+      "error": "page.waitForFunction: Timeout 15000ms exceeded."
+    },
+    {
+      "scenario": "code-analysis-details",
+      "size": "1024x768",
+      "status": "unsettled",
+      "error": "page.waitForFunction: Timeout 15000ms exceeded."
+    },
+    {
+      "scenario": "code-analysis-details",
+      "size": "390x844",
+      "status": "unsettled",
+      "error": "page.waitForFunction: Timeout 15000ms exceeded."
+    },
+    {
+      "scenario": "messages-inbox",
+      "size": "390x844",
+      "status": "ok"
+    },
+    {
+      "scenario": "messages-inbox",
+      "size": "768x1024",
+      "status": "ok"
+    },
+    {
+      "scenario": "messages-inbox",
+      "size": "1440x900",
+      "status": "ok"
+    },
+    {
+      "scenario": "messages-inbox",
+      "size": "844x390",
+      "status": "ok"
+    },
+    {
+      "scenario": "messages-inbox",
+      "size": "1024x768",
+      "status": "ok"
+    },
+    {
+      "scenario": "messages-thread",
+      "size": "768x1024",
+      "status": "ok"
+    },
+    {
+      "scenario": "messages-thread",
+      "size": "390x844",
+      "status": "ok"
+    },
+    {
+      "scenario": "messages-thread",
+      "size": "1024x768",
+      "status": "ok"
+    },
+    {
+      "scenario": "messages-thread",
+      "size": "844x390",
+      "status": "ok"
+    },
+    {
+      "scenario": "messages-thread",
+      "size": "1440x900",
+      "status": "ok"
+    },
+    {
+      "scenario": "community",
+      "size": "768x1024",
+      "status": "ok"
+    },
+    {
+      "scenario": "community",
+      "size": "390x844",
+      "status": "ok"
+    },
+    {
+      "scenario": "community",
+      "size": "1024x768",
+      "status": "ok"
+    },
+    {
+      "scenario": "community",
+      "size": "1440x900",
+      "status": "unsettled",
+      "error": "network did not settle within budget"
+    },
+    {
+      "scenario": "community",
+      "size": "844x390",
+      "status": "unsettled",
+      "error": "network did not settle within budget"
+    },
+    {
+      "scenario": "profile-dives",
+      "size": "1024x768",
+      "status": "unsettled",
+      "error": "network did not settle within budget"
+    },
+    {
+      "scenario": "profile-dives",
+      "size": "768x1024",
+      "status": "unsettled",
+      "error": "network did not settle within budget"
+    },
+    {
+      "scenario": "profile-dives",
+      "size": "390x844",
+      "status": "unsettled",
+      "error": "network did not settle within budget"
+    },
+    {
+      "scenario": "profile-dives",
+      "size": "1440x900",
+      "status": "unsettled",
+      "error": "network did not settle within budget"
+    },
+    {
+      "scenario": "profile-dives",
+      "size": "844x390",
+      "status": "unsettled",
+      "error": "network did not settle within budget"
+    },
+    {
+      "scenario": "profile-codes",
+      "size": "1440x900",
+      "status": "ok"
+    },
+    {
+      "scenario": "profile-codes",
+      "size": "768x1024",
+      "status": "ok"
+    },
+    {
+      "scenario": "profile-codes",
+      "size": "390x844",
+      "status": "ok"
+    },
+    {
+      "scenario": "profile-codes",
+      "size": "844x390",
+      "status": "ok"
+    },
+    {
+      "scenario": "profile-codes",
+      "size": "1024x768",
+      "status": "ok"
+    },
+    {
+      "scenario": "profile-activity",
+      "size": "1440x900",
+      "status": "ok"
+    },
+    {
+      "scenario": "profile-activity",
+      "size": "768x1024",
+      "status": "ok"
+    },
+    {
+      "scenario": "profile-activity",
+      "size": "844x390",
+      "status": "ok"
+    },
+    {
+      "scenario": "profile-activity",
+      "size": "390x844",
+      "status": "ok"
+    },
+    {
+      "scenario": "profile-activity",
+      "size": "1024x768",
+      "status": "ok"
+    },
+    {
+      "scenario": "profile-achievements",
+      "size": "1440x900",
+      "status": "ok"
+    },
+    {
+      "scenario": "profile-achievements",
+      "size": "768x1024",
+      "status": "ok"
+    },
+    {
+      "scenario": "profile-achievements",
+      "size": "844x390",
+      "status": "ok"
+    },
+    {
+      "scenario": "profile-achievements",
+      "size": "390x844",
+      "status": "ok"
+    },
+    {
+      "scenario": "profile-achievements",
+      "size": "1024x768",
+      "status": "ok"
+    },
+    {
+      "scenario": "calendar",
+      "size": "768x1024",
+      "status": "ok"
+    },
+    {
+      "scenario": "calendar",
+      "size": "1440x900",
+      "status": "ok"
+    },
+    {
+      "scenario": "calendar",
+      "size": "844x390",
+      "status": "ok"
+    },
+    {
+      "scenario": "calendar",
+      "size": "390x844",
+      "status": "ok"
+    },
+    {
+      "scenario": "calendar",
+      "size": "1024x768",
+      "status": "ok"
+    },
+    {
+      "scenario": "calendar-month",
+      "size": "768x1024",
+      "status": "ok"
+    },
+    {
+      "scenario": "calendar-month",
+      "size": "1440x900",
+      "status": "ok"
+    },
+    {
+      "scenario": "calendar-month",
+      "size": "390x844",
+      "status": "ok"
+    },
+    {
+      "scenario": "calendar-month",
+      "size": "1024x768",
+      "status": "ok"
+    },
+    {
+      "scenario": "calendar-month",
+      "size": "844x390",
+      "status": "ok"
+    },
+    {
+      "scenario": "calendar-detail",
+      "size": "1440x900",
+      "status": "ok"
+    },
+    {
+      "scenario": "calendar-new",
+      "size": "1440x900",
+      "status": "failed",
+      "error": "session redirected to login"
+    },
+    {
+      "scenario": "evaluations-my-dives",
+      "size": "1440x900",
+      "status": "failed",
+      "error": "session redirected to login"
+    },
+    {
+      "scenario": "evaluations-history",
+      "size": "1440x900",
+      "status": "failed",
+      "error": "session redirected to login"
+    },
+    {
+      "scenario": "evaluations-judge",
+      "size": "1440x900",
+      "status": "failed",
+      "error": "session redirected to login"
+    },
+    {
+      "scenario": "calendar-detail",
+      "size": "768x1024",
+      "status": "failed",
+      "error": "no data to open this child view"
+    },
+    {
+      "scenario": "calendar-detail",
+      "size": "390x844",
+      "status": "failed",
+      "error": "no data to open this child view"
+    },
+    {
+      "scenario": "calendar-detail",
+      "size": "1024x768",
+      "status": "failed",
+      "error": "no data to open this child view"
+    },
+    {
+      "scenario": "calendar-detail",
+      "size": "844x390",
+      "status": "failed",
+      "error": "no data to open this child view"
+    },
+    {
+      "scenario": "calendar-new",
+      "size": "768x1024",
+      "status": "failed",
+      "error": "session redirected to login"
+    },
+    {
+      "scenario": "calendar-new",
+      "size": "844x390",
+      "status": "failed",
+      "error": "session redirected to login"
+    },
+    {
+      "scenario": "calendar-new",
+      "size": "1024x768",
+      "status": "failed",
+      "error": "session redirected to login"
+    },
+    {
+      "scenario": "calendar-new",
+      "size": "390x844",
+      "status": "failed",
+      "error": "session redirected to login"
+    },
+    {
+      "scenario": "evaluations-my-dives",
+      "size": "768x1024",
+      "status": "failed",
+      "error": "session redirected to login"
+    },
+    {
+      "scenario": "evaluations-my-dives",
+      "size": "844x390",
+      "status": "failed",
+      "error": "session redirected to login"
+    },
+    {
+      "scenario": "evaluations-my-dives",
+      "size": "390x844",
+      "status": "failed",
+      "error": "session redirected to login"
+    },
+    {
+      "scenario": "evaluations-my-dives",
+      "size": "1024x768",
+      "status": "failed",
+      "error": "session redirected to login"
+    },
+    {
+      "scenario": "evaluations-history",
+      "size": "768x1024",
+      "status": "failed",
+      "error": "session redirected to login"
+    },
+    {
+      "scenario": "evaluations-history",
+      "size": "844x390",
+      "status": "failed",
+      "error": "session redirected to login"
+    },
+    {
+      "scenario": "evaluations-history",
+      "size": "1024x768",
+      "status": "failed",
+      "error": "session redirected to login"
+    },
+    {
+      "scenario": "evaluations-history",
+      "size": "390x844",
+      "status": "failed",
+      "error": "session redirected to login"
+    },
+    {
+      "scenario": "evaluations-judge",
+      "size": "768x1024",
+      "status": "failed",
+      "error": "session redirected to login"
+    },
+    {
+      "scenario": "room-lobby",
+      "size": "1440x900",
+      "status": "failed",
+      "error": "required scenario element missing"
+    },
+    {
+      "scenario": "evaluations-judge",
+      "size": "390x844",
+      "status": "failed",
+      "error": "session redirected to login"
+    },
+    {
+      "scenario": "evaluations-judge",
+      "size": "844x390",
+      "status": "failed",
+      "error": "session redirected to login"
+    },
+    {
+      "scenario": "evaluations-judge",
+      "size": "1024x768",
+      "status": "failed",
+      "error": "session redirected to login"
+    },
+    {
+      "scenario": "room-lobby",
+      "size": "768x1024",
+      "status": "failed",
+      "error": "required scenario element missing"
+    },
+    {
+      "scenario": "room-lobby",
+      "size": "844x390",
+      "status": "failed",
+      "error": "required scenario element missing"
+    },
+    {
+      "scenario": "room-lobby",
+      "size": "1024x768",
+      "status": "failed",
+      "error": "required scenario element missing"
+    },
+    {
+      "scenario": "room-lobby",
+      "size": "390x844",
+      "status": "failed",
+      "error": "required scenario element missing"
+    }
+  ],
+  "sessionRecheck": "Saved owner session auth/me returned 401 after capture; reauthentication required. Cause not established.",
+  "limits": [
+    "Screenshot status ok is not a visual score",
+    "No independent reviewer authentication",
+    "No Judge Room phases or judging interactions"
+  ],
+  "checks": "GitHub frontend, gate and review execution passed at source; review execution is not council design acceptance"
+}

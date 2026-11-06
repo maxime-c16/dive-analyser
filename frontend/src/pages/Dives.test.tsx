@@ -1,8 +1,9 @@
 import React from 'react'
+import { setLibraryAudioMuted } from '../utils/libraryAudioPreference'
 import { MemoryRouter } from 'react-router-dom'
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import Dives from './Dives'
 
 vi.mock('../services/api', () => ({ api: { get: vi.fn() } }))
@@ -117,9 +118,9 @@ it('Library loading, empty and error states are distinguishable and announced', 
 it('code cards summarise the whole library, open the analysis, and chips open the viewer', async () => {
   renderPage()
   await userEvent.click(await screen.findByRole('button', { name: 'Community' }))
-  await userEvent.click(screen.getByRole('button', { name: 'Code view' }))
+  await userEvent.click(screen.getByRole('button', { name: 'By code' }))
   // Counts come from the server aggregate, not from the loaded page.
-  expect(await screen.findByText(/140 attempts · 1 sessions/)).toBeInTheDocument()
+  expect(await screen.findByText(/140 attempts · 1 session/)).toBeInTheDocument()
   expect(api.get).toHaveBeenCalledWith('/api/v1/dives/library/codes', expect.objectContaining({ params: expect.objectContaining({ diver_scope: 'all' }) }))
   expect(screen.getByRole('link', { name: 'Analyse 103C' })).toBeInTheDocument()
   await userEvent.click(screen.getAllByRole('button', { name: /Open 103C attempt from/ })[0])
@@ -133,11 +134,11 @@ it('the mobile switch toggles between the clip wall, codes and progress', async 
   expect(clips).toHaveAttribute('aria-pressed', 'true')
   await userEvent.click(screen.getByRole('button', { name: 'By code' }))
   expect(screen.getByRole('button', { name: 'By code' })).toHaveAttribute('aria-pressed', 'true')
-  expect((await screen.findAllByText(/attempts · 1 sessions/)).length).toBe(2)
+  expect((await screen.findAllByText(/attempts · 1 session/)).length).toBe(2)
   await userEvent.click(screen.getAllByRole('button', { name: 'Progress' })[0])
   expect(await screen.findByText('Attempts · 30 d')).toBeInTheDocument()
   await userEvent.click(screen.getByRole('button', { name: 'Clips' }))
-  expect(screen.queryByText(/attempts · 1 sessions/)).toBeNull()
+  expect(screen.queryByText(/attempts · 1 session/)).toBeNull()
 })
 
 it('clearing filters preserves the chosen library and view', async () => {
@@ -179,4 +180,18 @@ it('keeps clear filters clickable while an empty-library search is still loading
   finish({ data: [] })
   await waitFor(() => expect(screen.queryByRole('button', { name: 'Clear filters' })).not.toBeInTheDocument())
   expect(screen.getByRole('button', { name: 'Community' })).toHaveAttribute('aria-pressed', 'true')
+})
+
+
+afterEach(() => setLibraryAudioMuted(false))
+it('offers sound choice before opening footage and restores that choice on return', async () => {
+  renderPage()
+  const mute = await screen.findByRole('button', { name: 'Mute videos' })
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  await userEvent.click(mute)
+  expect(screen.getByRole('button', { name: 'Turn video sound on' })).toHaveAttribute('aria-pressed', 'true')
+  await userEvent.click((await screen.findAllByRole('button', { name: /Open 103C attempt/ }))[0])
+  await screen.findByRole('dialog')
+  await userEvent.click(screen.getByRole('button', { name: 'Back to Library' }))
+  expect(screen.getByRole('button', { name: 'Turn video sound on' })).toHaveTextContent('Muted')
 })

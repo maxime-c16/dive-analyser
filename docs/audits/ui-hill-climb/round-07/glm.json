@@ -1,0 +1,116 @@
+{
+  "model": "opencode/glm-5.3-flash",
+  "variant": "max",
+  "source": "b47ea9f4",
+  "diagnosticOnly": true,
+  "acceptance": false,
+  "observedSubsetScore": 4.9,
+  "observedMatrix": [
+    [
+      5,
+      4,
+      null,
+      5,
+      6
+    ],
+    [
+      4,
+      3,
+      null,
+      4,
+      5
+    ],
+    [
+      6,
+      5,
+      null,
+      5,
+      6
+    ],
+    [
+      6,
+      6,
+      null,
+      6,
+      6
+    ],
+    [
+      5,
+      4,
+      null,
+      4,
+      5
+    ],
+    [
+      5,
+      4,
+      null,
+      5,
+      5
+    ],
+    [
+      4,
+      4,
+      null,
+      3,
+      6
+    ],
+    [
+      5,
+      5,
+      null,
+      5,
+      5
+    ],
+    [
+      6,
+      5,
+      null,
+      5,
+      5
+    ],
+    [
+      6,
+      4,
+      null,
+      4,
+      6
+    ],
+    [
+      5,
+      5,
+      null,
+      5,
+      5
+    ],
+    [
+      5,
+      4,
+      null,
+      5,
+      5
+    ],
+    [
+      4,
+      3,
+      null,
+      5,
+      6
+    ],
+    [
+      6,
+      5,
+      null,
+      5,
+      6
+    ]
+  ],
+  "coverage": "Partial static Library frames; GLM additionally historical Evaluations/profile frames; no independent authentication or interaction verification",
+  "findings": [
+    "Header collision",
+    "Update notice obscures content",
+    "Phone player action clipping",
+    "Capture loader readiness/time budget"
+  ],
+  "fixes": "Header, scope, compact notice, action wrapping, nowrap filter chips, incremental manifests and no unsettled retries; pending fresh verification"
+}

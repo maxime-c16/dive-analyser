@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, type RefObject } from "react";
 import { useTranslation } from "react-i18next";
 import { Heart, Pause, Play, Volume2, VolumeX } from "lucide-react";
 
+import { setLibraryAudioMuted } from '../../utils/libraryAudioPreference';
 import { PLAYBACK_RATES } from "./ClipViewerNavigation";
 
 const clock = (seconds: number) => `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, "0")}`;
@@ -448,8 +449,11 @@ export default function ImmersiveControls({
             aria-label={muted ? t('clipViewer.unmute') : t('clipViewer.mute')}
             data-sound-toggle
             onClick={() => {
-              if (videoRef.current)
-                (soundRef?.current || videoRef.current).muted = !(soundRef?.current || videoRef.current).muted;
+              const video = soundRef?.current || videoRef.current;
+              if (video) {
+                video.muted = !video.muted;
+                setLibraryAudioMuted(video.muted);
+              }
             }}
           >
             {muted ? <VolumeX size={18} /> : <Volume2 size={18} />}

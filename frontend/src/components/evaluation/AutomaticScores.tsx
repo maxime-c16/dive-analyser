@@ -1,6 +1,5 @@
 /**
- * My public dives as a scoreboard: the provisional community mean on a
- * split-flap tile, one pip per judge, and a switch for daily selections.
+ * My public dives: the community mean, judge count, and daily-selection switch.
  * The long rules stay one tap away instead of above every list.
  */
 import { scoreNumber } from './scoreFormatting'
@@ -8,11 +7,14 @@ import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { OwnedPanelLink } from './EvaluationSpaces'
 import WarmUp from './EvaluationWarmUp'
 import { useTranslation } from 'react-i18next'
-import { getAutomaticScores, setAutomaticExclusion, type AutomaticScore } from '../../services/evaluationApi'
+import { getAutomaticScores, loadAutomaticIdentities, setAutomaticExclusion, type AutomaticScore } from '../../services/evaluationApi'
+import { Link } from 'react-router-dom'
+import { format, parseISO } from 'date-fns'
+import { appLocale } from '../../utils/dateLocale'
+import DiveThumbnail from '../DiveThumbnail'
 
 type Sort = 'recent' | 'top' | 'votes'
 const SORTS: Sort[] = ['recent', 'top', 'votes']
-const PIPS = 5
 
 export default function AutomaticScores() {
   const { t, i18n } = useTranslation()
@@ -26,10 +28,17 @@ export default function AutomaticScores() {
   const [sort, setSort] = useState<Sort>('recent')
   useEffect(() => {
     let live = true
+    const controller = new AbortController()
     setLoading(true); setError(false)
-    getAutomaticScores(offset).then(data => { if (live) { setItems(data.items); setTotal(data.total) } })
+    getAutomaticScores(offset).then(data => {
+      if (!live) return
+      setItems(data.items); setTotal(data.total)
+      void loadAutomaticIdentities(data.items, (id, identity) => {
+        if (live) setItems(rows => rows.map(row => row.dive_id === id ? { ...row, identity } : row))
+      }, controller.signal)
+    })
       .catch(() => { if (live) setError(true) }).finally(() => { if (live) setLoading(false) })
-    return () => { live = false }
+    return () => { live = false; controller.abort() }
   }, [offset, retry])
   async function toggle(item: AutomaticScore) {
     setBusy(item.dive_id); setError(false)
@@ -49,28 +58,29 @@ export default function AutomaticScores() {
         {SORTS.map(value => <button key={value} type="button" aria-pressed={sort === value} onClick={() => setSort(value)}>{t(`evaluations.sort.${value}`)}</button>)}
       </div>
     </header>
-    <details className="eval-rules">
-      <summary>{t('evaluations.rulesSummary')}</summary>
-      <p className="eval-note">{t('evaluations.communityNote')}</p>
-    </details>
     {error && <div role="alert"><p>{t('evaluations.loadError')}</p><button className="eval-pass" onClick={() => setRetry(n => n + 1)}>{t('evaluations.retry')}</button></div>}
     {loading ? <WarmUp /> : <>
       {!items.length && <p>{t('evaluations.noPublicDives')}</p>}
       <ul className="eval-board-list">{sorted.map((item, index) => <li key={item.dive_id} className="eval-board-row" data-excluded={item.excluded ? 'true' : undefined} style={{ '--i': index } as CSSProperties}>
-        <SplitFlap value={item.mean_score} />
+        <Link className="eval-attempt-preview" to={`/dives?clip=${item.dive_id}`} aria-label={`${item.dive_code} · ${item.height}`}>
+          {item.identity?.video_uuid ? <DiveThumbnail compact dive={item.identity} /> : <span aria-hidden>{item.dive_code}</span>}
+        </Link>
         <div className="eval-board-main">
-          <strong>{item.dive_code} · {item.height}</strong>
+          <div className="eval-attempt-heading">
+            <Link to={`/dives?clip=${item.dive_id}`} className="eval-dive-link"><span className="eval-attempt-id">#{item.dive_id}</span></Link>
+            {item.identity?.dive_datetime && <time className="eval-attempt-date" dateTime={item.identity.dive_datetime}>{format(parseISO(item.identity.dive_datetime), items.filter(row => row.identity?.dive_datetime === item.identity?.dive_datetime).length > 1 ? 'd MMM yyyy' : 'd MMM yyyy · HH:mm:ss', { locale: appLocale() })}</time>}
+          </div>
+          <div className="eval-attempt-result">
+            {item.mean_score !== null && <strong className="eval-mean" aria-hidden>{scoreNumber(item.mean_score, i18n.language)}<small> / 10</small></strong>}
+            <span className="eval-pips" aria-hidden><em>{item.rating_count ? t('evaluations.judgesCount', { count: item.rating_count }) : t('evaluations.awaitingReviews')}</em></span>
+          </div>
+          <Link to={`/dives?clip=${item.dive_id}`} className="eval-attempt-code">{item.dive_code} · {item.height}</Link>
           <p className="sr-only">{t('evaluations.communityScore', { score: scoreNumber(item.mean_score, i18n.language), count: item.rating_count })}</p>
-          <span className="eval-pips" aria-hidden>
-            {Array.from({ length: Math.min(PIPS, item.rating_count) }, (_, n) => <i key={n} />)}
-            {item.rating_count > PIPS && <b>+{item.rating_count - PIPS}</b>}
-            <em>{t('evaluations.judgesCount', { count: item.rating_count })}</em>
-          </span>
           <OwnedPanelLink requestId={item.dive_id} automatic />
         </div>
         <label className="eval-switch">
           <input type="checkbox" role="switch" checked={!item.excluded} disabled={busy !== null} onChange={() => void toggle(item)}
-            aria-label={t(item.excluded ? 'evaluations.includeAutomatic' : 'evaluations.excludeAutomatic')} />
+            aria-label={t('evaluations.inSelections')} />
           <span aria-hidden />
           <small>{t('evaluations.inSelections')}</small>
         </label>
@@ -80,34 +90,9 @@ export default function AutomaticScores() {
         {offset + items.length < total && <button className="eval-pass" onClick={() => setOffset(n => n + 20)}>{t('evaluations.more')}</button>}
       </div>
     </>}
+    <details className="eval-rules">
+      <summary>{t('evaluations.rulesSummary')}</summary>
+      <p className="eval-note">{t('evaluations.communityNote')}</p>
+    </details>
   </section>
-}
-
-/** Airport-board digits that rattle through a few values before landing. */
-function SplitFlap({ value }: { value: number | null }) {
-  const { i18n } = useTranslation()
-  const target = value === null ? scoreNumber(0, i18n.language).replace(/\d/g, '–') : scoreNumber(value, i18n.language).padStart(4, ' ')
-  const [shown, setShown] = useState(() => reducedMotion() || value === null ? target : scramble(target))
-  useEffect(() => {
-    if (reducedMotion() || value === null) { setShown(target); return }
-    let ticks = 0
-    const timer = window.setInterval(() => {
-      ticks += 1
-      if (ticks >= 7) { setShown(target); window.clearInterval(timer) } else setShown(scramble(target, ticks / 7))
-    }, 70)
-    return () => window.clearInterval(timer)
-  }, [target, value])
-  return (
-    <span className="eval-flap" data-empty={value === null ? 'true' : undefined} aria-hidden>
-      {[...shown].map((char, index) => <span key={index} data-char={char === '.' || char === ',' ? 'dot' : undefined}>{char.trim()}</span>)}
-    </span>
-  )
-}
-
-function scramble(target: string, settled = 0) {
-  return [...target].map((char, index) => /\d/.test(char) && index / target.length >= settled ? String(Math.floor(Math.random() * 10)) : char).join('')
-}
-
-function reducedMotion() {
-  return typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 }

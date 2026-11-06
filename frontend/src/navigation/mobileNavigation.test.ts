@@ -2,7 +2,7 @@ import { beforeEach, expect, it, vi } from 'vitest'
 import { navPolicyFor, primaryTabFor, readTabContext, saveTabContext, withoutClip } from './mobileNavigation'
 import { readMessageDraft, saveMessageDraft } from './messageDraft'
 beforeEach(() => sessionStorage.clear())
-it.each([['/dives','dives'], ['/dives/analysis/103B','dives'], ['/messages/12','messages'], ['/users/9','community'], ['/community','community'], ['/evaluations/','evaluations'], ['/admin',null], ['/account',null], ['/dives-other',null]])('maps %s to %s', (path, expected) => expect(primaryTabFor(path)).toBe(expected))
+it.each([['/dives','dives'], ['/dives/analysis/103B','dives'], ['/messages/12','messages'], ['/users/9','community'], ['/community','community'], ['/evaluations/','evaluations'], ['/room','evaluations'], ['/room/','evaluations'], ['/room/ABCD',null], ['/room-other',null], ['/admin',null], ['/account',null], ['/dives-other',null]])('maps %s to %s', (path, expected) => expect(primaryTabFor(path)).toBe(expected))
 it.each([
   ['/dives',390,{},'visible'], ['/messages/12',390,{},'replaced'], ['/messages/12',768,{},'visible'], ['/dives',1023,{},'visible'], ['/dives',1024,{},'hidden'], ['/share/abc',390,{},'hidden'], ['/login',390,{},'hidden'], ['/dives',390,{ overlays: 2 },'hidden'], ['/evaluations',390,{ overlays: 1 },'hidden'], ['/account',390,{ editing: true },'hidden'], ['/admin/users/1',390,{ bottomAction: true },'replaced'], ['/dives',390,{ clip: true },'hidden'],
 ] as const)('policy %s %s %j = %s', (path,width,state,result) => expect(navPolicyFor(path,width,state)).toBe(result))

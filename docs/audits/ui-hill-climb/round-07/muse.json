@@ -1,0 +1,116 @@
+{
+  "model": "opencode-go/muse-spark-1.3-contributor",
+  "variant": "xhigh",
+  "source": "b47ea9f4",
+  "diagnosticOnly": true,
+  "acceptance": false,
+  "observedSubsetScore": 4.2,
+  "observedMatrix": [
+    [
+      4,
+      4,
+      null,
+      null,
+      5
+    ],
+    [
+      3,
+      3,
+      null,
+      null,
+      5
+    ],
+    [
+      5,
+      5,
+      null,
+      null,
+      5
+    ],
+    [
+      5,
+      5,
+      null,
+      null,
+      6
+    ],
+    [
+      4,
+      4,
+      null,
+      null,
+      5
+    ],
+    [
+      4,
+      4,
+      null,
+      null,
+      5
+    ],
+    [
+      3,
+      4,
+      null,
+      null,
+      5
+    ],
+    [
+      4,
+      4,
+      null,
+      null,
+      4
+    ],
+    [
+      4,
+      4,
+      null,
+      null,
+      5
+    ],
+    [
+      5,
+      4,
+      null,
+      null,
+      5
+    ],
+    [
+      4,
+      4,
+      null,
+      null,
+      4
+    ],
+    [
+      3,
+      3,
+      null,
+      null,
+      4
+    ],
+    [
+      3,
+      3,
+      null,
+      null,
+      5
+    ],
+    [
+      4,
+      4,
+      null,
+      null,
+      5
+    ]
+  ],
+  "coverage": "Partial static Library frames; GLM additionally historical Evaluations/profile frames; no independent authentication or interaction verification",
+  "findings": [
+    "Header collision",
+    "Update notice obscures content",
+    "Phone player action clipping",
+    "Capture loader readiness/time budget"
+  ],
+  "fixes": "Header, scope, compact notice, action wrapping, nowrap filter chips, incremental manifests and no unsettled retries; pending fresh verification"
+}

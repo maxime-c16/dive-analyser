@@ -1,0 +1,219 @@
+{
+  "aggregation": "minimum observed screen per category and size; no average; missing is not a pass",
+  "rows": [
+    {
+      "attempt": 1,
+      "reviewer": "Codex low",
+      "sha_noted": "056b5a63",
+      "minimum": null,
+      "below7": 0,
+      "numeric_cells": 0,
+      "missing_cells": 70,
+      "coverage": "blocked before entry",
+      "state": "not a design verdict"
+    },
+    {
+      "attempt": 2,
+      "reviewer": "Codex low",
+      "sha_noted": "056b5a63",
+      "minimum": null,
+      "below7": 0,
+      "numeric_cells": 0,
+      "missing_cells": 70,
+      "coverage": "one phone Library view",
+      "state": "incomplete"
+    },
+    {
+      "attempt": 2,
+      "reviewer": "Muse xhigh requested",
+      "sha_noted": "056b5a63",
+      "minimum": 2,
+      "below7": 70,
+      "numeric_cells": 70,
+      "missing_cells": 0,
+      "coverage": "partial; children missing",
+      "state": "FAIL; reported scores retained, not accepted fullscope"
+    },
+    {
+      "attempt": 2,
+      "reviewer": "GLM max oc2",
+      "sha_noted": "056b5a63",
+      "minimum": null,
+      "below7": 0,
+      "numeric_cells": 0,
+      "missing_cells": 70,
+      "coverage": "interrupted at STOP, no final matrix",
+      "state": "no final verdict"
+    },
+    {
+      "attempt": 3,
+      "reviewer": "Codex low",
+      "sha_noted": "056b5a63",
+      "minimum": null,
+      "below7": 0,
+      "numeric_cells": 0,
+      "missing_cells": 70,
+      "coverage": "preflight only",
+      "state": "incomplete"
+    },
+    {
+      "attempt": 3,
+      "reviewer": "fallback GLM max oc1",
+      "sha_noted": "056b5a63",
+      "minimum": null,
+      "below7": 0,
+      "numeric_cells": 0,
+      "missing_cells": 70,
+      "coverage": "interrupted at STOP, no final matrix",
+      "state": "no final verdict"
+    },
+    {
+      "attempt": 4,
+      "reviewer": "Muse xhigh oc1",
+      "sha_noted": "6cb6cff7",
+      "minimum": 5,
+      "below7": 51,
+      "numeric_cells": 70,
+      "missing_cells": 0,
+      "coverage": "partial; see round-04/muse-summary.json",
+      "state": "FAIL; not fullscope accepted"
+    },
+    {
+      "attempt": 4,
+      "reviewer": "GLM max oc2",
+      "sha_noted": "6cb6cff7",
+      "minimum": null,
+      "below7": 0,
+      "numeric_cells": 0,
+      "missing_cells": 70,
+      "coverage": "pending delivery; not polled",
+      "state": "cancel requested at explicit user replacement by Opus5.5 medium; no verdict inferred"
+    },
+    {
+      "attempt": 4,
+      "reviewer": "fallback GLM max oc1",
+      "sha_noted": "6cb6cff7",
+      "minimum": null,
+      "below7": 0,
+      "numeric_cells": 0,
+      "missing_cells": 70,
+      "coverage": "pending delivery; not polled",
+      "state": "cancel requested at explicit user replacement; no verdict inferred"
+    },
+    {
+      "attempt": 4,
+      "reviewer": "GPT6.1Sol medium, Codex account",
+      "sha_noted": "6cb6cff7",
+      "minimum": 4,
+      "below7": 55,
+      "numeric_cells": 70,
+      "missing_cells": 0,
+      "coverage": "351captures; interactions not independently repeated at every size; see report",
+      "state": "FAIL"
+    },
+    {
+      "attempt": 4,
+      "reviewer": "Claude Opus5.5 medium, Claude provider",
+      "sha_noted": "6cb6cff7",
+      "minimum": 2,
+      "below7": 70,
+      "numeric_cells": 70,
+      "missing_cells": 0,
+      "coverage": "required gaps retained; see full report",
+      "state": "FAIL"
+    },
+    {
+      "attempt": 5,
+      "reviewer": "Sol6.1 low Codex, incomplete01",
+      "sha_noted": "cf95a4a8",
+      "minimum": null,
+      "below7": 0,
+      "numeric_cells": 0,
+      "missing_cells": 70,
+      "coverage": "HEAD/account verified; all requested UI flows/media/WS/screenshots missing",
+      "state": "INCOMPLETE, not a design verdict",
+      "report": "round-05/sol-low-incomplete-01.json"
+    },
+    {
+      "attempt": 5,
+      "reviewer": "Sol6.1low Codex incomplete02",
+      "sha_noted": "cf95a4a8",
+      "minimum": null,
+      "below7": 0,
+      "numeric_cells": 0,
+      "missing_cells": 70,
+      "coverage": "account and populatedLibrary only; no five-size inspection",
+      "state": "INCOMPLETE, no design verdict",
+      "report": "round-05/sol-low-incomplete-02.json"
+    },
+    {
+      "attempt": 5,
+      "reviewer": "Sol6.1medium Codex incomplete01",
+      "sha_noted": "cf95a4a8",
+      "minimum": null,
+      "below7": 0,
+      "numeric_cells": 0,
+      "missing_cells": 70,
+      "coverage": "Actual media/navigation/pagination and Classic; required children/timed game interactions incomplete",
+      "state": "INCOMPLETE, not a design verdict",
+      "report": "round-05/sol-medium-incomplete-01.json"
+    },
+    {
+      "attempt": 5,
+      "reviewer": "Solmedium familyB only",
+      "sha_noted": "cf95a4a8",
+      "minimum": 3,
+      "below7": 34,
+      "numeric_cells": 70,
+      "missing_cells": 0,
+      "coverage": "Messages andCommunityall5sizes; otherfamiliesunverified",
+      "state": "FAMILY FAIL; notglobalgate",
+      "report": "round-05/sol-medium-family-B.json"
+    },
+    {
+      "attempt": 5,
+      "reviewer": "Muse Contributor requestedxhigh/selfreporteddefaults",
+      "sha_noted": "cf95a4a8",
+      "minimum": 5,
+      "below7": 70,
+      "numeric_cells": 70,
+      "missing_cells": 0,
+      "coverage": "broad full journeys; drawer4sizes/timedClassic limits retained",
+      "state": "FAIL; nofullscopeacceptance",
+      "report": "round-05/muse.json"
+    }
+  ],
+  "current_gate": {
+    "sha": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "threshold": 7,
+    "required_cells": 210,
+    "accepted_fullscope_cells": 0,
+    "state": "UNMET: Muse70low, Solfullincomplete, family-only results not global acceptance"
+  },
+  "sha_corrected_not_reevaluated": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+  "active_roster": [
+    {
+      "provider": "oc1",
+      "model": "opencode-go/muse-spark-1.3-contributor",
+      "options": {
+        "variant": "xhigh"
+      }
+    },
+    {
+      "provider": "codex",
+      "model": "gpt-6.1-sol",
+      "options": {
+        "reasoningEffort": "medium"
+      }
+    },
+    {
+      "provider": "codex",
+      "model": "gpt-6.1-sol",
+      "options": {
+        "reasoningEffort": "low"
+      }
+    }
+  ],
+  "current_candidate_HEAD": "75f89baa66dd2d18c74ee63b6f01db1f15a78094",
+  "current_blocker": "Snapshot automation host timeout independently reproduced; auth restored, DOM-only QA proceeds, no visual gate inferred"
+}

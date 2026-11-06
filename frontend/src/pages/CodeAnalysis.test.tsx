@@ -48,6 +48,21 @@ it('summarises every attempt of the code and highlights the dive it came from', 
   expect(screen.getByRole('button', { name: /Best/ })).toBeInTheDocument()
 })
 
+it('starts dense histories with sessions and preserves an explicit choice of every attempt', async () => {
+  const dense = Array.from({ length: 100 }, (_, index) => ({
+    ...attempts[index % attempts.length], id: index + 1,
+    dive_datetime: day(120 - index), session_id: Math.floor(index / 5) + 1,
+  }))
+  vi.mocked(getCodeAttemptsResult).mockResolvedValue({ items: dense as never, capped: false })
+  renderPage('/dives/analysis/5122D')
+  const sessions = await screen.findByRole('button', { name: 'Sessions' })
+  expect(sessions).toHaveAttribute('aria-pressed', 'true')
+  await userEvent.click(screen.getByRole('button', { name: 'Attempts' }))
+  expect(screen.getByTestId('location')).toHaveTextContent('mode=attempts')
+  expect(screen.getByRole('button', { name: 'Attempts' })).toHaveAttribute('aria-pressed', 'true')
+  expect(getCodeAttemptsResult).toHaveBeenCalledTimes(1)
+})
+
 it('a capped diver view omits the cross-population denominator', async () => {
   // In diver view the summaries' attempt_count covers the whole scope, not
   // the selected diver: the capped notice must NOT claim "N of 12" — it

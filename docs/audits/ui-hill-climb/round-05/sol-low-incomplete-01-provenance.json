@@ -1,0 +1,14 @@
+{
+  "candidateSHA": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+  "sha256": "6a349b076952f04db665d55321c2448f6c9c8dd2c4f72f3d28836442797d7009",
+  "source": "delivered reviewer report copied verbatim",
+  "provider": "codex",
+  "model": "gpt-6.1-sol",
+  "reasoningEffort": "low",
+  "numeric": 0,
+  "missing": 70,
+  "minimum": null,
+  "below7": 0,
+  "design_verdict": false,
+  "reason": "Stopped after identity proof without established runtime blocker; replacement new delegate_task required; no model change"
+}

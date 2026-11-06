@@ -350,10 +350,25 @@ export async function getAutomaticQueue(stackId: number): Promise<QueueBatch> {
 export async function skipAutomaticDive(stackId: number, diveId: number): Promise<void> {
   await api.post(`/api/v1/evaluations/automatic/stacks/${stackId}/skip`, { request_id: diveId })
 }
-export type AutomaticScore = { dive_id: number; dive_code: string; height: string; excluded: boolean; rating_count: number; mean_score: number | null; provisional: boolean }
+export type AutomaticDiveIdentity = import('../utils/attemptPresentation').Attempt
+export type AutomaticScore = { identity?: AutomaticDiveIdentity; dive_id: number; dive_code: string; height: string; excluded: boolean; rating_count: number; mean_score: number | null; provisional: boolean }
 export async function getAutomaticScores(offset = 0): Promise<{ items: AutomaticScore[]; total: number }> {
   const { data } = await api.get('/api/v1/evaluations/automatic/mine', { params: { offset, limit: 20 } })
   return data
+}
+
+/** Identity reads never block the score list. Callers cancel them on page changes. */
+export async function loadAutomaticIdentities(items: AutomaticScore[], onIdentity: (id: number, identity: AutomaticDiveIdentity) => void, signal?: AbortSignal): Promise<void> {
+  let next = 0
+  await Promise.all(Array.from({ length: Math.min(4, items.length) }, async () => {
+    while (next < items.length && !signal?.aborted) {
+      const item = items[next++]
+      try {
+        const { data } = await api.get<AutomaticDiveIdentity>(`/api/v1/dives/${item.dive_id}`, { signal, timeout: 8000 })
+        if (!signal?.aborted) onIdentity(item.dive_id, data)
+      } catch { /* Identity failure must not hide a score or change its selection. */ }
+    }
+  }))
 }
 export async function setAutomaticExclusion(diveId: number, excluded: boolean): Promise<void> {
   await api.put(`/api/v1/dives/${diveId}/automatic-review`, { excluded })

@@ -1,0 +1,53 @@
+{
+  "candidate": "http://localhost:4317",
+  "sourceSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+  "HEAD": "75f89baa66dd2d18c74ee63b6f01db1f15a78094",
+  "ownInitialTab": "tab_19",
+  "profile": "default",
+  "account": {
+    "visibleSignedInAsMaxime": true,
+    "authMe": 200,
+    "display_name": "maxime"
+  },
+  "WS": "open then closed",
+  "image": {
+    "status": 200,
+    "contentType": "image/jpeg"
+  },
+  "video3044": {
+    "readyState": 4,
+    "dimensions": [
+      406,
+      720
+    ],
+    "timeBefore": 0.017694,
+    "timeAfter": 0.694493,
+    "timing": "Before user audio constraint; no later playback started"
+  },
+  "snapshotFailure": {
+    "error": "Preview automation snapshot timed out after15000ms",
+    "sameURLNavigationRecovery": false,
+    "oneOwnedTabReacquisitionRecovery": false,
+    "parentIndependentlyReproduced": true,
+    "loopsStopped": true,
+    "noSupportedAlternateAuthenticatedBrowserExposed": true
+  },
+  "coverageLimits": [
+    "Only group dialog obtained settled5size captures in this run",
+    "DOM-only other states do not establish design scores",
+    "Initial detail-analysis measurements preceded positive loaded summary; only later filtered3m measurements have explicit populated proof",
+    "No new council approval; old round5 failures retained"
+  ],
+  "audio": {
+    "userConstraint": "Silent testing only",
+    "atInstruction": "Current Bycode page0video/audio elements",
+    "afterInstruction": "Only media-free DOM flows visited; no new playback",
+    "orphanTabs": "Ownership locked, not touched, no mute claim",
+    "activeReviewers": 0
+  },
+  "productWrites": [
+    "None: no message/group Create, no evaluationConfirm, no RSVP/save/follow"
+  ],
+  "authChanges": false,
+  "cookieExports": false
+}

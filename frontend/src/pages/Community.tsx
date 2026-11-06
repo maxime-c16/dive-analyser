@@ -164,8 +164,6 @@ export default function Community() {
         </Link>)}</div>
       </section>}
 
-      <Leaderboard excluded={excluded} me={me} />
-
       {/* Section banners come from the directory totals: a category that
           lives entirely on a later page still gets its banner (empty of
           cards until the continuation carries it in), instead of the first
@@ -197,6 +195,7 @@ export default function Community() {
           // a fabricated number.
           : totalsKnown ? t('community.remaining', { count: Math.max((totals?.members ?? 0) - peers.length, 0) }) : t('community.more')}
       </button>}
+      <Leaderboard excluded={excluded} me={me} />
     </>}
   </div>
 }

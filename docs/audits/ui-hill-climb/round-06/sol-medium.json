@@ -1,0 +1,634 @@
+{
+  "round": "06",
+  "reviewer": {
+    "provider": "OpenAI via Codex harness in T3 Code",
+    "model": "gpt-6.1-sol",
+    "reasoning_effort": "medium",
+    "delegates": 0
+  },
+  "reviewedSHA": "ae1a07b627e4850732981a58610bfbe3347ac2da",
+  "candidate": {
+    "url": "http://localhost:4317",
+    "head_verified": true,
+    "product_source_reference": "2c07abee",
+    "source_reference_basis": "User supplied; frontend diff against HEAD returned no filenames.",
+    "working_tree": "Existing audit artifacts only; reviewer made no filesystem changes."
+  },
+  "verdict": "TOOL_BLOCKED_PARTIAL",
+  "fullscope_pass": false,
+  "acceptance": false,
+  "preflight": {
+    "own_default_profile_tab": true,
+    "reuseExistingTab": false,
+    "first_route": "/account",
+    "identity": "Signed in as maxime confirmed by own page DOM",
+    "auth_me_status": 200,
+    "new_login": false,
+    "websocket": "Application WebSocket connected and heartbeat observed in own snapshot diagnostics",
+    "media": {
+      "http_200": null,
+      "decoded": true,
+      "evidence": "Both Room video slots readyState 4 with nonzero dimensions; active video advanced to currentTime 5.662559.",
+      "complete": false
+    },
+    "silence": {
+      "initial_slots": "Both paused, muted false",
+      "supported_control": "Mute sound",
+      "before_start": "Both slots muted true, paused true, readyState 4",
+      "during_playback": "Both remained muted true; active slot paused false",
+      "standalone_library_player_entered": false
+    },
+    "own_tab_closed": true
+  },
+  "viewports": [
+    "390x844",
+    "844x390",
+    "768x1024",
+    "1024x768",
+    "1440x900"
+  ],
+  "evidence_directory": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/",
+  "screenshots": [
+    {
+      "file": "browser-screenshot-localhost-mw3k4459-0eec3fb0.png",
+      "flow": "Room entry",
+      "viewport": "390x844",
+      "actual_phase": "entry",
+      "settled_state": "Create, Join and simulated judge control visible"
+    },
+    {
+      "file": "browser-screenshot-localhost-mw3k5s73-d363e6a3.png",
+      "flow": "Own Classic Room",
+      "viewport": "390x844",
+      "actual_phase": "lobby, after Start interaction",
+      "settled_state": "Muted, one 112B dive configured; not counted as playback",
+      "privacy": "Private artifact contains room invitation information; do not publish"
+    },
+    {
+      "file": "browser-screenshot-localhost-mw3k5zas-c16db349.png",
+      "flow": "Own Classic Room",
+      "viewport": "390x844",
+      "actual_phase": "playback",
+      "settled_state": "Decoded footage visible, persistent Back and Muted controls"
+    },
+    {
+      "file": "browser-screenshot-localhost-mw3k6qzn-c9bb2136.png",
+      "flow": "Library grid",
+      "viewport": "390x844",
+      "actual_phase": "populated grid",
+      "settled_state": "Thumbnails and attempt metadata visible"
+    },
+    {
+      "file": "browser-screenshot-localhost-mw3k71ci-1e707abf.png",
+      "flow": "Library grid",
+      "viewport": "844x390",
+      "actual_phase": "populated grid",
+      "settled_state": "Short-height layout visible",
+      "qualification": "Immediate pre-snapshot viewport probe was stale; screenshot reflects resized layout"
+    },
+    {
+      "file": "browser-screenshot-localhost-mw3k739n-fc6ce7b7.png",
+      "flow": "Library grid",
+      "viewport": "768x1024",
+      "actual_phase": "populated grid",
+      "settled_state": "Filters and thumbnails visible"
+    },
+    {
+      "file": "browser-screenshot-localhost-mw3k78kf-f94e8c84.png",
+      "flow": "Library grid",
+      "viewport": "1024x768",
+      "actual_phase": "populated grid",
+      "settled_state": "Sidebar, filters and thumbnails visible"
+    },
+    {
+      "file": "browser-screenshot-localhost-mw3k79sw-3dfc2269.png",
+      "flow": "Library grid",
+      "viewport": "1440x900",
+      "actual_phase": "populated grid",
+      "settled_state": "Sidebar and six-column footage grid visible",
+      "qualification": "Immediate pre-snapshot viewport probe was stale; later probe confirmed 1440x900"
+    },
+    {
+      "file": "browser-screenshot-localhost-mw3k8d8l-c1bbad1f.png",
+      "flow": "By code collapsed",
+      "viewport": "844x390",
+      "actual_phase": "loaded cards",
+      "settled_state": "Recent-attempt disclosures closed"
+    },
+    {
+      "file": "browser-screenshot-localhost-mw3k8evz-68eeeebd.png",
+      "flow": "By code collapsed",
+      "viewport": "768x1024",
+      "actual_phase": "loaded cards",
+      "settled_state": "Recent-attempt disclosures closed"
+    },
+    {
+      "file": "browser-screenshot-localhost-mw3k8gdb-ee427b06.png",
+      "flow": "By code collapsed",
+      "viewport": "1024x768",
+      "actual_phase": "loaded cards",
+      "settled_state": "Recent-attempt disclosures closed"
+    },
+    {
+      "file": "browser-screenshot-localhost-mw3k8zqk-a1597af9.png",
+      "flow": "201C recent attempts",
+      "viewport": "1440x900",
+      "actual_phase": "disclosure open",
+      "settled_state": "Distribution, dates, canonical IDs and scores visible"
+    },
+    {
+      "file": "browser-screenshot-localhost-mw3k90d5-f3c89db2.png",
+      "flow": "Progress",
+      "viewport": "1440x900",
+      "actual_phase": "loaded summary",
+      "settled_state": "Metrics, improving/dropping lists and monthly chart visible"
+    },
+    {
+      "file": "browser-screenshot-localhost-mw3kbcbn-a39b0b22.png",
+      "flow": "Evaluations My dives",
+      "viewport": "1440x900",
+      "actual_phase": "rows loaded",
+      "settled_state": "Canonical IDs and Awaiting reviews visible",
+      "qualification": "Thumbnail placeholders remain; settled retry timed out, so final visual state unverified"
+    }
+  ],
+  "rejected_evidence": [
+    {
+      "file": "browser-screenshot-localhost-mw3k7nlk-fcd4cc38.png",
+      "reason": "By code Loading page frame; excluded from assessment"
+    }
+  ],
+  "interactions": [
+    "Opened exactly one separate default-profile tab at /account",
+    "Read auth/me through own authenticated browser session",
+    "Created one isolated Room through normal UI",
+    "Clicked Mute sound and verified both slots muted before Start",
+    "Selected By code, entered 112B and applied code",
+    "Started Classic playback; observed decoded muted video",
+    "Navigated to Library and resized across five requested CSS sizes",
+    "Opened By code and expanded 201C recent attempts",
+    "Opened Progress",
+    "Visited Community, Calendar, Messages and Evaluations",
+    "Selected History; capture timed out",
+    "Closed own tab"
+  ],
+  "coverage_legend": {
+    "P": "Partial fresh visual observation; required interactions incomplete",
+    "O": "Fresh visual observation of named state only",
+    "T": "Snapshot timed out; no visual verification",
+    "U": "Unverified, not reached before tool-blocked handback",
+    "S": "Not entered because silent-before-start path was not established"
+  },
+  "coverage_matrix": {
+    "Library grid": [
+      "P",
+      "P",
+      "P",
+      "P",
+      "P"
+    ],
+    "Library list": [
+      "U",
+      "U",
+      "U",
+      "U",
+      "U"
+    ],
+    "Library filters interactions": [
+      "U",
+      "U",
+      "U",
+      "U",
+      "U"
+    ],
+    "Library player/details/next/back": [
+      "S",
+      "S",
+      "S",
+      "S",
+      "S"
+    ],
+    "By code collapsed": [
+      "T",
+      "O",
+      "O",
+      "O",
+      "T"
+    ],
+    "By code open recent attempts": [
+      "U",
+      "U",
+      "U",
+      "U",
+      "O"
+    ],
+    "By code Analysis action": [
+      "U",
+      "U",
+      "U",
+      "U",
+      "P"
+    ],
+    "Progress": [
+      "U",
+      "U",
+      "U",
+      "U",
+      "O"
+    ],
+    "201C overview": [
+      "U",
+      "U",
+      "U",
+      "U",
+      "U"
+    ],
+    "201C detailed progression": [
+      "U",
+      "U",
+      "U",
+      "U",
+      "U"
+    ],
+    "201C changes": [
+      "U",
+      "U",
+      "U",
+      "U",
+      "U"
+    ],
+    "201C comparison": [
+      "U",
+      "U",
+      "U",
+      "U",
+      "U"
+    ],
+    "201C phases": [
+      "U",
+      "U",
+      "U",
+      "U",
+      "U"
+    ],
+    "201C inventory pagination": [
+      "U",
+      "U",
+      "U",
+      "U",
+      "U"
+    ],
+    "201C attempt drawer": [
+      "U",
+      "U",
+      "U",
+      "U",
+      "U"
+    ],
+    "Messages inbox": [
+      "U",
+      "U",
+      "U",
+      "U",
+      "T"
+    ],
+    "Messages thread/composer": [
+      "U",
+      "U",
+      "U",
+      "U",
+      "U"
+    ],
+    "Messages recipient/group draft": [
+      "U",
+      "U",
+      "U",
+      "U",
+      "U"
+    ],
+    "Community rankings": [
+      "T",
+      "T",
+      "T",
+      "T",
+      "T"
+    ],
+    "Profile Dives": [
+      "U",
+      "U",
+      "U",
+      "U",
+      "U"
+    ],
+    "Profile Codes": [
+      "U",
+      "U",
+      "U",
+      "U",
+      "U"
+    ],
+    "Profile Activity": [
+      "U",
+      "U",
+      "U",
+      "U",
+      "U"
+    ],
+    "Profile Achievements": [
+      "U",
+      "U",
+      "U",
+      "U",
+      "U"
+    ],
+    "Profile stats disclosure": [
+      "U",
+      "U",
+      "U",
+      "U",
+      "U"
+    ],
+    "Calendar upcoming": [
+      "U",
+      "U",
+      "U",
+      "U",
+      "T"
+    ],
+    "Calendar month": [
+      "U",
+      "U",
+      "U",
+      "U",
+      "U"
+    ],
+    "Calendar detail": [
+      "U",
+      "U",
+      "U",
+      "U",
+      "U"
+    ],
+    "Calendar new/schedule form": [
+      "U",
+      "U",
+      "U",
+      "U",
+      "U"
+    ],
+    "Evaluations Judge": [
+      "U",
+      "U",
+      "U",
+      "U",
+      "U"
+    ],
+    "Evaluations My dives": [
+      "U",
+      "U",
+      "U",
+      "U",
+      "P"
+    ],
+    "Evaluations History/disclosure": [
+      "U",
+      "U",
+      "U",
+      "U",
+      "T"
+    ],
+    "Evaluations judging draft/Quit": [
+      "U",
+      "U",
+      "U",
+      "U",
+      "U"
+    ],
+    "Room entry": [
+      "O",
+      "U",
+      "U",
+      "U",
+      "U"
+    ],
+    "Room lobby": [
+      "P",
+      "U",
+      "U",
+      "U",
+      "U"
+    ],
+    "Room playback": [
+      "O",
+      "U",
+      "U",
+      "U",
+      "U"
+    ],
+    "Classic scoring/reveal/results": [
+      "U",
+      "U",
+      "U",
+      "U",
+      "U"
+    ],
+    "Mole scoring/reveal": [
+      "U",
+      "U",
+      "U",
+      "U",
+      "U"
+    ],
+    "Mole vote empty/Nobody/results": [
+      "U",
+      "U",
+      "U",
+      "U",
+      "U"
+    ],
+    "GuessCode choices/reveal/results": [
+      "U",
+      "U",
+      "U",
+      "U",
+      "U"
+    ]
+  },
+  "findings": [
+    {
+      "id": "R06-01",
+      "kind": "subjective",
+      "source_confirmed": false,
+      "objection": "Room entry uses an icon-only bottom navigation dock while Library uses named navigation, weakening orientation and component consistency.",
+      "affected_cells": [
+        "Navigation and orientation/390x844",
+        "Component consistency/390x844",
+        "Next-action discoverability/390x844"
+      ],
+      "evidence": "browser-screenshot-localhost-mw3k4459-0eec3fb0.png"
+    },
+    {
+      "id": "R06-02",
+      "kind": "subjective",
+      "source_confirmed": false,
+      "objection": "Library tablet filter/header stack delays task content substantially; By code content begins below several rows of controls.",
+      "affected_cells": [
+        "Visual hierarchy/768x1024",
+        "Layout and density/768x1024",
+        "Task content presentation/768x1024",
+        "Layout and density/1024x768"
+      ],
+      "evidence": [
+        "browser-screenshot-localhost-mw3k739n-fc6ce7b7.png",
+        "browser-screenshot-localhost-mw3k8evz-68eeeebd.png",
+        "browser-screenshot-localhost-mw3k8gdb-ee427b06.png"
+      ]
+    }
+  ],
+  "category_order": [
+    "Visual hierarchy",
+    "Layout and density",
+    "Typography",
+    "Color and contrast",
+    "Spacing and alignment",
+    "Navigation and orientation",
+    "Control clarity",
+    "Terminology and instructions",
+    "Component consistency",
+    "Task content presentation",
+    "Feedback and state clarity",
+    "Professional finish",
+    "Responsive fit",
+    "Next-action discoverability"
+  ],
+  "scores_14x5": [
+    [
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    [
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    [
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    [
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    [
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    [
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    [
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    [
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    [
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    [
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    [
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    [
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    [
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    [
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  ],
+  "score_reason": "All 70 fullscope cells remain null. Successful partial screens cannot establish the lowest relevant screen across required flows. Coverage gaps apply to every category at every size; no weakest fullscope screen can honestly be identified. Partial objections are recorded separately.",
+  "tool_blockers": [
+    "Account snapshot twice timed out after 15000ms",
+    "Library snapshot initially timed out; retry succeeded",
+    "By code snapshots timed out at 390x844 and 1440x900",
+    "Community snapshots timed out at all five requested sizes after waiting for Rankings",
+    "Calendar and Messages desktop snapshots timed out",
+    "My dives settled retry and History snapshots timed out",
+    "Known unsupported IAB/native fallback was not retried"
+  ],
+  "limitations": [
+    "No complete family interaction pass",
+    "No authorized media HTTP 200 proof",
+    "No numeric acceptance scores inferred from DOM, source, tests or historical captures",
+    "No accessibility certification",
+    "Historical findings were not promoted to current defects"
+  ],
+  "changes": {
+    "files_edited": false,
+    "commit": false,
+    "push": false,
+    "pr_created": false,
+    "watch": false,
+    "deploy": false,
+    "external_messages": false,
+    "evaluation_confirmation": false,
+    "calendar_writes": false,
+    "selection_toggles": false,
+    "room_writes": "Only own ephemeral Room creation/configuration and Classic Start"
+  }
+}

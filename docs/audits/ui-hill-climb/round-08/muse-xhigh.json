@@ -1,0 +1,28 @@
+{
+  "source": "0472330b",
+  "model": "opencode-go/muse-spark-1.3-contributor",
+  "scope": "Static main families at 5 sizes except code details/profile Dives/Evaluations/Room",
+  "diagnosticOnly": true,
+  "acceptance": false,
+  "observedMatrix": null,
+  "score": null,
+  "confirmedFixes": [
+    "Library title and phone scope",
+    "Phone/landscape player actions wrap"
+  ],
+  "findings": [
+    "Update notice still overlays cards",
+    "Community breadcrumb untranslated",
+    "Phone search placeholder truncation"
+  ],
+  "decisions": [
+    "Move notice to shell content slot above page",
+    "Localize Community/Evaluations/Room breadcrumbs",
+    "Shorten French search placeholder; full accessible label retained"
+  ],
+  "remaining": [
+    "Profile Dives/code details/Evaluations/Room unsettled",
+    "Missing interactions and live Room phases",
+    "No complete final matrices"
+  ]
+}

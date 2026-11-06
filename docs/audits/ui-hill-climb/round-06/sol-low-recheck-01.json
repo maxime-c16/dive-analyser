@@ -1,0 +1,285 @@
+{
+  "round": "06",
+  "reviewer": {
+    "provider": "OpenAI",
+    "model": "gpt-6.1-sol",
+    "reasoning_effort": "low",
+    "delegates": 0
+  },
+  "candidate": {
+    "url": "http://localhost:4317",
+    "sha": "ae1a07b627e4850732981a58610bfbe3347ac2da",
+    "sha_verification": "brief only"
+  },
+  "status": "tool_blocked",
+  "fullscope_pass": false,
+  "preflight": {
+    "own_default_profile_tab": true,
+    "signed_in_as_maxime": true,
+    "auth_me_status": 200,
+    "authorized_media_200_decode": null,
+    "websocket_open": null
+  },
+  "screenshots": [],
+  "observations": [
+    {
+      "flow": "Account",
+      "viewport": [
+        1280,
+        800
+      ],
+      "actual_phase": "account",
+      "settled_state": "identity confirmed by read-only DOM probe; videos=0",
+      "capture": "two snapshot timeouts after 15000ms",
+      "recovery": "supported scroll +650 then -650; second capture still timed out"
+    },
+    {
+      "flow": "Calendar",
+      "viewport": [
+        1280,
+        800
+      ],
+      "actual_phase": "not visually verified",
+      "settled_state": "browser loading=false",
+      "capture": "snapshot timeout after 15000ms"
+    }
+  ],
+  "interactions": [
+    "Opened exactly one separate default-profile tab at /account",
+    "Read identity and fetched /api/v1/auth/me status only",
+    "Scrolled own Account tab +650 then -650",
+    "Navigated own tab to /calendar",
+    "Checked preview_status",
+    "Closed own tab"
+  ],
+  "coverage_encoding": {
+    "viewports": [
+      "390x844",
+      "844x390",
+      "768x1024",
+      "1024x768",
+      "1440x900"
+    ],
+    "U": "Unverified: no fresh visual evidence; browser capture blocked",
+    "each_family_includes": "All child flows required in the review brief"
+  },
+  "coverage_matrix": {
+    "Library": [
+      "U",
+      "U",
+      "U",
+      "U",
+      "U"
+    ],
+    "By code": [
+      "U",
+      "U",
+      "U",
+      "U",
+      "U"
+    ],
+    "Progress": [
+      "U",
+      "U",
+      "U",
+      "U",
+      "U"
+    ],
+    "201C analysis and attempt drawer": [
+      "U",
+      "U",
+      "U",
+      "U",
+      "U"
+    ],
+    "Messages": [
+      "U",
+      "U",
+      "U",
+      "U",
+      "U"
+    ],
+    "Community and profile": [
+      "U",
+      "U",
+      "U",
+      "U",
+      "U"
+    ],
+    "Calendar": [
+      "U",
+      "U",
+      "U",
+      "U",
+      "U"
+    ],
+    "Evaluations": [
+      "U",
+      "U",
+      "U",
+      "U",
+      "U"
+    ],
+    "Room entry and lobby": [
+      "U",
+      "U",
+      "U",
+      "U",
+      "U"
+    ],
+    "Room Classic": [
+      "U",
+      "U",
+      "U",
+      "U",
+      "U"
+    ],
+    "Room Mole": [
+      "U",
+      "U",
+      "U",
+      "U",
+      "U"
+    ],
+    "Room GuessCode": [
+      "U",
+      "U",
+      "U",
+      "U",
+      "U"
+    ]
+  },
+  "category_order": [
+    "Visual hierarchy",
+    "Layout and density",
+    "Typography",
+    "Color and contrast",
+    "Spacing and alignment",
+    "Navigation and orientation",
+    "Control clarity",
+    "Terminology and instructions",
+    "Component consistency",
+    "Task content presentation",
+    "Feedback and state clarity",
+    "Professional finish",
+    "Responsive fit",
+    "Next-action discoverability"
+  ],
+  "scores_14x5": [
+    [
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    [
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    [
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    [
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    [
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    [
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    [
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    [
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    [
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    [
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    [
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    [
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    [
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    [
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  ],
+  "all_null_reason": "No directly observed screenshots at any required viewport. No weakest screen can honestly be identified for any category and size.",
+  "partial_screen_grades": [],
+  "product_findings": [],
+  "limitations": [
+    "Full requested scope was not completed",
+    "Media and WebSocket preflight remain unverified",
+    "Supplementary evidence was not substituted for fresh observations",
+    "Historical review documents were not all read",
+    "No accessibility certification"
+  ],
+  "safety": {
+    "audio_played": false,
+    "shared_data_writes": false,
+    "files_changed": false,
+    "own_tab_closed": true,
+    "pr_created": false
+  }
+}

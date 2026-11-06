@@ -29,6 +29,7 @@ import {
   performanceLabel,
   type Attempt,
 } from "../utils/attemptPresentation";
+import LibraryAudioControl from '../components/LibraryAudioControl';
 import AddVideos from "../components/AddVideos";
 import { MobileShellActions } from "../navigation/mobileShellActions";
 import DiveThumbnail from "../components/DiveThumbnail";
@@ -934,14 +935,25 @@ function DiveLibrary() {
     });
 
   return (
-    <div className="mx-auto max-w-[1440px] pb-10">
+    <div className="library-page mx-auto max-w-[1440px] pb-10">
       <header className="flex flex-wrap items-center gap-x-2 gap-y-3 border-b border-app pb-3 sm:flex-nowrap sm:items-end sm:gap-4 sm:pb-5">
         <h1 className="min-w-0 flex-1 text-3xl font-semibold tracking-tight text-app-text sm:text-4xl">
           {t("nav.dives")}
         </h1>
+        <AddVideos compact onAdded={() => { clearLibraryCache(); setReloadKey(key => key + 1); }} />
         <MobileShellActions />
-        <div className="basis-full sm:hidden" aria-hidden />
-        <div className="flex h-11 flex-1 gap-1 border border-app bg-app-panel p-0.5 sm:hidden">
+        <button
+          type="button"
+          aria-label={t("dives.refresh")}
+          title={t("dives.refresh")}
+          disabled={loading}
+          onClick={() => { clearLibraryCache(); setReloadKey(key => key + 1); }}
+          className="touch-target inline-flex shrink-0 items-center justify-center border border-app bg-app-panel text-app-muted hover:text-app-text disabled:opacity-50"
+        >
+          <RefreshCw className="h-4 w-4" />
+        </button>
+      </header>
+        <div className="library-mode-tabs flex h-11 flex-1 gap-1">
           {(
             [
               ["grid", t("dives.viewClips")],
@@ -954,29 +966,17 @@ function DiveLibrary() {
               type="button"
               onClick={() => update({ view: value === "grid" ? null : value })}
               aria-pressed={value === "grid" ? !aggregated : view === value}
-              className={`min-h-0 flex-1 border px-3 text-sm ${(value === "grid" ? !aggregated : view === value) ? "border-app-accent bg-app-panel-elevated text-app-accent" : "border-transparent text-app-muted"}`}
+              className={`min-h-0 border px-3 text-sm ${(value === "grid" ? !aggregated : view === value) ? "border-app-accent bg-app-panel-elevated text-app-accent" : "border-transparent text-app-muted"}`}
             >
               {label}
             </button>
           ))}
+          <LibraryAudioControl />
         </div>
-        <button
-          type="button"
-          aria-label={t("dives.refresh")}
-          title={t("dives.refresh")}
-          disabled={loading}
-          onClick={() => { clearLibraryCache(); setReloadKey(key => key + 1); }}
-          className="touch-target inline-flex shrink-0 items-center justify-center border border-app bg-app-panel text-app-muted hover:text-app-text disabled:opacity-50"
-        >
-          <RefreshCw className="h-4 w-4" />
-        </button>
-        <div className="basis-full sm:hidden" aria-hidden />
-        <AddVideos onAdded={() => { clearLibraryCache(); setReloadKey(key => key + 1); }} />
-      </header>
       <PendingBanner />
       <section className="mt-4 space-y-2" aria-label={t("dives.filtersAria")}>
         <div className="flex flex-wrap items-center gap-2">
-          <div className={`${filtersOpen ? "flex" : "hidden"} order-last h-11 w-full gap-1 border border-app bg-app-panel p-1 sm:order-none sm:flex sm:w-auto sm:shrink-0`}>
+          <div className={`flex order-last h-11 w-full gap-1 border border-app bg-app-panel p-1 sm:order-none sm:w-auto sm:shrink-0`}>
             {(
               [
                 ["self", t("dives.myDives")],
@@ -1009,7 +1009,7 @@ function DiveLibrary() {
             type="button"
             onClick={() => setFiltersOpen((open) => !open)}
             aria-expanded={filtersOpen}
-            className={`touch-target relative inline-flex items-center justify-center border sm:hidden ${filtersOpen ? "border-app-accent text-app-accent" : "border-app text-app-muted"}`}
+            className={`library-filter-toggle touch-target relative inline-flex items-center justify-center border sm:hidden ${filtersOpen ? "border-app-accent text-app-accent" : "border-app text-app-muted"}`}
             aria-label={t("dives.filters")}
           >
             <SlidersHorizontal className="h-4 w-4" />
@@ -1019,7 +1019,7 @@ function DiveLibrary() {
               </span>
             )}
           </button>
-          <div className="hidden shrink-0 items-center gap-1 sm:flex">
+          {!aggregated && <div className="library-display-options flex shrink-0 items-center gap-1">
             <button
               type="button"
               onClick={() => update({ view: "grid" })}
@@ -1028,7 +1028,7 @@ function DiveLibrary() {
               title={t("dives.gridView")}
               aria-pressed={view === "grid"}
             >
-              <LayoutGrid className="h-4 w-4" />
+              <LayoutGrid className="h-4 w-4" /><span>{t("dives.gridView")}</span>
             </button>
             <button
               type="button"
@@ -1038,31 +1038,11 @@ function DiveLibrary() {
               title={t("dives.listView")}
               aria-pressed={view === "list"}
             >
-              <List className="h-4 w-4" />
+              <List className="h-4 w-4" /><span>{t("dives.listView")}</span>
             </button>
-            <button
-              type="button"
-              onClick={() => update({ view: "codes" })}
-              className={`touch-target inline-flex items-center justify-center border p-0 ${view === "codes" ? "border-app-accent text-app-accent" : "border-app text-app-muted"}`}
-              aria-label={t("dives.codeView")}
-              title={t("dives.codeView")}
-              aria-pressed={view === "codes"}
-            >
-              <Hash className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => update({ view: "progress" })}
-              className={`touch-target inline-flex items-center justify-center border p-0 ${view === "progress" ? "border-app-accent text-app-accent" : "border-app text-app-muted"}`}
-              aria-label={t("codeAnalysis.progressTab")}
-              title={t("codeAnalysis.progressTab")}
-              aria-pressed={view === "progress"}
-            >
-              <TrendingUp className="h-4 w-4" />
-            </button>
-          </div>
+          </div>}
         </div>
-        <div className={`${filtersOpen ? "grid" : "hidden"} grid-cols-2 items-center gap-2 sm:flex sm:flex-wrap`}>
+        <div data-open={filtersOpen} className={`library-advanced-filters ${filtersOpen ? "grid" : "hidden"} grid-cols-2 items-center gap-2 sm:flex sm:flex-wrap`}>
           <select
             aria-label={t("dives.heightFilter")}
             value={heightFilter}
@@ -1137,9 +1117,9 @@ function DiveLibrary() {
                 }
                 aria-pressed={modifiers.includes(modifier)}
                 title={t(`dives.modifierDescriptions.${modifier}`)}
-                className={`min-h-0 min-w-10 flex-1 border px-2 text-xs ${modifiers.includes(modifier) ? "border-app-accent bg-app-panel-elevated text-app-accent" : "border-transparent text-app-muted"}`}
+                className={`min-h-0 min-w-10 flex-1 whitespace-nowrap border px-2 text-xs ${modifiers.includes(modifier) ? "border-app-accent bg-app-panel-elevated text-app-accent" : "border-transparent text-app-muted"}`}
               >
-                {modifier}
+                {t(`dives.modifierNames.${modifier}`)}
               </button>
             ))}
           </div>

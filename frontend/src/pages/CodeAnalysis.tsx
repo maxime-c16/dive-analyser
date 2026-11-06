@@ -119,7 +119,6 @@ export default function CodeAnalysis() {
   const period = (params.get('period') as Period) || 'all'
   const height = params.get('h') || ''
   const month = params.get('month') || ''
-  const mode: Mode = params.get('mode') === 'sessions' ? 'sessions' : 'attempts'
   const focusId = Number(params.get('attempt')) || null
   const selId = Number(params.get('sel')) || null
   const clipId = Number(params.get('clip')) || null
@@ -155,6 +154,11 @@ export default function CodeAnalysis() {
   [diverId, summaries, code])
   const sessions = useMemo(() => groupSessions(items), [items])
   const scoredGroups = useMemo(() => groupSessions(scored), [scored])
+  // Dense histories start with session medians; every attempt remains
+  // available through the explicit chart control and the attempt list.
+  const requestedMode = params.get('mode')
+  const mode: Mode = requestedMode === 'sessions' || requestedMode === 'attempts'
+    ? requestedMode : scored.length > 80 ? 'sessions' : 'attempts'
 
   const points: ChartPoint[] = useMemo(() => {
     const monthLabel = (value: string) => format(parseISO(value), 'MMM yy', { locale: appLocale() }).replace('.', '')
@@ -239,7 +243,7 @@ export default function CodeAnalysis() {
     {diverChip && <div className="ca-topbar-chip">{diverChip}</div>}
   </>
 
-  if (!attempts && !error) return <div className="ca ca-page"><div className="ca-span">{topbar}</div><div className="ca-skeleton" style={{ height: 120 }} /><div className="ca-skeleton" style={{ height: 80 }} /><div className="ca-skeleton" style={{ height: 260 }} /></div>
+  if (!attempts && !error) return <div className="ca ca-page"><div className="ca-span">{topbar}</div><p role="status">{t("common.loading")}</p><div className="ca-skeleton" style={{ height: 120 }} /><div className="ca-skeleton" style={{ height: 80 }} /><div className="ca-skeleton" style={{ height: 260 }} /></div>
   if (error && !attempts) return <div className="ca ca-page"><div className="ca-span">{topbar}</div><div className="ca-note" role="alert">{error} <button type="button" className="ca-btn" onClick={() => setReload(value => value + 1)}>{t('common.retry')}</button></div></div>
 
   const name = diveCodeName(code, lang)
@@ -319,7 +323,7 @@ export default function CodeAnalysis() {
 
         {analytics && <section className="ca-panel">
           <div className="ca-panel-h"><h2>{t('codeAnalysis.scores')}</h2>
-            <Segmented label={t('codeAnalysis.chartModeAria')} value={mode} onChange={value => { setExtreme(null); update({ mode: value === 'attempts' ? null : value, sel: null }) }}
+            <Segmented label={t('codeAnalysis.chartModeAria')} value={mode} onChange={value => { setExtreme(null); update({ mode: value, sel: null }) }}
               options={[['attempts', t('codeAnalysis.modeAttempts')], ['sessions', t('codeAnalysis.modeSessions')]] as const} /></div>
           <ScoreChart points={points} smoothing={smoothing} selected={selectedIndex} label={t('codeAnalysis.chartLabel', { count: points.length, code })}
             onSelect={(index, mark) => {

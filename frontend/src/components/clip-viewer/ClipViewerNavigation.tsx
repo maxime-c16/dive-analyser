@@ -26,7 +26,7 @@ export default function ClipViewerNavigation({
         aria-label={t("clipNav.previous")}
         title={`${t("clipNav.previous")} (Shift+←)`}
       >
-        <ChevronLeft size={20} />
+        <ChevronLeft size={20} /><span>{t("clipNav.previous")}</span>
       </button>
       <p className="clip-nav-count" aria-live="polite" aria-atomic="true">
         <span className="sr-only">{t("clipNav.positionAria", { index: index + 1, total })}</span>
@@ -40,7 +40,7 @@ export default function ClipViewerNavigation({
         aria-label={t("clipNav.next")}
         title={`${t("clipNav.next")} (Shift+→)`}
       >
-        <ChevronRight size={20} />
+        <span>{t("clipNav.next")}</span><ChevronRight size={20} />
       </button>
     </div>
   );

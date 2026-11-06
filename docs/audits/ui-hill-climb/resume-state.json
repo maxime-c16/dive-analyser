@@ -1,0 +1,138 @@
+{
+  "candidate_before_corrections": "056b5a638876f5b7602334616124eb1bdd984a2c",
+  "source_changes": "Frozen75f89baa source correctionsd27eb728; no new design scores",
+  "authentication": "Restored: own new default tab19 Signedinmaxime/API200, WSopen, image200; video3044decoded4 advancing before audio constraint. Noauthchanges.",
+  "runtime": {
+    "candidate": "http://localhost:4317",
+    "profile": "default",
+    "tunnel_session": 70516,
+    "vite_session": 89613
+  },
+  "held_checks": [],
+  "interrupted_reviews": [
+    {
+      "task": "07d5defe-50e7-4f18-b789-a16cea116970",
+      "provider": "oc2",
+      "model": "opencode/glm-5.3-flash",
+      "settings": {
+        "variant": "max"
+      },
+      "status": "interrupted at STOP",
+      "final_verdict": null,
+      "scores": null,
+      "last_record": "Covered own games and began phone-landscape sweep; no complete matrix delivered."
+    },
+    {
+      "task": "e9404bfe-0720-4ca5-b281-3e74a71b8489",
+      "provider": "oc1",
+      "model": "opencode-go/glm-5.3-flash",
+      "settings": {
+        "variant": "max"
+      },
+      "status": "interrupted at STOP",
+      "final_verdict": null,
+      "scores": null,
+      "last_record": "Results captured five sizes, lobby mode paint transition resolved; next Classic phase choreography not completed."
+    }
+  ],
+  "substitution": "Second GLM replaces repeated incomplete Codex seat. Two GLM reviewers are not three distinct models.",
+  "threshold_reached": false,
+  "authentication_recovery": {
+    "own_new_tab": "tab_o",
+    "text": "Signed in as maxime",
+    "auth_me": 200,
+    "display_name": "maxime",
+    "websocket": "open",
+    "media": "200 image/webp",
+    "note": "Previous401 retained as historical event; supported user login restored access."
+  },
+  "latest_checks": {
+    "frontend": "117files958testsPASS prior final localized labels",
+    "final_targeted": "43analysis/evaluationtestsPASS finalsource",
+    "build": "PASS finalsource",
+    "self_score": "Superseded; no accepted fullscope validation"
+  },
+  "active_council": [
+    {
+      "provider": "oc1",
+      "model": "opencode-go/muse-spark-1.3-contributor",
+      "variant": "xhigh"
+    },
+    {
+      "provider": "codex",
+      "model": "gpt-6.1-sol",
+      "reasoningEffort": "medium"
+    },
+    {
+      "provider": "codex",
+      "model": "gpt-6.1-sol",
+      "reasoningEffort": "low"
+    }
+  ],
+  "roster_change": "User2026-11-05 replaces Opus with Sol6.1low Codex account; model catalog verified. Two Sol reviewers reduce model diversity. No new delegates launched before QA/self gate.",
+  "round4": {
+    "sha": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+    "Muse": {
+      "minimum": 5,
+      "below7": 51
+    },
+    "SolMedium": {
+      "minimum": 4,
+      "below7": 55
+    },
+    "OpusMedium": {
+      "minimum": 2,
+      "below7": 70
+    },
+    "numeric": 210,
+    "below7": 176,
+    "fullscope_pass": false
+  },
+  "private_current_evidence": "/tmp/dive-ui-r5-shots-v10-private.json (latest cumulative originals/metrics), functions store r5shots",
+  "own_current_tab": "tab_1a_c539092e-8e18-4ced-b1f1-786e334b7451",
+  "room_private": "own room stored privately in functions store r5roomURL; never publish invite code",
+  "outstanding": [
+    "Restore supported settled screenshots without authchanges/newlogin",
+    "Complete5size real visualQA and silent timedRoom coverage",
+    "Newfull3councils on correctedSHA; no acceptance yet",
+    "Finish annotated comparable childgallery andPR"
+  ],
+  "running_checks": {},
+  "candidate_source_sha": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+  "actual_room_QA": {
+    "Classic844x390": "Own fresh isolated room; scoped blob readyState4,time8.902; foreground6selected pressed=true,Submit enabled, submitted score12halfsteps and20points verified by read-only own-room API; results actionsbottom286.5visible",
+    "Mole844x390": "Scoring6submitted; vote shows20s countdown,no preselected choice,vote initiallydisabled; deliberateNobody vote persisted and results show Incorrect vote against actualmole; noawards",
+    "GuessCode844x390": "4enabled choices, selected first normalUI; reveal reached, choices disabled; result still to capture",
+    "limitations": "No all-mode/all-five-size claim yet; no numerical self/council score inferred"
+  },
+  "round5_delivery": {
+    "sol_low_01": "incomplete0numeric70missing; no blocker; archived verbatim",
+    "muse": "DELIVERED70numeric,min5,70below7,partial child evidence; no pending delegates",
+    "sol_medium": "pending, no polling",
+    "replacement": "new Sol low task required on same frozenSHA",
+    "sol_low_02": "incomplete0numeric70missing,no blocker; archived. Change to bounded evidence checkpointA for same low seat, then remaining families and full final reevaluation.",
+    "sol_low_A": "partialgrid390viewed;5snapshotstimeout; archived",
+    "sol_medium_01": "incomplete0numeric70missing;actualmedia5size proofs, broad child gaps; archived",
+    "snapshot_recovery": "Own tab fiveLibrarygrid native snapshotsPASS exact sizes/fonts/0animations, documented; no root cause claim",
+    "method": "Bounded FAMILY ONLY scorecards to obtain concrete criticisms; not fullscope approval; a fresh complete final evaluator remains required. Musefull pending, no polling."
+  },
+  "browser_capacity": "Sol low blockedTooManyTabs. Owncurrenttab_xclosed freeing1slot. Seven old same-thread tabs agentMismatch, not closed. One new Sol low retry reservedslot; otherspending notpolled. Noauthchanges.",
+  "visual_blocker": "Native snapshot host repeatedly timesout15000ms, independently reproduced by parent; repeated loops stopped. No alternative supported authenticated browser exposed.",
+  "audio_constraint": "No new playback after explicit user silence request; own currentpagesmediafree; no active reviewers; lockedtabsuntouched",
+  "latest_resumption": {
+    "date": "2026-11-05",
+    "vite_session": 72895,
+    "tunnel_session": 64724,
+    "proxy_target": "https://localhost:6002",
+    "own_tab": "tab_1e_c539092e-8e18-4ced-b1f1-786e334b7451",
+    "auth_me": 200,
+    "library": 200,
+    "checks": "117files960tests PASS; typecheck/buildPASS",
+    "private_manifest": "/tmp/dive-ui-qa-latest-private.json",
+    "threshold_reached": false,
+    "source_sha": "2c07abee70c41844d981ebdb9fa95a3f585bbdc4",
+    "capture_attempts": 230,
+    "room_modes": "Actual5size mutedplayback/scoring/reveal/vote/results with phase-validated captures",
+    "remaining": "run-05/README.md"
+  }
+}

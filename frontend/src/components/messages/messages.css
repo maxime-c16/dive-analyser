@@ -3,12 +3,12 @@
    that plays once and stops under reduced motion. */
 
 /* Same frame as the Library: the layout provides the page padding. */
-.msg-page { --msg-r: 16px; --msg-spring: cubic-bezier(.3, 1.4, .5, 1); --msg-mine: color-mix(in srgb, var(--app-accent) 24%, var(--app-panel)); max-width: 1440px; margin: 0 auto; padding-bottom: 40px; color: var(--app-text); }
+.msg-page { --msg-r: var(--app-surface-radius); --msg-spring: cubic-bezier(.3, 1.4, .5, 1); --msg-mine: color-mix(in srgb, var(--app-accent) 24%, var(--app-panel)); max-width: 1440px; margin: 0 auto; padding-bottom: 40px; color: var(--app-text); }
 .msg-head { position: relative; display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
 .msg-head h1 { flex: 1; min-width: 0; margin: 0; font-size: 30px; font-weight: 600; line-height: 36px; letter-spacing: -.025em; }
 @media (min-width: 640px) { .msg-head h1 { font-size: 36px; line-height: 40px; } }
 
-.msg-new-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 40px; padding: 0 16px 0 12px; border: 0; border-radius: 999px; background: var(--app-accent); color: #06201b; font-size: 14px; font-weight: 650; transition: transform .18s, filter .2s; }
+.msg-new-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 40px; padding: 0 16px 0 12px; border: 0; border-radius: var(--app-control-radius); background: var(--app-accent); color: #06201b; font-size: 14px; font-weight: 650; transition: transform .18s, filter .2s; }
 .msg-new-btn:hover { filter: brightness(1.08); }
 .msg-new-btn:active { transform: scale(.95); }
 @media (max-width: 419px) { .msg-head > .msg-new-btn { width: 40px; padding: 0; } .msg-head > .msg-new-btn span { display: none; } }
@@ -21,7 +21,7 @@
 
 /* ---- Inbox ---- */
 .msg-grid { display: grid; gap: 20px; }
-@media (min-width: 768px) { .msg-grid { grid-template-columns: 340px minmax(0, 1fr); align-items: start; } }
+@media (min-width: 768px) { .msg-grid { grid-template-columns: minmax(220px, 30%) minmax(0, 1fr); align-items: start; } }
 .msg-inbox { display: grid; gap: 2px; align-content: start; min-width: 0; }
 @media (min-width: 768px) { .msg-inbox { position: sticky; top: 16px; max-height: calc(100dvh - 140px); overflow-y: auto; padding: 8px; border: 1px solid var(--app-border); border-radius: var(--msg-r); background: var(--app-panel); } }
 .msg-row { display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 12px; align-items: center; padding: 10px; margin: 0 -10px; border-radius: 16px; color: inherit; text-decoration: none; transition: background-color .2s, transform .18s; animation: msg-pop 380ms var(--msg-spring) backwards; animation-delay: calc(var(--i, 0) * 30ms); }
@@ -58,7 +58,7 @@
 }
 .msg-pick { display: flex; flex-direction: column; gap: 8px; min-height: 0; flex: 1; }
 .msg-pick .msg-search { flex: none; }
-.msg-search { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 14px; border: 1px solid var(--app-border); border-radius: 999px; background: var(--app-bg); color: var(--app-muted); transition: border-color .2s; }
+.msg-search { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 14px; border: 1px solid var(--app-border); border-radius: var(--app-control-radius); background: var(--app-bg); color: var(--app-muted); transition: border-color .2s; }
 .msg-search:focus-within { border-color: var(--app-accent); }
 .msg-search input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--app-text); font-size: 16px; }
 .msg-pick-list { display: grid; align-content: start; gap: 2px; min-height: 0; overflow-y: auto; overscroll-behavior: contain; margin: 0 -6px; padding: 0 6px; }
@@ -79,7 +79,7 @@
 /* ---- Conversation ---- */
 .msg-thread { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; }
 .msg-thread.is-typing { background: var(--app-bg); }
-@media (min-width: 768px) { .msg-thread { height: calc(100dvh - 140px); min-height: 480px; border: 1px solid var(--app-border); border-radius: var(--msg-r); background: var(--app-panel); } }
+@media (min-width: 768px) { .msg-thread { height: calc(100dvh - var(--message-top, 140px) - var(--mobile-nav-offset, 0px) - 16px); min-height: 0; border: 1px solid var(--app-border); border-radius: var(--msg-r); background: var(--app-panel); } }
 .msg-thread-head { display: flex; flex-shrink: 0; align-items: center; gap: 10px; padding: 10px 12px; border-bottom: 1px solid var(--app-border); }
 @media (min-width: 768px) { .msg-back { display: none; } .msg-thread-head { padding: 12px 16px; } }
 /* Phones: the conversation header takes the tab title's place, size and alignment. */
@@ -143,7 +143,7 @@
 .msg-composer .mention-composer textarea { display: block; height: 44px; min-height: 44px; max-height: 140px; padding: 11px 16px; border: 1px solid var(--app-border); border-radius: 22px; background: var(--app-panel-elevated); font-size: 16px; line-height: 1.35; resize: none; transition: border-color .2s; }
 @supports (field-sizing: content) { .msg-composer .mention-composer textarea { height: auto; field-sizing: content; } }
 .msg-composer .mention-composer textarea:focus { border-color: var(--app-accent); outline: 0; }
-.msg-send { display: grid; flex: none; place-items: center; width: 44px; height: 44px; border: 0; border-radius: 999px; background: var(--app-accent); color: #06201b; transition: transform .18s, background-color .2s, color .2s; }
+.msg-send { display: grid; flex: none; place-items: center; min-width: 44px; height: 44px; padding: 0 12px; border: 0; border-radius: 8px; background: var(--app-accent); color: #06201b; font-size:14px; font-weight:600; transition: transform .18s, background-color .2s, color .2s; }
 .msg-send:active:not(:disabled) { transform: scale(.9); }
 .msg-send:disabled { background: var(--app-panel-elevated); color: var(--app-muted); }
 
@@ -202,3 +202,19 @@
 .msg-title-row input:focus { border-color: var(--app-accent); }
 .msg-menu-pop .msg-title-save { display: grid; flex: none; place-items: center; width: 40px; min-height: 40px; padding: 0; border-radius: 999px; background: var(--app-accent); color: #06201b; animation: msg-badge 280ms var(--msg-spring, cubic-bezier(.3, 1.4, .5, 1)) backwards; }
 .msg-name-field { flex: none; color: var(--app-text); }
+
+.msg-sheet-head, .msg-mode, .msg-name-field { flex-shrink:0; }
+@media(min-width:768px) and (max-height:500px) { .msg-head { margin-bottom:8px; } .msg-thread-head { min-height:40px; padding:6px 10px; } .msg-thread { height:calc(100dvh - var(--message-top,80px) - 8px); } .msg-sheet { max-height:calc(100dvh - 76px); } }
+
+/* Compose remains visible across thread/phone breakpoints and short windows. */
+.msg-page > .msg-sheet { position:fixed; top:auto; bottom:0; left:0; right:0; width:auto; max-height:calc(100dvh - 24px); }
+.msg-sheet .msg-pick-list { flex:1; min-height:0; }
+.msg-page:not(.messages-page-thread) .msg-grid { grid-template-columns:minmax(0,1fr); max-width:960px; }
+@media(min-width:768px) {
+ .msg-page > .msg-sheet { top:24px; bottom:auto; left:auto; right:24px; width:min(440px,calc(100vw - 48px)); max-height:calc(100dvh - 48px); }
+ .msg-page > .msg-sheet-backdrop { background:rgba(0,0,0,.35); }
+}
+@media(min-width:768px) and (max-height:500px) {
+ .msg-page > .msg-sheet { top:12px; right:16px; width:min(560px,calc(100vw - 32px)); max-height:calc(100dvh - 24px); gap:8px; padding:12px; }
+ .msg-sheet .msg-sheet-head, .msg-sheet .msg-name-field, .msg-sheet .msg-pick > .msg-search { min-height:40px; }
+}

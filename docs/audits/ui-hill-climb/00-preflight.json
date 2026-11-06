@@ -1,0 +1,381 @@
+{
+  "run": "00-preflight",
+  "baselineCommit": "ef05e126",
+  "candidateOrigin": "http://localhost:4317",
+  "candidateAccount": "unverified-login-required",
+  "productionAccount": "maxime verified /account Signed in as maxime and auth/me 200",
+  "captures": [
+    {
+      "requestedRoute": "/dives",
+      "actualUrl": "https://dive-analyser.tail32dd14.ts.net/dives",
+      "width": 390,
+      "height": 844,
+      "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-dive-analyser-tail32dd14-ts-net-mw1dqtoe-662ded02.png",
+      "settled": false,
+      "status": "captured-unreviewed"
+    },
+    {
+      "requestedRoute": "/dives",
+      "actualUrl": "https://dive-analyser.tail32dd14.ts.net/dives",
+      "width": 844,
+      "height": 390,
+      "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-dive-analyser-tail32dd14-ts-net-mw1dqtv2-dc2c0e65.png",
+      "settled": false,
+      "status": "captured-unreviewed"
+    },
+    {
+      "requestedRoute": "/dives",
+      "actualUrl": "https://dive-analyser.tail32dd14.ts.net/dives",
+      "width": 768,
+      "height": 1024,
+      "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-dive-analyser-tail32dd14-ts-net-mw1dqudd-47dfb1c2.png",
+      "settled": false,
+      "status": "captured-unreviewed"
+    },
+    {
+      "requestedRoute": "/dives",
+      "actualUrl": "https://dive-analyser.tail32dd14.ts.net/dives",
+      "width": 1024,
+      "height": 768,
+      "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-dive-analyser-tail32dd14-ts-net-mw1dqur3-370340d2.png",
+      "settled": false,
+      "status": "captured-unreviewed"
+    },
+    {
+      "requestedRoute": "/dives",
+      "actualUrl": "https://dive-analyser.tail32dd14.ts.net/dives",
+      "width": 1440,
+      "height": 900,
+      "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-dive-analyser-tail32dd14-ts-net-mw1dqvda-32c23f99.png",
+      "settled": false,
+      "status": "captured-unreviewed"
+    },
+    {
+      "requestedRoute": "/community",
+      "actualUrl": "https://dive-analyser.tail32dd14.ts.net/community",
+      "width": 390,
+      "height": 844,
+      "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-dive-analyser-tail32dd14-ts-net-mw1dr28n-0d51925b.png",
+      "settled": false,
+      "status": "captured-unreviewed"
+    },
+    {
+      "requestedRoute": "/community",
+      "actualUrl": "https://dive-analyser.tail32dd14.ts.net/community",
+      "width": 844,
+      "height": 390,
+      "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-dive-analyser-tail32dd14-ts-net-mw1dr2l5-84eb007f.png",
+      "settled": false,
+      "status": "captured-unreviewed"
+    },
+    {
+      "requestedRoute": "/community",
+      "actualUrl": "https://dive-analyser.tail32dd14.ts.net/community",
+      "width": 768,
+      "height": 1024,
+      "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-dive-analyser-tail32dd14-ts-net-mw1dr33v-403badc1.png",
+      "settled": false,
+      "status": "captured-unreviewed"
+    },
+    {
+      "requestedRoute": "/community",
+      "actualUrl": "https://dive-analyser.tail32dd14.ts.net/community",
+      "width": 1024,
+      "height": 768,
+      "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-dive-analyser-tail32dd14-ts-net-mw1dr3di-8b28580f.png",
+      "settled": false,
+      "status": "captured-unreviewed"
+    },
+    {
+      "requestedRoute": "/community",
+      "actualUrl": "https://dive-analyser.tail32dd14.ts.net/community",
+      "width": 1440,
+      "height": 900,
+      "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-dive-analyser-tail32dd14-ts-net-mw1dr3w3-748e8285.png",
+      "settled": false,
+      "status": "captured-unreviewed"
+    },
+    {
+      "requestedRoute": "/calendar",
+      "actualUrl": "https://dive-analyser.tail32dd14.ts.net/calendar",
+      "width": 390,
+      "height": 844,
+      "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-dive-analyser-tail32dd14-ts-net-mw1dr47l-5706376c.png",
+      "settled": false,
+      "status": "captured-unreviewed"
+    },
+    {
+      "requestedRoute": "/calendar",
+      "actualUrl": "https://dive-analyser.tail32dd14.ts.net/calendar",
+      "width": 844,
+      "height": 390,
+      "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-dive-analyser-tail32dd14-ts-net-mw1dr4cu-2152c0eb.png",
+      "settled": false,
+      "status": "captured-unreviewed"
+    },
+    {
+      "requestedRoute": "/calendar",
+      "actualUrl": "https://dive-analyser.tail32dd14.ts.net/calendar",
+      "width": 768,
+      "height": 1024,
+      "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-dive-analyser-tail32dd14-ts-net-mw1dr4nt-8596293e.png",
+      "settled": false,
+      "status": "captured-unreviewed"
+    },
+    {
+      "requestedRoute": "/calendar",
+      "actualUrl": "https://dive-analyser.tail32dd14.ts.net/calendar",
+      "width": 1024,
+      "height": 768,
+      "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-dive-analyser-tail32dd14-ts-net-mw1dr4v6-d42c72ee.png",
+      "settled": false,
+      "status": "captured-unreviewed"
+    },
+    {
+      "requestedRoute": "/calendar",
+      "actualUrl": "https://dive-analyser.tail32dd14.ts.net/calendar",
+      "width": 1440,
+      "height": 900,
+      "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-dive-analyser-tail32dd14-ts-net-mw1dr52y-a423d405.png",
+      "settled": false,
+      "status": "captured-unreviewed"
+    },
+    {
+      "requestedRoute": "/evaluations",
+      "actualUrl": "https://dive-analyser.tail32dd14.ts.net/evaluations",
+      "width": 390,
+      "height": 844,
+      "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-dive-analyser-tail32dd14-ts-net-mw1dr5fi-caf3ec34.png",
+      "settled": false,
+      "status": "captured-unreviewed"
+    },
+    {
+      "requestedRoute": "/evaluations",
+      "actualUrl": "https://dive-analyser.tail32dd14.ts.net/evaluations",
+      "width": 844,
+      "height": 390,
+      "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-dive-analyser-tail32dd14-ts-net-mw1dr5lo-cbf2f91d.png",
+      "settled": false,
+      "status": "captured-unreviewed"
+    },
+    {
+      "requestedRoute": "/evaluations",
+      "actualUrl": "https://dive-analyser.tail32dd14.ts.net/evaluations",
+      "width": 768,
+      "height": 1024,
+      "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-dive-analyser-tail32dd14-ts-net-mw1dr7bg-b9c4712e.png",
+      "settled": false,
+      "status": "captured-unreviewed"
+    },
+    {
+      "requestedRoute": "/evaluations",
+      "actualUrl": "https://dive-analyser.tail32dd14.ts.net/evaluations",
+      "width": 1024,
+      "height": 768,
+      "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-dive-analyser-tail32dd14-ts-net-mw1dr8fh-17f0c99c.png",
+      "settled": false,
+      "status": "captured-unreviewed"
+    },
+    {
+      "requestedRoute": "/evaluations",
+      "actualUrl": "https://dive-analyser.tail32dd14.ts.net/evaluations",
+      "width": 1440,
+      "height": 900,
+      "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-dive-analyser-tail32dd14-ts-net-mw1dr8l6-3251a39b.png",
+      "settled": false,
+      "status": "captured-unreviewed"
+    },
+    {
+      "requestedRoute": "/judge-room",
+      "actualUrl": "https://dive-analyser.tail32dd14.ts.net/judge-room",
+      "width": 390,
+      "height": 844,
+      "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-dive-analyser-tail32dd14-ts-net-mw1dr8wo-1421d4f4.png",
+      "settled": false,
+      "status": "captured-unreviewed"
+    },
+    {
+      "requestedRoute": "/judge-room",
+      "actualUrl": "https://dive-analyser.tail32dd14.ts.net/judge-room",
+      "width": 844,
+      "height": 390,
+      "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-dive-analyser-tail32dd14-ts-net-mw1dr8zj-caa53cf5.png",
+      "settled": false,
+      "status": "captured-unreviewed"
+    },
+    {
+      "requestedRoute": "/judge-room",
+      "actualUrl": "https://dive-analyser.tail32dd14.ts.net/judge-room",
+      "width": 768,
+      "height": 1024,
+      "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-dive-analyser-tail32dd14-ts-net-mw1dr96x-24abe6a7.png",
+      "settled": false,
+      "status": "captured-unreviewed"
+    },
+    {
+      "requestedRoute": "/judge-room",
+      "actualUrl": "https://dive-analyser.tail32dd14.ts.net/judge-room",
+      "width": 1024,
+      "height": 768,
+      "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-dive-analyser-tail32dd14-ts-net-mw1dr9as-319e5fa9.png",
+      "settled": false,
+      "status": "captured-unreviewed"
+    },
+    {
+      "requestedRoute": "/judge-room",
+      "actualUrl": "https://dive-analyser.tail32dd14.ts.net/judge-room",
+      "width": 1440,
+      "height": 900,
+      "screenshotPath": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-dive-analyser-tail32dd14-ts-net-mw1dr9fb-0387719d.png",
+      "settled": false,
+      "status": "captured-unreviewed"
+    }
+  ],
+  "scores": [
+    {
+      "category": 1,
+      "scores": [
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "category": 2,
+      "scores": [
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "category": 3,
+      "scores": [
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "category": 4,
+      "scores": [
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "category": 5,
+      "scores": [
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "category": 6,
+      "scores": [
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "category": 7,
+      "scores": [
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "category": 8,
+      "scores": [
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "category": 9,
+      "scores": [
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "category": 10,
+      "scores": [
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "category": 11,
+      "scores": [
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "category": 12,
+      "scores": [
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "category": 13,
+      "scores": [
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "category": 14,
+      "scores": [
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    }
+  ],
+  "corrections": [
+    "Score card spiral is intentional decoration; not duplicated digits.",
+    "Calendar ERR_NETWORK_CHANGED recovered through Retry.",
+    "Detailed analysis 201C returned 500 then Retry 200; cause unknown."
+  ]
+}

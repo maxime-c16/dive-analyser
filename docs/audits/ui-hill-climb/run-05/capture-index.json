@@ -1,0 +1,4074 @@
+[
+  {
+    "flow": "library",
+    "viewport": [
+      390,
+      844
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "library",
+    "viewport": [
+      844,
+      390
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "library",
+    "viewport": [
+      768,
+      1024
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "library",
+    "viewport": [
+      1024,
+      768
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "library",
+    "viewport": [
+      1440,
+      900
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "library-loaded",
+    "viewport": [
+      390,
+      844
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "library-loaded",
+    "viewport": [
+      844,
+      390
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "library-loaded",
+    "viewport": [
+      768,
+      1024
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "library-loaded",
+    "viewport": [
+      1024,
+      768
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "library-loaded",
+    "viewport": [
+      1440,
+      900
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "codes-loaded",
+    "viewport": [
+      390,
+      844
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "codes-loaded",
+    "viewport": [
+      844,
+      390
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "codes-loaded",
+    "viewport": [
+      768,
+      1024
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "codes-loaded",
+    "viewport": [
+      1024,
+      768
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "codes-loaded",
+    "viewport": [
+      1440,
+      900
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "progress",
+    "viewport": [
+      390,
+      844
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "progress",
+    "viewport": [
+      844,
+      390
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "progress",
+    "viewport": [
+      768,
+      1024
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "progress",
+    "viewport": [
+      1024,
+      768
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "progress",
+    "viewport": [
+      1440,
+      900
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "evaluations",
+    "viewport": [
+      390,
+      844
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 4,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "evaluations",
+    "viewport": [
+      844,
+      390
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 4,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "evaluations",
+    "viewport": [
+      768,
+      1024
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 4,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "evaluations",
+    "viewport": [
+      1024,
+      768
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 4,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "evaluations",
+    "viewport": [
+      1440,
+      900
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 4,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "calendar",
+    "viewport": [
+      390,
+      844
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": true,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": false,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "calendar",
+    "viewport": [
+      844,
+      390
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": true,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": false,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "calendar",
+    "viewport": [
+      768,
+      1024
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": true,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": false,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "calendar",
+    "viewport": [
+      1024,
+      768
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": true,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": false,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "calendar",
+    "viewport": [
+      1440,
+      900
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": true,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": false,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "community",
+    "viewport": [
+      390,
+      844
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": true,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": false,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "community",
+    "viewport": [
+      844,
+      390
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": true,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": false,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "community",
+    "viewport": [
+      768,
+      1024
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 1,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "community",
+    "viewport": [
+      1024,
+      768
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 5,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "community",
+    "viewport": [
+      1440,
+      900
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 2,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "community-settled",
+    "viewport": [
+      390,
+      844
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "community-settled",
+    "viewport": [
+      844,
+      390
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 2,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "community-settled",
+    "viewport": [
+      768,
+      1024
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "community-settled",
+    "viewport": [
+      1024,
+      768
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "community-settled",
+    "viewport": [
+      1440,
+      900
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "evaluations-settled",
+    "viewport": [
+      390,
+      844
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 2,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "evaluations-settled",
+    "viewport": [
+      844,
+      390
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 2,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "evaluations-settled",
+    "viewport": [
+      768,
+      1024
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 2,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "evaluations-settled",
+    "viewport": [
+      1024,
+      768
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 2,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "evaluations-settled",
+    "viewport": [
+      1440,
+      900
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 2,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "calendar-settled",
+    "viewport": [
+      390,
+      844
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 1,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "calendar-settled",
+    "viewport": [
+      844,
+      390
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 1,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "calendar-settled",
+    "viewport": [
+      768,
+      1024
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 1,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "calendar-settled",
+    "viewport": [
+      1024,
+      768
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "calendar-settled",
+    "viewport": [
+      1440,
+      900
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "calendar-detail",
+    "viewport": [
+      390,
+      844
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "calendar-detail",
+    "viewport": [
+      844,
+      390
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "calendar-detail",
+    "viewport": [
+      768,
+      1024
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "calendar-detail",
+    "viewport": [
+      1024,
+      768
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "calendar-detail",
+    "viewport": [
+      1440,
+      900
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "calendar-schedule-form",
+    "viewport": [
+      390,
+      844
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "calendar-schedule-form",
+    "viewport": [
+      844,
+      390
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "calendar-schedule-form",
+    "viewport": [
+      768,
+      1024
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "calendar-schedule-form",
+    "viewport": [
+      1024,
+      768
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "calendar-schedule-form",
+    "viewport": [
+      1440,
+      900
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "201C-overview",
+    "viewport": [
+      390,
+      844
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 9,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "201C-overview",
+    "viewport": [
+      844,
+      390
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 15,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "201C-overview",
+    "viewport": [
+      768,
+      1024
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 9,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "201C-overview",
+    "viewport": [
+      1024,
+      768
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 18,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "201C-overview",
+    "viewport": [
+      1440,
+      900
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 17,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "messages-inbox",
+    "viewport": [
+      390,
+      844
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "messages-inbox",
+    "viewport": [
+      844,
+      390
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "messages-inbox",
+    "viewport": [
+      768,
+      1024
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "messages-inbox",
+    "viewport": [
+      1024,
+      768
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "messages-inbox",
+    "viewport": [
+      1440,
+      900
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "messages-thread",
+    "viewport": [
+      390,
+      844
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "messages-thread",
+    "viewport": [
+      844,
+      390
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "messages-thread",
+    "viewport": [
+      768,
+      1024
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "messages-thread",
+    "viewport": [
+      1024,
+      768
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "messages-thread",
+    "viewport": [
+      1440,
+      900
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "messages-picker",
+    "viewport": [
+      390,
+      844
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "messages-picker",
+    "viewport": [
+      844,
+      390
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "messages-picker",
+    "viewport": [
+      768,
+      1024
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "messages-picker",
+    "viewport": [
+      1024,
+      768
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "messages-picker",
+    "viewport": [
+      1440,
+      900
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "messages-group-draft",
+    "viewport": [
+      390,
+      844
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 3,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "messages-group-draft",
+    "viewport": [
+      844,
+      390
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 3,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "messages-group-draft",
+    "viewport": [
+      768,
+      1024
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "messages-group-draft",
+    "viewport": [
+      1024,
+      768
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "messages-group-draft",
+    "viewport": [
+      1440,
+      900
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "profile-codes-final",
+    "viewport": [
+      390,
+      844
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": true,
+    "source_sha": "2c07abee",
+    "score": null,
+    "inspection": "Five-size contact sheet, supplementary coordinator QA; no design score"
+  },
+  {
+    "flow": "profile-codes-final",
+    "viewport": [
+      844,
+      390
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": true,
+    "source_sha": "2c07abee",
+    "score": null,
+    "inspection": "Five-size contact sheet, supplementary coordinator QA; no design score"
+  },
+  {
+    "flow": "profile-codes-final",
+    "viewport": [
+      768,
+      1024
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": true,
+    "source_sha": "2c07abee",
+    "score": null,
+    "inspection": "Five-size contact sheet, supplementary coordinator QA; no design score"
+  },
+  {
+    "flow": "profile-codes-final",
+    "viewport": [
+      1024,
+      768
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": true,
+    "source_sha": "2c07abee",
+    "score": null,
+    "inspection": "Five-size contact sheet, supplementary coordinator QA; no design score"
+  },
+  {
+    "flow": "profile-codes-final",
+    "viewport": [
+      1440,
+      900
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": true,
+    "source_sha": "2c07abee",
+    "score": null,
+    "inspection": "Five-size contact sheet, supplementary coordinator QA; no design score"
+  },
+  {
+    "flow": "profile-activity",
+    "viewport": [
+      390,
+      844
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 2,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": true,
+    "source_sha": "2c07abee",
+    "score": null,
+    "inspection": "Five-size contact sheet, supplementary coordinator QA; no design score"
+  },
+  {
+    "flow": "profile-activity",
+    "viewport": [
+      844,
+      390
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": true,
+    "source_sha": "2c07abee",
+    "score": null,
+    "inspection": "Five-size contact sheet, supplementary coordinator QA; no design score"
+  },
+  {
+    "flow": "profile-activity",
+    "viewport": [
+      768,
+      1024
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": true,
+    "source_sha": "2c07abee",
+    "score": null,
+    "inspection": "Five-size contact sheet, supplementary coordinator QA; no design score"
+  },
+  {
+    "flow": "profile-activity",
+    "viewport": [
+      1024,
+      768
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": true,
+    "source_sha": "2c07abee",
+    "score": null,
+    "inspection": "Five-size contact sheet, supplementary coordinator QA; no design score"
+  },
+  {
+    "flow": "profile-activity",
+    "viewport": [
+      1440,
+      900
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": true,
+    "source_sha": "2c07abee",
+    "score": null,
+    "inspection": "Five-size contact sheet, supplementary coordinator QA; no design score"
+  },
+  {
+    "flow": "profile-achievements",
+    "viewport": [
+      390,
+      844
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 4,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": true,
+    "source_sha": "2c07abee",
+    "score": null,
+    "inspection": "Five-size contact sheet, supplementary coordinator QA; no design score"
+  },
+  {
+    "flow": "profile-achievements",
+    "viewport": [
+      844,
+      390
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 4,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": false,
+    "visually_reviewed": true,
+    "source_sha": "2c07abee",
+    "score": null,
+    "inspection": "Five-size contact sheet, supplementary coordinator QA; no design score",
+    "exclusion": "Contact inspection: landscape contains unsettled tab placeholders; desktop appears incomplete/corrupt. Not a confirmed product defect; fresh evidence needed."
+  },
+  {
+    "flow": "profile-achievements",
+    "viewport": [
+      768,
+      1024
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 4,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": true,
+    "source_sha": "2c07abee",
+    "score": null,
+    "inspection": "Five-size contact sheet, supplementary coordinator QA; no design score"
+  },
+  {
+    "flow": "profile-achievements",
+    "viewport": [
+      1024,
+      768
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 4,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": true,
+    "source_sha": "2c07abee",
+    "score": null,
+    "inspection": "Five-size contact sheet, supplementary coordinator QA; no design score"
+  },
+  {
+    "flow": "profile-achievements",
+    "viewport": [
+      1440,
+      900
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 4,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": false,
+    "visually_reviewed": true,
+    "source_sha": "2c07abee",
+    "score": null,
+    "inspection": "Five-size contact sheet, supplementary coordinator QA; no design score",
+    "exclusion": "Contact inspection: landscape contains unsettled tab placeholders; desktop appears incomplete/corrupt. Not a confirmed product defect; fresh evidence needed."
+  },
+  {
+    "flow": "evaluation-history",
+    "viewport": [
+      390,
+      844
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": true,
+    "source_sha": "2c07abee",
+    "score": null,
+    "inspection": "Five-size contact sheet, supplementary coordinator QA; no design score"
+  },
+  {
+    "flow": "evaluation-history",
+    "viewport": [
+      844,
+      390
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": true,
+    "source_sha": "2c07abee",
+    "score": null,
+    "inspection": "Five-size contact sheet, supplementary coordinator QA; no design score"
+  },
+  {
+    "flow": "evaluation-history",
+    "viewport": [
+      768,
+      1024
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": true,
+    "source_sha": "2c07abee",
+    "score": null,
+    "inspection": "Five-size contact sheet, supplementary coordinator QA; no design score"
+  },
+  {
+    "flow": "evaluation-history",
+    "viewport": [
+      1024,
+      768
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": true,
+    "source_sha": "2c07abee",
+    "score": null,
+    "inspection": "Five-size contact sheet, supplementary coordinator QA; no design score"
+  },
+  {
+    "flow": "evaluation-history",
+    "viewport": [
+      1440,
+      900
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": true,
+    "source_sha": "2c07abee",
+    "score": null,
+    "inspection": "Five-size contact sheet, supplementary coordinator QA; no design score"
+  },
+  {
+    "flow": "room-muted-lobby-final",
+    "viewport": [
+      390,
+      844
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": false,
+    "eligible_for_visual_inspection": false,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "lobby",
+    "exclusion": "Phase missing or differs from intended capture; retained as historical attempt, no coverage credit"
+  },
+  {
+    "flow": "room-muted-lobby-final",
+    "viewport": [
+      844,
+      390
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": false,
+    "eligible_for_visual_inspection": false,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "lobby",
+    "exclusion": "Phase missing or differs from intended capture; retained as historical attempt, no coverage credit"
+  },
+  {
+    "flow": "room-muted-lobby-final",
+    "viewport": [
+      768,
+      1024
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": false,
+    "eligible_for_visual_inspection": false,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "lobby",
+    "exclusion": "Phase missing or differs from intended capture; retained as historical attempt, no coverage credit"
+  },
+  {
+    "flow": "room-muted-lobby-final",
+    "viewport": [
+      1024,
+      768
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": false,
+    "eligible_for_visual_inspection": false,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "lobby",
+    "exclusion": "Phase missing or differs from intended capture; retained as historical attempt, no coverage credit"
+  },
+  {
+    "flow": "room-muted-lobby-final",
+    "viewport": [
+      1440,
+      900
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": false,
+    "eligible_for_visual_inspection": false,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "lobby",
+    "exclusion": "Phase missing or differs from intended capture; retained as historical attempt, no coverage credit"
+  },
+  {
+    "flow": "room-classic-muted-playback",
+    "viewport": [
+      390,
+      844
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": false,
+    "eligible_for_visual_inspection": false,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "watching",
+    "exclusion": "Phase missing or differs from intended capture; retained as historical attempt, no coverage credit"
+  },
+  {
+    "flow": "room-classic-muted-playback",
+    "viewport": [
+      844,
+      390
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": false,
+    "eligible_for_visual_inspection": false,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "watching",
+    "exclusion": "Phase missing or differs from intended capture; retained as historical attempt, no coverage credit"
+  },
+  {
+    "flow": "room-classic-muted-playback",
+    "viewport": [
+      768,
+      1024
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": false,
+    "eligible_for_visual_inspection": false,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "watching",
+    "exclusion": "Phase missing or differs from intended capture; retained as historical attempt, no coverage credit"
+  },
+  {
+    "flow": "room-classic-muted-playback",
+    "viewport": [
+      1024,
+      768
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": false,
+    "eligible_for_visual_inspection": false,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "watching",
+    "exclusion": "Phase missing or differs from intended capture; retained as historical attempt, no coverage credit"
+  },
+  {
+    "flow": "room-classic-muted-playback",
+    "viewport": [
+      1440,
+      900
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": false,
+    "eligible_for_visual_inspection": false,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "watching",
+    "exclusion": "Phase missing or differs from intended capture; retained as historical attempt, no coverage credit"
+  },
+  {
+    "flow": "room-classic-scoring-6",
+    "viewport": [
+      390,
+      844
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": false,
+    "eligible_for_visual_inspection": false,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "judge",
+    "exclusion": "Phase missing or differs from intended capture; retained as historical attempt, no coverage credit"
+  },
+  {
+    "flow": "room-classic-scoring-6",
+    "viewport": [
+      844,
+      390
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": false,
+    "eligible_for_visual_inspection": false,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "judge",
+    "exclusion": "Phase missing or differs from intended capture; retained as historical attempt, no coverage credit"
+  },
+  {
+    "flow": "room-classic-scoring-6",
+    "viewport": [
+      768,
+      1024
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": false,
+    "eligible_for_visual_inspection": false,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "judge",
+    "exclusion": "Phase missing or differs from intended capture; retained as historical attempt, no coverage credit"
+  },
+  {
+    "flow": "room-classic-scoring-6",
+    "viewport": [
+      1024,
+      768
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": false,
+    "eligible_for_visual_inspection": false,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "judge",
+    "exclusion": "Phase missing or differs from intended capture; retained as historical attempt, no coverage credit"
+  },
+  {
+    "flow": "room-classic-scoring-6",
+    "viewport": [
+      1440,
+      900
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": false,
+    "eligible_for_visual_inspection": false,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "judge",
+    "exclusion": "Phase missing or differs from intended capture; retained as historical attempt, no coverage credit"
+  },
+  {
+    "flow": "room-classic-reveal",
+    "viewport": [
+      390,
+      844
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": false,
+    "eligible_for_visual_inspection": false,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "reveal",
+    "exclusion": "Phase missing or differs from intended capture; retained as historical attempt, no coverage credit"
+  },
+  {
+    "flow": "room-classic-reveal",
+    "viewport": [
+      844,
+      390
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": false,
+    "eligible_for_visual_inspection": false,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "reveal",
+    "exclusion": "Phase missing or differs from intended capture; retained as historical attempt, no coverage credit"
+  },
+  {
+    "flow": "room-classic-reveal",
+    "viewport": [
+      768,
+      1024
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": false,
+    "eligible_for_visual_inspection": false,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "reveal",
+    "exclusion": "Phase missing or differs from intended capture; retained as historical attempt, no coverage credit"
+  },
+  {
+    "flow": "room-classic-reveal",
+    "viewport": [
+      1024,
+      768
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": false,
+    "eligible_for_visual_inspection": false,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "reveal",
+    "exclusion": "Phase missing or differs from intended capture; retained as historical attempt, no coverage credit"
+  },
+  {
+    "flow": "room-classic-reveal",
+    "viewport": [
+      1440,
+      900
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": false,
+    "eligible_for_visual_inspection": false,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "reveal",
+    "exclusion": "Phase missing or differs from intended capture; retained as historical attempt, no coverage credit"
+  },
+  {
+    "flow": "room-classic-results",
+    "viewport": [
+      390,
+      844
+    ],
+    "phase": "ca gm-page gm-phase-results",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": true,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "results"
+  },
+  {
+    "flow": "room-classic-results",
+    "viewport": [
+      844,
+      390
+    ],
+    "phase": "ca gm-page gm-phase-results",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": true,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "results"
+  },
+  {
+    "flow": "room-classic-results",
+    "viewport": [
+      768,
+      1024
+    ],
+    "phase": "ca gm-page gm-phase-results",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": true,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "results"
+  },
+  {
+    "flow": "room-classic-results",
+    "viewport": [
+      1024,
+      768
+    ],
+    "phase": "ca gm-page gm-phase-results",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": true,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "results"
+  },
+  {
+    "flow": "room-classic-results",
+    "viewport": [
+      1440,
+      900
+    ],
+    "phase": "ca gm-page gm-phase-results",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": true,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "results"
+  },
+  {
+    "flow": "room-classic-playing-final",
+    "viewport": [
+      390,
+      844
+    ],
+    "phase": "ca gm-page gm-phase-watching gm-watching",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": true,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "watching"
+  },
+  {
+    "flow": "room-classic-playing-final",
+    "viewport": [
+      844,
+      390
+    ],
+    "phase": "ca gm-page gm-phase-watching gm-watching",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": true,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "watching"
+  },
+  {
+    "flow": "room-classic-playing-final",
+    "viewport": [
+      768,
+      1024
+    ],
+    "phase": "ca gm-page gm-phase-watching gm-watching",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": true,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "watching"
+  },
+  {
+    "flow": "room-classic-playing-final",
+    "viewport": [
+      1024,
+      768
+    ],
+    "phase": "ca gm-page gm-phase-watching gm-watching",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": true,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "watching"
+  },
+  {
+    "flow": "room-classic-playing-final",
+    "viewport": [
+      1440,
+      900
+    ],
+    "phase": "ca gm-page gm-phase-watching gm-watching",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": true,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "watching"
+  },
+  {
+    "flow": "room-classic-score-final",
+    "viewport": [
+      390,
+      844
+    ],
+    "phase": "ca gm-page gm-phase-judge gm-scoring",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": true,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": true,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "judge"
+  },
+  {
+    "flow": "room-classic-score-final",
+    "viewport": [
+      844,
+      390
+    ],
+    "phase": "ca gm-page gm-phase-judge gm-scoring",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": true,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": true,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "judge"
+  },
+  {
+    "flow": "room-classic-score-final",
+    "viewport": [
+      768,
+      1024
+    ],
+    "phase": "ca gm-page gm-phase-judge gm-scoring",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": true,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": true,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "judge"
+  },
+  {
+    "flow": "room-classic-score-final",
+    "viewport": [
+      1024,
+      768
+    ],
+    "phase": "ca gm-page gm-phase-judge gm-scoring",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": true,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": true,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "judge"
+  },
+  {
+    "flow": "room-classic-score-final",
+    "viewport": [
+      1440,
+      900
+    ],
+    "phase": "ca gm-page gm-phase-judge gm-scoring",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": true,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": true,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "judge"
+  },
+  {
+    "flow": "room-classic-submitted-reveal",
+    "viewport": [
+      390,
+      844
+    ],
+    "phase": "ca gm-page gm-phase-results",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": false,
+    "eligible_for_visual_inspection": false,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "reveal",
+    "exclusion": "Phase missing or differs from intended capture; retained as historical attempt, no coverage credit"
+  },
+  {
+    "flow": "room-classic-submitted-reveal",
+    "viewport": [
+      844,
+      390
+    ],
+    "phase": "ca gm-page gm-phase-results",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": false,
+    "eligible_for_visual_inspection": false,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "reveal",
+    "exclusion": "Phase missing or differs from intended capture; retained as historical attempt, no coverage credit"
+  },
+  {
+    "flow": "room-classic-submitted-reveal",
+    "viewport": [
+      768,
+      1024
+    ],
+    "phase": "ca gm-page gm-phase-results",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": false,
+    "eligible_for_visual_inspection": false,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "reveal",
+    "exclusion": "Phase missing or differs from intended capture; retained as historical attempt, no coverage credit"
+  },
+  {
+    "flow": "room-classic-submitted-reveal",
+    "viewport": [
+      1024,
+      768
+    ],
+    "phase": "ca gm-page gm-phase-results",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": false,
+    "eligible_for_visual_inspection": false,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "reveal",
+    "exclusion": "Phase missing or differs from intended capture; retained as historical attempt, no coverage credit"
+  },
+  {
+    "flow": "room-classic-submitted-reveal",
+    "viewport": [
+      1440,
+      900
+    ],
+    "phase": "ca gm-page gm-phase-results",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": false,
+    "eligible_for_visual_inspection": false,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "reveal",
+    "exclusion": "Phase missing or differs from intended capture; retained as historical attempt, no coverage credit"
+  },
+  {
+    "flow": "room-classic-reveal-final",
+    "viewport": [
+      390,
+      844
+    ],
+    "phase": "ca gm-page gm-phase-judge gm-scoring",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": false,
+    "eligible_for_visual_inspection": false,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "reveal",
+    "exclusion": "Phase missing or differs from intended capture; retained as historical attempt, no coverage credit"
+  },
+  {
+    "flow": "room-classic-reveal-final",
+    "viewport": [
+      844,
+      390
+    ],
+    "phase": "ca gm-page gm-phase-judge gm-scoring",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": false,
+    "eligible_for_visual_inspection": false,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "reveal",
+    "exclusion": "Phase missing or differs from intended capture; retained as historical attempt, no coverage credit"
+  },
+  {
+    "flow": "room-classic-reveal-final",
+    "viewport": [
+      768,
+      1024
+    ],
+    "phase": "ca gm-page gm-phase-judge gm-scoring",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": false,
+    "eligible_for_visual_inspection": false,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "reveal",
+    "exclusion": "Phase missing or differs from intended capture; retained as historical attempt, no coverage credit"
+  },
+  {
+    "flow": "room-classic-reveal-final",
+    "viewport": [
+      1024,
+      768
+    ],
+    "phase": "ca gm-page gm-phase-judge gm-scoring",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": false,
+    "eligible_for_visual_inspection": false,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "reveal",
+    "exclusion": "Phase missing or differs from intended capture; retained as historical attempt, no coverage credit"
+  },
+  {
+    "flow": "room-classic-reveal-final",
+    "viewport": [
+      1440,
+      900
+    ],
+    "phase": "ca gm-page gm-phase-judge gm-scoring",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": false,
+    "eligible_for_visual_inspection": false,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "reveal",
+    "exclusion": "Phase missing or differs from intended capture; retained as historical attempt, no coverage credit"
+  },
+  {
+    "flow": "room-classic-results-final",
+    "viewport": [
+      390,
+      844
+    ],
+    "phase": "ca gm-page gm-phase-reveal",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": false,
+    "eligible_for_visual_inspection": false,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "results",
+    "exclusion": "Phase missing or differs from intended capture; retained as historical attempt, no coverage credit"
+  },
+  {
+    "flow": "room-classic-results-final",
+    "viewport": [
+      844,
+      390
+    ],
+    "phase": "ca gm-page gm-phase-reveal",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": false,
+    "eligible_for_visual_inspection": false,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "results",
+    "exclusion": "Phase missing or differs from intended capture; retained as historical attempt, no coverage credit"
+  },
+  {
+    "flow": "room-classic-results-final",
+    "viewport": [
+      768,
+      1024
+    ],
+    "phase": "ca gm-page gm-phase-reveal",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": false,
+    "eligible_for_visual_inspection": false,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "results",
+    "exclusion": "Phase missing or differs from intended capture; retained as historical attempt, no coverage credit"
+  },
+  {
+    "flow": "room-classic-results-final",
+    "viewport": [
+      1024,
+      768
+    ],
+    "phase": "ca gm-page gm-phase-reveal",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": false,
+    "eligible_for_visual_inspection": false,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "results",
+    "exclusion": "Phase missing or differs from intended capture; retained as historical attempt, no coverage credit"
+  },
+  {
+    "flow": "room-classic-results-final",
+    "viewport": [
+      1440,
+      900
+    ],
+    "phase": "ca gm-page gm-phase-reveal",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": false,
+    "eligible_for_visual_inspection": false,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "results",
+    "exclusion": "Phase missing or differs from intended capture; retained as historical attempt, no coverage credit"
+  },
+  {
+    "flow": "room-mole-lobby",
+    "viewport": [
+      390,
+      844
+    ],
+    "phase": "ca gm-page gm-phase-lobby",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": true,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "lobby"
+  },
+  {
+    "flow": "room-mole-lobby",
+    "viewport": [
+      844,
+      390
+    ],
+    "phase": "ca gm-page gm-phase-lobby",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": true,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "lobby"
+  },
+  {
+    "flow": "room-mole-lobby",
+    "viewport": [
+      768,
+      1024
+    ],
+    "phase": "ca gm-page gm-phase-lobby",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": true,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "lobby"
+  },
+  {
+    "flow": "room-mole-lobby",
+    "viewport": [
+      1024,
+      768
+    ],
+    "phase": "ca gm-page gm-phase-lobby",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": true,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "lobby"
+  },
+  {
+    "flow": "room-mole-lobby",
+    "viewport": [
+      1440,
+      900
+    ],
+    "phase": "ca gm-page gm-phase-lobby",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": true,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "lobby"
+  },
+  {
+    "flow": "room-mole-playing",
+    "viewport": [
+      390,
+      844
+    ],
+    "phase": "ca gm-page gm-phase-watching gm-watching",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": true,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "watching"
+  },
+  {
+    "flow": "room-mole-playing",
+    "viewport": [
+      844,
+      390
+    ],
+    "phase": "ca gm-page gm-phase-watching gm-watching",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": true,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "watching"
+  },
+  {
+    "flow": "room-mole-playing",
+    "viewport": [
+      768,
+      1024
+    ],
+    "phase": "ca gm-page gm-phase-watching gm-watching",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": true,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "watching"
+  },
+  {
+    "flow": "room-mole-playing",
+    "viewport": [
+      1024,
+      768
+    ],
+    "phase": "ca gm-page gm-phase-watching gm-watching",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": true,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "watching"
+  },
+  {
+    "flow": "room-mole-playing",
+    "viewport": [
+      1440,
+      900
+    ],
+    "phase": "ca gm-page gm-phase-watching gm-watching",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": true,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "watching"
+  },
+  {
+    "flow": "room-mole-score",
+    "viewport": [
+      390,
+      844
+    ],
+    "phase": "ca gm-page gm-phase-judge gm-scoring",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": true,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "judge"
+  },
+  {
+    "flow": "room-mole-score",
+    "viewport": [
+      844,
+      390
+    ],
+    "phase": "ca gm-page gm-phase-judge gm-scoring",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": true,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "judge"
+  },
+  {
+    "flow": "room-mole-score",
+    "viewport": [
+      768,
+      1024
+    ],
+    "phase": "ca gm-page gm-phase-judge gm-scoring",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": true,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "judge"
+  },
+  {
+    "flow": "room-mole-score",
+    "viewport": [
+      1024,
+      768
+    ],
+    "phase": "ca gm-page gm-phase-judge gm-scoring",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": true,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "judge"
+  },
+  {
+    "flow": "room-mole-score",
+    "viewport": [
+      1440,
+      900
+    ],
+    "phase": "ca gm-page gm-phase-judge gm-scoring",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": true,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "judge"
+  },
+  {
+    "flow": "room-mole-reveal",
+    "viewport": [
+      390,
+      844
+    ],
+    "phase": "ca gm-page gm-phase-reveal",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": true,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": true,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "reveal"
+  },
+  {
+    "flow": "room-mole-reveal",
+    "viewport": [
+      844,
+      390
+    ],
+    "phase": "ca gm-page gm-phase-reveal",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": true,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": true,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "reveal"
+  },
+  {
+    "flow": "room-mole-reveal",
+    "viewport": [
+      768,
+      1024
+    ],
+    "phase": "ca gm-page gm-phase-reveal",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": true,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": true,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "reveal"
+  },
+  {
+    "flow": "room-mole-reveal",
+    "viewport": [
+      1024,
+      768
+    ],
+    "phase": "ca gm-page gm-phase-reveal",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": true,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": true,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "reveal"
+  },
+  {
+    "flow": "room-mole-reveal",
+    "viewport": [
+      1440,
+      900
+    ],
+    "phase": "ca gm-page gm-phase-reveal",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": true,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": true,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "reveal"
+  },
+  {
+    "flow": "room-mole-vote-empty",
+    "viewport": [
+      390,
+      844
+    ],
+    "phase": "ca gm-page gm-phase-mole",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": true,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": true,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "mole"
+  },
+  {
+    "flow": "room-mole-vote-empty",
+    "viewport": [
+      844,
+      390
+    ],
+    "phase": "ca gm-page gm-phase-mole",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": true,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": true,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "mole"
+  },
+  {
+    "flow": "room-mole-vote-empty",
+    "viewport": [
+      768,
+      1024
+    ],
+    "phase": "ca gm-page gm-phase-mole",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": true,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": true,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "mole"
+  },
+  {
+    "flow": "room-mole-vote-empty",
+    "viewport": [
+      1024,
+      768
+    ],
+    "phase": "ca gm-page gm-phase-mole",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": true,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": true,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "mole"
+  },
+  {
+    "flow": "room-mole-vote-empty",
+    "viewport": [
+      1440,
+      900
+    ],
+    "phase": "ca gm-page gm-phase-mole",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": true,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": true,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "mole"
+  },
+  {
+    "flow": "room-mole-results",
+    "viewport": [
+      390,
+      844
+    ],
+    "phase": "ca gm-page gm-phase-results",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": true,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "results"
+  },
+  {
+    "flow": "room-mole-results",
+    "viewport": [
+      844,
+      390
+    ],
+    "phase": "ca gm-page gm-phase-results",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": true,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "results"
+  },
+  {
+    "flow": "room-mole-results",
+    "viewport": [
+      768,
+      1024
+    ],
+    "phase": "ca gm-page gm-phase-results",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": true,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "results"
+  },
+  {
+    "flow": "room-mole-results",
+    "viewport": [
+      1024,
+      768
+    ],
+    "phase": "ca gm-page gm-phase-results",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": true,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "results"
+  },
+  {
+    "flow": "room-mole-results",
+    "viewport": [
+      1440,
+      900
+    ],
+    "phase": "ca gm-page gm-phase-results",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": true,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "results"
+  },
+  {
+    "flow": "room-code-lobby",
+    "viewport": [
+      390,
+      844
+    ],
+    "phase": "ca gm-page gm-phase-lobby",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": true,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "lobby"
+  },
+  {
+    "flow": "room-code-lobby",
+    "viewport": [
+      844,
+      390
+    ],
+    "phase": "ca gm-page gm-phase-lobby",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": true,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "lobby"
+  },
+  {
+    "flow": "room-code-lobby",
+    "viewport": [
+      768,
+      1024
+    ],
+    "phase": "ca gm-page gm-phase-lobby",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": true,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "lobby"
+  },
+  {
+    "flow": "room-code-lobby",
+    "viewport": [
+      1024,
+      768
+    ],
+    "phase": "ca gm-page gm-phase-lobby",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": true,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "lobby"
+  },
+  {
+    "flow": "room-code-lobby",
+    "viewport": [
+      1440,
+      900
+    ],
+    "phase": "ca gm-page gm-phase-lobby",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": true,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "lobby"
+  },
+  {
+    "flow": "room-code-playing",
+    "viewport": [
+      390,
+      844
+    ],
+    "phase": "ca gm-page gm-phase-watching gm-watching",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": true,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "watching"
+  },
+  {
+    "flow": "room-code-playing",
+    "viewport": [
+      844,
+      390
+    ],
+    "phase": "ca gm-page gm-phase-watching gm-watching",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": true,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "watching"
+  },
+  {
+    "flow": "room-code-playing",
+    "viewport": [
+      768,
+      1024
+    ],
+    "phase": "ca gm-page gm-phase-watching gm-watching",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": true,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "watching"
+  },
+  {
+    "flow": "room-code-playing",
+    "viewport": [
+      1024,
+      768
+    ],
+    "phase": "ca gm-page gm-phase-watching gm-watching",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": true,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "watching"
+  },
+  {
+    "flow": "room-code-playing",
+    "viewport": [
+      1440,
+      900
+    ],
+    "phase": "ca gm-page gm-phase-watching gm-watching",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": true,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "watching"
+  },
+  {
+    "flow": "room-code-choices",
+    "viewport": [
+      390,
+      844
+    ],
+    "phase": "ca gm-page gm-phase-judge gm-scoring",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": true,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": null
+  },
+  {
+    "flow": "room-code-choices",
+    "viewport": [
+      844,
+      390
+    ],
+    "phase": "ca gm-page gm-phase-judge gm-scoring",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": true,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": null
+  },
+  {
+    "flow": "room-code-choices",
+    "viewport": [
+      768,
+      1024
+    ],
+    "phase": "ca gm-page gm-phase-judge gm-scoring",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": true,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": null
+  },
+  {
+    "flow": "room-code-choices",
+    "viewport": [
+      1024,
+      768
+    ],
+    "phase": "ca gm-page gm-phase-judge gm-scoring",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": true,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": null
+  },
+  {
+    "flow": "room-code-choices",
+    "viewport": [
+      1440,
+      900
+    ],
+    "phase": "ca gm-page gm-phase-judge gm-scoring",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": true,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": null
+  },
+  {
+    "flow": "room-code-reveal",
+    "viewport": [
+      390,
+      844
+    ],
+    "phase": "ca gm-page gm-phase-reveal",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": true,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "reveal"
+  },
+  {
+    "flow": "room-code-reveal",
+    "viewport": [
+      844,
+      390
+    ],
+    "phase": "ca gm-page gm-phase-reveal",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": true,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "reveal"
+  },
+  {
+    "flow": "room-code-reveal",
+    "viewport": [
+      768,
+      1024
+    ],
+    "phase": "ca gm-page gm-phase-reveal",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": true,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "reveal"
+  },
+  {
+    "flow": "room-code-reveal",
+    "viewport": [
+      1024,
+      768
+    ],
+    "phase": "ca gm-page gm-phase-reveal",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": true,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "reveal"
+  },
+  {
+    "flow": "room-code-reveal",
+    "viewport": [
+      1440,
+      900
+    ],
+    "phase": "ca gm-page gm-phase-reveal",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": true,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "reveal"
+  },
+  {
+    "flow": "room-code-results",
+    "viewport": [
+      390,
+      844
+    ],
+    "phase": "ca gm-page gm-phase-results",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": true,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": true,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "results"
+  },
+  {
+    "flow": "room-code-results",
+    "viewport": [
+      844,
+      390
+    ],
+    "phase": "ca gm-page gm-phase-results",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": true,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": true,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "results"
+  },
+  {
+    "flow": "room-code-results",
+    "viewport": [
+      768,
+      1024
+    ],
+    "phase": "ca gm-page gm-phase-results",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": true,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": true,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "results"
+  },
+  {
+    "flow": "room-code-results",
+    "viewport": [
+      1024,
+      768
+    ],
+    "phase": "ca gm-page gm-phase-results",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": true,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": true,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "results"
+  },
+  {
+    "flow": "room-code-results",
+    "viewport": [
+      1440,
+      900
+    ],
+    "phase": "ca gm-page gm-phase-results",
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": true,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": true,
+    "source_sha": "2c07abee",
+    "score": null,
+    "expected_phase": "results"
+  },
+  {
+    "flow": "201C-details-final",
+    "viewport": [
+      390,
+      844
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "201C-details-final",
+    "viewport": [
+      844,
+      390
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "201C-details-final",
+    "viewport": [
+      768,
+      1024
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "201C-details-final",
+    "viewport": [
+      1024,
+      768
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "201C-details-final",
+    "viewport": [
+      1440,
+      900
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "201C-progression-final",
+    "viewport": [
+      390,
+      844
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "201C-progression-final",
+    "viewport": [
+      844,
+      390
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "201C-progression-final",
+    "viewport": [
+      768,
+      1024
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "201C-progression-final",
+    "viewport": [
+      1024,
+      768
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "201C-progression-final",
+    "viewport": [
+      1440,
+      900
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "201C-inventory-final",
+    "viewport": [
+      390,
+      844
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "201C-inventory-final",
+    "viewport": [
+      844,
+      390
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "201C-inventory-final",
+    "viewport": [
+      768,
+      1024
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "201C-inventory-final",
+    "viewport": [
+      1024,
+      768
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "201C-inventory-final",
+    "viewport": [
+      1440,
+      900
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": false,
+    "overflow": false,
+    "animations": 0,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": true,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "201C-attempt-drawer-final",
+    "viewport": [
+      390,
+      844
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": true,
+    "overflow": false,
+    "animations": 1,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": false,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "201C-attempt-drawer-final",
+    "viewport": [
+      844,
+      390
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": true,
+    "overflow": false,
+    "animations": 1,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": false,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "201C-attempt-drawer-final",
+    "viewport": [
+      768,
+      1024
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": true,
+    "overflow": false,
+    "animations": 1,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": false,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "201C-attempt-drawer-final",
+    "viewport": [
+      1024,
+      768
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": true,
+    "overflow": false,
+    "animations": 1,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": false,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  },
+  {
+    "flow": "201C-attempt-drawer-final",
+    "viewport": [
+      1440,
+      900
+    ],
+    "phase": null,
+    "capture_exists": true,
+    "loading": true,
+    "overflow": false,
+    "animations": 1,
+    "phase_matches_expected": null,
+    "eligible_for_visual_inspection": false,
+    "visually_reviewed": false,
+    "source_sha": "2c07abee",
+    "score": null
+  }
+]

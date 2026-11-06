@@ -158,7 +158,7 @@ export default function MemberProfile() {
     </div>
 
     <header className="cm-hero">
-      <MemberAvatar member={profile} size={96} />
+      <MemberAvatar member={profile} size={72} />
       <div style={{ minWidth: 0 }}>
         <h1>{profile.display_name}</h1>
         {profile.handle && <p className="cm-hero-handle">@{profile.handle}</p>}
@@ -179,7 +179,12 @@ export default function MemberProfile() {
     </header>
     {editing && <ProfileEditor profile={profile} onChange={identity => setProfile(previous => previous ? { ...previous, ...identity } : previous)} onClose={() => setEditing(false)} />}
 
+    <Segmented label={t('community.profileSections')} value={tab} onChange={setTab}
+      options={PROFILE_TABS.map(value => [value, t(`community.${value}`)] as const)} />
+
     {totals && totals.attempt_count > 0 && <section className="ca-panel" aria-label={t('profile.stats')}>
+      <details className="cm-stats">
+      <summary>{t('profile.stats')}</summary>
       <dl className="ca-kpis" style={{ margin: 0 }}>
         <div className="ca-kpi"><dt>{t('profile.kpi.dives')}</dt><dd><CountUp value={totals.attempt_count} digits={0} /></dd></div>
         <div className="ca-kpi"><dt>{t('profile.kpi.codes')}</dt><dd><CountUp value={codes!.codes.length} digits={0} /></dd></div>
@@ -187,16 +192,17 @@ export default function MemberProfile() {
         <div className="ca-kpi"><dt>{t('profile.kpi.last')}</dt><dd>{last ? <><CountUp value={last.count} digits={0} /><small className="ca-kpi-unit">{last.unit}</small></> : '—'}</dd></div>
       </dl>
       {weeks.length > 0 && <>
+        <figure className="cm-weekly-activity"><figcaption>{t('profile.weeklyCounts')}<span>0–{weekMax}</span></figcaption>
         <div className="cm-weeks" aria-label={t('profile.weeksAria', { count: weeks.length })}>
           {weeks.map((week, index) => <i key={week.start} className={week.attempt_count ? '' : 'is-empty'} title={`${week.start} · ${week.attempt_count}`}
             style={{ height: `${Math.max(4, (week.attempt_count / weekMax) * 100)}%`, '--i': index } as CSSProperties} />)}
         </div>
-        <div className="cm-weeks-legend"><span>{format(parseISO(weeks[0].start), 'MMM yy', { locale: appLocale() })}</span><span>{t('profile.thisWeek')}</span></div>
+        <div className="cm-weeks-legend"><span>{format(parseISO(weeks[0].start), 'MMM yy', { locale: appLocale() })}</span><span>{t('profile.thisWeek')}</span></div></figure>
       </>}
+      </details>
     </section>}
 
-    <Segmented label={t('community.profileSections')} value={tab} onChange={setTab}
-      options={PROFILE_TABS.map(value => [value, t(`community.${value}`)] as const)} />
+
 
     {PROFILE_TABS.filter(key => key === tab || opened.has(key)).map(key => <div key={key} className="cm-tabpanel" role="tabpanel" aria-label={t(`community.${key}`)} hidden={key !== tab}>
       {key === 'dives' && <ProfileDiveGrid key={profile.user_id} userId={profile.user_id} />}

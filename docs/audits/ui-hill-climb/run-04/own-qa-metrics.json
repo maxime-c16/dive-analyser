@@ -1,0 +1,2135 @@
+{
+  "candidateSHA": "75f89baa66dd2d18c74ee63b6f01db1f15a78094",
+  "mechanisms": [
+    "native settled screenshots for group5sizes",
+    "live browser DOM/interaction only elsewhere"
+  ],
+  "noDesignScoresInferred": true,
+  "rows": [
+    {
+      "flow": "messages-group-thread-resize",
+      "w": 390,
+      "h": 844,
+      "state": {
+        "composer": {
+          "bottom": 824,
+          "height": 68.59375,
+          "left": 16,
+          "right": 374,
+          "top": 755.40625,
+          "width": 358,
+          "x": 16,
+          "y": 755.40625
+        },
+        "dialog": {
+          "bottom": 844,
+          "height": 820,
+          "left": 0,
+          "right": 390,
+          "top": 24,
+          "width": 390,
+          "x": 0,
+          "y": 24
+        },
+        "dialogHiddenParent": false,
+        "height": 844,
+        "ids": [],
+        "list": {
+          "bottom": 796.5,
+          "height": 576.5,
+          "left": 10,
+          "right": 380,
+          "top": 220,
+          "width": 370,
+          "x": 10,
+          "y": 220
+        },
+        "overflow": false,
+        "panels": [],
+        "ready": "complete",
+        "recipients": 10,
+        "videos": [],
+        "visibility": "visible",
+        "width": 390
+      }
+    },
+    {
+      "flow": "messages-group-thread-resize",
+      "w": 844,
+      "h": 390,
+      "state": {
+        "composer": {
+          "bottom": 381,
+          "height": 66.59375,
+          "left": 283.796875,
+          "right": 819,
+          "top": 314.40625,
+          "width": 535.203125,
+          "x": 283.796875,
+          "y": 314.40625
+        },
+        "dialog": {
+          "bottom": 378,
+          "height": 366,
+          "left": 268,
+          "right": 828,
+          "top": 12,
+          "width": 560,
+          "x": 268,
+          "y": 12
+        },
+        "dialogHiddenParent": false,
+        "height": 390,
+        "ids": [],
+        "list": {
+          "bottom": 337.5,
+          "height": 168.5,
+          "left": 275,
+          "right": 821,
+          "top": 169,
+          "width": 546,
+          "x": 275,
+          "y": 169
+        },
+        "overflow": false,
+        "panels": [],
+        "ready": "complete",
+        "recipients": 10,
+        "videos": [],
+        "visibility": "visible",
+        "width": 844
+      }
+    },
+    {
+      "flow": "messages-group-thread-resize",
+      "w": 768,
+      "h": 1024,
+      "state": {
+        "composer": {
+          "bottom": 1007,
+          "height": 66.59375,
+          "left": 265,
+          "right": 743,
+          "top": 940.40625,
+          "width": 478,
+          "x": 265,
+          "y": 940.40625
+        },
+        "dialog": {
+          "bottom": 665.5,
+          "height": 641.5,
+          "left": 304,
+          "right": 744,
+          "top": 24,
+          "width": 440,
+          "x": 304,
+          "y": 24
+        },
+        "dialogHiddenParent": false,
+        "height": 1024,
+        "ids": [],
+        "list": {
+          "bottom": 619,
+          "height": 420,
+          "left": 313,
+          "right": 735,
+          "top": 199,
+          "width": 422,
+          "x": 313,
+          "y": 199
+        },
+        "overflow": false,
+        "panels": [],
+        "ready": "complete",
+        "recipients": 10,
+        "videos": [],
+        "visibility": "visible",
+        "width": 768
+      }
+    },
+    {
+      "flow": "messages-group-thread-resize",
+      "w": 1024,
+      "h": 768,
+      "state": {
+        "composer": {
+          "bottom": 751,
+          "height": 66.59375,
+          "left": 529,
+          "right": 991,
+          "top": 684.40625,
+          "width": 462,
+          "x": 529,
+          "y": 684.40625
+        },
+        "dialog": {
+          "bottom": 665.5,
+          "height": 641.5,
+          "left": 560,
+          "right": 1000,
+          "top": 24,
+          "width": 440,
+          "x": 560,
+          "y": 24
+        },
+        "dialogHiddenParent": false,
+        "height": 768,
+        "ids": [],
+        "list": {
+          "bottom": 619,
+          "height": 420,
+          "left": 569,
+          "right": 991,
+          "top": 199,
+          "width": 422,
+          "x": 569,
+          "y": 199
+        },
+        "overflow": false,
+        "panels": [],
+        "ready": "complete",
+        "recipients": 10,
+        "videos": [],
+        "visibility": "visible",
+        "width": 1024
+      },
+      "original": "browser-screenshot-localhost-mw3e167d-4ed7367f.png"
+    },
+    {
+      "flow": "messages-group-thread-resize",
+      "w": 1440,
+      "h": 900,
+      "state": {
+        "composer": {
+          "bottom": 883,
+          "height": 66.59375,
+          "left": 645,
+          "right": 1407,
+          "top": 816.40625,
+          "width": 762,
+          "x": 645,
+          "y": 816.40625
+        },
+        "dialog": {
+          "bottom": 665.5,
+          "height": 641.5,
+          "left": 976,
+          "right": 1416,
+          "top": 24,
+          "width": 440,
+          "x": 976,
+          "y": 24
+        },
+        "dialogHiddenParent": false,
+        "height": 900,
+        "ids": [],
+        "list": {
+          "bottom": 619,
+          "height": 420,
+          "left": 985,
+          "right": 1407,
+          "top": 199,
+          "width": 422,
+          "x": 985,
+          "y": 199
+        },
+        "overflow": false,
+        "panels": [],
+        "ready": "complete",
+        "recipients": 10,
+        "videos": [],
+        "visibility": "visible",
+        "width": 1440
+      },
+      "original": "browser-screenshot-localhost-mw3e1705-d0b704c6.png"
+    },
+    {
+      "flow": "messages-group-thread-resize",
+      "w": 390,
+      "h": 844,
+      "state": {
+        "composer": {
+          "bottom": 824,
+          "height": 68.59375,
+          "left": 16,
+          "right": 374,
+          "top": 755.40625,
+          "width": 358,
+          "x": 16,
+          "y": 755.40625
+        },
+        "dialog": {
+          "bottom": 844,
+          "height": 820,
+          "left": 0,
+          "right": 390,
+          "top": 24,
+          "width": 390,
+          "x": 0,
+          "y": 24
+        },
+        "dialogHiddenParent": false,
+        "height": 844,
+        "ids": [],
+        "list": {
+          "bottom": 796.5,
+          "height": 576.5,
+          "left": 10,
+          "right": 380,
+          "top": 220,
+          "width": 370,
+          "x": 10,
+          "y": 220
+        },
+        "overflow": false,
+        "panels": [],
+        "ready": "complete",
+        "recipients": 10,
+        "videos": [],
+        "visibility": "visible",
+        "width": 390
+      },
+      "accepted": true,
+      "original": "browser-screenshot-localhost-mw3e24jz-b8334b0f.png"
+    },
+    {
+      "flow": "messages-group-thread-resize",
+      "w": 844,
+      "h": 390,
+      "state": {
+        "composer": {
+          "bottom": 381,
+          "height": 66.59375,
+          "left": 283.796875,
+          "right": 819,
+          "top": 314.40625,
+          "width": 535.203125,
+          "x": 283.796875,
+          "y": 314.40625
+        },
+        "dialog": {
+          "bottom": 378,
+          "height": 366,
+          "left": 268,
+          "right": 828,
+          "top": 12,
+          "width": 560,
+          "x": 268,
+          "y": 12
+        },
+        "dialogHiddenParent": false,
+        "height": 390,
+        "ids": [],
+        "list": {
+          "bottom": 337.5,
+          "height": 168.5,
+          "left": 275,
+          "right": 821,
+          "top": 169,
+          "width": 546,
+          "x": 275,
+          "y": 169
+        },
+        "overflow": false,
+        "panels": [],
+        "ready": "complete",
+        "recipients": 10,
+        "videos": [],
+        "visibility": "visible",
+        "width": 844
+      },
+      "accepted": true,
+      "original": "browser-screenshot-localhost-mw3e2ka4-06bc3607.png"
+    },
+    {
+      "flow": "messages-group-thread-resize",
+      "w": 768,
+      "h": 1024,
+      "state": {
+        "composer": {
+          "bottom": 1007,
+          "height": 66.59375,
+          "left": 265,
+          "right": 743,
+          "top": 940.40625,
+          "width": 478,
+          "x": 265,
+          "y": 940.40625
+        },
+        "dialog": {
+          "bottom": 665.5,
+          "height": 641.5,
+          "left": 304,
+          "right": 744,
+          "top": 24,
+          "width": 440,
+          "x": 304,
+          "y": 24
+        },
+        "dialogHiddenParent": false,
+        "height": 1024,
+        "ids": [],
+        "list": {
+          "bottom": 619,
+          "height": 420,
+          "left": 313,
+          "right": 735,
+          "top": 199,
+          "width": 422,
+          "x": 313,
+          "y": 199
+        },
+        "overflow": false,
+        "panels": [],
+        "ready": "complete",
+        "recipients": 10,
+        "videos": [],
+        "visibility": "visible",
+        "width": 768
+      },
+      "accepted": true,
+      "original": "browser-screenshot-localhost-mw3e2l79-ac039b25.png"
+    },
+    {
+      "flow": "profile-activity-DOM",
+      "w": 390,
+      "h": 844,
+      "state": {
+        "dialogHiddenParent": false,
+        "height": 844,
+        "ids": [],
+        "overflow": false,
+        "panels": [
+          {
+            "display": "none",
+            "hidden": true,
+            "name": "Dives"
+          },
+          {
+            "display": "block",
+            "hidden": false,
+            "name": "Activity"
+          }
+        ],
+        "ready": "complete",
+        "recipients": 0,
+        "videos": [],
+        "visibility": "visible",
+        "width": 390
+      },
+      "mechanism": "Live browser DOM/interaction only; no screenshot due cross-thread host snapshot timeout",
+      "visuallyVerified": false
+    },
+    {
+      "flow": "profile-activity-DOM",
+      "w": 844,
+      "h": 390,
+      "state": {
+        "dialogHiddenParent": false,
+        "height": 390,
+        "ids": [],
+        "overflow": false,
+        "panels": [
+          {
+            "display": "none",
+            "hidden": true,
+            "name": "Dives"
+          },
+          {
+            "display": "block",
+            "hidden": false,
+            "name": "Activity"
+          }
+        ],
+        "ready": "complete",
+        "recipients": 0,
+        "videos": [],
+        "visibility": "visible",
+        "width": 844
+      },
+      "mechanism": "Live browser DOM/interaction only; no screenshot due cross-thread host snapshot timeout",
+      "visuallyVerified": false
+    },
+    {
+      "flow": "profile-activity-DOM",
+      "w": 768,
+      "h": 1024,
+      "state": {
+        "dialogHiddenParent": false,
+        "height": 1024,
+        "ids": [],
+        "overflow": false,
+        "panels": [
+          {
+            "display": "none",
+            "hidden": true,
+            "name": "Dives"
+          },
+          {
+            "display": "block",
+            "hidden": false,
+            "name": "Activity"
+          }
+        ],
+        "ready": "complete",
+        "recipients": 0,
+        "videos": [],
+        "visibility": "visible",
+        "width": 768
+      },
+      "mechanism": "Live browser DOM/interaction only; no screenshot due cross-thread host snapshot timeout",
+      "visuallyVerified": false
+    },
+    {
+      "flow": "profile-activity-DOM",
+      "w": 1024,
+      "h": 768,
+      "state": {
+        "dialogHiddenParent": false,
+        "height": 768,
+        "ids": [],
+        "overflow": false,
+        "panels": [
+          {
+            "display": "none",
+            "hidden": true,
+            "name": "Dives"
+          },
+          {
+            "display": "block",
+            "hidden": false,
+            "name": "Activity"
+          }
+        ],
+        "ready": "complete",
+        "recipients": 0,
+        "videos": [],
+        "visibility": "visible",
+        "width": 1024
+      },
+      "mechanism": "Live browser DOM/interaction only; no screenshot due cross-thread host snapshot timeout",
+      "visuallyVerified": false
+    },
+    {
+      "flow": "profile-activity-DOM",
+      "w": 1440,
+      "h": 900,
+      "state": {
+        "dialogHiddenParent": false,
+        "height": 900,
+        "ids": [],
+        "overflow": false,
+        "panels": [
+          {
+            "display": "none",
+            "hidden": true,
+            "name": "Dives"
+          },
+          {
+            "display": "block",
+            "hidden": false,
+            "name": "Activity"
+          }
+        ],
+        "ready": "complete",
+        "recipients": 0,
+        "videos": [],
+        "visibility": "visible",
+        "width": 1440
+      },
+      "mechanism": "Live browser DOM/interaction only; no screenshot due cross-thread host snapshot timeout",
+      "visuallyVerified": false
+    },
+    {
+      "flow": "profile-achievements-DOM",
+      "w": 390,
+      "h": 844,
+      "state": {
+        "dialogHiddenParent": false,
+        "height": 844,
+        "ids": [],
+        "overflow": false,
+        "panels": [
+          {
+            "display": "none",
+            "hidden": true,
+            "name": "Dives"
+          },
+          {
+            "display": "none",
+            "hidden": true,
+            "name": "Activity"
+          },
+          {
+            "display": "block",
+            "hidden": false,
+            "name": "Achievements"
+          }
+        ],
+        "ready": "complete",
+        "recipients": 0,
+        "videos": [],
+        "visibility": "visible",
+        "width": 390
+      },
+      "mechanism": "Live browser DOM/interaction only; no screenshot due cross-thread host snapshot timeout",
+      "visuallyVerified": false
+    },
+    {
+      "flow": "profile-achievements-DOM",
+      "w": 844,
+      "h": 390,
+      "state": {
+        "dialogHiddenParent": false,
+        "height": 390,
+        "ids": [],
+        "overflow": false,
+        "panels": [
+          {
+            "display": "none",
+            "hidden": true,
+            "name": "Dives"
+          },
+          {
+            "display": "none",
+            "hidden": true,
+            "name": "Activity"
+          },
+          {
+            "display": "block",
+            "hidden": false,
+            "name": "Achievements"
+          }
+        ],
+        "ready": "complete",
+        "recipients": 0,
+        "videos": [],
+        "visibility": "visible",
+        "width": 844
+      },
+      "mechanism": "Live browser DOM/interaction only; no screenshot due cross-thread host snapshot timeout",
+      "visuallyVerified": false
+    },
+    {
+      "flow": "profile-achievements-DOM",
+      "w": 768,
+      "h": 1024,
+      "state": {
+        "dialogHiddenParent": false,
+        "height": 1024,
+        "ids": [],
+        "overflow": false,
+        "panels": [
+          {
+            "display": "none",
+            "hidden": true,
+            "name": "Dives"
+          },
+          {
+            "display": "none",
+            "hidden": true,
+            "name": "Activity"
+          },
+          {
+            "display": "block",
+            "hidden": false,
+            "name": "Achievements"
+          }
+        ],
+        "ready": "complete",
+        "recipients": 0,
+        "videos": [],
+        "visibility": "visible",
+        "width": 768
+      },
+      "mechanism": "Live browser DOM/interaction only; no screenshot due cross-thread host snapshot timeout",
+      "visuallyVerified": false
+    },
+    {
+      "flow": "profile-achievements-DOM",
+      "w": 1024,
+      "h": 768,
+      "state": {
+        "dialogHiddenParent": false,
+        "height": 768,
+        "ids": [],
+        "overflow": false,
+        "panels": [
+          {
+            "display": "none",
+            "hidden": true,
+            "name": "Dives"
+          },
+          {
+            "display": "none",
+            "hidden": true,
+            "name": "Activity"
+          },
+          {
+            "display": "block",
+            "hidden": false,
+            "name": "Achievements"
+          }
+        ],
+        "ready": "complete",
+        "recipients": 0,
+        "videos": [],
+        "visibility": "visible",
+        "width": 1024
+      },
+      "mechanism": "Live browser DOM/interaction only; no screenshot due cross-thread host snapshot timeout",
+      "visuallyVerified": false
+    },
+    {
+      "flow": "profile-achievements-DOM",
+      "w": 1440,
+      "h": 900,
+      "state": {
+        "dialogHiddenParent": false,
+        "height": 900,
+        "ids": [],
+        "overflow": false,
+        "panels": [
+          {
+            "display": "none",
+            "hidden": true,
+            "name": "Dives"
+          },
+          {
+            "display": "none",
+            "hidden": true,
+            "name": "Activity"
+          },
+          {
+            "display": "block",
+            "hidden": false,
+            "name": "Achievements"
+          }
+        ],
+        "ready": "complete",
+        "recipients": 0,
+        "videos": [],
+        "visibility": "visible",
+        "width": 1440
+      },
+      "mechanism": "Live browser DOM/interaction only; no screenshot due cross-thread host snapshot timeout",
+      "visuallyVerified": false
+    },
+    {
+      "flow": "library-player-DOM-media",
+      "w": 390,
+      "h": 844,
+      "state": {
+        "dialogHiddenParent": false,
+        "height": 844,
+        "ids": [],
+        "overflow": false,
+        "panels": [
+          {
+            "display": "block",
+            "hidden": false,
+            "name": null
+          }
+        ],
+        "ready": "complete",
+        "recipients": 0,
+        "videos": [
+          {
+            "height": 720,
+            "ready": 4,
+            "time": 2.873797,
+            "width": 406
+          }
+        ],
+        "visibility": "visible",
+        "width": 390
+      },
+      "mechanism": "Live browser DOM/interaction only; no screenshot due cross-thread host snapshot timeout",
+      "visuallyVerified": false
+    },
+    {
+      "flow": "library-player-DOM-media",
+      "w": 844,
+      "h": 390,
+      "state": {
+        "dialogHiddenParent": false,
+        "height": 390,
+        "ids": [],
+        "overflow": false,
+        "panels": [
+          {
+            "display": "block",
+            "hidden": false,
+            "name": null
+          }
+        ],
+        "ready": "complete",
+        "recipients": 0,
+        "videos": [
+          {
+            "height": 720,
+            "ready": 4,
+            "time": 4.913629,
+            "width": 406
+          }
+        ],
+        "visibility": "visible",
+        "width": 844
+      },
+      "mechanism": "Live browser DOM/interaction only; no screenshot due cross-thread host snapshot timeout",
+      "visuallyVerified": false
+    },
+    {
+      "flow": "library-player-DOM-media",
+      "w": 768,
+      "h": 1024,
+      "state": {
+        "dialogHiddenParent": false,
+        "height": 1024,
+        "ids": [],
+        "overflow": false,
+        "panels": [
+          {
+            "display": "block",
+            "hidden": false,
+            "name": null
+          }
+        ],
+        "ready": "complete",
+        "recipients": 0,
+        "videos": [
+          {
+            "height": 720,
+            "ready": 4,
+            "time": 6.985925,
+            "width": 406
+          }
+        ],
+        "visibility": "visible",
+        "width": 768
+      },
+      "mechanism": "Live browser DOM/interaction only; no screenshot due cross-thread host snapshot timeout",
+      "visuallyVerified": false
+    },
+    {
+      "flow": "library-player-DOM-media",
+      "w": 1024,
+      "h": 768,
+      "state": {
+        "dialogHiddenParent": false,
+        "height": 768,
+        "ids": [],
+        "overflow": false,
+        "panels": [
+          {
+            "display": "block",
+            "hidden": false,
+            "name": null
+          }
+        ],
+        "ready": "complete",
+        "recipients": 0,
+        "videos": [
+          {
+            "height": 720,
+            "ready": 4,
+            "time": 8.992071,
+            "width": 406
+          }
+        ],
+        "visibility": "visible",
+        "width": 1024
+      },
+      "mechanism": "Live browser DOM/interaction only; no screenshot due cross-thread host snapshot timeout",
+      "visuallyVerified": false
+    },
+    {
+      "flow": "library-player-DOM-media",
+      "w": 1440,
+      "h": 900,
+      "state": {
+        "dialogHiddenParent": false,
+        "height": 900,
+        "ids": [],
+        "overflow": false,
+        "panels": [
+          {
+            "display": "block",
+            "hidden": false,
+            "name": null
+          }
+        ],
+        "ready": "complete",
+        "recipients": 0,
+        "videos": [
+          {
+            "height": 720,
+            "ready": 4,
+            "time": 10.975622,
+            "width": 406
+          }
+        ],
+        "visibility": "visible",
+        "width": 1440
+      },
+      "mechanism": "Live browser DOM/interaction only; no screenshot due cross-thread host snapshot timeout",
+      "visuallyVerified": false
+    },
+    {
+      "flow": "library-codes-collapsed-DOM",
+      "w": 390,
+      "h": 844,
+      "state": {
+        "dialogHiddenParent": false,
+        "height": 844,
+        "ids": [],
+        "overflow": false,
+        "panels": [],
+        "ready": "complete",
+        "recipients": 0,
+        "videos": [],
+        "visibility": "visible",
+        "width": 390
+      },
+      "mechanism": "Live browser DOM/interaction only; no screenshot due cross-thread host snapshot timeout",
+      "visuallyVerified": false
+    },
+    {
+      "flow": "library-codes-collapsed-DOM",
+      "w": 844,
+      "h": 390,
+      "state": {
+        "dialogHiddenParent": false,
+        "height": 390,
+        "ids": [],
+        "overflow": false,
+        "panels": [],
+        "ready": "complete",
+        "recipients": 0,
+        "videos": [],
+        "visibility": "visible",
+        "width": 844
+      },
+      "mechanism": "Live browser DOM/interaction only; no screenshot due cross-thread host snapshot timeout",
+      "visuallyVerified": false
+    },
+    {
+      "flow": "library-codes-collapsed-DOM",
+      "w": 768,
+      "h": 1024,
+      "state": {
+        "dialogHiddenParent": false,
+        "height": 1024,
+        "ids": [],
+        "overflow": false,
+        "panels": [],
+        "ready": "complete",
+        "recipients": 0,
+        "videos": [],
+        "visibility": "visible",
+        "width": 768
+      },
+      "mechanism": "Live browser DOM/interaction only; no screenshot due cross-thread host snapshot timeout",
+      "visuallyVerified": false
+    },
+    {
+      "flow": "library-codes-collapsed-DOM",
+      "w": 1024,
+      "h": 768,
+      "state": {
+        "dialogHiddenParent": false,
+        "height": 768,
+        "ids": [],
+        "overflow": false,
+        "panels": [],
+        "ready": "complete",
+        "recipients": 0,
+        "videos": [],
+        "visibility": "visible",
+        "width": 1024
+      },
+      "mechanism": "Live browser DOM/interaction only; no screenshot due cross-thread host snapshot timeout",
+      "visuallyVerified": false
+    },
+    {
+      "flow": "library-codes-collapsed-DOM",
+      "w": 1440,
+      "h": 900,
+      "state": {
+        "dialogHiddenParent": false,
+        "height": 900,
+        "ids": [],
+        "overflow": false,
+        "panels": [],
+        "ready": "complete",
+        "recipients": 0,
+        "videos": [],
+        "visibility": "visible",
+        "width": 1440
+      },
+      "mechanism": "Live browser DOM/interaction only; no screenshot due cross-thread host snapshot timeout",
+      "visuallyVerified": false
+    },
+    {
+      "flow": "library-code201C-expanded-DOM",
+      "w": 390,
+      "h": 844,
+      "state": {
+        "dialogHiddenParent": false,
+        "height": 844,
+        "ids": [],
+        "overflow": false,
+        "panels": [],
+        "ready": "complete",
+        "recipients": 0,
+        "videos": [],
+        "visibility": "visible",
+        "width": 390
+      },
+      "mechanism": "Live browser DOM/interaction only; no screenshot due cross-thread host snapshot timeout",
+      "visuallyVerified": false
+    },
+    {
+      "flow": "library-code201C-expanded-DOM",
+      "w": 844,
+      "h": 390,
+      "state": {
+        "dialogHiddenParent": false,
+        "height": 390,
+        "ids": [],
+        "overflow": false,
+        "panels": [],
+        "ready": "complete",
+        "recipients": 0,
+        "videos": [],
+        "visibility": "visible",
+        "width": 844
+      },
+      "mechanism": "Live browser DOM/interaction only; no screenshot due cross-thread host snapshot timeout",
+      "visuallyVerified": false
+    },
+    {
+      "flow": "library-code201C-expanded-DOM",
+      "w": 768,
+      "h": 1024,
+      "state": {
+        "dialogHiddenParent": false,
+        "height": 1024,
+        "ids": [],
+        "overflow": false,
+        "panels": [],
+        "ready": "complete",
+        "recipients": 0,
+        "videos": [],
+        "visibility": "visible",
+        "width": 768
+      },
+      "mechanism": "Live browser DOM/interaction only; no screenshot due cross-thread host snapshot timeout",
+      "visuallyVerified": false
+    },
+    {
+      "flow": "library-code201C-expanded-DOM",
+      "w": 1024,
+      "h": 768,
+      "state": {
+        "dialogHiddenParent": false,
+        "height": 768,
+        "ids": [],
+        "overflow": false,
+        "panels": [],
+        "ready": "complete",
+        "recipients": 0,
+        "videos": [],
+        "visibility": "visible",
+        "width": 1024
+      },
+      "mechanism": "Live browser DOM/interaction only; no screenshot due cross-thread host snapshot timeout",
+      "visuallyVerified": false
+    },
+    {
+      "flow": "library-code201C-expanded-DOM",
+      "w": 1440,
+      "h": 900,
+      "state": {
+        "dialogHiddenParent": false,
+        "height": 900,
+        "ids": [],
+        "overflow": false,
+        "panels": [],
+        "ready": "complete",
+        "recipients": 0,
+        "videos": [],
+        "visibility": "visible",
+        "width": 1440
+      },
+      "mechanism": "Live browser DOM/interaction only; no screenshot due cross-thread host snapshot timeout",
+      "visuallyVerified": false
+    },
+    {
+      "flow": "analysis201C-overview-DOM",
+      "w": 390,
+      "h": 844,
+      "state": {
+        "dialogHiddenParent": false,
+        "height": 844,
+        "ids": [],
+        "overflow": false,
+        "panels": [],
+        "ready": "complete",
+        "recipients": 0,
+        "videos": [],
+        "visibility": "visible",
+        "width": 390
+      },
+      "mechanism": "Live browser DOM/interaction only; no screenshot due cross-thread host snapshot timeout",
+      "visuallyVerified": false
+    },
+    {
+      "flow": "analysis201C-overview-DOM",
+      "w": 844,
+      "h": 390,
+      "state": {
+        "dialogHiddenParent": false,
+        "height": 390,
+        "ids": [],
+        "overflow": false,
+        "panels": [],
+        "ready": "complete",
+        "recipients": 0,
+        "videos": [],
+        "visibility": "visible",
+        "width": 844
+      },
+      "mechanism": "Live browser DOM/interaction only; no screenshot due cross-thread host snapshot timeout",
+      "visuallyVerified": false
+    },
+    {
+      "flow": "analysis201C-overview-DOM",
+      "w": 768,
+      "h": 1024,
+      "state": {
+        "dialogHiddenParent": false,
+        "height": 1024,
+        "ids": [],
+        "overflow": false,
+        "panels": [],
+        "ready": "complete",
+        "recipients": 0,
+        "videos": [],
+        "visibility": "visible",
+        "width": 768
+      },
+      "mechanism": "Live browser DOM/interaction only; no screenshot due cross-thread host snapshot timeout",
+      "visuallyVerified": false
+    },
+    {
+      "flow": "analysis201C-overview-DOM",
+      "w": 1024,
+      "h": 768,
+      "state": {
+        "dialogHiddenParent": false,
+        "height": 768,
+        "ids": [],
+        "overflow": false,
+        "panels": [],
+        "ready": "complete",
+        "recipients": 0,
+        "videos": [],
+        "visibility": "visible",
+        "width": 1024
+      },
+      "mechanism": "Live browser DOM/interaction only; no screenshot due cross-thread host snapshot timeout",
+      "visuallyVerified": false
+    },
+    {
+      "flow": "analysis201C-overview-DOM",
+      "w": 1440,
+      "h": 900,
+      "state": {
+        "dialogHiddenParent": false,
+        "height": 900,
+        "ids": [],
+        "overflow": false,
+        "panels": [],
+        "ready": "complete",
+        "recipients": 0,
+        "videos": [],
+        "visibility": "visible",
+        "width": 1440
+      },
+      "mechanism": "Live browser DOM/interaction only; no screenshot due cross-thread host snapshot timeout",
+      "visuallyVerified": false
+    },
+    {
+      "flow": "analysis201C-details-DOM",
+      "w": 390,
+      "h": 844,
+      "state": {
+        "dialogHiddenParent": false,
+        "filtersExpanded": "false",
+        "height": 844,
+        "ids": [],
+        "overflow": false,
+        "panels": [],
+        "ready": "complete",
+        "recipients": 0,
+        "videos": [],
+        "visibility": "visible",
+        "width": 390
+      },
+      "mechanism": "Live browser DOM/interaction only; no screenshot due cross-thread host snapshot timeout",
+      "visuallyVerified": false
+    },
+    {
+      "flow": "analysis201C-details-DOM",
+      "w": 844,
+      "h": 390,
+      "state": {
+        "dialogHiddenParent": false,
+        "filtersExpanded": "false",
+        "height": 390,
+        "ids": [],
+        "overflow": false,
+        "panels": [],
+        "ready": "complete",
+        "recipients": 0,
+        "videos": [],
+        "visibility": "visible",
+        "width": 844
+      },
+      "mechanism": "Live browser DOM/interaction only; no screenshot due cross-thread host snapshot timeout",
+      "visuallyVerified": false
+    },
+    {
+      "flow": "analysis201C-details-DOM",
+      "w": 768,
+      "h": 1024,
+      "state": {
+        "dialogHiddenParent": false,
+        "filtersExpanded": "false",
+        "height": 1024,
+        "ids": [],
+        "overflow": false,
+        "panels": [],
+        "ready": "complete",
+        "recipients": 0,
+        "videos": [],
+        "visibility": "visible",
+        "width": 768
+      },
+      "mechanism": "Live browser DOM/interaction only; no screenshot due cross-thread host snapshot timeout",
+      "visuallyVerified": false
+    },
+    {
+      "flow": "analysis201C-details-DOM",
+      "w": 1024,
+      "h": 768,
+      "state": {
+        "dialogHiddenParent": false,
+        "filtersExpanded": "false",
+        "height": 768,
+        "ids": [],
+        "overflow": false,
+        "panels": [],
+        "ready": "complete",
+        "recipients": 0,
+        "videos": [],
+        "visibility": "visible",
+        "width": 1024
+      },
+      "mechanism": "Live browser DOM/interaction only; no screenshot due cross-thread host snapshot timeout",
+      "visuallyVerified": false
+    },
+    {
+      "flow": "analysis201C-details-DOM",
+      "w": 1440,
+      "h": 900,
+      "state": {
+        "dialogHiddenParent": false,
+        "filtersExpanded": "false",
+        "height": 900,
+        "ids": [],
+        "overflow": false,
+        "panels": [],
+        "ready": "complete",
+        "recipients": 0,
+        "videos": [],
+        "visibility": "visible",
+        "width": 1440
+      },
+      "mechanism": "Live browser DOM/interaction only; no screenshot due cross-thread host snapshot timeout",
+      "visuallyVerified": false
+    },
+    {
+      "flow": "analysis201C-filters-open-DOM",
+      "w": 390,
+      "h": 844,
+      "state": {
+        "dialogHiddenParent": false,
+        "filtersExpanded": "true",
+        "height": 844,
+        "ids": [],
+        "overflow": false,
+        "panels": [],
+        "ready": "complete",
+        "recipients": 0,
+        "videos": [],
+        "visibility": "visible",
+        "width": 390
+      },
+      "mechanism": "Live browser DOM/interaction only; no screenshot due cross-thread host snapshot timeout",
+      "visuallyVerified": false
+    },
+    {
+      "flow": "analysis201C-filters-open-DOM",
+      "w": 844,
+      "h": 390,
+      "state": {
+        "dialogHiddenParent": false,
+        "filtersExpanded": "true",
+        "height": 390,
+        "ids": [],
+        "overflow": false,
+        "panels": [],
+        "ready": "complete",
+        "recipients": 0,
+        "videos": [],
+        "visibility": "visible",
+        "width": 844
+      },
+      "mechanism": "Live browser DOM/interaction only; no screenshot due cross-thread host snapshot timeout",
+      "visuallyVerified": false
+    },
+    {
+      "flow": "analysis201C-filters-open-DOM",
+      "w": 768,
+      "h": 1024,
+      "state": {
+        "dialogHiddenParent": false,
+        "filtersExpanded": "true",
+        "height": 1024,
+        "ids": [],
+        "overflow": false,
+        "panels": [],
+        "ready": "complete",
+        "recipients": 0,
+        "videos": [],
+        "visibility": "visible",
+        "width": 768
+      },
+      "mechanism": "Live browser DOM/interaction only; no screenshot due cross-thread host snapshot timeout",
+      "visuallyVerified": false
+    },
+    {
+      "flow": "analysis201C-filters-open-DOM",
+      "w": 1024,
+      "h": 768,
+      "state": {
+        "dialogHiddenParent": false,
+        "filtersExpanded": "true",
+        "height": 768,
+        "ids": [],
+        "overflow": false,
+        "panels": [],
+        "ready": "complete",
+        "recipients": 0,
+        "videos": [],
+        "visibility": "visible",
+        "width": 1024
+      },
+      "mechanism": "Live browser DOM/interaction only; no screenshot due cross-thread host snapshot timeout",
+      "visuallyVerified": false
+    },
+    {
+      "flow": "analysis201C-filters-open-DOM",
+      "w": 1440,
+      "h": 900,
+      "state": {
+        "dialogHiddenParent": false,
+        "filtersExpanded": "true",
+        "height": 900,
+        "ids": [],
+        "overflow": false,
+        "panels": [],
+        "ready": "complete",
+        "recipients": 0,
+        "videos": [],
+        "visibility": "visible",
+        "width": 1440
+      },
+      "mechanism": "Live browser DOM/interaction only; no screenshot due cross-thread host snapshot timeout",
+      "visuallyVerified": false
+    },
+    {
+      "flow": "analysis201C-filtered3m-loaded-DOM",
+      "w": 390,
+      "h": 844,
+      "state": {
+        "analysisLoaded": true,
+        "chart": {
+          "bottom": 1026.84375,
+          "height": 360,
+          "left": 33,
+          "right": 357,
+          "top": 666.84375,
+          "width": 324,
+          "x": 33,
+          "y": 666.84375
+        },
+        "dialogHiddenParent": false,
+        "filtersExpanded": "false",
+        "height": 844,
+        "ids": [],
+        "overflow": false,
+        "panels": [],
+        "ready": "complete",
+        "recipients": 0,
+        "summary": {
+          "bottom": 507,
+          "height": 227,
+          "left": 16,
+          "right": 374,
+          "top": 280,
+          "width": 358,
+          "x": 16,
+          "y": 280
+        },
+        "videos": [],
+        "visibility": "visible",
+        "width": 390
+      },
+      "mechanism": "Live browser DOM/interaction only; no screenshot due cross-thread host snapshot timeout",
+      "visuallyVerified": false
+    },
+    {
+      "flow": "analysis201C-filtered3m-loaded-DOM",
+      "w": 844,
+      "h": 390,
+      "state": {
+        "analysisLoaded": true,
+        "chart": {
+          "bottom": 956.2421875,
+          "height": 360,
+          "left": 45,
+          "right": 799,
+          "top": 596.2421875,
+          "width": 754,
+          "x": 45,
+          "y": 596.2421875
+        },
+        "dialogHiddenParent": false,
+        "filtersExpanded": "false",
+        "height": 390,
+        "ids": [],
+        "overflow": false,
+        "panels": [],
+        "ready": "complete",
+        "recipients": 0,
+        "summary": {
+          "bottom": 448.59375,
+          "height": 243,
+          "left": 24,
+          "right": 820,
+          "top": 205.59375,
+          "width": 796,
+          "x": 24,
+          "y": 205.59375
+        },
+        "videos": [],
+        "visibility": "visible",
+        "width": 844
+      },
+      "mechanism": "Live browser DOM/interaction only; no screenshot due cross-thread host snapshot timeout",
+      "visuallyVerified": false
+    },
+    {
+      "flow": "analysis201C-filtered3m-loaded-DOM",
+      "w": 768,
+      "h": 1024,
+      "state": {
+        "analysisLoaded": true,
+        "chart": {
+          "bottom": 1014.640625,
+          "height": 360,
+          "left": 45,
+          "right": 723,
+          "top": 654.640625,
+          "width": 678,
+          "x": 45,
+          "y": 654.640625
+        },
+        "dialogHiddenParent": false,
+        "filtersExpanded": "false",
+        "height": 1024,
+        "ids": [],
+        "overflow": false,
+        "panels": [],
+        "ready": "complete",
+        "recipients": 0,
+        "summary": {
+          "bottom": 506.9921875,
+          "height": 243,
+          "left": 24,
+          "right": 744,
+          "top": 263.9921875,
+          "width": 720,
+          "x": 24,
+          "y": 263.9921875
+        },
+        "videos": [],
+        "visibility": "visible",
+        "width": 768
+      },
+      "mechanism": "Live browser DOM/interaction only; no screenshot due cross-thread host snapshot timeout",
+      "visuallyVerified": false
+    },
+    {
+      "flow": "analysis201C-filtered3m-loaded-DOM",
+      "w": 1024,
+      "h": 768,
+      "state": {
+        "analysisLoaded": true,
+        "chart": {
+          "bottom": 880.2421875,
+          "height": 360,
+          "left": 309,
+          "right": 971,
+          "top": 520.2421875,
+          "width": 662,
+          "x": 309,
+          "y": 520.2421875
+        },
+        "dialogHiddenParent": false,
+        "filtersExpanded": "false",
+        "height": 768,
+        "ids": [],
+        "overflow": false,
+        "panels": [],
+        "ready": "complete",
+        "recipients": 0,
+        "summary": {
+          "bottom": 372.59375,
+          "height": 154,
+          "left": 288,
+          "right": 992,
+          "top": 218.59375,
+          "width": 704,
+          "x": 288,
+          "y": 218.59375
+        },
+        "videos": [],
+        "visibility": "visible",
+        "width": 1024
+      },
+      "mechanism": "Live browser DOM/interaction only; no screenshot due cross-thread host snapshot timeout",
+      "visuallyVerified": false
+    },
+    {
+      "flow": "analysis201C-filtered3m-loaded-DOM",
+      "w": 1440,
+      "h": 900,
+      "state": {
+        "analysisLoaded": true,
+        "chart": {
+          "bottom": 860.2421875,
+          "height": 360,
+          "left": 309,
+          "right": 1387,
+          "top": 500.2421875,
+          "width": 1078,
+          "x": 309,
+          "y": 500.2421875
+        },
+        "dialogHiddenParent": false,
+        "filtersExpanded": "false",
+        "height": 900,
+        "ids": [],
+        "overflow": false,
+        "panels": [],
+        "ready": "complete",
+        "recipients": 0,
+        "summary": {
+          "bottom": 352.59375,
+          "height": 134,
+          "left": 288,
+          "right": 1408,
+          "top": 218.59375,
+          "width": 1120,
+          "x": 288,
+          "y": 218.59375
+        },
+        "videos": [],
+        "visibility": "visible",
+        "width": 1440
+      },
+      "mechanism": "Live browser DOM/interaction only; no screenshot due cross-thread host snapshot timeout",
+      "visuallyVerified": false
+    },
+    {
+      "flow": "my-dives-identities-DOM",
+      "w": 390,
+      "h": 844,
+      "state": {
+        "analysisLoaded": false,
+        "dialogHiddenParent": false,
+        "height": 844,
+        "ids": [
+          "#3023",
+          "#3024",
+          "#3025",
+          "#3026",
+          "#3027",
+          "#3028",
+          "#3036",
+          "#3037",
+          "#3038",
+          "#3039",
+          "#3040",
+          "#3041",
+          "#3042",
+          "#3043",
+          "#3044",
+          "#3022",
+          "#3029",
+          "#3030",
+          "#3031",
+          "#3032"
+        ],
+        "overflow": false,
+        "panels": [
+          {
+            "display": "grid",
+            "hidden": false,
+            "name": null
+          }
+        ],
+        "ready": "complete",
+        "recipients": 0,
+        "videos": [],
+        "visibility": "visible",
+        "width": 390
+      },
+      "mechanism": "Live browser DOM/interaction only; no screenshot due cross-thread host snapshot timeout",
+      "visuallyVerified": false
+    },
+    {
+      "flow": "my-dives-identities-DOM",
+      "w": 844,
+      "h": 390,
+      "state": {
+        "analysisLoaded": false,
+        "dialogHiddenParent": false,
+        "height": 390,
+        "ids": [
+          "#3023",
+          "#3024",
+          "#3025",
+          "#3026",
+          "#3027",
+          "#3028",
+          "#3036",
+          "#3037",
+          "#3038",
+          "#3039",
+          "#3040",
+          "#3041",
+          "#3042",
+          "#3043",
+          "#3044",
+          "#3022",
+          "#3029",
+          "#3030",
+          "#3031",
+          "#3032"
+        ],
+        "overflow": false,
+        "panels": [
+          {
+            "display": "grid",
+            "hidden": false,
+            "name": null
+          }
+        ],
+        "ready": "complete",
+        "recipients": 0,
+        "videos": [],
+        "visibility": "visible",
+        "width": 844
+      },
+      "mechanism": "Live browser DOM/interaction only; no screenshot due cross-thread host snapshot timeout",
+      "visuallyVerified": false
+    },
+    {
+      "flow": "my-dives-identities-DOM",
+      "w": 768,
+      "h": 1024,
+      "state": {
+        "analysisLoaded": false,
+        "dialogHiddenParent": false,
+        "height": 1024,
+        "ids": [
+          "#3023",
+          "#3024",
+          "#3025",
+          "#3026",
+          "#3027",
+          "#3028",
+          "#3036",
+          "#3037",
+          "#3038",
+          "#3039",
+          "#3040",
+          "#3041",
+          "#3042",
+          "#3043",
+          "#3044",
+          "#3022",
+          "#3029",
+          "#3030",
+          "#3031",
+          "#3032"
+        ],
+        "overflow": false,
+        "panels": [
+          {
+            "display": "grid",
+            "hidden": false,
+            "name": null
+          }
+        ],
+        "ready": "complete",
+        "recipients": 0,
+        "videos": [],
+        "visibility": "visible",
+        "width": 768
+      },
+      "mechanism": "Live browser DOM/interaction only; no screenshot due cross-thread host snapshot timeout",
+      "visuallyVerified": false
+    },
+    {
+      "flow": "my-dives-identities-DOM",
+      "w": 1024,
+      "h": 768,
+      "state": {
+        "analysisLoaded": false,
+        "dialogHiddenParent": false,
+        "height": 768,
+        "ids": [
+          "#3023",
+          "#3024",
+          "#3025",
+          "#3026",
+          "#3027",
+          "#3028",
+          "#3036",
+          "#3037",
+          "#3038",
+          "#3039",
+          "#3040",
+          "#3041",
+          "#3042",
+          "#3043",
+          "#3044",
+          "#3022",
+          "#3029",
+          "#3030",
+          "#3031",
+          "#3032"
+        ],
+        "overflow": false,
+        "panels": [
+          {
+            "display": "grid",
+            "hidden": false,
+            "name": null
+          }
+        ],
+        "ready": "complete",
+        "recipients": 0,
+        "videos": [],
+        "visibility": "visible",
+        "width": 1024
+      },
+      "mechanism": "Live browser DOM/interaction only; no screenshot due cross-thread host snapshot timeout",
+      "visuallyVerified": false
+    },
+    {
+      "flow": "my-dives-identities-DOM",
+      "w": 1440,
+      "h": 900,
+      "state": {
+        "analysisLoaded": false,
+        "dialogHiddenParent": false,
+        "height": 900,
+        "ids": [
+          "#3023",
+          "#3024",
+          "#3025",
+          "#3026",
+          "#3027",
+          "#3028",
+          "#3036",
+          "#3037",
+          "#3038",
+          "#3039",
+          "#3040",
+          "#3041",
+          "#3042",
+          "#3043",
+          "#3044",
+          "#3022",
+          "#3029",
+          "#3030",
+          "#3031",
+          "#3032"
+        ],
+        "overflow": false,
+        "panels": [
+          {
+            "display": "grid",
+            "hidden": false,
+            "name": null
+          }
+        ],
+        "ready": "complete",
+        "recipients": 0,
+        "videos": [],
+        "visibility": "visible",
+        "width": 1440
+      },
+      "mechanism": "Live browser DOM/interaction only; no screenshot due cross-thread host snapshot timeout",
+      "visuallyVerified": false
+    },
+    {
+      "flow": "messages-inbox-DOM",
+      "w": 390,
+      "h": 844,
+      "state": {
+        "analysisLoaded": false,
+        "dialogHiddenParent": false,
+        "height": 844,
+        "ids": [],
+        "overflow": false,
+        "panels": [],
+        "ready": "complete",
+        "recipients": 0,
+        "videos": [],
+        "visibility": "visible",
+        "width": 390
+      },
+      "mechanism": "Live browser DOM/interaction only; no screenshot due cross-thread host snapshot timeout",
+      "visuallyVerified": false
+    },
+    {
+      "flow": "messages-inbox-DOM",
+      "w": 844,
+      "h": 390,
+      "state": {
+        "analysisLoaded": false,
+        "dialogHiddenParent": false,
+        "height": 390,
+        "ids": [],
+        "overflow": false,
+        "panels": [],
+        "ready": "complete",
+        "recipients": 0,
+        "videos": [],
+        "visibility": "visible",
+        "width": 844
+      },
+      "mechanism": "Live browser DOM/interaction only; no screenshot due cross-thread host snapshot timeout",
+      "visuallyVerified": false
+    },
+    {
+      "flow": "messages-inbox-DOM",
+      "w": 768,
+      "h": 1024,
+      "state": {
+        "analysisLoaded": false,
+        "dialogHiddenParent": false,
+        "height": 1024,
+        "ids": [],
+        "overflow": false,
+        "panels": [],
+        "ready": "complete",
+        "recipients": 0,
+        "videos": [],
+        "visibility": "visible",
+        "width": 768
+      },
+      "mechanism": "Live browser DOM/interaction only; no screenshot due cross-thread host snapshot timeout",
+      "visuallyVerified": false
+    },
+    {
+      "flow": "messages-inbox-DOM",
+      "w": 1024,
+      "h": 768,
+      "state": {
+        "analysisLoaded": false,
+        "dialogHiddenParent": false,
+        "height": 768,
+        "ids": [],
+        "overflow": false,
+        "panels": [],
+        "ready": "complete",
+        "recipients": 0,
+        "videos": [],
+        "visibility": "visible",
+        "width": 1024
+      },
+      "mechanism": "Live browser DOM/interaction only; no screenshot due cross-thread host snapshot timeout",
+      "visuallyVerified": false
+    },
+    {
+      "flow": "messages-inbox-DOM",
+      "w": 1440,
+      "h": 900,
+      "state": {
+        "analysisLoaded": false,
+        "dialogHiddenParent": false,
+        "height": 900,
+        "ids": [],
+        "overflow": false,
+        "panels": [],
+        "ready": "complete",
+        "recipients": 0,
+        "videos": [],
+        "visibility": "visible",
+        "width": 1440
+      },
+      "mechanism": "Live browser DOM/interaction only; no screenshot due cross-thread host snapshot timeout",
+      "visuallyVerified": false
+    },
+    {
+      "flow": "profile-stats-open-DOM",
+      "w": 390,
+      "h": 844,
+      "state": {
+        "analysisLoaded": false,
+        "dialogHiddenParent": false,
+        "height": 844,
+        "ids": [],
+        "overflow": false,
+        "panels": [
+          {
+            "display": "block",
+            "hidden": false,
+            "name": "Dives"
+          }
+        ],
+        "ready": "complete",
+        "recipients": 0,
+        "videos": [],
+        "visibility": "visible",
+        "width": 390
+      },
+      "mechanism": "Live browser DOM/interaction only; no screenshot due cross-thread host snapshot timeout",
+      "visuallyVerified": false
+    },
+    {
+      "flow": "profile-stats-open-DOM",
+      "w": 844,
+      "h": 390,
+      "state": {
+        "analysisLoaded": false,
+        "dialogHiddenParent": false,
+        "height": 390,
+        "ids": [],
+        "overflow": false,
+        "panels": [
+          {
+            "display": "block",
+            "hidden": false,
+            "name": "Dives"
+          }
+        ],
+        "ready": "complete",
+        "recipients": 0,
+        "videos": [],
+        "visibility": "visible",
+        "width": 844
+      },
+      "mechanism": "Live browser DOM/interaction only; no screenshot due cross-thread host snapshot timeout",
+      "visuallyVerified": false
+    },
+    {
+      "flow": "profile-stats-open-DOM",
+      "w": 768,
+      "h": 1024,
+      "state": {
+        "analysisLoaded": false,
+        "dialogHiddenParent": false,
+        "height": 1024,
+        "ids": [],
+        "overflow": false,
+        "panels": [
+          {
+            "display": "block",
+            "hidden": false,
+            "name": "Dives"
+          }
+        ],
+        "ready": "complete",
+        "recipients": 0,
+        "videos": [],
+        "visibility": "visible",
+        "width": 768
+      },
+      "mechanism": "Live browser DOM/interaction only; no screenshot due cross-thread host snapshot timeout",
+      "visuallyVerified": false
+    },
+    {
+      "flow": "profile-stats-open-DOM",
+      "w": 1024,
+      "h": 768,
+      "state": {
+        "analysisLoaded": false,
+        "dialogHiddenParent": false,
+        "height": 768,
+        "ids": [],
+        "overflow": false,
+        "panels": [
+          {
+            "display": "block",
+            "hidden": false,
+            "name": "Dives"
+          }
+        ],
+        "ready": "complete",
+        "recipients": 0,
+        "videos": [],
+        "visibility": "visible",
+        "width": 1024
+      },
+      "mechanism": "Live browser DOM/interaction only; no screenshot due cross-thread host snapshot timeout",
+      "visuallyVerified": false
+    },
+    {
+      "flow": "profile-stats-open-DOM",
+      "w": 1440,
+      "h": 900,
+      "state": {
+        "analysisLoaded": false,
+        "dialogHiddenParent": false,
+        "height": 900,
+        "ids": [],
+        "overflow": false,
+        "panels": [
+          {
+            "display": "block",
+            "hidden": false,
+            "name": "Dives"
+          }
+        ],
+        "ready": "complete",
+        "recipients": 0,
+        "videos": [],
+        "visibility": "visible",
+        "width": 1440
+      },
+      "mechanism": "Live browser DOM/interaction only; no screenshot due cross-thread host snapshot timeout",
+      "visuallyVerified": false
+    },
+    {
+      "flow": "calendar-new-form-DOM",
+      "w": 390,
+      "h": 844,
+      "state": {
+        "analysisLoaded": false,
+        "dialogHiddenParent": false,
+        "height": 844,
+        "ids": [],
+        "overflow": false,
+        "panels": [],
+        "ready": "complete",
+        "recipients": 0,
+        "videos": [],
+        "visibility": "visible",
+        "width": 390
+      },
+      "mechanism": "Live browser DOM/interaction only; no screenshot due cross-thread host snapshot timeout",
+      "visuallyVerified": false
+    },
+    {
+      "flow": "calendar-new-form-DOM",
+      "w": 844,
+      "h": 390,
+      "state": {
+        "analysisLoaded": false,
+        "dialogHiddenParent": false,
+        "height": 390,
+        "ids": [],
+        "overflow": false,
+        "panels": [],
+        "ready": "complete",
+        "recipients": 0,
+        "videos": [],
+        "visibility": "visible",
+        "width": 844
+      },
+      "mechanism": "Live browser DOM/interaction only; no screenshot due cross-thread host snapshot timeout",
+      "visuallyVerified": false
+    },
+    {
+      "flow": "calendar-new-form-DOM",
+      "w": 768,
+      "h": 1024,
+      "state": {
+        "analysisLoaded": false,
+        "dialogHiddenParent": false,
+        "height": 1024,
+        "ids": [],
+        "overflow": false,
+        "panels": [],
+        "ready": "complete",
+        "recipients": 0,
+        "videos": [],
+        "visibility": "visible",
+        "width": 768
+      },
+      "mechanism": "Live browser DOM/interaction only; no screenshot due cross-thread host snapshot timeout",
+      "visuallyVerified": false
+    },
+    {
+      "flow": "calendar-new-form-DOM",
+      "w": 1024,
+      "h": 768,
+      "state": {
+        "analysisLoaded": false,
+        "dialogHiddenParent": false,
+        "height": 768,
+        "ids": [],
+        "overflow": false,
+        "panels": [],
+        "ready": "complete",
+        "recipients": 0,
+        "videos": [],
+        "visibility": "visible",
+        "width": 1024
+      },
+      "mechanism": "Live browser DOM/interaction only; no screenshot due cross-thread host snapshot timeout",
+      "visuallyVerified": false
+    },
+    {
+      "flow": "calendar-new-form-DOM",
+      "w": 1440,
+      "h": 900,
+      "state": {
+        "analysisLoaded": false,
+        "dialogHiddenParent": false,
+        "height": 900,
+        "ids": [],
+        "overflow": false,
+        "panels": [],
+        "ready": "complete",
+        "recipients": 0,
+        "videos": [],
+        "visibility": "visible",
+        "width": 1440
+      },
+      "mechanism": "Live browser DOM/interaction only; no screenshot due cross-thread host snapshot timeout",
+      "visuallyVerified": false
+    }
+  ],
+  "privateFullMetrics": "Full raw geometry retained locally in /tmp/dive-ui-r6-own-qa-complete-dom-private.json; committed rows omit media/message coordinate arrays after sanitized derivation."
+}

@@ -1,0 +1,3402 @@
+{
+  "fullSHA": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+  "notedSHA": "6cb6cff77907e59e809c5f4197a0e107d75ebaf4",
+  "correctedUnreevaluatedSHA": null,
+  "reviewer": {
+    "provider": "codex",
+    "account": "Codex",
+    "model": "gpt-6.1-sol",
+    "reasoningEffort": "medium",
+    "independent": true,
+    "delegates": 0
+  },
+  "candidate": "http://localhost:4317",
+  "identity": {
+    "ownNewTab": true,
+    "reuseExistingTab": false,
+    "profileId": "default",
+    "accountText": "Signed in as maxime",
+    "authMe": {
+      "method": "GET",
+      "status": 200,
+      "display_name": "maxime"
+    },
+    "credentialsChanged": false
+  },
+  "proof": {
+    "HEADVerifiedAtStartAndEnd": true,
+    "servedMarkers": [
+      {
+        "marker": "eval-attempt-date",
+        "path": "/src/components/evaluation/AutomaticScores.tsx",
+        "status": 200
+      },
+      {
+        "marker": "loadAutomaticIdentities",
+        "path": "/src/services/evaluationApi.ts",
+        "status": 200
+      },
+      {
+        "marker": "gm-lobby-mode",
+        "path": "/src/pages/JudgeRoom.tsx",
+        "status": 200
+      }
+    ],
+    "websocket": "Own tab console: WebSocket connected and Heartbeat received for /api/v1/ws/sync",
+    "media": [
+      {
+        "clip": 3044,
+        "readyState": 4,
+        "videoWidth": 406
+      },
+      {
+        "clip": 3028,
+        "readyState": 4,
+        "videoWidth": 404
+      },
+      {
+        "ownRoom112B": true,
+        "readyState": 4,
+        "videoWidth": 720
+      }
+    ],
+    "visibility": "document.visibilityState visible during room games; preview host status itself reports visible:false"
+  },
+  "matrix": [
+    {
+      "category": "Visual hierarchy",
+      "cells": [
+        {
+          "viewport": "390x844",
+          "score": 6,
+          "weakestScreen": "details-expanded-0",
+          "reason": "Detailed analysis gives summary metrics, unavailable comparison and review priority similar prominence.",
+          "fixProposal": "Prioritize the selected dive's trend and representative footage; move unavailable comparisons into secondary disclosure.",
+          "beforeEvidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mnvh3-4830e8f3.png",
+          "afterEvidence": null,
+          "afterStatus": "Proposal only; no source edits or corrected SHA evaluated"
+        },
+        {
+          "viewport": "844x390",
+          "score": 5,
+          "weakestScreen": "details-expanded-0",
+          "reason": "Detailed analysis gives summary metrics, unavailable comparison and review priority similar prominence.",
+          "fixProposal": "Prioritize the selected dive's trend and representative footage; move unavailable comparisons into secondary disclosure.",
+          "beforeEvidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mnwcv-df7b16f1.png",
+          "afterEvidence": null,
+          "afterStatus": "Proposal only; no source edits or corrected SHA evaluated"
+        },
+        {
+          "viewport": "768x1024",
+          "score": 6,
+          "weakestScreen": "details-expanded-0",
+          "reason": "Detailed analysis gives summary metrics, unavailable comparison and review priority similar prominence.",
+          "fixProposal": "Prioritize the selected dive's trend and representative footage; move unavailable comparisons into secondary disclosure.",
+          "beforeEvidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mnxc3-99b9387c.png",
+          "afterEvidence": null,
+          "afterStatus": "Proposal only; no source edits or corrected SHA evaluated"
+        },
+        {
+          "viewport": "1024x768",
+          "score": 6,
+          "weakestScreen": "details-expanded-0",
+          "reason": "Detailed analysis gives summary metrics, unavailable comparison and review priority similar prominence.",
+          "fixProposal": "Prioritize the selected dive's trend and representative footage; move unavailable comparisons into secondary disclosure.",
+          "beforeEvidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mnyg4-6bc471f2.png",
+          "afterEvidence": null,
+          "afterStatus": "Proposal only; no source edits or corrected SHA evaluated"
+        },
+        {
+          "viewport": "1440x900",
+          "score": 6,
+          "weakestScreen": "details-expanded-0",
+          "reason": "Detailed analysis gives summary metrics, unavailable comparison and review priority similar prominence.",
+          "fixProposal": "Prioritize the selected dive's trend and representative footage; move unavailable comparisons into secondary disclosure.",
+          "beforeEvidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mnzit-7f02e524.png",
+          "afterEvidence": null,
+          "afterStatus": "Proposal only; no source edits or corrected SHA evaluated"
+        }
+      ]
+    },
+    {
+      "category": "Layout and density",
+      "cells": [
+        {
+          "viewport": "390x844",
+          "score": 5,
+          "weakestScreen": "details-lower-confirmed-0.55",
+          "reason": "Expanded analysis becomes an exceptionally long attempt inventory; landscape navigation occupies useful viewing space.",
+          "fixProposal": "Page the expanded inventory and keep a compact section index; use a narrower landscape navigation rail.",
+          "beforeEvidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2muy6c-f2a23236.png",
+          "afterEvidence": null,
+          "afterStatus": "Proposal only; no source edits or corrected SHA evaluated"
+        },
+        {
+          "viewport": "844x390",
+          "score": 4,
+          "weakestScreen": "details-lower-confirmed-0.55",
+          "reason": "Expanded analysis becomes an exceptionally long attempt inventory; landscape navigation occupies useful viewing space.",
+          "fixProposal": "Page the expanded inventory and keep a compact section index; use a narrower landscape navigation rail.",
+          "beforeEvidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2muyv4-217d7f03.png",
+          "afterEvidence": null,
+          "afterStatus": "Proposal only; no source edits or corrected SHA evaluated"
+        },
+        {
+          "viewport": "768x1024",
+          "score": 6,
+          "weakestScreen": "details-lower-confirmed-0.55",
+          "reason": "Expanded analysis becomes an exceptionally long attempt inventory; landscape navigation occupies useful viewing space.",
+          "fixProposal": "Page the expanded inventory and keep a compact section index; use a narrower landscape navigation rail.",
+          "beforeEvidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2muzp5-c6f6735d.png",
+          "afterEvidence": null,
+          "afterStatus": "Proposal only; no source edits or corrected SHA evaluated"
+        },
+        {
+          "viewport": "1024x768",
+          "score": 6,
+          "weakestScreen": "details-lower-confirmed-0.55",
+          "reason": "Expanded analysis becomes an exceptionally long attempt inventory; landscape navigation occupies useful viewing space.",
+          "fixProposal": "Page the expanded inventory and keep a compact section index; use a narrower landscape navigation rail.",
+          "beforeEvidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mv0ne-eb777f98.png",
+          "afterEvidence": null,
+          "afterStatus": "Proposal only; no source edits or corrected SHA evaluated"
+        },
+        {
+          "viewport": "1440x900",
+          "score": 6,
+          "weakestScreen": "details-lower-confirmed-0.55",
+          "reason": "Expanded analysis becomes an exceptionally long attempt inventory; landscape navigation occupies useful viewing space.",
+          "fixProposal": "Page the expanded inventory and keep a compact section index; use a narrower landscape navigation rail.",
+          "beforeEvidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mv1j8-06d580b6.png",
+          "afterEvidence": null,
+          "afterStatus": "Proposal only; no source edits or corrected SHA evaluated"
+        }
+      ]
+    },
+    {
+      "category": "Typography",
+      "cells": [
+        {
+          "viewport": "390x844",
+          "score": 6,
+          "weakestScreen": "history-settled",
+          "reason": "History's dive identity and first-judge metadata remain small within broad rows.",
+          "fixProposal": "Increase secondary identity text and use a compact aligned row with explicit date and dive code.",
+          "beforeEvidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mdqz2-d2e54b50.png",
+          "afterEvidence": null,
+          "afterStatus": "Proposal only; no source edits or corrected SHA evaluated"
+        },
+        {
+          "viewport": "844x390",
+          "score": 6,
+          "weakestScreen": "history-settled",
+          "reason": "History's dive identity and first-judge metadata remain small within broad rows.",
+          "fixProposal": "Increase secondary identity text and use a compact aligned row with explicit date and dive code.",
+          "beforeEvidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mdrb6-a75357f5.png",
+          "afterEvidence": null,
+          "afterStatus": "Proposal only; no source edits or corrected SHA evaluated"
+        },
+        {
+          "viewport": "768x1024",
+          "score": 6,
+          "weakestScreen": "history-settled",
+          "reason": "History's dive identity and first-judge metadata remain small within broad rows.",
+          "fixProposal": "Increase secondary identity text and use a compact aligned row with explicit date and dive code.",
+          "beforeEvidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mdrth-8179b474.png",
+          "afterEvidence": null,
+          "afterStatus": "Proposal only; no source edits or corrected SHA evaluated"
+        },
+        {
+          "viewport": "1024x768",
+          "score": 6,
+          "weakestScreen": "history-settled",
+          "reason": "History's dive identity and first-judge metadata remain small within broad rows.",
+          "fixProposal": "Increase secondary identity text and use a compact aligned row with explicit date and dive code.",
+          "beforeEvidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mdskq-4a80dcce.png",
+          "afterEvidence": null,
+          "afterStatus": "Proposal only; no source edits or corrected SHA evaluated"
+        },
+        {
+          "viewport": "1440x900",
+          "score": 6,
+          "weakestScreen": "history-settled",
+          "reason": "History's dive identity and first-judge metadata remain small within broad rows.",
+          "fixProposal": "Increase secondary identity text and use a compact aligned row with explicit date and dive code.",
+          "beforeEvidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mdtdn-412e729d.png",
+          "afterEvidence": null,
+          "afterStatus": "Proposal only; no source edits or corrected SHA evaluated"
+        }
+      ]
+    },
+    {
+      "category": "Color and contrast",
+      "cells": [
+        {
+          "viewport": "390x844",
+          "score": 7,
+          "weakestScreen": "codes-open",
+          "reason": "Primary text and teal selection remain distinguishable; dense colored score chips require deliberate reading.",
+          "fixProposal": "Keep current selection contrast; use restrained score coloring and a readable legend when expanded.",
+          "beforeEvidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m7r3h-de188b22.png",
+          "afterEvidence": null,
+          "afterStatus": "Proposal only; no source edits or corrected SHA evaluated"
+        },
+        {
+          "viewport": "844x390",
+          "score": 7,
+          "weakestScreen": "codes-open",
+          "reason": "Primary text and teal selection remain distinguishable; dense colored score chips require deliberate reading.",
+          "fixProposal": "Keep current selection contrast; use restrained score coloring and a readable legend when expanded.",
+          "beforeEvidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m7r9d-60e4b7fd.png",
+          "afterEvidence": null,
+          "afterStatus": "Proposal only; no source edits or corrected SHA evaluated"
+        },
+        {
+          "viewport": "768x1024",
+          "score": 7,
+          "weakestScreen": "codes-open",
+          "reason": "Primary text and teal selection remain distinguishable; dense colored score chips require deliberate reading.",
+          "fixProposal": "Keep current selection contrast; use restrained score coloring and a readable legend when expanded.",
+          "beforeEvidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m7rj2-89eb6a7b.png",
+          "afterEvidence": null,
+          "afterStatus": "Proposal only; no source edits or corrected SHA evaluated"
+        },
+        {
+          "viewport": "1024x768",
+          "score": 7,
+          "weakestScreen": "codes-open",
+          "reason": "Primary text and teal selection remain distinguishable; dense colored score chips require deliberate reading.",
+          "fixProposal": "Keep current selection contrast; use restrained score coloring and a readable legend when expanded.",
+          "beforeEvidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m7rr4-1df510cd.png",
+          "afterEvidence": null,
+          "afterStatus": "Proposal only; no source edits or corrected SHA evaluated"
+        },
+        {
+          "viewport": "1440x900",
+          "score": 7,
+          "weakestScreen": "codes-open",
+          "reason": "Primary text and teal selection remain distinguishable; dense colored score chips require deliberate reading.",
+          "fixProposal": "Keep current selection contrast; use restrained score coloring and a readable legend when expanded.",
+          "beforeEvidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m7s17-7faf4cd4.png",
+          "afterEvidence": null,
+          "afterStatus": "Proposal only; no source edits or corrected SHA evaluated"
+        }
+      ]
+    },
+    {
+      "category": "Spacing and alignment",
+      "cells": [
+        {
+          "viewport": "390x844",
+          "score": 6,
+          "weakestScreen": "calendar-new",
+          "reason": "The form distributes similar spacing across many controls while its lower actions require scrolling.",
+          "fixProposal": "Group event identity, schedule and venue; align schedule controls and keep save/discard reachable.",
+          "beforeEvidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mf1a5-220d59bd.png",
+          "afterEvidence": null,
+          "afterStatus": "Proposal only; no source edits or corrected SHA evaluated"
+        },
+        {
+          "viewport": "844x390",
+          "score": 5,
+          "weakestScreen": "calendar-new",
+          "reason": "The form distributes similar spacing across many controls while its lower actions require scrolling.",
+          "fixProposal": "Group event identity, schedule and venue; align schedule controls and keep save/discard reachable.",
+          "beforeEvidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mf1eu-e12e2c8d.png",
+          "afterEvidence": null,
+          "afterStatus": "Proposal only; no source edits or corrected SHA evaluated"
+        },
+        {
+          "viewport": "768x1024",
+          "score": 6,
+          "weakestScreen": "calendar-new",
+          "reason": "The form distributes similar spacing across many controls while its lower actions require scrolling.",
+          "fixProposal": "Group event identity, schedule and venue; align schedule controls and keep save/discard reachable.",
+          "beforeEvidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mf1m3-f686adae.png",
+          "afterEvidence": null,
+          "afterStatus": "Proposal only; no source edits or corrected SHA evaluated"
+        },
+        {
+          "viewport": "1024x768",
+          "score": 6,
+          "weakestScreen": "calendar-new",
+          "reason": "The form distributes similar spacing across many controls while its lower actions require scrolling.",
+          "fixProposal": "Group event identity, schedule and venue; align schedule controls and keep save/discard reachable.",
+          "beforeEvidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mf1qy-b23ed511.png",
+          "afterEvidence": null,
+          "afterStatus": "Proposal only; no source edits or corrected SHA evaluated"
+        },
+        {
+          "viewport": "1440x900",
+          "score": 6,
+          "weakestScreen": "calendar-new",
+          "reason": "The form distributes similar spacing across many controls while its lower actions require scrolling.",
+          "fixProposal": "Group event identity, schedule and venue; align schedule controls and keep save/discard reachable.",
+          "beforeEvidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mf1wj-a99f1544.png",
+          "afterEvidence": null,
+          "afterStatus": "Proposal only; no source edits or corrected SHA evaluated"
+        }
+      ]
+    },
+    {
+      "category": "Navigation and orientation",
+      "cells": [
+        {
+          "viewport": "390x844",
+          "score": 6,
+          "weakestScreen": "analysis201C-settled",
+          "reason": "The floating icon navigation competes with analysis in short layouts; long child pages lose section orientation.",
+          "fixProposal": "Use compact landscape navigation and a persistent local section index for long analysis.",
+          "beforeEvidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mbid2-b474f812.png",
+          "afterEvidence": null,
+          "afterStatus": "Proposal only; no source edits or corrected SHA evaluated"
+        },
+        {
+          "viewport": "844x390",
+          "score": 5,
+          "weakestScreen": "analysis201C-settled",
+          "reason": "The floating icon navigation competes with analysis in short layouts; long child pages lose section orientation.",
+          "fixProposal": "Use compact landscape navigation and a persistent local section index for long analysis.",
+          "beforeEvidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mbiry-62ceede0.png",
+          "afterEvidence": null,
+          "afterStatus": "Proposal only; no source edits or corrected SHA evaluated"
+        },
+        {
+          "viewport": "768x1024",
+          "score": 6,
+          "weakestScreen": "analysis201C-settled",
+          "reason": "The floating icon navigation competes with analysis in short layouts; long child pages lose section orientation.",
+          "fixProposal": "Use compact landscape navigation and a persistent local section index for long analysis.",
+          "beforeEvidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mbjl8-59a6344d.png",
+          "afterEvidence": null,
+          "afterStatus": "Proposal only; no source edits or corrected SHA evaluated"
+        },
+        {
+          "viewport": "1024x768",
+          "score": 7,
+          "weakestScreen": "analysis201C-settled",
+          "reason": "The floating icon navigation competes with analysis in short layouts; long child pages lose section orientation.",
+          "fixProposal": "Use compact landscape navigation and a persistent local section index for long analysis.",
+          "beforeEvidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mbl7d-fc0c407d.png",
+          "afterEvidence": null,
+          "afterStatus": "Proposal only; no source edits or corrected SHA evaluated"
+        },
+        {
+          "viewport": "1440x900",
+          "score": 7,
+          "weakestScreen": "analysis201C-settled",
+          "reason": "The floating icon navigation competes with analysis in short layouts; long child pages lose section orientation.",
+          "fixProposal": "Use compact landscape navigation and a persistent local section index for long analysis.",
+          "beforeEvidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mbm16-2dd238b1.png",
+          "afterEvidence": null,
+          "afterStatus": "Proposal only; no source edits or corrected SHA evaluated"
+        }
+      ]
+    },
+    {
+      "category": "Control clarity",
+      "cells": [
+        {
+          "viewport": "390x844",
+          "score": 6,
+          "weakestScreen": "message-group-draft",
+          "reason": "The group draft's Create action and member selection sit in a constrained popover or bottom sheet.",
+          "fixProposal": "Keep Create adjacent to selected-member count and ensure the picker remains scrollable above navigation.",
+          "beforeEvidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mkx9s-0d9965ff.png",
+          "afterEvidence": null,
+          "afterStatus": "Proposal only; no source edits or corrected SHA evaluated"
+        },
+        {
+          "viewport": "844x390",
+          "score": 6,
+          "weakestScreen": "message-group-draft",
+          "reason": "The group draft's Create action and member selection sit in a constrained popover or bottom sheet.",
+          "fixProposal": "Keep Create adjacent to selected-member count and ensure the picker remains scrollable above navigation.",
+          "beforeEvidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mky9v-b7af352c.png",
+          "afterEvidence": null,
+          "afterStatus": "Proposal only; no source edits or corrected SHA evaluated"
+        },
+        {
+          "viewport": "768x1024",
+          "score": 7,
+          "weakestScreen": "message-group-draft",
+          "reason": "The group draft's Create action and member selection sit in a constrained popover or bottom sheet.",
+          "fixProposal": "Keep Create adjacent to selected-member count and ensure the picker remains scrollable above navigation.",
+          "beforeEvidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mkyph-5c7d6890.png",
+          "afterEvidence": null,
+          "afterStatus": "Proposal only; no source edits or corrected SHA evaluated"
+        },
+        {
+          "viewport": "1024x768",
+          "score": 7,
+          "weakestScreen": "message-group-draft",
+          "reason": "The group draft's Create action and member selection sit in a constrained popover or bottom sheet.",
+          "fixProposal": "Keep Create adjacent to selected-member count and ensure the picker remains scrollable above navigation.",
+          "beforeEvidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mkyuz-5053db05.png",
+          "afterEvidence": null,
+          "afterStatus": "Proposal only; no source edits or corrected SHA evaluated"
+        },
+        {
+          "viewport": "1440x900",
+          "score": 7,
+          "weakestScreen": "message-group-draft",
+          "reason": "The group draft's Create action and member selection sit in a constrained popover or bottom sheet.",
+          "fixProposal": "Keep Create adjacent to selected-member count and ensure the picker remains scrollable above navigation.",
+          "beforeEvidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mkz8x-d62f239c.png",
+          "afterEvidence": null,
+          "afterStatus": "Proposal only; no source edits or corrected SHA evaluated"
+        }
+      ]
+    },
+    {
+      "category": "Terminology and instructions",
+      "cells": [
+        {
+          "viewport": "390x844",
+          "score": 5,
+          "weakestScreen": "details-expanded-650",
+          "reason": "Personal Dive Value, Technical magnitude and bounded-period comparison demand interpretation before useful action.",
+          "fixProposal": "Explain each analytical measure at its point of use and replace implementation-oriented period wording with date selection.",
+          "beforeEvidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mnvpm-6e9c1900.png",
+          "afterEvidence": null,
+          "afterStatus": "Proposal only; no source edits or corrected SHA evaluated"
+        },
+        {
+          "viewport": "844x390",
+          "score": 5,
+          "weakestScreen": "details-expanded-650",
+          "reason": "Personal Dive Value, Technical magnitude and bounded-period comparison demand interpretation before useful action.",
+          "fixProposal": "Explain each analytical measure at its point of use and replace implementation-oriented period wording with date selection.",
+          "beforeEvidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mnwmj-3995dc76.png",
+          "afterEvidence": null,
+          "afterStatus": "Proposal only; no source edits or corrected SHA evaluated"
+        },
+        {
+          "viewport": "768x1024",
+          "score": 5,
+          "weakestScreen": "details-expanded-650",
+          "reason": "Personal Dive Value, Technical magnitude and bounded-period comparison demand interpretation before useful action.",
+          "fixProposal": "Explain each analytical measure at its point of use and replace implementation-oriented period wording with date selection.",
+          "beforeEvidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mnxm4-73309f22.png",
+          "afterEvidence": null,
+          "afterStatus": "Proposal only; no source edits or corrected SHA evaluated"
+        },
+        {
+          "viewport": "1024x768",
+          "score": 5,
+          "weakestScreen": "details-expanded-650",
+          "reason": "Personal Dive Value, Technical magnitude and bounded-period comparison demand interpretation before useful action.",
+          "fixProposal": "Explain each analytical measure at its point of use and replace implementation-oriented period wording with date selection.",
+          "beforeEvidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mnytf-88a0f309.png",
+          "afterEvidence": null,
+          "afterStatus": "Proposal only; no source edits or corrected SHA evaluated"
+        },
+        {
+          "viewport": "1440x900",
+          "score": 5,
+          "weakestScreen": "details-expanded-650",
+          "reason": "Personal Dive Value, Technical magnitude and bounded-period comparison demand interpretation before useful action.",
+          "fixProposal": "Explain each analytical measure at its point of use and replace implementation-oriented period wording with date selection.",
+          "beforeEvidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mo00f-c1d26398.png",
+          "afterEvidence": null,
+          "afterStatus": "Proposal only; no source edits or corrected SHA evaluated"
+        }
+      ]
+    },
+    {
+      "category": "Component consistency",
+      "cells": [
+        {
+          "viewport": "390x844",
+          "score": 6,
+          "weakestScreen": "judging-draft6",
+          "reason": "Physical score card, compact numeric grid, pills and rounded player controls form visibly different control vocabularies.",
+          "fixProposal": "Unify type scale, button dimensions and selected-state styling while preserving intentional score-card artwork.",
+          "beforeEvidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mmf6c-4f3e2bc3.png",
+          "afterEvidence": null,
+          "afterStatus": "Proposal only; no source edits or corrected SHA evaluated"
+        },
+        {
+          "viewport": "844x390",
+          "score": 6,
+          "weakestScreen": "judging-draft6",
+          "reason": "Physical score card, compact numeric grid, pills and rounded player controls form visibly different control vocabularies.",
+          "fixProposal": "Unify type scale, button dimensions and selected-state styling while preserving intentional score-card artwork.",
+          "beforeEvidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mmfd1-0b63ec74.png",
+          "afterEvidence": null,
+          "afterStatus": "Proposal only; no source edits or corrected SHA evaluated"
+        },
+        {
+          "viewport": "768x1024",
+          "score": 6,
+          "weakestScreen": "judging-draft6",
+          "reason": "Physical score card, compact numeric grid, pills and rounded player controls form visibly different control vocabularies.",
+          "fixProposal": "Unify type scale, button dimensions and selected-state styling while preserving intentional score-card artwork.",
+          "beforeEvidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mmfr4-a92e05cc.png",
+          "afterEvidence": null,
+          "afterStatus": "Proposal only; no source edits or corrected SHA evaluated"
+        },
+        {
+          "viewport": "1024x768",
+          "score": 6,
+          "weakestScreen": "judging-draft6",
+          "reason": "Physical score card, compact numeric grid, pills and rounded player controls form visibly different control vocabularies.",
+          "fixProposal": "Unify type scale, button dimensions and selected-state styling while preserving intentional score-card artwork.",
+          "beforeEvidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mmg42-ff491f5c.png",
+          "afterEvidence": null,
+          "afterStatus": "Proposal only; no source edits or corrected SHA evaluated"
+        },
+        {
+          "viewport": "1440x900",
+          "score": 6,
+          "weakestScreen": "judging-draft6",
+          "reason": "Physical score card, compact numeric grid, pills and rounded player controls form visibly different control vocabularies.",
+          "fixProposal": "Unify type scale, button dimensions and selected-state styling while preserving intentional score-card artwork.",
+          "beforeEvidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mmgme-76b848f6.png",
+          "afterEvidence": null,
+          "afterStatus": "Proposal only; no source edits or corrected SHA evaluated"
+        }
+      ]
+    },
+    {
+      "category": "Task content presentation",
+      "cells": [
+        {
+          "viewport": "390x844",
+          "score": 5,
+          "weakestScreen": "analysis201C-settled",
+          "reason": "The overview chart and metrics dominate; landscape shows little task footage or trend context without scrolling.",
+          "fixProposal": "Give the selected trend a useful minimum height and pair it with one representative attempt.",
+          "beforeEvidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mbid2-b474f812.png",
+          "afterEvidence": null,
+          "afterStatus": "Proposal only; no source edits or corrected SHA evaluated"
+        },
+        {
+          "viewport": "844x390",
+          "score": 4,
+          "weakestScreen": "analysis201C-settled",
+          "reason": "The overview chart and metrics dominate; landscape shows little task footage or trend context without scrolling.",
+          "fixProposal": "Give the selected trend a useful minimum height and pair it with one representative attempt.",
+          "beforeEvidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mbiry-62ceede0.png",
+          "afterEvidence": null,
+          "afterStatus": "Proposal only; no source edits or corrected SHA evaluated"
+        },
+        {
+          "viewport": "768x1024",
+          "score": 6,
+          "weakestScreen": "analysis201C-settled",
+          "reason": "The overview chart and metrics dominate; landscape shows little task footage or trend context without scrolling.",
+          "fixProposal": "Give the selected trend a useful minimum height and pair it with one representative attempt.",
+          "beforeEvidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mbjl8-59a6344d.png",
+          "afterEvidence": null,
+          "afterStatus": "Proposal only; no source edits or corrected SHA evaluated"
+        },
+        {
+          "viewport": "1024x768",
+          "score": 6,
+          "weakestScreen": "analysis201C-settled",
+          "reason": "The overview chart and metrics dominate; landscape shows little task footage or trend context without scrolling.",
+          "fixProposal": "Give the selected trend a useful minimum height and pair it with one representative attempt.",
+          "beforeEvidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mbl7d-fc0c407d.png",
+          "afterEvidence": null,
+          "afterStatus": "Proposal only; no source edits or corrected SHA evaluated"
+        },
+        {
+          "viewport": "1440x900",
+          "score": 6,
+          "weakestScreen": "analysis201C-settled",
+          "reason": "The overview chart and metrics dominate; landscape shows little task footage or trend context without scrolling.",
+          "fixProposal": "Give the selected trend a useful minimum height and pair it with one representative attempt.",
+          "beforeEvidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mbm16-2dd238b1.png",
+          "afterEvidence": null,
+          "afterStatus": "Proposal only; no source edits or corrected SHA evaluated"
+        }
+      ]
+    },
+    {
+      "category": "Feedback and state clarity",
+      "cells": [
+        {
+          "viewport": "390x844",
+          "score": 6,
+          "weakestScreen": "evaldives-settled",
+          "reason": "My dives combines dash, provisional, zero reviewers, zero judges and inclusion state; metadata arrives progressively.",
+          "fixProposal": "Use one primary awaiting-reviews state and an explicit metadata loading placeholder.",
+          "beforeEvidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mdja6-e870e466.png",
+          "afterEvidence": null,
+          "afterStatus": "Proposal only; no source edits or corrected SHA evaluated"
+        },
+        {
+          "viewport": "844x390",
+          "score": 6,
+          "weakestScreen": "evaldives-settled",
+          "reason": "My dives combines dash, provisional, zero reviewers, zero judges and inclusion state; metadata arrives progressively.",
+          "fixProposal": "Use one primary awaiting-reviews state and an explicit metadata loading placeholder.",
+          "beforeEvidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mdjos-6dcbfc2a.png",
+          "afterEvidence": null,
+          "afterStatus": "Proposal only; no source edits or corrected SHA evaluated"
+        },
+        {
+          "viewport": "768x1024",
+          "score": 6,
+          "weakestScreen": "evaldives-settled",
+          "reason": "My dives combines dash, provisional, zero reviewers, zero judges and inclusion state; metadata arrives progressively.",
+          "fixProposal": "Use one primary awaiting-reviews state and an explicit metadata loading placeholder.",
+          "beforeEvidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mdk59-5bdbb516.png",
+          "afterEvidence": null,
+          "afterStatus": "Proposal only; no source edits or corrected SHA evaluated"
+        },
+        {
+          "viewport": "1024x768",
+          "score": 6,
+          "weakestScreen": "evaldives-settled",
+          "reason": "My dives combines dash, provisional, zero reviewers, zero judges and inclusion state; metadata arrives progressively.",
+          "fixProposal": "Use one primary awaiting-reviews state and an explicit metadata loading placeholder.",
+          "beforeEvidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mdkwi-167f93d6.png",
+          "afterEvidence": null,
+          "afterStatus": "Proposal only; no source edits or corrected SHA evaluated"
+        },
+        {
+          "viewport": "1440x900",
+          "score": 6,
+          "weakestScreen": "evaldives-settled",
+          "reason": "My dives combines dash, provisional, zero reviewers, zero judges and inclusion state; metadata arrives progressively.",
+          "fixProposal": "Use one primary awaiting-reviews state and an explicit metadata loading placeholder.",
+          "beforeEvidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mdlon-95386d82.png",
+          "afterEvidence": null,
+          "afterStatus": "Proposal only; no source edits or corrected SHA evaluated"
+        }
+      ]
+    },
+    {
+      "category": "Professional finish",
+      "cells": [
+        {
+          "viewport": "390x844",
+          "score": 6,
+          "weakestScreen": "history-settled",
+          "reason": "Broad sparse history rows and tiny repeated details still feel uneven beside the footage-first player.",
+          "fixProposal": "Recompose history as deliberate compact rows with stronger identity and less repeated empty surface.",
+          "beforeEvidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mdqz2-d2e54b50.png",
+          "afterEvidence": null,
+          "afterStatus": "Proposal only; no source edits or corrected SHA evaluated"
+        },
+        {
+          "viewport": "844x390",
+          "score": 5,
+          "weakestScreen": "history-settled",
+          "reason": "Broad sparse history rows and tiny repeated details still feel uneven beside the footage-first player.",
+          "fixProposal": "Recompose history as deliberate compact rows with stronger identity and less repeated empty surface.",
+          "beforeEvidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mdrb6-a75357f5.png",
+          "afterEvidence": null,
+          "afterStatus": "Proposal only; no source edits or corrected SHA evaluated"
+        },
+        {
+          "viewport": "768x1024",
+          "score": 6,
+          "weakestScreen": "history-settled",
+          "reason": "Broad sparse history rows and tiny repeated details still feel uneven beside the footage-first player.",
+          "fixProposal": "Recompose history as deliberate compact rows with stronger identity and less repeated empty surface.",
+          "beforeEvidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mdrth-8179b474.png",
+          "afterEvidence": null,
+          "afterStatus": "Proposal only; no source edits or corrected SHA evaluated"
+        },
+        {
+          "viewport": "1024x768",
+          "score": 6,
+          "weakestScreen": "history-settled",
+          "reason": "Broad sparse history rows and tiny repeated details still feel uneven beside the footage-first player.",
+          "fixProposal": "Recompose history as deliberate compact rows with stronger identity and less repeated empty surface.",
+          "beforeEvidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mdskq-4a80dcce.png",
+          "afterEvidence": null,
+          "afterStatus": "Proposal only; no source edits or corrected SHA evaluated"
+        },
+        {
+          "viewport": "1440x900",
+          "score": 6,
+          "weakestScreen": "history-settled",
+          "reason": "Broad sparse history rows and tiny repeated details still feel uneven beside the footage-first player.",
+          "fixProposal": "Recompose history as deliberate compact rows with stronger identity and less repeated empty surface.",
+          "beforeEvidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mdtdn-412e729d.png",
+          "afterEvidence": null,
+          "afterStatus": "Proposal only; no source edits or corrected SHA evaluated"
+        }
+      ]
+    },
+    {
+      "category": "Responsive fit",
+      "cells": [
+        {
+          "viewport": "390x844",
+          "score": 6,
+          "weakestScreen": "details-lower-confirmed-0.55",
+          "reason": "Long analysis lists and floating bottom navigation substantially reduce usable short-height content.",
+          "fixProposal": "Use a compact short-height shell and bounded inventory with a visible local navigation anchor.",
+          "beforeEvidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2muy6c-f2a23236.png",
+          "afterEvidence": null,
+          "afterStatus": "Proposal only; no source edits or corrected SHA evaluated"
+        },
+        {
+          "viewport": "844x390",
+          "score": 4,
+          "weakestScreen": "details-lower-confirmed-0.55",
+          "reason": "Long analysis lists and floating bottom navigation substantially reduce usable short-height content.",
+          "fixProposal": "Use a compact short-height shell and bounded inventory with a visible local navigation anchor.",
+          "beforeEvidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2muyv4-217d7f03.png",
+          "afterEvidence": null,
+          "afterStatus": "Proposal only; no source edits or corrected SHA evaluated"
+        },
+        {
+          "viewport": "768x1024",
+          "score": 7,
+          "weakestScreen": "details-lower-confirmed-0.55",
+          "reason": "Long analysis lists and floating bottom navigation substantially reduce usable short-height content.",
+          "fixProposal": "Use a compact short-height shell and bounded inventory with a visible local navigation anchor.",
+          "beforeEvidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2muzp5-c6f6735d.png",
+          "afterEvidence": null,
+          "afterStatus": "Proposal only; no source edits or corrected SHA evaluated"
+        },
+        {
+          "viewport": "1024x768",
+          "score": 7,
+          "weakestScreen": "details-lower-confirmed-0.55",
+          "reason": "Long analysis lists and floating bottom navigation substantially reduce usable short-height content.",
+          "fixProposal": "Use a compact short-height shell and bounded inventory with a visible local navigation anchor.",
+          "beforeEvidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mv0ne-eb777f98.png",
+          "afterEvidence": null,
+          "afterStatus": "Proposal only; no source edits or corrected SHA evaluated"
+        },
+        {
+          "viewport": "1440x900",
+          "score": 7,
+          "weakestScreen": "details-lower-confirmed-0.55",
+          "reason": "Long analysis lists and floating bottom navigation substantially reduce usable short-height content.",
+          "fixProposal": "Use a compact short-height shell and bounded inventory with a visible local navigation anchor.",
+          "beforeEvidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mv1j8-06d580b6.png",
+          "afterEvidence": null,
+          "afterStatus": "Proposal only; no source edits or corrected SHA evaluated"
+        }
+      ]
+    },
+    {
+      "category": "Next-action discoverability",
+      "cells": [
+        {
+          "viewport": "390x844",
+          "score": 6,
+          "weakestScreen": "calendar-new",
+          "reason": "Save is below the initial form viewport; short-height layouts reveal only a small portion of the task.",
+          "fixProposal": "Provide a persistent form action region and clear section grouping without adding helper prose.",
+          "beforeEvidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mf1a5-220d59bd.png",
+          "afterEvidence": null,
+          "afterStatus": "Proposal only; no source edits or corrected SHA evaluated"
+        },
+        {
+          "viewport": "844x390",
+          "score": 5,
+          "weakestScreen": "calendar-new",
+          "reason": "Save is below the initial form viewport; short-height layouts reveal only a small portion of the task.",
+          "fixProposal": "Provide a persistent form action region and clear section grouping without adding helper prose.",
+          "beforeEvidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mf1eu-e12e2c8d.png",
+          "afterEvidence": null,
+          "afterStatus": "Proposal only; no source edits or corrected SHA evaluated"
+        },
+        {
+          "viewport": "768x1024",
+          "score": 6,
+          "weakestScreen": "calendar-new",
+          "reason": "Save is below the initial form viewport; short-height layouts reveal only a small portion of the task.",
+          "fixProposal": "Provide a persistent form action region and clear section grouping without adding helper prose.",
+          "beforeEvidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mf1m3-f686adae.png",
+          "afterEvidence": null,
+          "afterStatus": "Proposal only; no source edits or corrected SHA evaluated"
+        },
+        {
+          "viewport": "1024x768",
+          "score": 7,
+          "weakestScreen": "calendar-new",
+          "reason": "Save is below the initial form viewport; short-height layouts reveal only a small portion of the task.",
+          "fixProposal": "Provide a persistent form action region and clear section grouping without adding helper prose.",
+          "beforeEvidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mf1qy-b23ed511.png",
+          "afterEvidence": null,
+          "afterStatus": "Proposal only; no source edits or corrected SHA evaluated"
+        },
+        {
+          "viewport": "1440x900",
+          "score": 7,
+          "weakestScreen": "calendar-new",
+          "reason": "Save is below the initial form viewport; short-height layouts reveal only a small portion of the task.",
+          "fixProposal": "Provide a persistent form action region and clear section grouping without adding helper prose.",
+          "beforeEvidence": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mf1wj-a99f1544.png",
+          "afterEvidence": null,
+          "afterStatus": "Proposal only; no source edits or corrected SHA evaluated"
+        }
+      ]
+    }
+  ],
+  "minimum": 4,
+  "countBelow7": 55,
+  "numericCells": 70,
+  "missingCells": 0,
+  "aggregation": "Lowest observed relevant screen per category and size, subjective; no averaging.",
+  "verdict": "FAIL threshold. Broad visual coverage completed; interaction and evidence limitations below prevent a claim of exhaustive acceptance.",
+  "interactions": [
+    "Library desktop Next changed clip3044 to clip3043; Previous restored3044; Back removed clip query.",
+    "By-code first recent-attempt disclosure opened; collapsed and expanded states captured at all five sizes.",
+    "Profile Stats confirmed closed by default, then opened at all five sizes.",
+    "Messages New chooser and New group draft opened; no Create or send.",
+    "Calendar November month, upcoming list, occurrence /calendar/o/10 and new form captured; no RSVP/follow/save.",
+    "Individual judging selected6: aria-pressed true, Confirm score enabled; Quit opened discard confirmation; separate confirmation clicked; no real evaluation score submitted.",
+    "Created exactly one isolated auditroom via normal UI. Classic, Guess the Code and Mole configured via By code112B and Choose. Played all three.",
+    "Own room numeric6 selection: aria-pressed true, Submit disabled false, visibility visible. Classic reveal showed own score6 and points17; results inspected.",
+    "Guess the Code first option selected; correct112B highlighted in actual reveal; results inspected.",
+    "Mole6 submitted, actual reveal captured, Nobody vote submitted in own room only, results inspected."
+  ],
+  "factualDisagreements": [
+    "By-code sparkline is absent; median/best/chips are behind closed native disclosure.",
+    "Profile Stats is closed by default; it does not dominate the initial profile.",
+    "Short-height lobby is two-column and Start is visible; prior clipping allegation not reproduced.",
+    "Foreground room selection/submission works in this run. Earlier background failure remains unexplained.",
+    "Score card spiral is intentional artwork, not duplicate numeric scores."
+  ],
+  "coverage": [
+    {
+      "viewport": "390x844",
+      "capturedFlows": [
+        "codes-collapsed",
+        "codes-open",
+        "clip3044",
+        "clip3028",
+        "progress",
+        "analysis201C",
+        "details201C",
+        "inbox",
+        "thread4",
+        "community",
+        "profile15",
+        "calendar",
+        "evaldives",
+        "history",
+        "clip3044-settled",
+        "clip3028-settled",
+        "progress-settled",
+        "analysis201C-settled",
+        "details201C-settled",
+        "inbox-settled",
+        "thread4-settled",
+        "community-settled",
+        "profile15-settled",
+        "calendar-settled",
+        "evaldives-settled",
+        "history-settled",
+        "profile-codes",
+        "profile-activity",
+        "profile-achievements",
+        "calendar-new",
+        "calendar-detail10",
+        "calendar-month",
+        "room-home",
+        "classic-lobby",
+        "classic-playback",
+        "classic-scoring",
+        "classic-reveal-or-result",
+        "classic-results",
+        "code-lobby",
+        "code-playback",
+        "code-scoring",
+        "code-reveal",
+        "code-results",
+        "mole-lobby",
+        "mole-playback",
+        "mole-scoring",
+        "mole-reveal",
+        "mole-vote",
+        "mole-results",
+        "calendar-o10",
+        "message-chooser",
+        "message-group-draft",
+        "judging-draft6",
+        "clip3044-loaded",
+        "clip3028-loaded",
+        "details-expanded-0",
+        "details-expanded-650",
+        "details-expanded-1400",
+        "profile-codes-loaded",
+        "profile-stats-open",
+        "code-reveal-recheck",
+        "code-reveal-confirmed",
+        "mole-playback-phone-recheck",
+        "mole-reveal-confirmed",
+        "code-playback-phone-recheck",
+        "details-lower-0.55",
+        "details-lower-0.8",
+        "details-lower-1",
+        "details-lower-confirmed-0.55",
+        "details-lower-confirmed-0.8",
+        "details-lower-confirmed-1"
+      ],
+      "interactions": "Shared-state resize visual inspection; not every action independently repeated at every size"
+    },
+    {
+      "viewport": "844x390",
+      "capturedFlows": [
+        "library",
+        "codes-collapsed",
+        "codes-open",
+        "clip3044",
+        "clip3028",
+        "progress",
+        "analysis201C",
+        "details201C",
+        "inbox",
+        "thread4",
+        "community",
+        "profile15",
+        "calendar",
+        "evaldives",
+        "history",
+        "clip3044-settled",
+        "clip3028-settled",
+        "progress-settled",
+        "analysis201C-settled",
+        "details201C-settled",
+        "inbox-settled",
+        "thread4-settled",
+        "community-settled",
+        "profile15-settled",
+        "calendar-settled",
+        "evaldives-settled",
+        "history-settled",
+        "profile-codes",
+        "profile-activity",
+        "profile-achievements",
+        "calendar-new",
+        "calendar-detail10",
+        "calendar-month",
+        "room-home",
+        "classic-lobby",
+        "classic-playback",
+        "classic-scoring",
+        "classic-reveal-or-result",
+        "classic-results",
+        "code-lobby",
+        "code-playback",
+        "code-scoring",
+        "code-reveal",
+        "code-results",
+        "mole-lobby",
+        "mole-playback",
+        "mole-scoring",
+        "mole-reveal",
+        "mole-vote",
+        "mole-results",
+        "calendar-o10",
+        "message-chooser",
+        "message-group-draft",
+        "judging-draft6",
+        "clip3044-loaded",
+        "clip3028-loaded",
+        "details-expanded-0",
+        "details-expanded-650",
+        "details-expanded-1400",
+        "profile-codes-loaded",
+        "profile-stats-open",
+        "code-reveal-recheck",
+        "code-reveal-confirmed",
+        "mole-reveal-confirmed",
+        "details-lower-0.55",
+        "details-lower-0.8",
+        "details-lower-1",
+        "details-lower-confirmed-0.55",
+        "details-lower-confirmed-0.8",
+        "details-lower-confirmed-1"
+      ],
+      "interactions": "Shared-state resize visual inspection; not every action independently repeated at every size"
+    },
+    {
+      "viewport": "768x1024",
+      "capturedFlows": [
+        "library",
+        "codes-collapsed",
+        "codes-open",
+        "clip3044",
+        "clip3028",
+        "progress",
+        "analysis201C",
+        "details201C",
+        "inbox",
+        "thread4",
+        "community",
+        "profile15",
+        "calendar",
+        "evaldives",
+        "history",
+        "clip3044-settled",
+        "clip3028-settled",
+        "progress-settled",
+        "analysis201C-settled",
+        "details201C-settled",
+        "inbox-settled",
+        "thread4-settled",
+        "community-settled",
+        "profile15-settled",
+        "calendar-settled",
+        "evaldives-settled",
+        "history-settled",
+        "profile-codes",
+        "profile-activity",
+        "profile-achievements",
+        "calendar-new",
+        "calendar-detail10",
+        "calendar-month",
+        "room-home",
+        "classic-lobby",
+        "classic-playback",
+        "classic-scoring",
+        "classic-reveal-or-result",
+        "classic-results",
+        "code-lobby",
+        "code-playback",
+        "code-scoring",
+        "code-reveal",
+        "code-results",
+        "mole-lobby",
+        "mole-playback",
+        "mole-scoring",
+        "mole-reveal",
+        "mole-vote",
+        "mole-results",
+        "calendar-o10",
+        "message-chooser",
+        "message-group-draft",
+        "judging-draft6",
+        "clip3044-loaded",
+        "clip3028-loaded",
+        "details-expanded-0",
+        "details-expanded-650",
+        "details-expanded-1400",
+        "profile-codes-loaded",
+        "profile-stats-open",
+        "code-reveal-recheck",
+        "code-reveal-confirmed",
+        "mole-reveal-confirmed",
+        "details-lower-0.55",
+        "details-lower-0.8",
+        "details-lower-1",
+        "details-lower-confirmed-0.55",
+        "details-lower-confirmed-0.8",
+        "details-lower-confirmed-1"
+      ],
+      "interactions": "Shared-state resize visual inspection; not every action independently repeated at every size"
+    },
+    {
+      "viewport": "1024x768",
+      "capturedFlows": [
+        "library",
+        "codes-collapsed",
+        "codes-open",
+        "clip3044",
+        "clip3028",
+        "progress",
+        "analysis201C",
+        "details201C",
+        "inbox",
+        "thread4",
+        "community",
+        "profile15",
+        "calendar",
+        "evaldives",
+        "history",
+        "clip3044-settled",
+        "clip3028-settled",
+        "progress-settled",
+        "analysis201C-settled",
+        "details201C-settled",
+        "inbox-settled",
+        "thread4-settled",
+        "community-settled",
+        "profile15-settled",
+        "calendar-settled",
+        "evaldives-settled",
+        "history-settled",
+        "profile-codes",
+        "profile-activity",
+        "profile-achievements",
+        "calendar-new",
+        "calendar-detail10",
+        "calendar-month",
+        "room-home",
+        "classic-lobby",
+        "classic-playback",
+        "classic-scoring",
+        "classic-reveal-or-result",
+        "classic-results",
+        "code-lobby",
+        "code-playback",
+        "code-scoring",
+        "code-reveal",
+        "code-results",
+        "mole-lobby",
+        "mole-playback",
+        "mole-scoring",
+        "mole-reveal",
+        "mole-vote",
+        "mole-results",
+        "calendar-o10",
+        "message-chooser",
+        "message-group-draft",
+        "judging-draft6",
+        "clip3044-loaded",
+        "clip3028-loaded",
+        "details-expanded-0",
+        "details-expanded-650",
+        "details-expanded-1400",
+        "profile-codes-loaded",
+        "profile-stats-open",
+        "code-reveal-recheck",
+        "code-reveal-confirmed",
+        "mole-reveal-confirmed",
+        "details-lower-0.55",
+        "details-lower-0.8",
+        "details-lower-1",
+        "details-lower-confirmed-0.55",
+        "details-lower-confirmed-0.8",
+        "details-lower-confirmed-1"
+      ],
+      "interactions": "Shared-state resize visual inspection; not every action independently repeated at every size"
+    },
+    {
+      "viewport": "1440x900",
+      "capturedFlows": [
+        "library",
+        "codes-collapsed",
+        "codes-open",
+        "clip3044",
+        "clip3028",
+        "progress",
+        "analysis201C",
+        "details201C",
+        "inbox",
+        "thread4",
+        "community",
+        "profile15",
+        "calendar",
+        "evaldives",
+        "history",
+        "clip3044-settled",
+        "clip3028-settled",
+        "progress-settled",
+        "analysis201C-settled",
+        "details201C-settled",
+        "inbox-settled",
+        "thread4-settled",
+        "community-settled",
+        "profile15-settled",
+        "calendar-settled",
+        "evaldives-settled",
+        "history-settled",
+        "profile-codes",
+        "profile-activity",
+        "profile-achievements",
+        "calendar-new",
+        "calendar-detail10",
+        "calendar-month",
+        "room-home",
+        "classic-lobby",
+        "classic-playback",
+        "classic-scoring",
+        "classic-reveal-or-result",
+        "classic-results",
+        "code-lobby",
+        "code-playback",
+        "code-scoring",
+        "code-reveal",
+        "code-results",
+        "mole-lobby",
+        "mole-playback",
+        "mole-scoring",
+        "mole-reveal",
+        "mole-vote",
+        "mole-results",
+        "calendar-o10",
+        "message-chooser",
+        "message-group-draft",
+        "judging-draft6",
+        "clip3044-loaded",
+        "clip3028-loaded",
+        "details-expanded-0",
+        "details-expanded-650",
+        "details-expanded-1400",
+        "profile-codes-loaded",
+        "profile-stats-open",
+        "code-reveal-recheck",
+        "code-reveal-confirmed",
+        "mole-reveal-confirmed",
+        "details-lower-0.55",
+        "details-lower-0.8",
+        "details-lower-1",
+        "details-lower-confirmed-0.55",
+        "details-lower-confirmed-0.8",
+        "details-lower-confirmed-1"
+      ],
+      "interactions": "Shared-state resize visual inspection; not every action independently repeated at every size"
+    }
+  ],
+  "coverageGaps": [
+    "No physical-device, screen-reader or accessibility certification.",
+    "Not every possible filter, analytic date range, or member-picker selection was exercised.",
+    "Some initial captures were loading or stale phase; excluded from settled coverage and retained only as raw traces.",
+    "Detailed expanded analysis was scrolled through representative and inventory regions, but not every one of 409 attempt rows individually inspected.",
+    "No corrected after screenshots: this is read-only review. Every fix proposal remains unimplemented and unreevaluated."
+  ],
+  "excludedCaptureFlows": [
+    "clip3044-settled",
+    "clip3028-settled",
+    "profile-codes",
+    "calendar-detail10",
+    "code-reveal",
+    "mole-reveal",
+    "code-reveal-recheck",
+    "details-lower-0.55",
+    "details-lower-0.8",
+    "details-lower-1"
+  ],
+  "captureCorrections": {
+    "code-reveal": "use code-reveal-confirmed",
+    "mole-reveal": "use mole-reveal-confirmed",
+    "code-playback phone": "use code-playback-phone-recheck",
+    "mole-playback phone": "use mole-playback-phone-recheck",
+    "calendar-detail10": "wrong route; use calendar-o10",
+    "profile-codes": "use profile-codes-loaded",
+    "clip3044": "use clip3044-loaded",
+    "clip3028": "use clip3028-loaded"
+  },
+  "screenshots": [
+    {
+      "flow": "library",
+      "w": 844,
+      "h": 390,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m6cs9-4f00b97d.png"
+    },
+    {
+      "flow": "library",
+      "w": 768,
+      "h": 1024,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m6dh8-b714c784.png"
+    },
+    {
+      "flow": "library",
+      "w": 1024,
+      "h": 768,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m6e2e-83fe3928.png"
+    },
+    {
+      "flow": "library",
+      "w": 1440,
+      "h": 900,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m6f42-0f6d694f.png"
+    },
+    {
+      "flow": "codes-collapsed",
+      "w": 390,
+      "h": 844,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m7fae-211cb97b.png"
+    },
+    {
+      "flow": "codes-collapsed",
+      "w": 844,
+      "h": 390,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m7fhi-e6f2077a.png"
+    },
+    {
+      "flow": "codes-collapsed",
+      "w": 768,
+      "h": 1024,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m7hby-83e66e01.png"
+    },
+    {
+      "flow": "codes-collapsed",
+      "w": 1024,
+      "h": 768,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m7jzo-7cfd93b5.png"
+    },
+    {
+      "flow": "codes-collapsed",
+      "w": 1440,
+      "h": 900,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m7luv-23592c30.png"
+    },
+    {
+      "flow": "codes-open",
+      "w": 390,
+      "h": 844,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m7r3h-de188b22.png"
+    },
+    {
+      "flow": "codes-open",
+      "w": 844,
+      "h": 390,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m7r9d-60e4b7fd.png"
+    },
+    {
+      "flow": "codes-open",
+      "w": 768,
+      "h": 1024,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m7rj2-89eb6a7b.png"
+    },
+    {
+      "flow": "codes-open",
+      "w": 1024,
+      "h": 768,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m7rr4-1df510cd.png"
+    },
+    {
+      "flow": "codes-open",
+      "w": 1440,
+      "h": 900,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m7s17-7faf4cd4.png"
+    },
+    {
+      "flow": "clip3044",
+      "w": 390,
+      "h": 844,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m8313-4610b07f.png"
+    },
+    {
+      "flow": "clip3044",
+      "w": 844,
+      "h": 390,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m83gw-c4e8f54a.png"
+    },
+    {
+      "flow": "clip3044",
+      "w": 768,
+      "h": 1024,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m840f-3c2e22f6.png"
+    },
+    {
+      "flow": "clip3044",
+      "w": 1024,
+      "h": 768,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m84pq-331a6613.png"
+    },
+    {
+      "flow": "clip3044",
+      "w": 1440,
+      "h": 900,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m859f-5c62a35e.png"
+    },
+    {
+      "flow": "clip3028",
+      "w": 390,
+      "h": 844,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m8e0i-df76bd83.png"
+    },
+    {
+      "flow": "clip3028",
+      "w": 844,
+      "h": 390,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m8fks-ec76b00e.png"
+    },
+    {
+      "flow": "clip3028",
+      "w": 768,
+      "h": 1024,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m8ggr-71438da9.png"
+    },
+    {
+      "flow": "clip3028",
+      "w": 1024,
+      "h": 768,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m8hfx-bf0f763c.png"
+    },
+    {
+      "flow": "clip3028",
+      "w": 1440,
+      "h": 900,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m8ifz-51654c43.png"
+    },
+    {
+      "flow": "progress",
+      "w": 390,
+      "h": 844,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m8jtl-1eb8106b.png"
+    },
+    {
+      "flow": "progress",
+      "w": 844,
+      "h": 390,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m8kjy-773c8786.png"
+    },
+    {
+      "flow": "progress",
+      "w": 768,
+      "h": 1024,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m8kzv-155c129d.png"
+    },
+    {
+      "flow": "progress",
+      "w": 1024,
+      "h": 768,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m8lez-e825a429.png"
+    },
+    {
+      "flow": "progress",
+      "w": 1440,
+      "h": 900,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m8lw1-2d6461c4.png"
+    },
+    {
+      "flow": "analysis201C",
+      "w": 390,
+      "h": 844,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m8n91-71b9565c.png"
+    },
+    {
+      "flow": "analysis201C",
+      "w": 844,
+      "h": 390,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m8o27-04c27667.png"
+    },
+    {
+      "flow": "analysis201C",
+      "w": 768,
+      "h": 1024,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m8ow2-74efa6eb.png"
+    },
+    {
+      "flow": "analysis201C",
+      "w": 1024,
+      "h": 768,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m8q0v-164b4545.png"
+    },
+    {
+      "flow": "analysis201C",
+      "w": 1440,
+      "h": 900,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m8qy5-27f0d504.png"
+    },
+    {
+      "flow": "details201C",
+      "w": 390,
+      "h": 844,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m8tyi-5727d141.png"
+    },
+    {
+      "flow": "details201C",
+      "w": 844,
+      "h": 390,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m8ufg-07951d21.png"
+    },
+    {
+      "flow": "details201C",
+      "w": 768,
+      "h": 1024,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m8uw8-ebd74653.png"
+    },
+    {
+      "flow": "details201C",
+      "w": 1024,
+      "h": 768,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m8ved-83ad7aee.png"
+    },
+    {
+      "flow": "details201C",
+      "w": 1440,
+      "h": 900,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m8w6f-b4d64dc2.png"
+    },
+    {
+      "flow": "inbox",
+      "w": 390,
+      "h": 844,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m8y1o-9ee83adb.png"
+    },
+    {
+      "flow": "inbox",
+      "w": 844,
+      "h": 390,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m8yua-66b5899f.png"
+    },
+    {
+      "flow": "inbox",
+      "w": 768,
+      "h": 1024,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m8ztz-15db5bde.png"
+    },
+    {
+      "flow": "inbox",
+      "w": 1024,
+      "h": 768,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m90f2-9ebbfa9b.png"
+    },
+    {
+      "flow": "inbox",
+      "w": 1440,
+      "h": 900,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m917k-184844c8.png"
+    },
+    {
+      "flow": "thread4",
+      "w": 390,
+      "h": 844,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m96j0-2fc333b7.png"
+    },
+    {
+      "flow": "thread4",
+      "w": 844,
+      "h": 390,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m97k7-f85ca398.png"
+    },
+    {
+      "flow": "thread4",
+      "w": 768,
+      "h": 1024,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m986c-9caaf043.png"
+    },
+    {
+      "flow": "thread4",
+      "w": 1024,
+      "h": 768,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m99nd-a42f00ab.png"
+    },
+    {
+      "flow": "thread4",
+      "w": 1440,
+      "h": 900,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m9aio-12529bc7.png"
+    },
+    {
+      "flow": "community",
+      "w": 390,
+      "h": 844,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m9cbb-976731c8.png"
+    },
+    {
+      "flow": "community",
+      "w": 844,
+      "h": 390,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m9d3i-2f79a2dc.png"
+    },
+    {
+      "flow": "community",
+      "w": 768,
+      "h": 1024,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m9dwg-7c56600c.png"
+    },
+    {
+      "flow": "community",
+      "w": 1024,
+      "h": 768,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m9ent-1cd3fc91.png"
+    },
+    {
+      "flow": "community",
+      "w": 1440,
+      "h": 900,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m9fhp-05345ba1.png"
+    },
+    {
+      "flow": "profile15",
+      "w": 390,
+      "h": 844,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m9k0q-7480e37d.png"
+    },
+    {
+      "flow": "profile15",
+      "w": 844,
+      "h": 390,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m9kff-b69bd9ed.png"
+    },
+    {
+      "flow": "profile15",
+      "w": 768,
+      "h": 1024,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m9l91-5fbaf45a.png"
+    },
+    {
+      "flow": "profile15",
+      "w": 1024,
+      "h": 768,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m9lzp-d035806b.png"
+    },
+    {
+      "flow": "profile15",
+      "w": 1440,
+      "h": 900,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m9msq-7acad503.png"
+    },
+    {
+      "flow": "calendar",
+      "w": 390,
+      "h": 844,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m9p1v-be2487b5.png"
+    },
+    {
+      "flow": "calendar",
+      "w": 844,
+      "h": 390,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m9pu6-7558b492.png"
+    },
+    {
+      "flow": "calendar",
+      "w": 768,
+      "h": 1024,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m9qmq-8f785ed2.png"
+    },
+    {
+      "flow": "calendar",
+      "w": 1024,
+      "h": 768,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m9rer-77606d89.png"
+    },
+    {
+      "flow": "calendar",
+      "w": 1440,
+      "h": 900,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m9t0t-23d1c2be.png"
+    },
+    {
+      "flow": "evaldives",
+      "w": 390,
+      "h": 844,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m9u29-24cc78cf.png"
+    },
+    {
+      "flow": "evaldives",
+      "w": 844,
+      "h": 390,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m9uuk-f9dc0d01.png"
+    },
+    {
+      "flow": "evaldives",
+      "w": 768,
+      "h": 1024,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m9vv9-3ab7a626.png"
+    },
+    {
+      "flow": "evaldives",
+      "w": 1024,
+      "h": 768,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m9wft-f7d3c952.png"
+    },
+    {
+      "flow": "evaldives",
+      "w": 1440,
+      "h": 900,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m9x8b-e4cfab71.png"
+    },
+    {
+      "flow": "history",
+      "w": 390,
+      "h": 844,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m9zk3-f092aba1.png"
+    },
+    {
+      "flow": "history",
+      "w": 844,
+      "h": 390,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2m9zz4-ddd47dd7.png"
+    },
+    {
+      "flow": "history",
+      "w": 768,
+      "h": 1024,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2ma15v-d494aa3e.png"
+    },
+    {
+      "flow": "history",
+      "w": 1024,
+      "h": 768,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2ma1lj-5f93d0ad.png"
+    },
+    {
+      "flow": "history",
+      "w": 1440,
+      "h": 900,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2ma21o-71351064.png"
+    },
+    {
+      "flow": "clip3044-settled",
+      "w": 390,
+      "h": 844,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2maqm4-65968012.png"
+    },
+    {
+      "flow": "clip3044-settled",
+      "w": 844,
+      "h": 390,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mar0a-350b87d3.png"
+    },
+    {
+      "flow": "clip3044-settled",
+      "w": 768,
+      "h": 1024,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mat1l-865e1878.png"
+    },
+    {
+      "flow": "clip3044-settled",
+      "w": 1024,
+      "h": 768,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2maul2-b97669df.png"
+    },
+    {
+      "flow": "clip3044-settled",
+      "w": 1440,
+      "h": 900,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mavg3-a68c6a70.png"
+    },
+    {
+      "flow": "clip3028-settled",
+      "w": 390,
+      "h": 844,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mb0n6-ca5fced1.png"
+    },
+    {
+      "flow": "clip3028-settled",
+      "w": 844,
+      "h": 390,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mb11n-5ae43af3.png"
+    },
+    {
+      "flow": "clip3028-settled",
+      "w": 768,
+      "h": 1024,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mb1ft-93c9a9f4.png"
+    },
+    {
+      "flow": "clip3028-settled",
+      "w": 1024,
+      "h": 768,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mb277-ba2eb010.png"
+    },
+    {
+      "flow": "clip3028-settled",
+      "w": 1440,
+      "h": 900,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mb2lb-98806cdc.png"
+    },
+    {
+      "flow": "progress-settled",
+      "w": 390,
+      "h": 844,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mb8oy-3fa92e84.png"
+    },
+    {
+      "flow": "progress-settled",
+      "w": 844,
+      "h": 390,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mb91r-5e0bf386.png"
+    },
+    {
+      "flow": "progress-settled",
+      "w": 768,
+      "h": 1024,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mb9jy-9562e81f.png"
+    },
+    {
+      "flow": "progress-settled",
+      "w": 1024,
+      "h": 768,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mbaar-c3d64e14.png"
+    },
+    {
+      "flow": "progress-settled",
+      "w": 1440,
+      "h": 900,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mbaqe-715091f9.png"
+    },
+    {
+      "flow": "analysis201C-settled",
+      "w": 390,
+      "h": 844,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mbid2-b474f812.png"
+    },
+    {
+      "flow": "analysis201C-settled",
+      "w": 844,
+      "h": 390,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mbiry-62ceede0.png"
+    },
+    {
+      "flow": "analysis201C-settled",
+      "w": 768,
+      "h": 1024,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mbjl8-59a6344d.png"
+    },
+    {
+      "flow": "analysis201C-settled",
+      "w": 1024,
+      "h": 768,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mbl7d-fc0c407d.png"
+    },
+    {
+      "flow": "analysis201C-settled",
+      "w": 1440,
+      "h": 900,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mbm16-2dd238b1.png"
+    },
+    {
+      "flow": "details201C-settled",
+      "w": 390,
+      "h": 844,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mbyjl-6b847267.png"
+    },
+    {
+      "flow": "details201C-settled",
+      "w": 844,
+      "h": 390,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mbzc7-a745d17d.png"
+    },
+    {
+      "flow": "details201C-settled",
+      "w": 768,
+      "h": 1024,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mbzpv-f380915e.png"
+    },
+    {
+      "flow": "details201C-settled",
+      "w": 1024,
+      "h": 768,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mc034-c0534a1a.png"
+    },
+    {
+      "flow": "details201C-settled",
+      "w": 1440,
+      "h": 900,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mc0hk-97f1d9de.png"
+    },
+    {
+      "flow": "inbox-settled",
+      "w": 390,
+      "h": 844,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mcbnt-34ed1e6d.png"
+    },
+    {
+      "flow": "inbox-settled",
+      "w": 844,
+      "h": 390,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mcbzo-a50babdd.png"
+    },
+    {
+      "flow": "inbox-settled",
+      "w": 768,
+      "h": 1024,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mccde-1fced81d.png"
+    },
+    {
+      "flow": "inbox-settled",
+      "w": 1024,
+      "h": 768,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mcd09-e4462dc3.png"
+    },
+    {
+      "flow": "inbox-settled",
+      "w": 1440,
+      "h": 900,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mcdel-3d3ae30e.png"
+    },
+    {
+      "flow": "thread4-settled",
+      "w": 390,
+      "h": 844,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mcizi-07cc05f1.png"
+    },
+    {
+      "flow": "thread4-settled",
+      "w": 844,
+      "h": 390,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mcjf3-740d4bff.png"
+    },
+    {
+      "flow": "thread4-settled",
+      "w": 768,
+      "h": 1024,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mck4v-4a1cbc01.png"
+    },
+    {
+      "flow": "thread4-settled",
+      "w": 1024,
+      "h": 768,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mckmb-5108266e.png"
+    },
+    {
+      "flow": "thread4-settled",
+      "w": 1440,
+      "h": 900,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mcl8p-cbc4b0d0.png"
+    },
+    {
+      "flow": "community-settled",
+      "w": 390,
+      "h": 844,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mcsmq-76fb0425.png"
+    },
+    {
+      "flow": "community-settled",
+      "w": 844,
+      "h": 390,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mct1t-cd5846e9.png"
+    },
+    {
+      "flow": "community-settled",
+      "w": 768,
+      "h": 1024,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mctii-3237c05e.png"
+    },
+    {
+      "flow": "community-settled",
+      "w": 1024,
+      "h": 768,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mcu9t-8a1998f4.png"
+    },
+    {
+      "flow": "community-settled",
+      "w": 1440,
+      "h": 900,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mcuns-cca61f31.png"
+    },
+    {
+      "flow": "profile15-settled",
+      "w": 390,
+      "h": 844,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2md0f2-eb224aeb.png"
+    },
+    {
+      "flow": "profile15-settled",
+      "w": 844,
+      "h": 390,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2md0t1-cac9e042.png"
+    },
+    {
+      "flow": "profile15-settled",
+      "w": 768,
+      "h": 1024,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2md1kr-15ae9e4d.png"
+    },
+    {
+      "flow": "profile15-settled",
+      "w": 1024,
+      "h": 768,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2md20c-b95d144c.png"
+    },
+    {
+      "flow": "profile15-settled",
+      "w": 1440,
+      "h": 900,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2md2js-7cc4fcb4.png"
+    },
+    {
+      "flow": "calendar-settled",
+      "w": 390,
+      "h": 844,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mdas3-53e3c075.png"
+    },
+    {
+      "flow": "calendar-settled",
+      "w": 844,
+      "h": 390,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mdb6r-64d1eed4.png"
+    },
+    {
+      "flow": "calendar-settled",
+      "w": 768,
+      "h": 1024,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mdbn5-5de04d2c.png"
+    },
+    {
+      "flow": "calendar-settled",
+      "w": 1024,
+      "h": 768,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mdc4d-f8a121af.png"
+    },
+    {
+      "flow": "calendar-settled",
+      "w": 1440,
+      "h": 900,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mdcso-de611f95.png"
+    },
+    {
+      "flow": "evaldives-settled",
+      "w": 390,
+      "h": 844,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mdja6-e870e466.png"
+    },
+    {
+      "flow": "evaldives-settled",
+      "w": 844,
+      "h": 390,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mdjos-6dcbfc2a.png"
+    },
+    {
+      "flow": "evaldives-settled",
+      "w": 768,
+      "h": 1024,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mdk59-5bdbb516.png"
+    },
+    {
+      "flow": "evaldives-settled",
+      "w": 1024,
+      "h": 768,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mdkwi-167f93d6.png"
+    },
+    {
+      "flow": "evaldives-settled",
+      "w": 1440,
+      "h": 900,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mdlon-95386d82.png"
+    },
+    {
+      "flow": "history-settled",
+      "w": 390,
+      "h": 844,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mdqz2-d2e54b50.png"
+    },
+    {
+      "flow": "history-settled",
+      "w": 844,
+      "h": 390,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mdrb6-a75357f5.png"
+    },
+    {
+      "flow": "history-settled",
+      "w": 768,
+      "h": 1024,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mdrth-8179b474.png"
+    },
+    {
+      "flow": "history-settled",
+      "w": 1024,
+      "h": 768,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mdskq-4a80dcce.png"
+    },
+    {
+      "flow": "history-settled",
+      "w": 1440,
+      "h": 900,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mdtdn-412e729d.png"
+    },
+    {
+      "flow": "profile-codes",
+      "w": 390,
+      "h": 844,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mefo3-3cd3e997.png"
+    },
+    {
+      "flow": "profile-codes",
+      "w": 844,
+      "h": 390,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2meg1q-a5329699.png"
+    },
+    {
+      "flow": "profile-codes",
+      "w": 768,
+      "h": 1024,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2megho-8da353c4.png"
+    },
+    {
+      "flow": "profile-codes",
+      "w": 1024,
+      "h": 768,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2megup-3f013be5.png"
+    },
+    {
+      "flow": "profile-codes",
+      "w": 1440,
+      "h": 900,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2meh9s-b8f2e80c.png"
+    },
+    {
+      "flow": "profile-activity",
+      "w": 390,
+      "h": 844,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2melud-f2839235.png"
+    },
+    {
+      "flow": "profile-activity",
+      "w": 844,
+      "h": 390,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mem9c-9d5f472e.png"
+    },
+    {
+      "flow": "profile-activity",
+      "w": 768,
+      "h": 1024,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2memey-673a9eeb.png"
+    },
+    {
+      "flow": "profile-activity",
+      "w": 1024,
+      "h": 768,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2memkq-c711b21d.png"
+    },
+    {
+      "flow": "profile-activity",
+      "w": 1440,
+      "h": 900,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2memq3-d2d216f1.png"
+    },
+    {
+      "flow": "profile-achievements",
+      "w": 390,
+      "h": 844,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2meuqg-7b94cc13.png"
+    },
+    {
+      "flow": "profile-achievements",
+      "w": 844,
+      "h": 390,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2meuwo-be2b7d6c.png"
+    },
+    {
+      "flow": "profile-achievements",
+      "w": 768,
+      "h": 1024,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mev6m-4fa6dc54.png"
+    },
+    {
+      "flow": "profile-achievements",
+      "w": 1024,
+      "h": 768,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mewcj-b7fdbe15.png"
+    },
+    {
+      "flow": "profile-achievements",
+      "w": 1440,
+      "h": 900,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mewpy-a8f397a9.png"
+    },
+    {
+      "flow": "calendar-new",
+      "w": 390,
+      "h": 844,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mf1a5-220d59bd.png"
+    },
+    {
+      "flow": "calendar-new",
+      "w": 844,
+      "h": 390,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mf1eu-e12e2c8d.png"
+    },
+    {
+      "flow": "calendar-new",
+      "w": 768,
+      "h": 1024,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mf1m3-f686adae.png"
+    },
+    {
+      "flow": "calendar-new",
+      "w": 1024,
+      "h": 768,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mf1qy-b23ed511.png"
+    },
+    {
+      "flow": "calendar-new",
+      "w": 1440,
+      "h": 900,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mf1wj-a99f1544.png"
+    },
+    {
+      "flow": "calendar-detail10",
+      "w": 390,
+      "h": 844,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mf6gp-e58373de.png"
+    },
+    {
+      "flow": "calendar-detail10",
+      "w": 844,
+      "h": 390,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mf6ln-d27e3300.png"
+    },
+    {
+      "flow": "calendar-detail10",
+      "w": 768,
+      "h": 1024,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mf6qg-edf298e9.png"
+    },
+    {
+      "flow": "calendar-detail10",
+      "w": 1024,
+      "h": 768,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mf6uw-ceb69280.png"
+    },
+    {
+      "flow": "calendar-detail10",
+      "w": 1440,
+      "h": 900,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mf6zr-16b2cff3.png"
+    },
+    {
+      "flow": "calendar-month",
+      "w": 390,
+      "h": 844,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mfbp2-9d43e442.png"
+    },
+    {
+      "flow": "calendar-month",
+      "w": 844,
+      "h": 390,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mfbv8-cd4e1de6.png"
+    },
+    {
+      "flow": "calendar-month",
+      "w": 768,
+      "h": 1024,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mfc47-9800776e.png"
+    },
+    {
+      "flow": "calendar-month",
+      "w": 1024,
+      "h": 768,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mfchu-6f22ee12.png"
+    },
+    {
+      "flow": "calendar-month",
+      "w": 1440,
+      "h": 900,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mfcn2-d27a2977.png"
+    },
+    {
+      "flow": "room-home",
+      "w": 390,
+      "h": 844,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mfosy-73aa0eaa.png"
+    },
+    {
+      "flow": "room-home",
+      "w": 844,
+      "h": 390,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mfoxg-a08e45a5.png"
+    },
+    {
+      "flow": "room-home",
+      "w": 768,
+      "h": 1024,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mfp2i-21b17c24.png"
+    },
+    {
+      "flow": "room-home",
+      "w": 1024,
+      "h": 768,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mfp76-c201d098.png"
+    },
+    {
+      "flow": "room-home",
+      "w": 1440,
+      "h": 900,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mfpnh-4376cbd7.png"
+    },
+    {
+      "flow": "classic-lobby",
+      "w": 390,
+      "h": 844,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mg99h-d8eab6e0.png"
+    },
+    {
+      "flow": "classic-lobby",
+      "w": 844,
+      "h": 390,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mg9og-b6a5185b.png"
+    },
+    {
+      "flow": "classic-lobby",
+      "w": 768,
+      "h": 1024,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mga3e-7514ec98.png"
+    },
+    {
+      "flow": "classic-lobby",
+      "w": 1024,
+      "h": 768,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mgagv-027cb9c3.png"
+    },
+    {
+      "flow": "classic-lobby",
+      "w": 1440,
+      "h": 900,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mgapr-4e9cf76f.png"
+    },
+    {
+      "flow": "classic-playback",
+      "w": 390,
+      "h": 844,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mggpz-c1369a78.png"
+    },
+    {
+      "flow": "classic-playback",
+      "w": 844,
+      "h": 390,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mgh2j-1155d9ce.png"
+    },
+    {
+      "flow": "classic-playback",
+      "w": 768,
+      "h": 1024,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mghr4-ece2dcba.png"
+    },
+    {
+      "flow": "classic-playback",
+      "w": 1024,
+      "h": 768,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mgih0-5875c0ff.png"
+    },
+    {
+      "flow": "classic-playback",
+      "w": 1440,
+      "h": 900,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mgjb5-cd611120.png"
+    },
+    {
+      "flow": "classic-scoring",
+      "w": 390,
+      "h": 844,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mgr2n-fb4e1aa2.png"
+    },
+    {
+      "flow": "classic-scoring",
+      "w": 844,
+      "h": 390,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mgrew-61f38a1f.png"
+    },
+    {
+      "flow": "classic-scoring",
+      "w": 768,
+      "h": 1024,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mgrtx-99a29624.png"
+    },
+    {
+      "flow": "classic-scoring",
+      "w": 1024,
+      "h": 768,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mgryy-dc541480.png"
+    },
+    {
+      "flow": "classic-scoring",
+      "w": 1440,
+      "h": 900,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mgs87-e39b158c.png"
+    },
+    {
+      "flow": "classic-reveal-or-result",
+      "w": 390,
+      "h": 844,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mgxon-a03c3801.png"
+    },
+    {
+      "flow": "classic-reveal-or-result",
+      "w": 844,
+      "h": 390,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mgxyu-64ff1744.png"
+    },
+    {
+      "flow": "classic-reveal-or-result",
+      "w": 768,
+      "h": 1024,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mgy36-6360f319.png"
+    },
+    {
+      "flow": "classic-reveal-or-result",
+      "w": 1024,
+      "h": 768,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mgycl-8bd45afb.png"
+    },
+    {
+      "flow": "classic-reveal-or-result",
+      "w": 1440,
+      "h": 900,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mgyh6-ebc665d3.png"
+    },
+    {
+      "flow": "classic-results",
+      "w": 390,
+      "h": 844,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mh4yp-285d3886.png"
+    },
+    {
+      "flow": "classic-results",
+      "w": 844,
+      "h": 390,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mh5a3-80597ced.png"
+    },
+    {
+      "flow": "classic-results",
+      "w": 768,
+      "h": 1024,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mh5f8-820428ee.png"
+    },
+    {
+      "flow": "classic-results",
+      "w": 1024,
+      "h": 768,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mh5oz-fe7ced33.png"
+    },
+    {
+      "flow": "classic-results",
+      "w": 1440,
+      "h": 900,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mh5th-04aaa3ed.png"
+    },
+    {
+      "flow": "code-lobby",
+      "w": 390,
+      "h": 844,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mhq48-6ca15205.png"
+    },
+    {
+      "flow": "code-lobby",
+      "w": 844,
+      "h": 390,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mhqjb-7e57ffb7.png"
+    },
+    {
+      "flow": "code-lobby",
+      "w": 768,
+      "h": 1024,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mhqz3-4202c69a.png"
+    },
+    {
+      "flow": "code-lobby",
+      "w": 1024,
+      "h": 768,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mhr3u-e69acfe6.png"
+    },
+    {
+      "flow": "code-lobby",
+      "w": 1440,
+      "h": 900,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mhrcs-6a0c7d0b.png"
+    },
+    {
+      "flow": "code-playback",
+      "w": 390,
+      "h": 844,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mhrh1-6df7d1cf.png"
+    },
+    {
+      "flow": "code-playback",
+      "w": 844,
+      "h": 390,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mhrr1-fd5bfa89.png"
+    },
+    {
+      "flow": "code-playback",
+      "w": 768,
+      "h": 1024,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mhsig-c60589ea.png"
+    },
+    {
+      "flow": "code-playback",
+      "w": 1024,
+      "h": 768,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mhswq-ff646317.png"
+    },
+    {
+      "flow": "code-playback",
+      "w": 1440,
+      "h": 900,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mhtz4-bfbf0443.png"
+    },
+    {
+      "flow": "code-scoring",
+      "w": 390,
+      "h": 844,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mhzmr-c129d8ca.png"
+    },
+    {
+      "flow": "code-scoring",
+      "w": 844,
+      "h": 390,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mhzrb-bdfc8abf.png"
+    },
+    {
+      "flow": "code-scoring",
+      "w": 768,
+      "h": 1024,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mhzwc-566a4b46.png"
+    },
+    {
+      "flow": "code-scoring",
+      "w": 1024,
+      "h": 768,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mi05x-57714e82.png"
+    },
+    {
+      "flow": "code-scoring",
+      "w": 1440,
+      "h": 900,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mi0ap-be2ae761.png"
+    },
+    {
+      "flow": "code-reveal",
+      "w": 390,
+      "h": 844,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mil3h-442495d0.png"
+    },
+    {
+      "flow": "code-reveal",
+      "w": 844,
+      "h": 390,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mildw-95a609c4.png"
+    },
+    {
+      "flow": "code-reveal",
+      "w": 768,
+      "h": 1024,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2miljo-aedfd417.png"
+    },
+    {
+      "flow": "code-reveal",
+      "w": 1024,
+      "h": 768,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2miln6-8e8db5e9.png"
+    },
+    {
+      "flow": "code-reveal",
+      "w": 1440,
+      "h": 900,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2milsj-e5a6476b.png"
+    },
+    {
+      "flow": "code-results",
+      "w": 390,
+      "h": 844,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2milwv-209910a6.png"
+    },
+    {
+      "flow": "code-results",
+      "w": 844,
+      "h": 390,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mim4u-ce9e3cec.png"
+    },
+    {
+      "flow": "code-results",
+      "w": 768,
+      "h": 1024,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mim8l-2faf2b47.png"
+    },
+    {
+      "flow": "code-results",
+      "w": 1024,
+      "h": 768,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mimco-3475e34a.png"
+    },
+    {
+      "flow": "code-results",
+      "w": 1440,
+      "h": 900,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mimij-a2527d38.png"
+    },
+    {
+      "flow": "mole-lobby",
+      "w": 390,
+      "h": 844,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mj0sr-de6d7756.png"
+    },
+    {
+      "flow": "mole-lobby",
+      "w": 844,
+      "h": 390,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mj0x4-2016f88b.png"
+    },
+    {
+      "flow": "mole-lobby",
+      "w": 768,
+      "h": 1024,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mj19g-ab2ac97e.png"
+    },
+    {
+      "flow": "mole-lobby",
+      "w": 1024,
+      "h": 768,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mj1mr-191857f7.png"
+    },
+    {
+      "flow": "mole-lobby",
+      "w": 1440,
+      "h": 900,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mj1sj-1286e8ec.png"
+    },
+    {
+      "flow": "mole-playback",
+      "w": 390,
+      "h": 844,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mj1xg-32d38fd0.png"
+    },
+    {
+      "flow": "mole-playback",
+      "w": 844,
+      "h": 390,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mj2ew-95e62678.png"
+    },
+    {
+      "flow": "mole-playback",
+      "w": 768,
+      "h": 1024,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mj2zb-a577877b.png"
+    },
+    {
+      "flow": "mole-playback",
+      "w": 1024,
+      "h": 768,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mj3df-4ee6aea2.png"
+    },
+    {
+      "flow": "mole-playback",
+      "w": 1440,
+      "h": 900,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mj3wo-a8a85150.png"
+    },
+    {
+      "flow": "mole-scoring",
+      "w": 390,
+      "h": 844,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mj9v5-4ca96c9c.png"
+    },
+    {
+      "flow": "mole-scoring",
+      "w": 844,
+      "h": 390,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mja27-69c9e1da.png"
+    },
+    {
+      "flow": "mole-scoring",
+      "w": 768,
+      "h": 1024,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mja6e-0aeca7fe.png"
+    },
+    {
+      "flow": "mole-scoring",
+      "w": 1024,
+      "h": 768,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mjaao-9b882a8e.png"
+    },
+    {
+      "flow": "mole-scoring",
+      "w": 1440,
+      "h": 900,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mjafd-18426337.png"
+    },
+    {
+      "flow": "mole-reveal",
+      "w": 390,
+      "h": 844,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mju8f-f9ffec83.png"
+    },
+    {
+      "flow": "mole-reveal",
+      "w": 844,
+      "h": 390,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mjuce-ad0ae50a.png"
+    },
+    {
+      "flow": "mole-reveal",
+      "w": 768,
+      "h": 1024,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mjuha-d321df72.png"
+    },
+    {
+      "flow": "mole-reveal",
+      "w": 1024,
+      "h": 768,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mjuwz-3b2f95d5.png"
+    },
+    {
+      "flow": "mole-reveal",
+      "w": 1440,
+      "h": 900,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mjv28-41272c02.png"
+    },
+    {
+      "flow": "mole-vote",
+      "w": 390,
+      "h": 844,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mjvoh-2f014a91.png"
+    },
+    {
+      "flow": "mole-vote",
+      "w": 844,
+      "h": 390,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mjw1z-fc2b83ce.png"
+    },
+    {
+      "flow": "mole-vote",
+      "w": 768,
+      "h": 1024,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mjwgq-d48e9331.png"
+    },
+    {
+      "flow": "mole-vote",
+      "w": 1024,
+      "h": 768,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mjwkd-55a3c0e7.png"
+    },
+    {
+      "flow": "mole-vote",
+      "w": 1440,
+      "h": 900,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mjwo8-f305f14e.png"
+    },
+    {
+      "flow": "mole-results",
+      "w": 390,
+      "h": 844,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mk7oj-4e3b0f33.png"
+    },
+    {
+      "flow": "mole-results",
+      "w": 844,
+      "h": 390,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mk7tq-2b6ff0f4.png"
+    },
+    {
+      "flow": "mole-results",
+      "w": 768,
+      "h": 1024,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mk7yx-78f22689.png"
+    },
+    {
+      "flow": "mole-results",
+      "w": 1024,
+      "h": 768,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mk838-6ffe0c6f.png"
+    },
+    {
+      "flow": "mole-results",
+      "w": 1440,
+      "h": 900,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mk88k-997134ed.png"
+    },
+    {
+      "flow": "calendar-o10",
+      "w": 390,
+      "h": 844,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mkcvg-6af25129.png"
+    },
+    {
+      "flow": "calendar-o10",
+      "w": 844,
+      "h": 390,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mkczl-a5dcf0e9.png"
+    },
+    {
+      "flow": "calendar-o10",
+      "w": 768,
+      "h": 1024,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mkd4m-9fc112c3.png"
+    },
+    {
+      "flow": "calendar-o10",
+      "w": 1024,
+      "h": 768,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mkdb0-7d9845b8.png"
+    },
+    {
+      "flow": "calendar-o10",
+      "w": 1440,
+      "h": 900,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mkdig-773ea394.png"
+    },
+    {
+      "flow": "message-chooser",
+      "w": 390,
+      "h": 844,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mkvy2-cb7e65c9.png"
+    },
+    {
+      "flow": "message-chooser",
+      "w": 844,
+      "h": 390,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mkwd0-feb4a94d.png"
+    },
+    {
+      "flow": "message-chooser",
+      "w": 768,
+      "h": 1024,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mkwsf-99054cbb.png"
+    },
+    {
+      "flow": "message-chooser",
+      "w": 1024,
+      "h": 768,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mkwxy-7dbe4d3a.png"
+    },
+    {
+      "flow": "message-chooser",
+      "w": 1440,
+      "h": 900,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mkx56-a61694e6.png"
+    },
+    {
+      "flow": "message-group-draft",
+      "w": 390,
+      "h": 844,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mkx9s-0d9965ff.png"
+    },
+    {
+      "flow": "message-group-draft",
+      "w": 844,
+      "h": 390,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mky9v-b7af352c.png"
+    },
+    {
+      "flow": "message-group-draft",
+      "w": 768,
+      "h": 1024,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mkyph-5c7d6890.png"
+    },
+    {
+      "flow": "message-group-draft",
+      "w": 1024,
+      "h": 768,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mkyuz-5053db05.png"
+    },
+    {
+      "flow": "message-group-draft",
+      "w": 1440,
+      "h": 900,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mkz8x-d62f239c.png"
+    },
+    {
+      "flow": "judging-draft6",
+      "w": 390,
+      "h": 844,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mmf6c-4f3e2bc3.png"
+    },
+    {
+      "flow": "judging-draft6",
+      "w": 844,
+      "h": 390,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mmfd1-0b63ec74.png"
+    },
+    {
+      "flow": "judging-draft6",
+      "w": 768,
+      "h": 1024,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mmfr4-a92e05cc.png"
+    },
+    {
+      "flow": "judging-draft6",
+      "w": 1024,
+      "h": 768,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mmg42-ff491f5c.png"
+    },
+    {
+      "flow": "judging-draft6",
+      "w": 1440,
+      "h": 900,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mmgme-76b848f6.png"
+    },
+    {
+      "flow": "clip3044-loaded",
+      "w": 390,
+      "h": 844,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mmxh3-076155f6.png"
+    },
+    {
+      "flow": "clip3044-loaded",
+      "w": 844,
+      "h": 390,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mmycd-3bf94185.png"
+    },
+    {
+      "flow": "clip3044-loaded",
+      "w": 768,
+      "h": 1024,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mmysz-0333f4ae.png"
+    },
+    {
+      "flow": "clip3044-loaded",
+      "w": 1024,
+      "h": 768,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mmz6n-c684e9d4.png"
+    },
+    {
+      "flow": "clip3044-loaded",
+      "w": 1440,
+      "h": 900,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mmzpy-10ece24c.png"
+    },
+    {
+      "flow": "clip3028-loaded",
+      "w": 390,
+      "h": 844,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mn5q7-a77fe35c.png"
+    },
+    {
+      "flow": "clip3028-loaded",
+      "w": 844,
+      "h": 390,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mn5zr-727177ad.png"
+    },
+    {
+      "flow": "clip3028-loaded",
+      "w": 768,
+      "h": 1024,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mn776-d9955588.png"
+    },
+    {
+      "flow": "clip3028-loaded",
+      "w": 1024,
+      "h": 768,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mn7k0-1aaf15df.png"
+    },
+    {
+      "flow": "clip3028-loaded",
+      "w": 1440,
+      "h": 900,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mn83i-58bd1ec2.png"
+    },
+    {
+      "flow": "details-expanded-0",
+      "w": 390,
+      "h": 844,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mnvh3-4830e8f3.png"
+    },
+    {
+      "flow": "details-expanded-650",
+      "w": 390,
+      "h": 844,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mnvpm-6e9c1900.png"
+    },
+    {
+      "flow": "details-expanded-1400",
+      "w": 390,
+      "h": 844,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mnvwv-be7d12f9.png"
+    },
+    {
+      "flow": "details-expanded-0",
+      "w": 844,
+      "h": 390,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mnwcv-df7b16f1.png"
+    },
+    {
+      "flow": "details-expanded-650",
+      "w": 844,
+      "h": 390,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mnwmj-3995dc76.png"
+    },
+    {
+      "flow": "details-expanded-1400",
+      "w": 844,
+      "h": 390,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mnwyl-0414411c.png"
+    },
+    {
+      "flow": "details-expanded-0",
+      "w": 768,
+      "h": 1024,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mnxc3-99b9387c.png"
+    },
+    {
+      "flow": "details-expanded-650",
+      "w": 768,
+      "h": 1024,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mnxm4-73309f22.png"
+    },
+    {
+      "flow": "details-expanded-1400",
+      "w": 768,
+      "h": 1024,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mny2x-a38de10e.png"
+    },
+    {
+      "flow": "details-expanded-0",
+      "w": 1024,
+      "h": 768,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mnyg4-6bc471f2.png"
+    },
+    {
+      "flow": "details-expanded-650",
+      "w": 1024,
+      "h": 768,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mnytf-88a0f309.png"
+    },
+    {
+      "flow": "details-expanded-1400",
+      "w": 1024,
+      "h": 768,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mnz48-64e5d77f.png"
+    },
+    {
+      "flow": "details-expanded-0",
+      "w": 1440,
+      "h": 900,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mnzit-7f02e524.png"
+    },
+    {
+      "flow": "details-expanded-650",
+      "w": 1440,
+      "h": 900,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mo00f-c1d26398.png"
+    },
+    {
+      "flow": "details-expanded-1400",
+      "w": 1440,
+      "h": 900,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mo0dq-8112e332.png"
+    },
+    {
+      "flow": "profile-codes-loaded",
+      "w": 390,
+      "h": 844,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mo7ac-0d8e5c55.png"
+    },
+    {
+      "flow": "profile-codes-loaded",
+      "w": 844,
+      "h": 390,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mo7fs-1e7baead.png"
+    },
+    {
+      "flow": "profile-codes-loaded",
+      "w": 768,
+      "h": 1024,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mo7oi-d466ec76.png"
+    },
+    {
+      "flow": "profile-codes-loaded",
+      "w": 1024,
+      "h": 768,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mo7vf-0f4a9677.png"
+    },
+    {
+      "flow": "profile-codes-loaded",
+      "w": 1440,
+      "h": 900,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mo852-e1945c33.png"
+    },
+    {
+      "flow": "profile-stats-open",
+      "w": 390,
+      "h": 844,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mo8b2-b47d456a.png"
+    },
+    {
+      "flow": "profile-stats-open",
+      "w": 844,
+      "h": 390,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mo8fj-2e230807.png"
+    },
+    {
+      "flow": "profile-stats-open",
+      "w": 768,
+      "h": 1024,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mo8o1-c08fc167.png"
+    },
+    {
+      "flow": "profile-stats-open",
+      "w": 1024,
+      "h": 768,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mo8vb-5da4fea4.png"
+    },
+    {
+      "flow": "profile-stats-open",
+      "w": 1440,
+      "h": 900,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mo92j-e5185d96.png"
+    },
+    {
+      "flow": "code-reveal-recheck",
+      "phase": "ca gm-page gm-phase-lobby",
+      "w": 390,
+      "h": 844,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mpsyk-cdb56975.png"
+    },
+    {
+      "flow": "code-reveal-recheck",
+      "phase": "ca gm-page gm-phase-lobby",
+      "w": 844,
+      "h": 390,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mpt3h-4986d943.png"
+    },
+    {
+      "flow": "code-reveal-recheck",
+      "phase": "ca gm-page gm-phase-lobby",
+      "w": 768,
+      "h": 1024,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mpt8u-a451f08f.png"
+    },
+    {
+      "flow": "code-reveal-recheck",
+      "phase": "ca gm-page gm-phase-lobby",
+      "w": 1024,
+      "h": 768,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mptda-5afe1fec.png"
+    },
+    {
+      "flow": "code-reveal-recheck",
+      "phase": "ca gm-page gm-phase-lobby",
+      "w": 1440,
+      "h": 900,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mptj8-1d34cfc1.png"
+    },
+    {
+      "flow": "code-reveal-confirmed",
+      "phase": "ca gm-page gm-phase-reveal",
+      "w": 390,
+      "h": 844,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mqkle-f523a8df.png"
+    },
+    {
+      "flow": "code-reveal-confirmed",
+      "phase": "ca gm-page gm-phase-reveal",
+      "w": 844,
+      "h": 390,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mqkp8-8f764742.png"
+    },
+    {
+      "flow": "code-reveal-confirmed",
+      "phase": "ca gm-page gm-phase-reveal",
+      "w": 768,
+      "h": 1024,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mqkum-222352ca.png"
+    },
+    {
+      "flow": "code-reveal-confirmed",
+      "phase": "ca gm-page gm-phase-reveal",
+      "w": 1024,
+      "h": 768,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mqkyv-1063a930.png"
+    },
+    {
+      "flow": "code-reveal-confirmed",
+      "phase": "ca gm-page gm-phase-reveal",
+      "w": 1440,
+      "h": 900,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mql3f-c2aef202.png"
+    },
+    {
+      "flow": "mole-playback-phone-recheck",
+      "w": 390,
+      "h": 844,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mr71w-05023ba9.png"
+    },
+    {
+      "flow": "mole-reveal-confirmed",
+      "phase": "ca gm-page gm-phase-reveal",
+      "w": 390,
+      "h": 844,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mrjmu-1ce5a6ff.png"
+    },
+    {
+      "flow": "mole-reveal-confirmed",
+      "phase": "ca gm-page gm-phase-reveal",
+      "w": 844,
+      "h": 390,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mrjs7-48070489.png"
+    },
+    {
+      "flow": "mole-reveal-confirmed",
+      "phase": "ca gm-page gm-phase-reveal",
+      "w": 768,
+      "h": 1024,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mrjxn-0117d213.png"
+    },
+    {
+      "flow": "mole-reveal-confirmed",
+      "phase": "ca gm-page gm-phase-reveal",
+      "w": 1024,
+      "h": 768,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mrk26-00dffb06.png"
+    },
+    {
+      "flow": "mole-reveal-confirmed",
+      "phase": "ca gm-page gm-phase-reveal",
+      "w": 1440,
+      "h": 900,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mrk7t-112537fc.png"
+    },
+    {
+      "flow": "code-playback-phone-recheck",
+      "w": 390,
+      "h": 844,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2ms7vv-487dd677.png"
+    },
+    {
+      "flow": "details-lower-0.55",
+      "w": 390,
+      "h": 844,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mtb4s-880a1238.png"
+    },
+    {
+      "flow": "details-lower-0.8",
+      "w": 390,
+      "h": 844,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mtb81-0a30e92a.png"
+    },
+    {
+      "flow": "details-lower-1",
+      "w": 390,
+      "h": 844,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mtbaq-8e2d5e44.png"
+    },
+    {
+      "flow": "details-lower-0.55",
+      "w": 844,
+      "h": 390,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mtbfu-d21a6cbc.png"
+    },
+    {
+      "flow": "details-lower-0.8",
+      "w": 844,
+      "h": 390,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mtbl2-b7faa518.png"
+    },
+    {
+      "flow": "details-lower-1",
+      "w": 844,
+      "h": 390,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mtbo8-80836618.png"
+    },
+    {
+      "flow": "details-lower-0.55",
+      "w": 768,
+      "h": 1024,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mtbu7-089f69b7.png"
+    },
+    {
+      "flow": "details-lower-0.8",
+      "w": 768,
+      "h": 1024,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mtbyi-03b08d77.png"
+    },
+    {
+      "flow": "details-lower-1",
+      "w": 768,
+      "h": 1024,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mtc2v-24854146.png"
+    },
+    {
+      "flow": "details-lower-0.55",
+      "w": 1024,
+      "h": 768,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mtc82-bc157e9b.png"
+    },
+    {
+      "flow": "details-lower-0.8",
+      "w": 1024,
+      "h": 768,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mtccc-8b85e726.png"
+    },
+    {
+      "flow": "details-lower-1",
+      "w": 1024,
+      "h": 768,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mtcgn-9c18e672.png"
+    },
+    {
+      "flow": "details-lower-0.55",
+      "w": 1440,
+      "h": 900,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mtcmr-eaad84ea.png"
+    },
+    {
+      "flow": "details-lower-0.8",
+      "w": 1440,
+      "h": 900,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mtcso-4142fcc9.png"
+    },
+    {
+      "flow": "details-lower-1",
+      "w": 1440,
+      "h": 900,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mtcxn-1bbdee86.png"
+    },
+    {
+      "flow": "details-lower-confirmed-0.55",
+      "w": 390,
+      "h": 844,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2muy6c-f2a23236.png"
+    },
+    {
+      "flow": "details-lower-confirmed-0.8",
+      "w": 390,
+      "h": 844,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2muycu-7352409c.png"
+    },
+    {
+      "flow": "details-lower-confirmed-1",
+      "w": 390,
+      "h": 844,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2muyiw-dd929ba5.png"
+    },
+    {
+      "flow": "details-lower-confirmed-0.55",
+      "w": 844,
+      "h": 390,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2muyv4-217d7f03.png"
+    },
+    {
+      "flow": "details-lower-confirmed-0.8",
+      "w": 844,
+      "h": 390,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2muz51-65b44fe6.png"
+    },
+    {
+      "flow": "details-lower-confirmed-1",
+      "w": 844,
+      "h": 390,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2muzd2-e74ce25c.png"
+    },
+    {
+      "flow": "details-lower-confirmed-0.55",
+      "w": 768,
+      "h": 1024,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2muzp5-c6f6735d.png"
+    },
+    {
+      "flow": "details-lower-confirmed-0.8",
+      "w": 768,
+      "h": 1024,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mv01d-e28a9497.png"
+    },
+    {
+      "flow": "details-lower-confirmed-1",
+      "w": 768,
+      "h": 1024,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mv0bk-24fef321.png"
+    },
+    {
+      "flow": "details-lower-confirmed-0.55",
+      "w": 1024,
+      "h": 768,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mv0ne-eb777f98.png"
+    },
+    {
+      "flow": "details-lower-confirmed-0.8",
+      "w": 1024,
+      "h": 768,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mv0wp-e6ee863b.png"
+    },
+    {
+      "flow": "details-lower-confirmed-1",
+      "w": 1024,
+      "h": 768,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mv15t-7f0c1d7c.png"
+    },
+    {
+      "flow": "details-lower-confirmed-0.55",
+      "w": 1440,
+      "h": 900,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mv1j8-06d580b6.png"
+    },
+    {
+      "flow": "details-lower-confirmed-0.8",
+      "w": 1440,
+      "h": 900,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mv1to-701e09a2.png"
+    },
+    {
+      "flow": "details-lower-confirmed-1",
+      "w": 1440,
+      "h": 900,
+      "path": "/Users/maximecauchy/.t3-nightly/userdata/browser-artifacts/browser-screenshot-localhost-mw2mv24e-4d1d9ba4.png"
+    }
+  ],
+  "artifactPrivacy": "Local artifacts only; screenshots can contain private media/conversations and are not for public posting.",
+  "sourceEdits": false,
+  "gitWrites": false,
+  "PR": false,
+  "deploy": false
+}

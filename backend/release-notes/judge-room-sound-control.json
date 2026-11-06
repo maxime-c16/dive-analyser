@@ -1,0 +1,8 @@
+{
+  "id": "judge-room-sound-control",
+  "date": "2026-11-05",
+  "title": "Control sound throughout group judging",
+  "body": "Mute or restore sound from the room toolbar. Your choice stays applied when the next dive starts.",
+  "audience": "all",
+  "components": ["frontend"]
+}

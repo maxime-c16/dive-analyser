@@ -65,7 +65,7 @@ function LibraryCard({
       type="button"
       onClick={onOpen}
       data-attempt-id={attempt.id}
-      className="group flex h-full min-w-0 flex-col text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-accent"
+      className="library-card group flex h-full min-w-0 flex-col text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-accent"
       aria-label={[
         t("dives.openAttemptAria", {
           code: attempt.dive_code,
@@ -76,7 +76,7 @@ function LibraryCard({
         .filter(Boolean)
         .join(" · ")}
     >
-      <div className="relative aspect-[9/16] w-full overflow-hidden rounded-xl border border-app transition-colors group-hover:border-app-strong">
+      <div className="library-thumbnail relative aspect-[9/16] w-full overflow-hidden rounded-xl border border-app transition-colors group-hover:border-app-strong">
         {thumbnail ? thumbnail(attempt) : <DiveThumbnail dive={attempt} compact />}
         <span className={`absolute bottom-1.5 left-1.5 rounded-full px-1.5 py-px text-xs font-bold tabular-nums text-black/80 ${RATING_BADGE[attempt.performance] ?? "bg-app-muted"}`} title={t("dives.scoreChipTitle", { score: attemptScore(attempt).toFixed(1), letter: attempt.performance })}>
           {attemptScore(attempt).toFixed(1)}
@@ -130,9 +130,9 @@ export function LibraryCardGrid({
             <span className="text-xs tabular-nums text-app-muted">{group.items.length + sessions.filter(s=>s.date===group.key).length}</span>
             <span className="h-px flex-1 self-center bg-app-border" aria-hidden="true" />
           </div>
-          <div className="grid grid-cols-4 gap-x-2 gap-y-4 sm:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8">
-            {sessions.filter(s=>s.date===group.key).map(session=><Link key={`session-${session.session_id}`} to={`/sessions/shared/${session.session_id}`} className="group flex h-full min-w-0 flex-col text-left" aria-label={t("libraryUX.sessionRowAria", { count: session.video_count })}>
-              <div className="relative aspect-[9/16] w-full overflow-hidden rounded-xl border border-app">{session.videos[0] && <SessionPoster video={session.videos[0]}/>}<span className="absolute bottom-1.5 left-1.5 rounded-full bg-app-accent px-2 text-xs font-bold text-black">{t("libraryUX.sessionBadge")}</span></div>
+          <div className="library-grid grid grid-cols-2 gap-x-3 gap-y-5 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+            {sessions.filter(s=>s.date===group.key).map(session=><Link key={`session-${session.session_id}`} to={`/sessions/shared/${session.session_id}`} className="library-card group flex h-full min-w-0 flex-col text-left" aria-label={t("libraryUX.sessionRowAria", { count: session.video_count })}>
+              <div className="library-thumbnail relative aspect-[9/16] w-full overflow-hidden rounded-xl border border-app">{session.videos[0] && <SessionPoster video={session.videos[0]}/>}<span className="absolute bottom-1.5 left-1.5 rounded-full bg-app-accent px-2 text-xs font-bold text-black">{t("libraryUX.sessionBadge")}</span></div>
               <span className="mt-1.5 text-sm font-semibold">{t("libraryUX.sessionVideos", { count: session.video_count })}</span><span className="text-xs text-app-muted">{formatDuration(session.total_duration)}</span>
             </Link>)}
             {group.items.map((attempt) => {

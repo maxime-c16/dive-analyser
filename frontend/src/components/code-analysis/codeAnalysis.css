@@ -2,7 +2,7 @@
    rounded panels, pills, a sliding segment indicator. Motion is
    transform/opacity only, plays once on arrival and stops under reduced motion. */
 
-.ca { --ca-r: 16px; --ca-up: #34d399; --ca-down: #fb923c; --ca-spring: cubic-bezier(.3, 1.4, .5, 1);
+.ca { --ca-r: var(--app-surface-radius); --ca-up: #34d399; --ca-down: #fb923c; --ca-spring: cubic-bezier(.3, 1.4, .5, 1);
   --ca-P: #34d399; --ca-G: var(--app-accent); --ca-M: #fcd34d; --ca-B: #fb923c; --ca-F: #f87171; }
 .ca-arrive { animation: ca-arrive 280ms ease-out backwards; }
 @keyframes ca-arrive { from { opacity: 0; transform: translateY(8px); } }
@@ -14,7 +14,7 @@
 .ca-panel-h { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
 .ca-panel-h h2 { margin: 0; font-size: 17px; font-weight: 600; color: var(--app-text); }
 .ca-panel-h span { font-size: 13px; color: var(--app-muted); }
-.ca-pill { display: inline-flex; flex: none; align-items: center; gap: 6px; min-height: 34px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--app-border); background: transparent; color: var(--app-muted); font-size: 13px; white-space: nowrap; transition: border-color .2s, color .2s, background-color .2s; }
+.ca-pill { display: inline-flex; flex: none; align-items: center; gap: 6px; min-height: 34px; padding: 0 14px; border-radius: var(--app-control-radius); border: 1px solid var(--app-border); background: transparent; color: var(--app-muted); font-size: 13px; white-space: nowrap; transition: border-color .2s, color .2s, background-color .2s; }
 .ca-pill[aria-pressed=true] { border-color: var(--app-accent); color: var(--app-accent); background: color-mix(in srgb, var(--app-accent) 10%, transparent); }
 .ca-pill:active { transform: scale(.96); }
 .ca-scroll { display: flex; gap: 8px; align-items: center; overflow-x: auto; scrollbar-width: none; }
@@ -24,10 +24,10 @@
 .ca-up { color: var(--ca-up); } .ca-down { color: var(--ca-down); } .ca-flat { color: var(--app-muted); }
 
 /* Segmented control (period, chart mode): pill track with a sliding thumb. */
-.ca-seg { position: relative; display: inline-flex; flex: none; padding: 3px; border: 1px solid var(--app-border); border-radius: 999px; }
-.ca-seg button { position: relative; z-index: 1; min-height: 30px; padding: 0 12px; border: 0; border-radius: 999px; background: none; color: var(--app-muted); font-size: 13px; white-space: nowrap; transition: color .2s; }
+.ca-seg { position: relative; display: inline-flex; flex: none; padding: 3px; border: 1px solid var(--app-border); border-radius: var(--app-control-radius); }
+.ca-seg button { position: relative; z-index: 1; min-height: 30px; padding: 0 12px; border: 0; border-radius: var(--app-control-radius); background: none; color: var(--app-muted); font-size: 13px; white-space: nowrap; transition: color .2s; }
 .ca-seg button[aria-pressed=true] { color: var(--app-accent); }
-.ca-seg-thumb { position: absolute; top: 3px; bottom: 3px; left: 0; border-radius: 999px; background: color-mix(in srgb, var(--app-accent) 18%, transparent); transition: transform 320ms var(--ca-spring), width 320ms var(--ca-spring); }
+.ca-seg-thumb { position: absolute; top: 3px; bottom: 3px; left: 0; border-radius: var(--app-control-radius); background: color-mix(in srgb, var(--app-accent) 18%, transparent); transition: transform 320ms var(--ca-spring), width 320ms var(--ca-spring); }
 
 /* Rating colours shared with the Library chips. */
 .ca-r-P { background: var(--ca-P); } .ca-r-G { background: var(--ca-G); } .ca-r-M { background: var(--ca-M); } .ca-r-B { background: var(--ca-B); } .ca-r-F { background: var(--ca-F); }
@@ -44,9 +44,8 @@
 .ca-code-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
 @media (min-width: 700px) { .ca-code-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (min-width: 1280px) { .ca-code-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-.ca-code-card { position: relative; display: block; min-width: 0; padding: 14px; border: 1px solid var(--app-border); border-radius: var(--ca-r); background: var(--app-panel); color: inherit; cursor: pointer; transition: border-color .2s, background-color .2s, transform .18s; }
-.ca-code-card:hover { border-color: var(--app-border-strong); background: var(--app-panel-elevated); }
-.ca-code-card:active { transform: scale(.985); }
+.ca-code-card { position: relative; display: block; min-width: 0; padding: 14px; border: 1px solid var(--app-border); border-radius: var(--ca-r); background: var(--app-panel); color: inherit; cursor: default; transition: border-color .2s; }
+.ca-code-card:focus-within { border-color: var(--app-border-strong); }
 .ca-code-card:focus-visible { outline: 2px solid var(--app-accent); outline-offset: 2px; }
 .ca-code-top { display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; gap: 12px; align-items: start; }
 .ca-code-top .ca-thumb { width: 64px; aspect-ratio: 1; padding: 0; }
@@ -60,6 +59,9 @@
 .ca-code-meta { display: flex; justify-content: space-between; gap: 8px; margin: 10px 0 8px; font-size: 12px; color: var(--app-muted); }
 .ca-code-card .ca-chips { margin-top: 10px; padding-right: 22px; }
 .ca-code-go { position: absolute; right: 12px; bottom: 14px; color: var(--app-muted); }
+.ca-code-details { margin-top:10px; padding-top:8px; border-top:1px solid var(--app-border); }
+.ca-code-details summary { min-height:36px; padding:6px 24px 6px 0; color:var(--app-muted); font-size:13px; cursor:pointer; }
+.ca-code-details .ca-rbar { margin-top:10px; }
 
 /* ---- Code page ---- */
 .ca-page { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; padding-bottom: 32px; }
@@ -102,7 +104,7 @@
 .ca-preview-score { font-size: 26px; font-weight: 800; font-variant-numeric: tabular-nums; }
 .ca-preview-sub { font-size: 13px; color: var(--app-muted); }
 .ca-preview-why { margin-top: 4px; font-size: 12px; }
-.ca-btn { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 16px; border: 1px solid var(--app-accent); border-radius: 999px; background: transparent; color: var(--app-accent); font-size: 14px; font-weight: 600; white-space: nowrap; }
+.ca-btn { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 16px; border: 1px solid var(--app-accent); border-radius: var(--app-control-radius); background: transparent; color: var(--app-accent); font-size: 14px; font-weight: 600; white-space: nowrap; }
 
 .ca-reps { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(124px, 1fr); gap: 10px; margin: 0 -16px; padding: 0 16px; overflow-x: auto; scroll-snap-type: x mandatory; scroll-padding: 0 16px; scrollbar-width: none; }
 .ca-reps::-webkit-scrollbar { display: none; }
@@ -263,3 +265,16 @@ button.ca-comm-row:active { transform: scale(.985); }
 .ca-diver-chip .member-avatar-face { inset: 0; border-radius: 50%; }
 .ca-diver-chip { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 14px 0 3px; border: 1px solid var(--app-border); border-radius: 999px; font-size: 14px; color: var(--app-text); min-width: 0; }
 .ca-diver-chip b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.ca-code-grid { align-items:start; }
+
+.ca-code-analysis { display:inline-flex; align-items:center; gap:3px; min-height:36px; font-size:13px; color:var(--app-accent); }
+.ca-code-analysis:hover { text-decoration:underline; }
+.ca-rating-legend { display:flex; gap:6px 14px; flex-wrap:wrap; margin:8px 0; font-size:12px; color:var(--app-muted); }
+.ca-rating-legend > div { display:flex; align-items:baseline; gap:4px; }
+.ca-rating-legend dd { color:var(--app-text); font-variant-numeric:tabular-nums; }
+.ca-recent-attempts { list-style:none; margin:8px 0 0; padding:0; }
+.ca-recent-attempts button { display:flex; align-items:center; gap:8px; width:100%; min-height:40px; border:0; border-top:1px solid var(--app-border); padding:6px 0; text-align:left; font-size:13px; }
+.ca-recent-attempts button:hover { background:var(--app-panel-elevated); }
+.ca-recent-attempts small { color:var(--app-muted); font-size:12px; }
+.ca-recent-attempts b { margin-left:auto; font-variant-numeric:tabular-nums; }

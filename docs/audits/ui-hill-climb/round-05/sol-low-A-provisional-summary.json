@@ -1,0 +1,20 @@
+{
+  "candidateSHA": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+  "finalNumeric": 0,
+  "finalMissing": 70,
+  "provisionalSubsetNumeric": 70,
+  "provisionalSubsetMinimum": 5,
+  "provisionalSubsetBelow7": 60,
+  "coverageGaps": [
+    "grid four remaining sizes",
+    "player details all sizes",
+    "Next/Previous/return screenshots at every size",
+    "recent clip from expanded 201C all sizes",
+    "Progress below fold heatmap/volume all sizes",
+    "overview secondary sections all sizes",
+    "detailed progression below fold and secondary sections all sizes",
+    "pagination screenshot all sizes"
+  ],
+  "fullscopeApproval": false,
+  "interpretation": "Provisional inspected-subset scores do not validate full-family or global cells; rawscore:null retained."
+}

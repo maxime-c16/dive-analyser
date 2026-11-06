@@ -1,0 +1,88 @@
+{
+  "sourceSHA": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+  "context": "Coordinator OWN tab; not cross-runtime proof for reviewer",
+  "method": "Await actual viewport dimensions, fonts ready, two animation frames and350ms; save-only snapshot",
+  "results": [
+    {
+      "size": [
+        390,
+        844
+      ],
+      "state": {
+        "animations": 0,
+        "cards": 48,
+        "decoded": 23,
+        "size": [
+          390,
+          844
+        ]
+      },
+      "original": "browser-screenshot-localhost-mw39vas9-90328944.png"
+    },
+    {
+      "size": [
+        844,
+        390
+      ],
+      "state": {
+        "animations": 0,
+        "cards": 48,
+        "decoded": 29,
+        "size": [
+          844,
+          390
+        ]
+      },
+      "original": "browser-screenshot-localhost-mw39vcw8-a6f66078.png"
+    },
+    {
+      "size": [
+        768,
+        1024
+      ],
+      "state": {
+        "animations": 0,
+        "cards": 48,
+        "decoded": 29,
+        "size": [
+          768,
+          1024
+        ]
+      },
+      "original": "browser-screenshot-localhost-mw39vdtx-f8e1ebc6.png"
+    },
+    {
+      "size": [
+        1024,
+        768
+      ],
+      "state": {
+        "animations": 0,
+        "cards": 48,
+        "decoded": 29,
+        "size": [
+          1024,
+          768
+        ]
+      },
+      "original": "browser-screenshot-localhost-mw39veia-79c3a592.png"
+    },
+    {
+      "size": [
+        1440,
+        900
+      ],
+      "state": {
+        "animations": 0,
+        "cards": 48,
+        "decoded": 29,
+        "size": [
+          1440,
+          900
+        ]
+      },
+      "original": "browser-screenshot-localhost-mw39vh4j-af158318.png"
+    }
+  ],
+  "result": "All five native preview snapshots succeeded. This proves availability now, not a root cause for earlier reviewer timeouts."
+}

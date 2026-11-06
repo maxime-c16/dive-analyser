@@ -1,0 +1,20 @@
+{
+  "candidate": "http://localhost:4317",
+  "profile": "default",
+  "ownTab": "tab_16_c539092e-8e18-4ced-b1f1-786e334b7451",
+  "newTab": true,
+  "requestedURL": "/account",
+  "settledURL": "/login",
+  "readOnlyRequest": "/api/v1/auth/me",
+  "status": 401,
+  "signedInAsMaxime": false,
+  "cause": "Undetermined: missing, revoked or expired cannot be distinguished",
+  "parentNotified": true,
+  "authChanges": false,
+  "cookieExports": false,
+  "held": [
+    "Real-data five-size screenshots/visualQA",
+    "Authenticated media/WS preflight",
+    "Fresh council reviews"
+  ]
+}

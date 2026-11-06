@@ -79,14 +79,14 @@ describe('Community discovery', () => {
     expect(screen.getByRole('button', { name: 'Load more members' })).toHaveTextContent('Load more members')
   })
 
-  it('ranks the most active members on a podium, you highlighted, your own diver left out', async () => {    const member = (user_id: number, display_name: string, attempts: number) => ({ user_id, display_name, handle: null, avatar_url: null, attempts, sessions: 1, codes: 1, median: null, delta: null, streak_weeks: 1, last_attempt_at: null })
+  it('ranks the most active members in order, you highlighted, your own diver left out', async () => {    const member = (user_id: number, display_name: string, attempts: number) => ({ user_id, display_name, handle: null, avatar_url: null, attempts, sessions: 1, codes: 1, median: null, delta: null, streak_weeks: 1, last_attempt_at: null })
     api(() => ({ items: [{ ...fanny, accessible_dive_count: 3 }, { ...fanny, user_id: 4, display_name: 'Twin', linked: true }], next_after: null }),
       { ...board, members: [member(4, 'Twin', 50), member(2, 'Fanny', 12), member(1, 'Me', 8)] })
     renderPage()
-    const podium = await screen.findByRole('list', { name: 'Podium' })
-    expect(podium).toHaveTextContent('Fanny')
-    expect(podium).toHaveTextContent('You')
-    expect(podium).not.toHaveTextContent('Twin')
+    const rankings = await screen.findByRole('list', { name: 'Rankings' })
+    expect(rankings).toHaveTextContent('Fanny')
+    expect(rankings).toHaveTextContent('You')
+    expect(rankings).not.toHaveTextContent('Twin')
   })
 
   it('searches names/handles and links to the selected member profile', async () => {
@@ -189,7 +189,7 @@ describe('Community discovery', () => {
         : { items: [], next_after: null },
       { ...board, members: [member(2, 'Fanny', 12), member(1, 'Me', 0)] })
     renderPage()
-    expect(await screen.findByRole('list', { name: 'Podium' })).toHaveTextContent('You')
+    expect(await screen.findByRole('list', { name: 'Rankings' })).toHaveTextContent('You')
     const user = userEvent.setup()
     await user.type(screen.getByRole('searchbox'), 'a')
     await screen.findByRole('link', { name: /Fanny/ })

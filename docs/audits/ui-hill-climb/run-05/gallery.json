@@ -1,0 +1,112 @@
+[
+  {
+    "flow": "room lobby toolbar",
+    "viewport": [
+      390,
+      844
+    ],
+    "crop": [
+      0,
+      0,
+      390,
+      64
+    ],
+    "image": "images/room-sound-390x844.png",
+    "before_source": "earlier candidate, before sound control; exact SHA unavailable",
+    "before_original": "browser-screenshot-localhost-mw2l8w5v-deb347ff.png",
+    "before_sha256": "236658d722328ffa6a27f75af9f848e7ae1ef8816e8b658b3ed8a331a4276554",
+    "after_source": "2c07abee70c41844d981ebdb9fa95a3f585bbdc4",
+    "after_original": "browser-screenshot-localhost-mw3hxnd4-86d2680c.png",
+    "after_sha256": "b81b035fcea414f531756be5995545bf32c2922931c416be7973e122d3458dc0",
+    "privacy": "Cropped before room code/invite; original screenshots unchanged and retained privately",
+    "limitation": "Toolbar comparison only; lobby selection differs outside crop; not a baseline scoring substitute"
+  },
+  {
+    "flow": "room lobby toolbar",
+    "viewport": [
+      844,
+      390
+    ],
+    "crop": [
+      0,
+      0,
+      360,
+      64
+    ],
+    "image": "images/room-sound-844x390.png",
+    "before_source": "earlier candidate, before sound control; exact SHA unavailable",
+    "before_original": "browser-screenshot-localhost-mw2l8wo5-1d676112.png",
+    "before_sha256": "1010549f12c705bd299f701326e410650b6942140b2dfa43d15c4aa754c3a393",
+    "after_source": "2c07abee70c41844d981ebdb9fa95a3f585bbdc4",
+    "after_original": "browser-screenshot-localhost-mw3hxnja-564def0a.png",
+    "after_sha256": "c0556cf8de383d88aae4a61bf219617066bbe4108db1833d20890e4636ff19ec",
+    "privacy": "Cropped before room code/invite; original screenshots unchanged and retained privately",
+    "limitation": "Toolbar comparison only; lobby selection differs outside crop; not a baseline scoring substitute"
+  },
+  {
+    "flow": "room lobby toolbar",
+    "viewport": [
+      768,
+      1024
+    ],
+    "crop": [
+      0,
+      0,
+      768,
+      64
+    ],
+    "image": "images/room-sound-768x1024.png",
+    "before_source": "earlier candidate, before sound control; exact SHA unavailable",
+    "before_original": "browser-screenshot-localhost-mw2l8x5h-b07c2834.png",
+    "before_sha256": "46f6fcee648a49a5921f90892c4aabf03789c2c6db490026b388a368a37785b5",
+    "after_source": "2c07abee70c41844d981ebdb9fa95a3f585bbdc4",
+    "after_original": "browser-screenshot-localhost-mw3hxnq6-084941d3.png",
+    "after_sha256": "a03f2b2619b9d59ba08b8e8f95439f30982ed74320933328b1aee57db6695a6c",
+    "privacy": "Cropped before room code/invite; original screenshots unchanged and retained privately",
+    "limitation": "Toolbar comparison only; lobby selection differs outside crop; not a baseline scoring substitute"
+  },
+  {
+    "flow": "room lobby toolbar",
+    "viewport": [
+      1024,
+      768
+    ],
+    "crop": [
+      0,
+      0,
+      1024,
+      64
+    ],
+    "image": "images/room-sound-1024x768.png",
+    "before_source": "earlier candidate, before sound control; exact SHA unavailable",
+    "before_original": "browser-screenshot-localhost-mw2l8xlu-790074cd.png",
+    "before_sha256": "f24b5f9d1e9d962a5378ac1f450961827c0bcdc3840f9cdde1b6bc0f20aa5ae1",
+    "after_source": "2c07abee70c41844d981ebdb9fa95a3f585bbdc4",
+    "after_original": "browser-screenshot-localhost-mw3hxnzv-86823249.png",
+    "after_sha256": "507374b3b277839307feb50c9c05a49ec24a46871f336a9a9b1263a106195322",
+    "privacy": "Cropped before room code/invite; original screenshots unchanged and retained privately",
+    "limitation": "Toolbar comparison only; lobby selection differs outside crop; not a baseline scoring substitute"
+  },
+  {
+    "flow": "room lobby toolbar",
+    "viewport": [
+      1440,
+      900
+    ],
+    "crop": [
+      0,
+      0,
+      1440,
+      64
+    ],
+    "image": "images/room-sound-1440x900.png",
+    "before_source": "earlier candidate, before sound control; exact SHA unavailable",
+    "before_original": "browser-screenshot-localhost-mw2l8y3j-4355f917.png",
+    "before_sha256": "dce905b577390531042bb46023a8711a1d50fe36212b727fd960e4940318f5ff",
+    "after_source": "2c07abee70c41844d981ebdb9fa95a3f585bbdc4",
+    "after_original": "browser-screenshot-localhost-mw3hxo9j-d58df6d4.png",
+    "after_sha256": "aaae2662a61f8e7ce70f11fb49659937d026213b8db06c6961819abdaa4538a5",
+    "privacy": "Cropped before room code/invite; original screenshots unchanged and retained privately",
+    "limitation": "Toolbar comparison only; lobby selection differs outside crop; not a baseline scoring substitute"
+  }
+]

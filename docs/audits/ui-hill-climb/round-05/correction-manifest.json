@@ -1,0 +1,47 @@
+{
+  "reviewedSHA": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c (git rev-parse HEAD; log cf95a4a fix(ui) + 80cab70a + 6cb6cff; status shows only docs/audits/ui-hill-climb audit/gallery dirt, no served source change)",
+  "correctedSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+  "status": "Committed, checks green; real-data visualQA held by own auth/me401; no design reevaluation",
+  "files": [
+    "frontend/src/components/code-analysis/CodeCards.tsx",
+    "frontend/src/components/code-analysis/codeAnalysis.css",
+    "frontend/src/components/community/community.css",
+    "frontend/src/components/evaluation/AutomaticScores.test.tsx",
+    "frontend/src/components/evaluation/AutomaticScores.tsx",
+    "frontend/src/components/evaluation/evaluationHub.css",
+    "frontend/src/components/judge-room/judgeRoom.css",
+    "frontend/src/components/messages/messages.css",
+    "frontend/src/i18n/locales/en.ts",
+    "frontend/src/i18n/locales/fr.ts",
+    "frontend/src/mainJourneys.css",
+    "frontend/src/pages/DiveAnalysis.test.tsx",
+    "frontend/src/pages/DiveAnalysis.tsx",
+    "frontend/src/pages/MemberProfile.tsx",
+    "frontend/src/pages/Messages.test.tsx",
+    "frontend/src/pages/Messages.tsx"
+  ],
+  "checks": {
+    "full_frontend": "117files958testsPASS; last localized labels/active-filter indicator validated separately",
+    "build": "PASS finalsource (tsc +vite/PWA)",
+    "commands_recovered": "Two root-directory invocations were invalid (missing package/test setup); correct frontend invocations are the evidence",
+    "final_targeted": "43analysis/evaluationtestsPASS finalsource"
+  },
+  "fixes": [
+    "Compose dialog sibling of phone-hidden heading; viewport-bounded recipient list",
+    "Full-width unselected inbox",
+    "Explicit code Analysis action and dated attempt rows with distribution legend",
+    "Correct Library return destination label",
+    "Collapsed analysis filters, visible chart, explicit trend window and middle50% wording",
+    "Profile Last dive and weekly count labels",
+    "My dives canonical identity/date first, score and reviewers second, code third; genuine zero retained",
+    "Plain main-journey portraits with original identity/preferences retained",
+    "Higher contrast task metadata/borders; named code analysis actions and larger domain labels",
+    "Compact short-landscape room scoring context without removing players or controls"
+  ],
+  "remaining": [
+    "Actual five-size visual QA blocked by independently observed auth/me401; no cause inferred",
+    "Profile Activity/Achievements source already separate mounted hidden panels; real browser check pending",
+    "Fresh corrected SHA and three fullscope reviews, no score increase inferred",
+    "Sanitized child comparison gallery and PR"
+  ]
+}

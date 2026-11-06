@@ -1,0 +1,195 @@
+{
+  "candidateSHA": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+  "reviewer": "implementation coordinator, subjective self-assessment",
+  "sizes": [
+    "390x844",
+    "844x390",
+    "768x1024",
+    "1024x768",
+    "1440x900"
+  ],
+  "aggregation": "lowest observed relevant screen, never an average",
+  "rows": [
+    {
+      "category": "Visual hierarchy",
+      "scores": [
+        7,
+        7,
+        7,
+        7,
+        7
+      ],
+      "weakest_screen_reason": "Weakest: detailed201C inventory/attempt drawer. Main progression open first; basic attempt footage/metadata precede optional advanced metrics."
+    },
+    {
+      "category": "Layout and density",
+      "scores": [
+        7,
+        7,
+        7,
+        7,
+        7
+      ],
+      "weakest_screen_reason": "Weakest:844x390. Named attached navigation frees content; threaded history153px and composer within381; timed-game actions withinviewport."
+    },
+    {
+      "category": "Typography",
+      "scores": [
+        7,
+        7,
+        7,
+        7,
+        7
+      ],
+      "weakest_screen_reason": "Weakest: statistical metadata. Shared25/28px headings and13\u201316px task text; fine chart labels remain secondary."
+    },
+    {
+      "category": "Color and contrast",
+      "scores": [
+        8,
+        8,
+        8,
+        8,
+        8
+      ],
+      "weakest_screen_reason": "Marine-blue controls and slate surfaces distinguish selection and task state; no claim of formal contrast/accessibility certification."
+    },
+    {
+      "category": "Spacing and alignment",
+      "scores": [
+        7,
+        7,
+        7,
+        7,
+        7
+      ],
+      "weakest_screen_reason": "Weakest: expanded analytics. Bounded rows and independent grid-card heights avoid expansion stretching neighbours."
+    },
+    {
+      "category": "Navigation and orientation",
+      "scores": [
+        7,
+        7,
+        8,
+        8,
+        8
+      ],
+      "weakest_screen_reason": "Five labeled destinations; same Library modes at all sizes; profile tabs precede Stats; viewer return/previous/next persist."
+    },
+    {
+      "category": "Control clarity",
+      "scores": [
+        7,
+        7,
+        7,
+        8,
+        8
+      ],
+      "weakest_screen_reason": "Weakest: compact analysis controls. Named filters and explicit Apply code, stable checked In selections semantics, deliberate score Submit."
+    },
+    {
+      "category": "Terminology and instructions",
+      "scores": [
+        7,
+        7,
+        7,
+        7,
+        7
+      ],
+      "weakest_screen_reason": "Weakest: advanced analytics retains domain terminology behind disclosure. Named modifiers/phases and visible task labels replace unexplained primary acronyms."
+    },
+    {
+      "category": "Component consistency",
+      "scores": [
+        7,
+        7,
+        7,
+        7,
+        7
+      ],
+      "weakest_screen_reason": "Shared primary navigation, buttons and data sections; game score-card artwork remains deliberate task content."
+    },
+    {
+      "category": "Task content presentation",
+      "scores": [
+        7,
+        7,
+        7,
+        7,
+        7
+      ],
+      "weakest_screen_reason": "Whole video frame with summary/actions outside footage; real attempt IDs distinguish imported equal timestamps; advanced metrics secondary."
+    },
+    {
+      "category": "Feedback and state clarity",
+      "scores": [
+        7,
+        7,
+        7,
+        7,
+        7
+      ],
+      "weakest_screen_reason": "Actual draft and persisted score verified; timed mole choice has countdown/no default/submitted/outcome; network retries recover without invented root cause."
+    },
+    {
+      "category": "Professional finish",
+      "scores": [
+        7,
+        7,
+        7,
+        7,
+        7
+      ],
+      "weakest_screen_reason": "Weakest: analytics density and game layouts. Utility motion/copy toned down; no floating icon dock or disappearing review controls."
+    },
+    {
+      "category": "Responsive fit",
+      "scores": [
+        7,
+        7,
+        8,
+        8,
+        8
+      ],
+      "weakest_screen_reason": "Actual exact-size captures show no page horizontal overflow; required scrolling remains for lengthy forms/details. Phone group sheet settled y24, list220."
+    },
+    {
+      "category": "Next-action discoverability",
+      "scores": [
+        7,
+        7,
+        7,
+        8,
+        8
+      ],
+      "weakest_screen_reason": "Visible Library modes, Add videos, player next/back, Calendar Save, timed score/vote and result actions. No private-message send or real evaluation vote."
+    }
+  ],
+  "minimum": 7,
+  "below7": 0,
+  "numeric": 70,
+  "independentApproval": false,
+  "accessibilityCertification": false,
+  "coverage": "Main journeys and representative child layouts at five sizes; foreground Classic/Mole/Code state transitions exercised; five-size scoring/reveal/results plus mole-vote and shared playback layouts captured. Not every filter value or every action repeated at every size. Full independent council coverage remains required. No score inferred from passing technical tests.",
+  "checks": [
+    "117files956frontendtestsPASS on80cab source",
+    "47analysis/profile testsPASS after final two-file hierarchy correction",
+    "production buildPASS finalsource",
+    "git diff --checkPASS"
+  ],
+  "evidence_private_indexes": [
+    "/tmp/dive-ui-r5-shots-v10-private.json",
+    "/tmp/dive-ui-80cab-room-v3-private.json",
+    "/tmp/dive-ui-80cab-player-settled-private.json",
+    "/tmp/dive-ui-80cab-judging-draft-private.json",
+    "/tmp/dive-ui-80cab-children-private.json",
+    "/tmp/dive-ui-profile-navigation-private.json",
+    "/tmp/dive-ui-final-attempt-drawer-settled-private.json"
+  ],
+  "limits": [
+    "Pending full independent reviews; self-scores do not establish210-cell gate",
+    "Transient ERR_NETWORK_CHANGED/media initial load recovery causes unknown",
+    "Physical devices,other browsers,accessibility certification and Mac global gate not claimed",
+    "Early loading/unsettled captures excluded; screenshots remain private until sanitization"
+  ]
+}

@@ -35,3 +35,15 @@ it('fetches the entire lobby playlist with at most two concurrent downloads and 
   unmount();expect(revoke).toHaveBeenCalledTimes(8)
 
 })
+
+it('tries the existing scoped cached preview after the light derivative fetch fails', async () => {
+  const fetcher = vi.fn().mockRejectedValueOnce(new TypeError('fetch failed')).mockResolvedValueOnce({ok:true, blob:async()=>new Blob(['cached preview'])})
+  vi.stubGlobal('fetch', fetcher)
+  const revoke = vi.fn()
+  vi.stubGlobal('URL', Object.assign(class extends URL {}, {createObjectURL:()=> 'blob:preview',revokeObjectURL:revoke}))
+  const dives=[{id:1,playback_url:'/api/v1/rooms/ABCD/media/1/video'}] as Dive[]
+  const {result,unmount}=renderHook(()=>useRoomPreload('ABCD',dives))
+  await waitFor(()=>expect(result.current[1]).toBe('blob:preview'))
+  expect(fetcher).toHaveBeenNthCalledWith(2,'/api/v1/rooms/ABCD/media/1/video?q=preview',expect.objectContaining({credentials:'same-origin'}))
+  unmount();expect(revoke).toHaveBeenCalledWith('blob:preview')
+})

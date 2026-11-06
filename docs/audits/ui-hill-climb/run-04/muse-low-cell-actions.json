@@ -1,0 +1,1247 @@
+[
+  {
+    "review": "Muse round5",
+    "shaNoted": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "category": "Visual hierarchy",
+    "viewport": [
+      390,
+      844
+    ],
+    "score": 6,
+    "criticism": "My dives rows still code/score-first with shared 18 Oct date; imported batch distinguished only by canonical #ID. Scoring context strip compressed at short height.",
+    "proposedOrIntegratedChanges": [
+      "CanonicalID/date-firstMydives"
+    ],
+    "correctedSourceSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+    "evidence": "run-04/GALLERY.md for compose only; other current states DOM-only, not visual proof",
+    "status": "Pending real visual reevaluation; subjective score unchanged"
+  },
+  {
+    "review": "Muse round5",
+    "shaNoted": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "category": "Visual hierarchy",
+    "viewport": [
+      844,
+      390
+    ],
+    "score": 5,
+    "criticism": "My dives rows still code/score-first with shared 18 Oct date; imported batch distinguished only by canonical #ID. Scoring context strip compressed at short height.",
+    "proposedOrIntegratedChanges": [
+      "CanonicalID/date-firstMydives"
+    ],
+    "correctedSourceSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+    "evidence": "run-04/GALLERY.md for compose only; other current states DOM-only, not visual proof",
+    "status": "Pending real visual reevaluation; subjective score unchanged"
+  },
+  {
+    "review": "Muse round5",
+    "shaNoted": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "category": "Visual hierarchy",
+    "viewport": [
+      768,
+      1024
+    ],
+    "score": 6,
+    "criticism": "My dives rows still code/score-first with shared 18 Oct date; imported batch distinguished only by canonical #ID. Scoring context strip compressed at short height.",
+    "proposedOrIntegratedChanges": [
+      "CanonicalID/date-firstMydives"
+    ],
+    "correctedSourceSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+    "evidence": "run-04/GALLERY.md for compose only; other current states DOM-only, not visual proof",
+    "status": "Pending real visual reevaluation; subjective score unchanged"
+  },
+  {
+    "review": "Muse round5",
+    "shaNoted": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "category": "Visual hierarchy",
+    "viewport": [
+      1024,
+      768
+    ],
+    "score": 6,
+    "criticism": "My dives rows still code/score-first with shared 18 Oct date; imported batch distinguished only by canonical #ID. Scoring context strip compressed at short height.",
+    "proposedOrIntegratedChanges": [
+      "CanonicalID/date-firstMydives"
+    ],
+    "correctedSourceSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+    "evidence": "run-04/GALLERY.md for compose only; other current states DOM-only, not visual proof",
+    "status": "Pending real visual reevaluation; subjective score unchanged"
+  },
+  {
+    "review": "Muse round5",
+    "shaNoted": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "category": "Visual hierarchy",
+    "viewport": [
+      1440,
+      900
+    ],
+    "score": 6,
+    "criticism": "My dives rows still code/score-first with shared 18 Oct date; imported batch distinguished only by canonical #ID. Scoring context strip compressed at short height.",
+    "proposedOrIntegratedChanges": [
+      "CanonicalID/date-firstMydives"
+    ],
+    "correctedSourceSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+    "evidence": "run-04/GALLERY.md for compose only; other current states DOM-only, not visual proof",
+    "status": "Pending real visual reevaluation; subjective score unchanged"
+  },
+  {
+    "review": "Muse round5",
+    "shaNoted": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "category": "Layout and density",
+    "viewport": [
+      390,
+      844
+    ],
+    "score": 6,
+    "criticism": "Dense but bounded; short height most constrained. Grid start-aligned (no forced equal height) verified.",
+    "proposedOrIntegratedChanges": [
+      "Boundedcomposeheight",
+      "Singlepaneunselectedinbox",
+      "Collapsedanalysisfilters"
+    ],
+    "correctedSourceSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+    "evidence": "run-04/GALLERY.md for compose only; other current states DOM-only, not visual proof",
+    "status": "Pending real visual reevaluation; subjective score unchanged"
+  },
+  {
+    "review": "Muse round5",
+    "shaNoted": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "category": "Layout and density",
+    "viewport": [
+      844,
+      390
+    ],
+    "score": 5,
+    "criticism": "Dense but bounded; short height most constrained. Grid start-aligned (no forced equal height) verified.",
+    "proposedOrIntegratedChanges": [
+      "Boundedcomposeheight",
+      "Singlepaneunselectedinbox",
+      "Collapsedanalysisfilters"
+    ],
+    "correctedSourceSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+    "evidence": "run-04/GALLERY.md for compose only; other current states DOM-only, not visual proof",
+    "status": "Pending real visual reevaluation; subjective score unchanged"
+  },
+  {
+    "review": "Muse round5",
+    "shaNoted": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "category": "Layout and density",
+    "viewport": [
+      768,
+      1024
+    ],
+    "score": 6,
+    "criticism": "Dense but bounded; short height most constrained. Grid start-aligned (no forced equal height) verified.",
+    "proposedOrIntegratedChanges": [
+      "Boundedcomposeheight",
+      "Singlepaneunselectedinbox",
+      "Collapsedanalysisfilters"
+    ],
+    "correctedSourceSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+    "evidence": "run-04/GALLERY.md for compose only; other current states DOM-only, not visual proof",
+    "status": "Pending real visual reevaluation; subjective score unchanged"
+  },
+  {
+    "review": "Muse round5",
+    "shaNoted": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "category": "Layout and density",
+    "viewport": [
+      1024,
+      768
+    ],
+    "score": 6,
+    "criticism": "Dense but bounded; short height most constrained. Grid start-aligned (no forced equal height) verified.",
+    "proposedOrIntegratedChanges": [
+      "Boundedcomposeheight",
+      "Singlepaneunselectedinbox",
+      "Collapsedanalysisfilters"
+    ],
+    "correctedSourceSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+    "evidence": "run-04/GALLERY.md for compose only; other current states DOM-only, not visual proof",
+    "status": "Pending real visual reevaluation; subjective score unchanged"
+  },
+  {
+    "review": "Muse round5",
+    "shaNoted": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "category": "Layout and density",
+    "viewport": [
+      1440,
+      900
+    ],
+    "score": 6,
+    "criticism": "Dense but bounded; short height most constrained. Grid start-aligned (no forced equal height) verified.",
+    "proposedOrIntegratedChanges": [
+      "Boundedcomposeheight",
+      "Singlepaneunselectedinbox",
+      "Collapsedanalysisfilters"
+    ],
+    "correctedSourceSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+    "evidence": "run-04/GALLERY.md for compose only; other current states DOM-only, not visual proof",
+    "status": "Pending real visual reevaluation; subjective score unchanged"
+  },
+  {
+    "review": "Muse round5",
+    "shaNoted": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "category": "Typography",
+    "viewport": [
+      390,
+      844
+    ],
+    "score": 6,
+    "criticism": "Scale system applied consistently; meta at 12-13px in chips/inventory is smallest legible, not a 7.",
+    "proposedOrIntegratedChanges": [
+      "14pxtaskmetadata"
+    ],
+    "correctedSourceSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+    "evidence": "run-04/GALLERY.md for compose only; other current states DOM-only, not visual proof",
+    "status": "Pending real visual reevaluation; subjective score unchanged"
+  },
+  {
+    "review": "Muse round5",
+    "shaNoted": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "category": "Typography",
+    "viewport": [
+      844,
+      390
+    ],
+    "score": 6,
+    "criticism": "Scale system applied consistently; meta at 12-13px in chips/inventory is smallest legible, not a 7.",
+    "proposedOrIntegratedChanges": [
+      "14pxtaskmetadata"
+    ],
+    "correctedSourceSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+    "evidence": "run-04/GALLERY.md for compose only; other current states DOM-only, not visual proof",
+    "status": "Pending real visual reevaluation; subjective score unchanged"
+  },
+  {
+    "review": "Muse round5",
+    "shaNoted": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "category": "Typography",
+    "viewport": [
+      768,
+      1024
+    ],
+    "score": 6,
+    "criticism": "Scale system applied consistently; meta at 12-13px in chips/inventory is smallest legible, not a 7.",
+    "proposedOrIntegratedChanges": [
+      "14pxtaskmetadata"
+    ],
+    "correctedSourceSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+    "evidence": "run-04/GALLERY.md for compose only; other current states DOM-only, not visual proof",
+    "status": "Pending real visual reevaluation; subjective score unchanged"
+  },
+  {
+    "review": "Muse round5",
+    "shaNoted": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "category": "Typography",
+    "viewport": [
+      1024,
+      768
+    ],
+    "score": 6,
+    "criticism": "Scale system applied consistently; meta at 12-13px in chips/inventory is smallest legible, not a 7.",
+    "proposedOrIntegratedChanges": [
+      "14pxtaskmetadata"
+    ],
+    "correctedSourceSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+    "evidence": "run-04/GALLERY.md for compose only; other current states DOM-only, not visual proof",
+    "status": "Pending real visual reevaluation; subjective score unchanged"
+  },
+  {
+    "review": "Muse round5",
+    "shaNoted": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "category": "Typography",
+    "viewport": [
+      1440,
+      900
+    ],
+    "score": 6,
+    "criticism": "Scale system applied consistently; meta at 12-13px in chips/inventory is smallest legible, not a 7.",
+    "proposedOrIntegratedChanges": [
+      "14pxtaskmetadata"
+    ],
+    "correctedSourceSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+    "evidence": "run-04/GALLERY.md for compose only; other current states DOM-only, not visual proof",
+    "status": "Pending real visual reevaluation; subjective score unchanged"
+  },
+  {
+    "review": "Muse round5",
+    "shaNoted": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "category": "Color and contrast",
+    "viewport": [
+      390,
+      844
+    ],
+    "score": 5,
+    "criticism": "Dark diving workspace intentional; muted #98a2aa and quiet borders are low contrast by design, not certified.",
+    "proposedOrIntegratedChanges": [
+      "Highercontrastscopedpaletteandborders"
+    ],
+    "correctedSourceSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+    "evidence": "run-04/GALLERY.md for compose only; other current states DOM-only, not visual proof",
+    "status": "Pending real visual reevaluation; subjective score unchanged"
+  },
+  {
+    "review": "Muse round5",
+    "shaNoted": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "category": "Color and contrast",
+    "viewport": [
+      844,
+      390
+    ],
+    "score": 5,
+    "criticism": "Dark diving workspace intentional; muted #98a2aa and quiet borders are low contrast by design, not certified.",
+    "proposedOrIntegratedChanges": [
+      "Highercontrastscopedpaletteandborders"
+    ],
+    "correctedSourceSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+    "evidence": "run-04/GALLERY.md for compose only; other current states DOM-only, not visual proof",
+    "status": "Pending real visual reevaluation; subjective score unchanged"
+  },
+  {
+    "review": "Muse round5",
+    "shaNoted": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "category": "Color and contrast",
+    "viewport": [
+      768,
+      1024
+    ],
+    "score": 5,
+    "criticism": "Dark diving workspace intentional; muted #98a2aa and quiet borders are low contrast by design, not certified.",
+    "proposedOrIntegratedChanges": [
+      "Highercontrastscopedpaletteandborders"
+    ],
+    "correctedSourceSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+    "evidence": "run-04/GALLERY.md for compose only; other current states DOM-only, not visual proof",
+    "status": "Pending real visual reevaluation; subjective score unchanged"
+  },
+  {
+    "review": "Muse round5",
+    "shaNoted": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "category": "Color and contrast",
+    "viewport": [
+      1024,
+      768
+    ],
+    "score": 5,
+    "criticism": "Dark diving workspace intentional; muted #98a2aa and quiet borders are low contrast by design, not certified.",
+    "proposedOrIntegratedChanges": [
+      "Highercontrastscopedpaletteandborders"
+    ],
+    "correctedSourceSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+    "evidence": "run-04/GALLERY.md for compose only; other current states DOM-only, not visual proof",
+    "status": "Pending real visual reevaluation; subjective score unchanged"
+  },
+  {
+    "review": "Muse round5",
+    "shaNoted": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "category": "Color and contrast",
+    "viewport": [
+      1440,
+      900
+    ],
+    "score": 5,
+    "criticism": "Dark diving workspace intentional; muted #98a2aa and quiet borders are low contrast by design, not certified.",
+    "proposedOrIntegratedChanges": [
+      "Highercontrastscopedpaletteandborders"
+    ],
+    "correctedSourceSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+    "evidence": "run-04/GALLERY.md for compose only; other current states DOM-only, not visual proof",
+    "status": "Pending real visual reevaluation; subjective score unchanged"
+  },
+  {
+    "review": "Muse round5",
+    "shaNoted": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "category": "Spacing and alignment",
+    "viewport": [
+      390,
+      844
+    ],
+    "score": 6,
+    "criticism": "Left-aligned, no horizontal overflow (13 pages x5 sizes zero overflow). Short height tightest.",
+    "proposedOrIntegratedChanges": [
+      "Viewportboundedcomposesheet",
+      "Compactroomcontext"
+    ],
+    "correctedSourceSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+    "evidence": "run-04/GALLERY.md for compose only; other current states DOM-only, not visual proof",
+    "status": "Pending real visual reevaluation; subjective score unchanged"
+  },
+  {
+    "review": "Muse round5",
+    "shaNoted": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "category": "Spacing and alignment",
+    "viewport": [
+      844,
+      390
+    ],
+    "score": 5,
+    "criticism": "Left-aligned, no horizontal overflow (13 pages x5 sizes zero overflow). Short height tightest.",
+    "proposedOrIntegratedChanges": [
+      "Viewportboundedcomposesheet",
+      "Compactroomcontext"
+    ],
+    "correctedSourceSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+    "evidence": "run-04/GALLERY.md for compose only; other current states DOM-only, not visual proof",
+    "status": "Pending real visual reevaluation; subjective score unchanged"
+  },
+  {
+    "review": "Muse round5",
+    "shaNoted": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "category": "Spacing and alignment",
+    "viewport": [
+      768,
+      1024
+    ],
+    "score": 6,
+    "criticism": "Left-aligned, no horizontal overflow (13 pages x5 sizes zero overflow). Short height tightest.",
+    "proposedOrIntegratedChanges": [
+      "Viewportboundedcomposesheet",
+      "Compactroomcontext"
+    ],
+    "correctedSourceSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+    "evidence": "run-04/GALLERY.md for compose only; other current states DOM-only, not visual proof",
+    "status": "Pending real visual reevaluation; subjective score unchanged"
+  },
+  {
+    "review": "Muse round5",
+    "shaNoted": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "category": "Spacing and alignment",
+    "viewport": [
+      1024,
+      768
+    ],
+    "score": 6,
+    "criticism": "Left-aligned, no horizontal overflow (13 pages x5 sizes zero overflow). Short height tightest.",
+    "proposedOrIntegratedChanges": [
+      "Viewportboundedcomposesheet",
+      "Compactroomcontext"
+    ],
+    "correctedSourceSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+    "evidence": "run-04/GALLERY.md for compose only; other current states DOM-only, not visual proof",
+    "status": "Pending real visual reevaluation; subjective score unchanged"
+  },
+  {
+    "review": "Muse round5",
+    "shaNoted": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "category": "Spacing and alignment",
+    "viewport": [
+      1440,
+      900
+    ],
+    "score": 6,
+    "criticism": "Left-aligned, no horizontal overflow (13 pages x5 sizes zero overflow). Short height tightest.",
+    "proposedOrIntegratedChanges": [
+      "Viewportboundedcomposesheet",
+      "Compactroomcontext"
+    ],
+    "correctedSourceSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+    "evidence": "run-04/GALLERY.md for compose only; other current states DOM-only, not visual proof",
+    "status": "Pending real visual reevaluation; subjective score unchanged"
+  },
+  {
+    "review": "Muse round5",
+    "shaNoted": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "category": "Navigation and orientation",
+    "viewport": [
+      390,
+      844
+    ],
+    "score": 6,
+    "criticism": "Attached named navigation verified (attached-navigation marker, 5 names at all sizes); Library Clips/By code/Progress named; player return/Previous/Next/Details visible; room Back visible. Orientation still requires learning for new adult.",
+    "proposedOrIntegratedChanges": [
+      "AccurateLibraryreturnlabel"
+    ],
+    "correctedSourceSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+    "evidence": "run-04/GALLERY.md for compose only; other current states DOM-only, not visual proof",
+    "status": "Pending real visual reevaluation; subjective score unchanged"
+  },
+  {
+    "review": "Muse round5",
+    "shaNoted": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "category": "Navigation and orientation",
+    "viewport": [
+      844,
+      390
+    ],
+    "score": 6,
+    "criticism": "Attached named navigation verified (attached-navigation marker, 5 names at all sizes); Library Clips/By code/Progress named; player return/Previous/Next/Details visible; room Back visible. Orientation still requires learning for new adult.",
+    "proposedOrIntegratedChanges": [
+      "AccurateLibraryreturnlabel"
+    ],
+    "correctedSourceSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+    "evidence": "run-04/GALLERY.md for compose only; other current states DOM-only, not visual proof",
+    "status": "Pending real visual reevaluation; subjective score unchanged"
+  },
+  {
+    "review": "Muse round5",
+    "shaNoted": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "category": "Navigation and orientation",
+    "viewport": [
+      768,
+      1024
+    ],
+    "score": 6,
+    "criticism": "Attached named navigation verified (attached-navigation marker, 5 names at all sizes); Library Clips/By code/Progress named; player return/Previous/Next/Details visible; room Back visible. Orientation still requires learning for new adult.",
+    "proposedOrIntegratedChanges": [
+      "AccurateLibraryreturnlabel"
+    ],
+    "correctedSourceSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+    "evidence": "run-04/GALLERY.md for compose only; other current states DOM-only, not visual proof",
+    "status": "Pending real visual reevaluation; subjective score unchanged"
+  },
+  {
+    "review": "Muse round5",
+    "shaNoted": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "category": "Navigation and orientation",
+    "viewport": [
+      1024,
+      768
+    ],
+    "score": 6,
+    "criticism": "Attached named navigation verified (attached-navigation marker, 5 names at all sizes); Library Clips/By code/Progress named; player return/Previous/Next/Details visible; room Back visible. Orientation still requires learning for new adult.",
+    "proposedOrIntegratedChanges": [
+      "AccurateLibraryreturnlabel"
+    ],
+    "correctedSourceSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+    "evidence": "run-04/GALLERY.md for compose only; other current states DOM-only, not visual proof",
+    "status": "Pending real visual reevaluation; subjective score unchanged"
+  },
+  {
+    "review": "Muse round5",
+    "shaNoted": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "category": "Navigation and orientation",
+    "viewport": [
+      1440,
+      900
+    ],
+    "score": 6,
+    "criticism": "Attached named navigation verified (attached-navigation marker, 5 names at all sizes); Library Clips/By code/Progress named; player return/Previous/Next/Details visible; room Back visible. Orientation still requires learning for new adult.",
+    "proposedOrIntegratedChanges": [
+      "AccurateLibraryreturnlabel"
+    ],
+    "correctedSourceSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+    "evidence": "run-04/GALLERY.md for compose only; other current states DOM-only, not visual proof",
+    "status": "Pending real visual reevaluation; subjective score unchanged"
+  },
+  {
+    "review": "Muse round5",
+    "shaNoted": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "category": "Control clarity",
+    "viewport": [
+      390,
+      844
+    ],
+    "score": 6,
+    "criticism": "Apply disabled when empty, enabled after 112B; Submit/Vote/Quit/Create states explicit; judging keypad +\u00bd clear. Short-height composer most constrained.",
+    "proposedOrIntegratedChanges": [
+      "ExplicitAnalysislinks",
+      "Composeoutsidehiddenheading"
+    ],
+    "correctedSourceSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+    "evidence": "run-04/GALLERY.md for compose only; other current states DOM-only, not visual proof",
+    "status": "Pending real visual reevaluation; subjective score unchanged"
+  },
+  {
+    "review": "Muse round5",
+    "shaNoted": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "category": "Control clarity",
+    "viewport": [
+      844,
+      390
+    ],
+    "score": 5,
+    "criticism": "Apply disabled when empty, enabled after 112B; Submit/Vote/Quit/Create states explicit; judging keypad +\u00bd clear. Short-height composer most constrained.",
+    "proposedOrIntegratedChanges": [
+      "ExplicitAnalysislinks",
+      "Composeoutsidehiddenheading"
+    ],
+    "correctedSourceSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+    "evidence": "run-04/GALLERY.md for compose only; other current states DOM-only, not visual proof",
+    "status": "Pending real visual reevaluation; subjective score unchanged"
+  },
+  {
+    "review": "Muse round5",
+    "shaNoted": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "category": "Control clarity",
+    "viewport": [
+      768,
+      1024
+    ],
+    "score": 6,
+    "criticism": "Apply disabled when empty, enabled after 112B; Submit/Vote/Quit/Create states explicit; judging keypad +\u00bd clear. Short-height composer most constrained.",
+    "proposedOrIntegratedChanges": [
+      "ExplicitAnalysislinks",
+      "Composeoutsidehiddenheading"
+    ],
+    "correctedSourceSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+    "evidence": "run-04/GALLERY.md for compose only; other current states DOM-only, not visual proof",
+    "status": "Pending real visual reevaluation; subjective score unchanged"
+  },
+  {
+    "review": "Muse round5",
+    "shaNoted": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "category": "Control clarity",
+    "viewport": [
+      1024,
+      768
+    ],
+    "score": 6,
+    "criticism": "Apply disabled when empty, enabled after 112B; Submit/Vote/Quit/Create states explicit; judging keypad +\u00bd clear. Short-height composer most constrained.",
+    "proposedOrIntegratedChanges": [
+      "ExplicitAnalysislinks",
+      "Composeoutsidehiddenheading"
+    ],
+    "correctedSourceSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+    "evidence": "run-04/GALLERY.md for compose only; other current states DOM-only, not visual proof",
+    "status": "Pending real visual reevaluation; subjective score unchanged"
+  },
+  {
+    "review": "Muse round5",
+    "shaNoted": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "category": "Control clarity",
+    "viewport": [
+      1440,
+      900
+    ],
+    "score": 6,
+    "criticism": "Apply disabled when empty, enabled after 112B; Submit/Vote/Quit/Create states explicit; judging keypad +\u00bd clear. Short-height composer most constrained.",
+    "proposedOrIntegratedChanges": [
+      "ExplicitAnalysislinks",
+      "Composeoutsidehiddenheading"
+    ],
+    "correctedSourceSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+    "evidence": "run-04/GALLERY.md for compose only; other current states DOM-only, not visual proof",
+    "status": "Pending real visual reevaluation; subjective score unchanged"
+  },
+  {
+    "review": "Muse round5",
+    "shaNoted": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "category": "Terminology and instructions",
+    "viewport": [
+      390,
+      844
+    ],
+    "score": 5,
+    "criticism": "No raw translation keys observed; legend for DB/SD/SYNC present; modifiers/phases from domain. Codes (112B/201C) and SYNC/DB remain jargon for new adult despite legend.",
+    "proposedOrIntegratedChanges": [
+      "Plainratingslegend",
+      "Datedattempts",
+      "Synchronizedfilterlabel",
+      "Explicittrendwindow"
+    ],
+    "correctedSourceSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+    "evidence": "run-04/GALLERY.md for compose only; other current states DOM-only, not visual proof",
+    "status": "Pending real visual reevaluation; subjective score unchanged"
+  },
+  {
+    "review": "Muse round5",
+    "shaNoted": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "category": "Terminology and instructions",
+    "viewport": [
+      844,
+      390
+    ],
+    "score": 5,
+    "criticism": "No raw translation keys observed; legend for DB/SD/SYNC present; modifiers/phases from domain. Codes (112B/201C) and SYNC/DB remain jargon for new adult despite legend.",
+    "proposedOrIntegratedChanges": [
+      "Plainratingslegend",
+      "Datedattempts",
+      "Synchronizedfilterlabel",
+      "Explicittrendwindow"
+    ],
+    "correctedSourceSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+    "evidence": "run-04/GALLERY.md for compose only; other current states DOM-only, not visual proof",
+    "status": "Pending real visual reevaluation; subjective score unchanged"
+  },
+  {
+    "review": "Muse round5",
+    "shaNoted": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "category": "Terminology and instructions",
+    "viewport": [
+      768,
+      1024
+    ],
+    "score": 5,
+    "criticism": "No raw translation keys observed; legend for DB/SD/SYNC present; modifiers/phases from domain. Codes (112B/201C) and SYNC/DB remain jargon for new adult despite legend.",
+    "proposedOrIntegratedChanges": [
+      "Plainratingslegend",
+      "Datedattempts",
+      "Synchronizedfilterlabel",
+      "Explicittrendwindow"
+    ],
+    "correctedSourceSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+    "evidence": "run-04/GALLERY.md for compose only; other current states DOM-only, not visual proof",
+    "status": "Pending real visual reevaluation; subjective score unchanged"
+  },
+  {
+    "review": "Muse round5",
+    "shaNoted": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "category": "Terminology and instructions",
+    "viewport": [
+      1024,
+      768
+    ],
+    "score": 5,
+    "criticism": "No raw translation keys observed; legend for DB/SD/SYNC present; modifiers/phases from domain. Codes (112B/201C) and SYNC/DB remain jargon for new adult despite legend.",
+    "proposedOrIntegratedChanges": [
+      "Plainratingslegend",
+      "Datedattempts",
+      "Synchronizedfilterlabel",
+      "Explicittrendwindow"
+    ],
+    "correctedSourceSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+    "evidence": "run-04/GALLERY.md for compose only; other current states DOM-only, not visual proof",
+    "status": "Pending real visual reevaluation; subjective score unchanged"
+  },
+  {
+    "review": "Muse round5",
+    "shaNoted": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "category": "Terminology and instructions",
+    "viewport": [
+      1440,
+      900
+    ],
+    "score": 5,
+    "criticism": "No raw translation keys observed; legend for DB/SD/SYNC present; modifiers/phases from domain. Codes (112B/201C) and SYNC/DB remain jargon for new adult despite legend.",
+    "proposedOrIntegratedChanges": [
+      "Plainratingslegend",
+      "Datedattempts",
+      "Synchronizedfilterlabel",
+      "Explicittrendwindow"
+    ],
+    "correctedSourceSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+    "evidence": "run-04/GALLERY.md for compose only; other current states DOM-only, not visual proof",
+    "status": "Pending real visual reevaluation; subjective score unchanged"
+  },
+  {
+    "review": "Muse round5",
+    "shaNoted": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "category": "Component consistency",
+    "viewport": [
+      390,
+      844
+    ],
+    "score": 6,
+    "criticism": "Pills, code cards, tables, dialogs, sheets consistent; spiral retained intentional. Activity/Achievements content mirroring Dives needs wiring check.",
+    "proposedOrIntegratedChanges": [
+      "NativeAnalysislink",
+      "Nativeprofilehiddenpanels"
+    ],
+    "correctedSourceSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+    "evidence": "run-04/GALLERY.md for compose only; other current states DOM-only, not visual proof",
+    "status": "Pending real visual reevaluation; subjective score unchanged"
+  },
+  {
+    "review": "Muse round5",
+    "shaNoted": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "category": "Component consistency",
+    "viewport": [
+      844,
+      390
+    ],
+    "score": 6,
+    "criticism": "Pills, code cards, tables, dialogs, sheets consistent; spiral retained intentional. Activity/Achievements content mirroring Dives needs wiring check.",
+    "proposedOrIntegratedChanges": [
+      "NativeAnalysislink",
+      "Nativeprofilehiddenpanels"
+    ],
+    "correctedSourceSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+    "evidence": "run-04/GALLERY.md for compose only; other current states DOM-only, not visual proof",
+    "status": "Pending real visual reevaluation; subjective score unchanged"
+  },
+  {
+    "review": "Muse round5",
+    "shaNoted": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "category": "Component consistency",
+    "viewport": [
+      768,
+      1024
+    ],
+    "score": 6,
+    "criticism": "Pills, code cards, tables, dialogs, sheets consistent; spiral retained intentional. Activity/Achievements content mirroring Dives needs wiring check.",
+    "proposedOrIntegratedChanges": [
+      "NativeAnalysislink",
+      "Nativeprofilehiddenpanels"
+    ],
+    "correctedSourceSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+    "evidence": "run-04/GALLERY.md for compose only; other current states DOM-only, not visual proof",
+    "status": "Pending real visual reevaluation; subjective score unchanged"
+  },
+  {
+    "review": "Muse round5",
+    "shaNoted": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "category": "Component consistency",
+    "viewport": [
+      1024,
+      768
+    ],
+    "score": 6,
+    "criticism": "Pills, code cards, tables, dialogs, sheets consistent; spiral retained intentional. Activity/Achievements content mirroring Dives needs wiring check.",
+    "proposedOrIntegratedChanges": [
+      "NativeAnalysislink",
+      "Nativeprofilehiddenpanels"
+    ],
+    "correctedSourceSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+    "evidence": "run-04/GALLERY.md for compose only; other current states DOM-only, not visual proof",
+    "status": "Pending real visual reevaluation; subjective score unchanged"
+  },
+  {
+    "review": "Muse round5",
+    "shaNoted": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "category": "Component consistency",
+    "viewport": [
+      1440,
+      900
+    ],
+    "score": 6,
+    "criticism": "Pills, code cards, tables, dialogs, sheets consistent; spiral retained intentional. Activity/Achievements content mirroring Dives needs wiring check.",
+    "proposedOrIntegratedChanges": [
+      "NativeAnalysislink",
+      "Nativeprofilehiddenpanels"
+    ],
+    "correctedSourceSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+    "evidence": "run-04/GALLERY.md for compose only; other current states DOM-only, not visual proof",
+    "status": "Pending real visual reevaluation; subjective score unchanged"
+  },
+  {
+    "review": "Muse round5",
+    "shaNoted": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "category": "Task content presentation",
+    "viewport": [
+      390,
+      844
+    ],
+    "score": 6,
+    "criticism": "Real IDs #3023-#3044 + 18 Oct + Awaiting verified; 409 attempts 1-20/409 5 cols verified; drawer read-only with collapsed Personal review priority verified at 1440. Identical timestamps are source truth.",
+    "proposedOrIntegratedChanges": [
+      "Identity-firstMydives",
+      "Datedattemptrows"
+    ],
+    "correctedSourceSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+    "evidence": "run-04/GALLERY.md for compose only; other current states DOM-only, not visual proof",
+    "status": "Pending real visual reevaluation; subjective score unchanged"
+  },
+  {
+    "review": "Muse round5",
+    "shaNoted": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "category": "Task content presentation",
+    "viewport": [
+      844,
+      390
+    ],
+    "score": 6,
+    "criticism": "Real IDs #3023-#3044 + 18 Oct + Awaiting verified; 409 attempts 1-20/409 5 cols verified; drawer read-only with collapsed Personal review priority verified at 1440. Identical timestamps are source truth.",
+    "proposedOrIntegratedChanges": [
+      "Identity-firstMydives",
+      "Datedattemptrows"
+    ],
+    "correctedSourceSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+    "evidence": "run-04/GALLERY.md for compose only; other current states DOM-only, not visual proof",
+    "status": "Pending real visual reevaluation; subjective score unchanged"
+  },
+  {
+    "review": "Muse round5",
+    "shaNoted": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "category": "Task content presentation",
+    "viewport": [
+      768,
+      1024
+    ],
+    "score": 6,
+    "criticism": "Real IDs #3023-#3044 + 18 Oct + Awaiting verified; 409 attempts 1-20/409 5 cols verified; drawer read-only with collapsed Personal review priority verified at 1440. Identical timestamps are source truth.",
+    "proposedOrIntegratedChanges": [
+      "Identity-firstMydives",
+      "Datedattemptrows"
+    ],
+    "correctedSourceSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+    "evidence": "run-04/GALLERY.md for compose only; other current states DOM-only, not visual proof",
+    "status": "Pending real visual reevaluation; subjective score unchanged"
+  },
+  {
+    "review": "Muse round5",
+    "shaNoted": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "category": "Task content presentation",
+    "viewport": [
+      1024,
+      768
+    ],
+    "score": 6,
+    "criticism": "Real IDs #3023-#3044 + 18 Oct + Awaiting verified; 409 attempts 1-20/409 5 cols verified; drawer read-only with collapsed Personal review priority verified at 1440. Identical timestamps are source truth.",
+    "proposedOrIntegratedChanges": [
+      "Identity-firstMydives",
+      "Datedattemptrows"
+    ],
+    "correctedSourceSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+    "evidence": "run-04/GALLERY.md for compose only; other current states DOM-only, not visual proof",
+    "status": "Pending real visual reevaluation; subjective score unchanged"
+  },
+  {
+    "review": "Muse round5",
+    "shaNoted": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "category": "Task content presentation",
+    "viewport": [
+      1440,
+      900
+    ],
+    "score": 6,
+    "criticism": "Real IDs #3023-#3044 + 18 Oct + Awaiting verified; 409 attempts 1-20/409 5 cols verified; drawer read-only with collapsed Personal review priority verified at 1440. Identical timestamps are source truth.",
+    "proposedOrIntegratedChanges": [
+      "Identity-firstMydives",
+      "Datedattemptrows"
+    ],
+    "correctedSourceSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+    "evidence": "run-04/GALLERY.md for compose only; other current states DOM-only, not visual proof",
+    "status": "Pending real visual reevaluation; subjective score unchanged"
+  },
+  {
+    "review": "Muse round5",
+    "shaNoted": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "category": "Feedback and state clarity",
+    "viewport": [
+      390,
+      844
+    ],
+    "score": 6,
+    "criticism": "Classic deadline + Not submitted + no auto-vote verified; Mole countdown (8s seen) + Nobody + Vote verified; submitted 6=>+20 verified; results full ranking no awards verified. 10s timer tight with captures; short height most compressed.",
+    "proposedOrIntegratedChanges": [
+      "Existingdeadline/NotSubmittedbehaviorretained; timedfreshQAunverified"
+    ],
+    "correctedSourceSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+    "evidence": "run-04/GALLERY.md for compose only; other current states DOM-only, not visual proof",
+    "status": "Pending real visual reevaluation; subjective score unchanged"
+  },
+  {
+    "review": "Muse round5",
+    "shaNoted": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "category": "Feedback and state clarity",
+    "viewport": [
+      844,
+      390
+    ],
+    "score": 5,
+    "criticism": "Classic deadline + Not submitted + no auto-vote verified; Mole countdown (8s seen) + Nobody + Vote verified; submitted 6=>+20 verified; results full ranking no awards verified. 10s timer tight with captures; short height most compressed.",
+    "proposedOrIntegratedChanges": [
+      "Existingdeadline/NotSubmittedbehaviorretained; timedfreshQAunverified"
+    ],
+    "correctedSourceSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+    "evidence": "run-04/GALLERY.md for compose only; other current states DOM-only, not visual proof",
+    "status": "Pending real visual reevaluation; subjective score unchanged"
+  },
+  {
+    "review": "Muse round5",
+    "shaNoted": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "category": "Feedback and state clarity",
+    "viewport": [
+      768,
+      1024
+    ],
+    "score": 6,
+    "criticism": "Classic deadline + Not submitted + no auto-vote verified; Mole countdown (8s seen) + Nobody + Vote verified; submitted 6=>+20 verified; results full ranking no awards verified. 10s timer tight with captures; short height most compressed.",
+    "proposedOrIntegratedChanges": [
+      "Existingdeadline/NotSubmittedbehaviorretained; timedfreshQAunverified"
+    ],
+    "correctedSourceSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+    "evidence": "run-04/GALLERY.md for compose only; other current states DOM-only, not visual proof",
+    "status": "Pending real visual reevaluation; subjective score unchanged"
+  },
+  {
+    "review": "Muse round5",
+    "shaNoted": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "category": "Feedback and state clarity",
+    "viewport": [
+      1024,
+      768
+    ],
+    "score": 6,
+    "criticism": "Classic deadline + Not submitted + no auto-vote verified; Mole countdown (8s seen) + Nobody + Vote verified; submitted 6=>+20 verified; results full ranking no awards verified. 10s timer tight with captures; short height most compressed.",
+    "proposedOrIntegratedChanges": [
+      "Existingdeadline/NotSubmittedbehaviorretained; timedfreshQAunverified"
+    ],
+    "correctedSourceSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+    "evidence": "run-04/GALLERY.md for compose only; other current states DOM-only, not visual proof",
+    "status": "Pending real visual reevaluation; subjective score unchanged"
+  },
+  {
+    "review": "Muse round5",
+    "shaNoted": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "category": "Feedback and state clarity",
+    "viewport": [
+      1440,
+      900
+    ],
+    "score": 6,
+    "criticism": "Classic deadline + Not submitted + no auto-vote verified; Mole countdown (8s seen) + Nobody + Vote verified; submitted 6=>+20 verified; results full ranking no awards verified. 10s timer tight with captures; short height most compressed.",
+    "proposedOrIntegratedChanges": [
+      "Existingdeadline/NotSubmittedbehaviorretained; timedfreshQAunverified"
+    ],
+    "correctedSourceSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+    "evidence": "run-04/GALLERY.md for compose only; other current states DOM-only, not visual proof",
+    "status": "Pending real visual reevaluation; subjective score unchanged"
+  },
+  {
+    "review": "Muse round5",
+    "shaNoted": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "category": "Professional finish",
+    "viewport": [
+      390,
+      844
+    ],
+    "score": 5,
+    "criticism": "No floating pill nav; no decorative entrance motion observed; sticky Save header verified; boot/ops neutral. HUD Orbit/Reticle/Depth + Diver score still playful for sellable adult product.",
+    "proposedOrIntegratedChanges": [
+      "Plainportraitsinprimaryjourneys"
+    ],
+    "correctedSourceSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+    "evidence": "run-04/GALLERY.md for compose only; other current states DOM-only, not visual proof",
+    "status": "Pending real visual reevaluation; subjective score unchanged"
+  },
+  {
+    "review": "Muse round5",
+    "shaNoted": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "category": "Professional finish",
+    "viewport": [
+      844,
+      390
+    ],
+    "score": 5,
+    "criticism": "No floating pill nav; no decorative entrance motion observed; sticky Save header verified; boot/ops neutral. HUD Orbit/Reticle/Depth + Diver score still playful for sellable adult product.",
+    "proposedOrIntegratedChanges": [
+      "Plainportraitsinprimaryjourneys"
+    ],
+    "correctedSourceSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+    "evidence": "run-04/GALLERY.md for compose only; other current states DOM-only, not visual proof",
+    "status": "Pending real visual reevaluation; subjective score unchanged"
+  },
+  {
+    "review": "Muse round5",
+    "shaNoted": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "category": "Professional finish",
+    "viewport": [
+      768,
+      1024
+    ],
+    "score": 5,
+    "criticism": "No floating pill nav; no decorative entrance motion observed; sticky Save header verified; boot/ops neutral. HUD Orbit/Reticle/Depth + Diver score still playful for sellable adult product.",
+    "proposedOrIntegratedChanges": [
+      "Plainportraitsinprimaryjourneys"
+    ],
+    "correctedSourceSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+    "evidence": "run-04/GALLERY.md for compose only; other current states DOM-only, not visual proof",
+    "status": "Pending real visual reevaluation; subjective score unchanged"
+  },
+  {
+    "review": "Muse round5",
+    "shaNoted": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "category": "Professional finish",
+    "viewport": [
+      1024,
+      768
+    ],
+    "score": 5,
+    "criticism": "No floating pill nav; no decorative entrance motion observed; sticky Save header verified; boot/ops neutral. HUD Orbit/Reticle/Depth + Diver score still playful for sellable adult product.",
+    "proposedOrIntegratedChanges": [
+      "Plainportraitsinprimaryjourneys"
+    ],
+    "correctedSourceSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+    "evidence": "run-04/GALLERY.md for compose only; other current states DOM-only, not visual proof",
+    "status": "Pending real visual reevaluation; subjective score unchanged"
+  },
+  {
+    "review": "Muse round5",
+    "shaNoted": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "category": "Professional finish",
+    "viewport": [
+      1440,
+      900
+    ],
+    "score": 5,
+    "criticism": "No floating pill nav; no decorative entrance motion observed; sticky Save header verified; boot/ops neutral. HUD Orbit/Reticle/Depth + Diver score still playful for sellable adult product.",
+    "proposedOrIntegratedChanges": [
+      "Plainportraitsinprimaryjourneys"
+    ],
+    "correctedSourceSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+    "evidence": "run-04/GALLERY.md for compose only; other current states DOM-only, not visual proof",
+    "status": "Pending real visual reevaluation; subjective score unchanged"
+  },
+  {
+    "review": "Muse round5",
+    "shaNoted": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "category": "Responsive fit",
+    "viewport": [
+      390,
+      844
+    ],
+    "score": 6,
+    "criticism": "Zero horizontal overflow on 13 pages x5 sizes (scrollWidth-clientWidth<=1). Video contain (whole frame). Details heavy load caused transient waits but settled. Not a 7 due to heavy details load timeouts.",
+    "proposedOrIntegratedChanges": [
+      "Composeoutsidehiddenheading",
+      "Boundedsheetlandscape"
+    ],
+    "correctedSourceSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+    "evidence": "run-04/GALLERY.md for compose only; other current states DOM-only, not visual proof",
+    "status": "Pending real visual reevaluation; subjective score unchanged"
+  },
+  {
+    "review": "Muse round5",
+    "shaNoted": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "category": "Responsive fit",
+    "viewport": [
+      844,
+      390
+    ],
+    "score": 6,
+    "criticism": "Zero horizontal overflow on 13 pages x5 sizes (scrollWidth-clientWidth<=1). Video contain (whole frame). Details heavy load caused transient waits but settled. Not a 7 due to heavy details load timeouts.",
+    "proposedOrIntegratedChanges": [
+      "Composeoutsidehiddenheading",
+      "Boundedsheetlandscape"
+    ],
+    "correctedSourceSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+    "evidence": "run-04/GALLERY.md for compose only; other current states DOM-only, not visual proof",
+    "status": "Pending real visual reevaluation; subjective score unchanged"
+  },
+  {
+    "review": "Muse round5",
+    "shaNoted": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "category": "Responsive fit",
+    "viewport": [
+      768,
+      1024
+    ],
+    "score": 6,
+    "criticism": "Zero horizontal overflow on 13 pages x5 sizes (scrollWidth-clientWidth<=1). Video contain (whole frame). Details heavy load caused transient waits but settled. Not a 7 due to heavy details load timeouts.",
+    "proposedOrIntegratedChanges": [
+      "Composeoutsidehiddenheading",
+      "Boundedsheetlandscape"
+    ],
+    "correctedSourceSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+    "evidence": "run-04/GALLERY.md for compose only; other current states DOM-only, not visual proof",
+    "status": "Pending real visual reevaluation; subjective score unchanged"
+  },
+  {
+    "review": "Muse round5",
+    "shaNoted": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "category": "Responsive fit",
+    "viewport": [
+      1024,
+      768
+    ],
+    "score": 6,
+    "criticism": "Zero horizontal overflow on 13 pages x5 sizes (scrollWidth-clientWidth<=1). Video contain (whole frame). Details heavy load caused transient waits but settled. Not a 7 due to heavy details load timeouts.",
+    "proposedOrIntegratedChanges": [
+      "Composeoutsidehiddenheading",
+      "Boundedsheetlandscape"
+    ],
+    "correctedSourceSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+    "evidence": "run-04/GALLERY.md for compose only; other current states DOM-only, not visual proof",
+    "status": "Pending real visual reevaluation; subjective score unchanged"
+  },
+  {
+    "review": "Muse round5",
+    "shaNoted": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "category": "Responsive fit",
+    "viewport": [
+      1440,
+      900
+    ],
+    "score": 6,
+    "criticism": "Zero horizontal overflow on 13 pages x5 sizes (scrollWidth-clientWidth<=1). Video contain (whole frame). Details heavy load caused transient waits but settled. Not a 7 due to heavy details load timeouts.",
+    "proposedOrIntegratedChanges": [
+      "Composeoutsidehiddenheading",
+      "Boundedsheetlandscape"
+    ],
+    "correctedSourceSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+    "evidence": "run-04/GALLERY.md for compose only; other current states DOM-only, not visual proof",
+    "status": "Pending real visual reevaluation; subjective score unchanged"
+  },
+  {
+    "review": "Muse round5",
+    "shaNoted": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "category": "Next-action discoverability",
+    "viewport": [
+      390,
+      844
+    ],
+    "score": 6,
+    "criticism": "Start/Save/Play again/Next/Previous/Open session visible at all sizes; By code Apply disabled->enabled->1 dive->Start clear. Short height tightest but actions reachable.",
+    "proposedOrIntegratedChanges": [
+      "ExplicitAnalysislink",
+      "Filterswithactivecount"
+    ],
+    "correctedSourceSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+    "evidence": "run-04/GALLERY.md for compose only; other current states DOM-only, not visual proof",
+    "status": "Pending real visual reevaluation; subjective score unchanged"
+  },
+  {
+    "review": "Muse round5",
+    "shaNoted": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "category": "Next-action discoverability",
+    "viewport": [
+      844,
+      390
+    ],
+    "score": 5,
+    "criticism": "Start/Save/Play again/Next/Previous/Open session visible at all sizes; By code Apply disabled->enabled->1 dive->Start clear. Short height tightest but actions reachable.",
+    "proposedOrIntegratedChanges": [
+      "ExplicitAnalysislink",
+      "Filterswithactivecount"
+    ],
+    "correctedSourceSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+    "evidence": "run-04/GALLERY.md for compose only; other current states DOM-only, not visual proof",
+    "status": "Pending real visual reevaluation; subjective score unchanged"
+  },
+  {
+    "review": "Muse round5",
+    "shaNoted": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "category": "Next-action discoverability",
+    "viewport": [
+      768,
+      1024
+    ],
+    "score": 6,
+    "criticism": "Start/Save/Play again/Next/Previous/Open session visible at all sizes; By code Apply disabled->enabled->1 dive->Start clear. Short height tightest but actions reachable.",
+    "proposedOrIntegratedChanges": [
+      "ExplicitAnalysislink",
+      "Filterswithactivecount"
+    ],
+    "correctedSourceSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+    "evidence": "run-04/GALLERY.md for compose only; other current states DOM-only, not visual proof",
+    "status": "Pending real visual reevaluation; subjective score unchanged"
+  },
+  {
+    "review": "Muse round5",
+    "shaNoted": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "category": "Next-action discoverability",
+    "viewport": [
+      1024,
+      768
+    ],
+    "score": 6,
+    "criticism": "Start/Save/Play again/Next/Previous/Open session visible at all sizes; By code Apply disabled->enabled->1 dive->Start clear. Short height tightest but actions reachable.",
+    "proposedOrIntegratedChanges": [
+      "ExplicitAnalysislink",
+      "Filterswithactivecount"
+    ],
+    "correctedSourceSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+    "evidence": "run-04/GALLERY.md for compose only; other current states DOM-only, not visual proof",
+    "status": "Pending real visual reevaluation; subjective score unchanged"
+  },
+  {
+    "review": "Muse round5",
+    "shaNoted": "cf95a4a8e325d09ffd2fb7f3d3b82e97c3e32c7c",
+    "category": "Next-action discoverability",
+    "viewport": [
+      1440,
+      900
+    ],
+    "score": 6,
+    "criticism": "Start/Save/Play again/Next/Previous/Open session visible at all sizes; By code Apply disabled->enabled->1 dive->Start clear. Short height tightest but actions reachable.",
+    "proposedOrIntegratedChanges": [
+      "ExplicitAnalysislink",
+      "Filterswithactivecount"
+    ],
+    "correctedSourceSHA": "d27eb728a5a9fdc913084a6db74c778dc90eacb9",
+    "evidence": "run-04/GALLERY.md for compose only; other current states DOM-only, not visual proof",
+    "status": "Pending real visual reevaluation; subjective score unchanged"
+  }
+]

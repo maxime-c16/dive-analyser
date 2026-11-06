@@ -2268,3 +2268,45 @@
 }
 .clip-state-action:disabled { opacity: 0.6; }
 .clip-state-action.is-quiet { border-color: rgba(255, 255, 255, 0.24); color: #fff; font-weight: 500; }
+
+/* Review workspace: return, transport and previous/next are stable controls.
+   Swipe, hold and pinch remain optional shortcuts over the footage. */
+.clip-viewer:not(.is-clean):not(.is-pinching) :is(.clip-actions,.clip-caption,.clip-transport,.clip-progress,.clip-player-chip) { opacity:1; visibility:visible; }
+.clip-viewer:not(.is-studio) .clip-header { position:relative; inset:auto; min-height:52px; height:auto; flex-shrink:0; padding:6px 16px; background:var(--app-bg); border-bottom:1px solid var(--app-border); }
+.clip-viewer:not(.is-studio) .clip-layout { height:auto; }
+.clip-viewer:not(.is-studio) .clip-navigation { position:relative; inset:auto; background:var(--app-bg); border-top:1px solid var(--app-border); padding:8px 16px max(8px,env(safe-area-inset-bottom)); }
+.clip-viewer:not(.is-studio) .clip-back, .clip-nav-row .clip-hud-button { display:flex; align-items:center; justify-content:center; width:auto; min-height:44px; gap:6px; padding:0 10px; border-radius:6px; background:var(--app-panel); font-size:13px; }
+.clip-viewer:not(.is-studio) .clip-back > span { position:static; width:auto; height:auto; overflow:visible; clip:auto; }
+.clip-viewer:not(.is-studio) .clip-caption h2 { font-size:25px; font-weight:600; }
+.clip-viewer:not(.is-studio) .clip-caption { bottom:110px; }
+.clip-viewer:not(.is-studio) .clip-transport { bottom:28px; }
+.clip-viewer:not(.is-studio) .clip-stage input.clip-progress { bottom:16px; }
+.clip-viewer:not(.is-studio) .clip-quality { top:10px; }
+@media (orientation:landscape) and (max-height:500px) {
+  .clip-viewer:not(.is-studio) .clip-header { min-height:44px; padding-block:0; }
+  .clip-viewer:not(.is-studio) .clip-navigation { padding-block:2px; }
+  .clip-viewer:not(.is-studio) .clip-caption { bottom:88px; }
+  .clip-viewer:not(.is-studio) .clip-caption h2 { font-size:21px; }
+}
+.clip-viewer:not(.is-studio) .clip-nav-row .clip-hud-button { display:flex; flex-direction:row; align-items:center; justify-content:center; width:auto; min-height:44px; height:auto; gap:6px; padding:0 10px; border-radius:6px; font-size:13px; }
+.clip-mobile-summary { flex-shrink:0; display:grid; gap:10px; padding:12px 16px; background:var(--app-panel); border-top:1px solid var(--app-border); }
+.clip-viewer:not(.is-studio) .clip-mobile-summary .clip-caption { position:static; inset:auto; padding:0; text-shadow:none; }
+.clip-viewer:not(.is-studio) .clip-mobile-summary .clip-caption h2 { display:flex; align-items:baseline; flex-wrap:wrap; line-height:1.2; margin:4px 0; }
+.clip-mobile-summary .clip-caption-score { font-size:12px; }
+.clip-viewer:not(.is-studio) .clip-mobile-summary .clip-actions { position:static; inset:auto; display:flex; flex-direction:row; justify-content:flex-start; align-items:center; gap:8px; }
+.clip-viewer:not(.is-studio) .clip-mobile-summary .clip-actions :is(button,a) { display:inline-flex; align-items:center; justify-content:center; gap:5px; width:auto; height:auto; min-height:40px; padding:0 8px; border-radius:6px; background:transparent; border:1px solid var(--app-border); color:var(--app-text); font-size:12px; text-shadow:none; }
+.clip-viewer:not(.is-studio) .clip-mobile-summary .clip-actions svg { width:16px; height:16px; padding:0; border:0; border-radius:0; background:none; }
+.clip-viewer:not(.is-studio) .clip-mobile-summary .clip-actions span { font-size:12px; }
+.clip-mobile-summary .clip-description-facts > :is(span,strong) { height:auto; padding:0; border:0; border-radius:0; background:none; font-size:12px; }
+.clip-viewer:not(.is-studio) .clip-mobile-summary .clip-description { gap:5px; font-size:13px; }
+@media (orientation:landscape) and (max-height:500px) {
+  .clip-viewer:not(.is-studio) .clip-layout { display:grid; grid-template-columns:minmax(0,1fr); }
+  .clip-viewer:not(.is-studio) .clip-stage-column { display:grid; grid-template-columns:minmax(0,1fr) minmax(230px,.65fr); }
+  .clip-mobile-summary { border-top:0; border-left:1px solid var(--app-border); padding:12px; align-content:start; overflow-y:auto; }
+  .clip-mobile-summary .clip-actions { flex-wrap:wrap; }
+}
+.clip-viewer:not(.is-studio) .clip-mobile-summary .clip-actions :is(button,a) { flex-direction:row; }
+.clip-viewer:not(.is-studio) .clip-mobile-summary .clip-actions svg { color:currentColor; }
+.clip-viewer:not(.is-studio) .clip-mobile-summary .clip-caption h2 { font-family:inherit; }
+
+.clip-viewer:not(.is-studio) .clip-mobile-summary .clip-actions { flex-wrap:wrap; }

@@ -1,14 +1,14 @@
 import React, { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { format, parseISO } from 'date-fns'
 import { ChevronRight } from 'lucide-react'
 import DiveThumbnail from '../DiveThumbnail'
 import { diveCodeName } from '../../i18n/diveNames'
 import { appLocale } from '../../utils/dateLocale'
-import type { Attempt } from '../../utils/attemptPresentation'
+import { performanceLabel, type Attempt } from '../../utils/attemptPresentation'
 import type { CodeSummary } from '../../services/codeSummariesApi'
-import { RatingBar, ScoreChip, Sparkline, TrendBadge } from './parts'
+import { RatingBar, TrendBadge } from './parts'
 import { fmtScore } from '../../utils/codeStats'
 
 export type CodeSort = 'recent' | 'volume' | 'progress'
@@ -34,12 +34,8 @@ export default function CodeCards({ codes, sort, onSort, onOpenClip, diverId }: 
 }) {
   const { t, i18n } = useTranslation()
   const lang = i18n.language?.startsWith('fr') ? 'fr' : 'en'
-  const navigate = useNavigate()
   const location = useLocation()
   const ordered = useMemo(() => sortCodes(codes, sort), [codes, sort])
-  const open = (code: string) => diverId
-    ? navigate(`/dives/analysis/${encodeURIComponent(code)}?diver=${diverId}`, { state: { codeDiverOpened: true, fromProfile: true } })
-    : navigate(`/dives/analysis/${encodeURIComponent(code)}`, { state: { returnTo: `${location.pathname}${location.search}` } })
   const date = (value: string, pattern: string) => format(parseISO(value), pattern, { locale: appLocale() })
   return <div className="ca">
     <div className="ca-scroll" role="group" aria-label={t('codeAnalysis.sortAria')} style={{ marginBottom: 12 }}>
@@ -48,10 +44,9 @@ export default function CodeCards({ codes, sort, onSort, onOpenClip, diverId }: 
     <div className="ca-code-grid">
       {ordered.map((code, index) => {
         const name = diveCodeName(code.dive_code, lang)
-        return <div key={code.dive_code} role="link" tabIndex={0} className="ca-code-card ca-pop" style={{ '--i': Math.min(index, 12) } as React.CSSProperties}
-          aria-label={t('codeAnalysis.openCode', { code: code.dive_code })}
-          onClick={() => open(code.dive_code)}
-          onKeyDown={event => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); open(code.dive_code) } }}>
+        const analysisHref = `/dives/analysis/${encodeURIComponent(code.dive_code)}${diverId ? `?diver=${diverId}` : ''}`
+        const analysisState = diverId ? {codeDiverOpened:true,fromProfile:true} : {returnTo:`${location.pathname}${location.search}`}
+        return <article key={code.dive_code} className="ca-code-card" style={{ '--i': Math.min(index, 12) } as React.CSSProperties}>
           <div className="ca-code-top">
             <button type="button" className="ca-thumb" aria-label={t('dives.openLatestAttempt', { code: code.dive_code })}
               onClick={event => { event.stopPropagation(); onOpenClip(code.latest.id) }}>
@@ -62,24 +57,27 @@ export default function CodeCards({ codes, sort, onSort, onOpenClip, diverId }: 
               {name !== code.dive_code && <div className="ca-code-name">{name}</div>}
               {code.analytics && <div className="ca-code-stats">
                 <span>{t('dives.avg')} <b>{fmtScore(code.average)}</b></span>
-                <span>{t('codeAnalysis.median')} <b>{fmtScore(code.median)}</b></span>
-                <span>{t('dives.best')} <b>{fmtScore(code.best)}</b></span>
               </div>}
             </div>
-            {code.analytics && <div className="ca-code-side"><TrendBadge delta={code.trend?.delta} /><Sparkline values={code.spark} /></div>}
+            <div className="ca-code-side">{code.analytics && <TrendBadge delta={code.trend?.delta} />}<Link className="ca-code-analysis" to={analysisHref} state={analysisState} aria-label={t('codeAnalysis.openCode',{code:code.dive_code})}>{t('clipViewer.analysis')}<ChevronRight size={14} aria-hidden="true" /></Link></div>
           </div>
           <div className="ca-code-meta">
-            <span>{t('codeAnalysis.attemptsSessions', { attempts: code.attempt_count, sessions: code.session_count })}</span>
+            <span>{t('codeAnalysis.attemptCount', { count: code.attempt_count })} · {t('codeAnalysis.sessionCount', { count: code.session_count })}</span>
             <span>{t('dives.last')} {date(code.last_attempt_at, 'd MMM')}</span>
           </div>
+          <details className="ca-code-details" onClick={event => event.stopPropagation()} onKeyDown={event => event.stopPropagation()}>
+          <summary>{t('dives.recentAttemptsFor', { code: code.dive_code })}</summary>
+          {code.analytics && <div className="ca-code-stats">
+            <span>{t('codeAnalysis.median')} <b>{fmtScore(code.median)}</b></span>
+            <span>{t('dives.best')} <b>{fmtScore(code.best)}</b></span>
+          </div>}
           <RatingBar ratings={code.ratings} />
-          <div className="ca-chips" aria-label={t('dives.recentAttemptsFor', { code: code.dive_code })}>
-            {code.recent.map(item => <ScoreChip key={item.id} id={item.id} performance={item.performance} score={item.score ?? 0} onOpen={onOpenClip}
-              label={t('dives.openAttemptFrom', { code: code.dive_code, date: date(item.dive_datetime, 'd MMM HH:mm') })} />)}
-            {code.attempt_count > code.recent.length && <span className="ca-flat" style={{ alignSelf: 'center', paddingLeft: 4, fontSize: 12 }}>+{code.attempt_count - code.recent.length}</span>}
-          </div>
-          <ChevronRight className="ca-code-go h-4 w-4" aria-hidden="true" />
-        </div>
+          <dl className="ca-rating-legend">{(['P','G','M','B','F'] as const).filter(rating => code.ratings[rating]).map(rating => <div key={rating}><dt>{performanceLabel(rating)}</dt><dd>{code.ratings[rating]}</dd></div>)}</dl>
+          <ul className="ca-recent-attempts" aria-label={t('dives.recentAttemptsFor',{code:code.dive_code})}>
+            {code.recent.map(item => <li key={item.id}><button type="button" data-attempt-id={item.id} aria-label={t('dives.openAttemptFrom',{code:code.dive_code,date:date(item.dive_datetime,'d MMM HH:mm')})} onClick={() => onOpenClip(item.id)}><time dateTime={item.dive_datetime}>{date(item.dive_datetime,'d MMM HH:mm')}</time><small>#{item.id}</small><b>{fmtScore(item.score)} / 10</b><ChevronRight size={14} aria-hidden="true" /></button></li>)}
+          </ul>
+          </details>
+        </article>
       })}
     </div>
   </div>
