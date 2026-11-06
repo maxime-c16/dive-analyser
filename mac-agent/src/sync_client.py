@@ -605,6 +605,23 @@ class SyncClient:
                 for entry in errors:
                     if isinstance(entry, dict) and entry.get("video_uuid"):
                         failed_by_uuid[entry["video_uuid"]] = str(entry.get("error", "batch sync failed"))
+                # Omission from `errors` means "written" ONLY when the
+                # response counts confirm it: the batch endpoint fails fast
+                # on prevalidation (succeeded=0, errors naming just the
+                # invalid clips) without writing the valid siblings. Marking
+                # those siblings synced would checkpoint them in the
+                # extractor and silently drop them from retry.
+                total = data.get("total") if isinstance(data, dict) else None
+                succeeded = data.get("succeeded") if isinstance(data, dict) else None
+                failed = data.get("failed") if isinstance(data, dict) else None
+                counts_commit = (
+                    isinstance(total, int)
+                    and isinstance(succeeded, int)
+                    and isinstance(failed, int)
+                    and total == len(videos)
+                    and failed == len(failed_by_uuid)
+                    and succeeded == len(videos) - len(failed_by_uuid)
+                )
                 results = []
                 for video in videos:
                     uuid = video.get('video_uuid', 'unknown')
@@ -620,11 +637,22 @@ class SyncClient:
                             http_status=409 if dup else None,
                             error_message=err,
                         ))
-                    else:
+                    elif counts_commit:
                         results.append(SyncResult(
                             success=True,
                             video_uuid=uuid,
                             http_status=200,
+                        ))
+                    else:
+                        results.append(SyncResult(
+                            success=False,
+                            video_uuid=uuid,
+                            http_status=200,
+                            error_message=(
+                                "Batch response did not confirm this clip was "
+                                f"written (total={total} succeeded={succeeded} "
+                                f"failed={failed}); leaving retryable"
+                            ),
                         ))
                 self.sync_stats['successful_syncs'] += sum(1 for r in results if r.success)
                 self.sync_stats['failed_syncs'] += sum(1 for r in results if not r.success)

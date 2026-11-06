@@ -126,6 +126,34 @@ async def test_sync_batch_preserves_individual_results(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_sync_batch_fail_fast_leaves_siblings_retryable(monkeypatch):
+    """Server prevalidation fail-fast (succeeded=0, errors naming only the
+    invalid clip) must not mark the valid-but-unwritten siblings synced —
+    the extractor would checkpoint them and never retry."""
+    import json as _json
+
+    def fake_post(url, data, api_key, timeout, ca_cert_path=""):
+        assert url.endswith("/api/v1/videos/batch")
+        return 200, _json.dumps({
+            "total": 2, "succeeded": 0, "failed": 1,
+            "errors": [{"video_uuid": "bad", "error": "phase combination invalid"}],
+        })
+
+    monkeypatch.setattr("src.sync_client._curl_post", fake_post)
+    result = await _client().sync_batch([_video("bad"), _video("good")], batch_size=50)
+
+    assert result.succeeded == 0
+    assert result.failed == 2
+    by_uuid = {r.video_uuid: r for r in result.results}
+    assert by_uuid["bad"].success is False
+    assert "phase combination invalid" in (by_uuid["bad"].error_message or "")
+    # The valid sibling was never written: failed + retryable (not 409, so
+    # the extractor does not mark it synced).
+    assert by_uuid["good"].success is False
+    assert by_uuid["good"].http_status != 409
+
+
+@pytest.mark.asyncio
 async def test_sync_batch_uses_one_request_per_chunk(monkeypatch):
     """One extractor batch → one POST /videos/batch, so the server writes
     its grouped per-diver notification instead of one row per dive."""
