@@ -447,7 +447,11 @@ class SyncClient:
         videos: List[Dict[str, Any]],
         batch_size: int = 50,
     ) -> BatchSyncResult:
-        """Sync multiple videos, auto-chunking into batches."""
+        """Sync multiple videos, auto-chunking into true batch requests.
+
+        Each chunk is one POST /api/v1/videos/batch (up to `batch_size`
+        clips), so the server writes its grouped per-diver notification for
+        the chunk instead of one row per dive."""
         if batch_size < 1 or batch_size > 200:
             batch_size = 50
 
@@ -501,15 +505,198 @@ class SyncClient:
         self,
         videos: List[Dict[str, Any]],
     ) -> List[SyncResult]:
-        """Sync a single batch chunk sequentially."""
-        results = []
+        """Sync a single chunk with one POST /videos/batch call.
 
-        for video in videos:
-            result = await self.sync_video(video)
-            results.append(result)
-            await asyncio.sleep(0.1)
+        One request per chunk (not one per video) so the server emits its
+        grouped per-diver notification (never N rows for an N-clip batch)
+        and a single push fan-out instead of one inbox row + push per dive.
+        """
+        if not videos:
+            return []
+        batch_url = f"{self.server_config.url}/api/v1/videos/batch"
+        api_key = self.server_config.api_key or ''
+        base_timeout = self.server_config.timeout_seconds or 30.0
+        # A chunk of up to 200 upserts + media-job queuing does more
+        # server-side work than a single sync; floor the curl budget so a
+        # healthy batch is not cut off (same floor as catalog chunk upload).
+        timeout = max(float(base_timeout), 120.0)
+        payload = {"videos": videos}
+        self.sync_stats['total_attempts'] += len(videos)
 
-        return results
+        max_attempts = (self.retry_config.max_retries if self.retry_config else 0) + 1
+        for attempt in range(max_attempts):
+            # Respect a previous 429 backoff before sending.
+            if self.rate_limit_reset_time:
+                if datetime.now() < self.rate_limit_reset_time:
+                    return [
+                        SyncResult(
+                            success=False,
+                            video_uuid=video.get('video_uuid', 'unknown'),
+                            http_status=429,
+                            error_message="Rate limited (waiting)",
+                        )
+                        for video in videos
+                    ]
+                self.rate_limit_reset_time = None
+
+            try:
+                status, body = await asyncio.to_thread(
+                    _curl_post, batch_url, payload, api_key, timeout,
+                    self.server_config.ca_cert_path,
+                )
+            except Exception as e:
+                logger.error(f"Exception during batch sync attempt: {e}")
+                if attempt < max_attempts - 1:
+                    try:
+                        delay = self.retry_config.get_delay(attempt) if self.retry_config else 1.0
+                    except Exception:
+                        delay = 1.0
+                    await asyncio.sleep(delay)
+                    continue
+                return [
+                    SyncResult(
+                        success=False,
+                        video_uuid=video.get('video_uuid', 'unknown'),
+                        error_message=str(e),
+                    )
+                    for video in videos
+                ]
+
+            if status == 0:
+                if attempt < max_attempts - 1:
+                    try:
+                        delay = self.retry_config.get_delay(attempt) if self.retry_config else 1.0
+                    except Exception:
+                        delay = 1.0
+                    await asyncio.sleep(delay)
+                    continue
+                return [
+                    SyncResult(
+                        success=False,
+                        video_uuid=video.get('video_uuid', 'unknown'),
+                        http_status=0,
+                        error_message=f"Connection failed: {body[:200]}",
+                    )
+                    for video in videos
+                ]
+
+            if status == 429:
+                self.sync_stats['rate_limited'] += 1
+                self.rate_limit_reset_time = datetime.now() + timedelta(seconds=60)
+                return [
+                    SyncResult(
+                        success=False,
+                        video_uuid=video.get('video_uuid', 'unknown'),
+                        http_status=429,
+                        error_message="Rate limited",
+                    )
+                    for video in videos
+                ]
+
+            if status == 200:
+                try:
+                    data = json.loads(body) if body else {}
+                except json.JSONDecodeError:
+                    data = {}
+                errors = data.get("errors") if isinstance(data, dict) else None
+                if not isinstance(errors, list):
+                    errors = []
+                failed_by_uuid = {}
+                for entry in errors:
+                    if isinstance(entry, dict) and entry.get("video_uuid"):
+                        failed_by_uuid[entry["video_uuid"]] = str(entry.get("error", "batch sync failed"))
+                # Omission from `errors` means "written" ONLY when the
+                # response counts confirm it: the batch endpoint fails fast
+                # on prevalidation (succeeded=0, errors naming just the
+                # invalid clips) without writing the valid siblings. Marking
+                # those siblings synced would checkpoint them in the
+                # extractor and silently drop them from retry.
+                total = data.get("total") if isinstance(data, dict) else None
+                succeeded = data.get("succeeded") if isinstance(data, dict) else None
+                failed = data.get("failed") if isinstance(data, dict) else None
+                counts_commit = (
+                    isinstance(total, int)
+                    and isinstance(succeeded, int)
+                    and isinstance(failed, int)
+                    and total == len(videos)
+                    and failed == len(failed_by_uuid)
+                    and succeeded == len(videos) - len(failed_by_uuid)
+                )
+                results = []
+                for video in videos:
+                    uuid = video.get('video_uuid', 'unknown')
+                    if uuid in failed_by_uuid:
+                        err = failed_by_uuid[uuid]
+                        # The batch upsert is idempotent, so a duplicate report
+                        # means the server already holds the clip: surface it
+                        # as 409 so the extractor still marks it synced.
+                        dup = "duplicat" in err.lower()
+                        results.append(SyncResult(
+                            success=False,
+                            video_uuid=uuid,
+                            http_status=409 if dup else None,
+                            error_message=err,
+                        ))
+                    elif counts_commit:
+                        results.append(SyncResult(
+                            success=True,
+                            video_uuid=uuid,
+                            http_status=200,
+                        ))
+                    else:
+                        results.append(SyncResult(
+                            success=False,
+                            video_uuid=uuid,
+                            http_status=200,
+                            error_message=(
+                                "Batch response did not confirm this clip was "
+                                f"written (total={total} succeeded={succeeded} "
+                                f"failed={failed}); leaving retryable"
+                            ),
+                        ))
+                self.sync_stats['successful_syncs'] += sum(1 for r in results if r.success)
+                self.sync_stats['failed_syncs'] += sum(1 for r in results if not r.success)
+                self.sync_stats['duplicates'] += sum(1 for r in results if r.http_status == 409)
+                return results
+
+            if status >= 500:
+                if attempt < max_attempts - 1:
+                    try:
+                        delay = self.retry_config.get_delay(attempt) if self.retry_config else 1.0
+                    except Exception:
+                        delay = 1.0
+                    await asyncio.sleep(delay)
+                    continue
+                return [
+                    SyncResult(
+                        success=False,
+                        video_uuid=video.get('video_uuid', 'unknown'),
+                        http_status=status,
+                        error_message=f"Server error: {status}",
+                    )
+                    for video in videos
+                ]
+
+            # Terminal: 400/401/403/404/409/422 at the request level (e.g. a
+            # malformed envelope) — no per-video retry can help.
+            return [
+                SyncResult(
+                    success=False,
+                    video_uuid=video.get('video_uuid', 'unknown'),
+                    http_status=status,
+                    error_message=f"Batch sync rejected: {status} {body[:200]}",
+                )
+                for video in videos
+            ]
+
+        return [
+            SyncResult(
+                success=False,
+                video_uuid=video.get('video_uuid', 'unknown'),
+                error_message="Max retries exhausted",
+            )
+            for video in videos
+        ]
 
     async def sync_labels(
         self,
