@@ -595,8 +595,14 @@ def test_health_not_ready_with_dead_letters_even_after_success(cal, queue):
     patch_occ(cal, "coach", cal["occ"]["ga"].id, venue_name="Health regression")
     db = cal["db"]
     if queue == "delivery":
+        # The HTTP write can take longer than one second on a loaded runner.
+        # Drive the worker from the committed job's clock, not the timestamp
+        # captured before that write (which may precede its eligibility).
+        outbox = db.query(CalendarAlertOutbox).order_by(CalendarAlertOutbox.id.desc()).first()
+        assert outbox is not None
+        expand_at = outbox.next_attempt_at
         db.rollback()
-        alerts.expand_outbox(factory(cal), "health-test", now + timedelta(seconds=1), 100)
+        alerts.expand_outbox(factory(cal), "health-test", expand_at, 100)
         row = deliveries(cal)[0]
     else:
         row = db.query(CalendarAlertOutbox).order_by(CalendarAlertOutbox.id.desc()).first()
