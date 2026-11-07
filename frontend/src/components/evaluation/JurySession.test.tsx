@@ -495,7 +495,8 @@ it('offers retry and pass when the ready video fails before ending', async () =>
   expect(screen.queryByRole('group', { name: 'Score from 0 to 10 by half point' })).not.toBeInTheDocument()
   await userEvent.click(screen.getByRole('button', { name: 'Retry' }))
   expect(screen.queryByRole('group', { name: 'Score from 0 to 10 by half point' })).not.toBeInTheDocument()
-  await userEvent.click(screen.getByRole('button', { name: 'Fail video' }))
+  // Retry remounts the player; its preparation/visibility settles asynchronously.
+  await userEvent.click(await screen.findByRole('button', { name: 'Fail video' }))
   await userEvent.click(await screen.findByRole('button', { name: 'Skip this dive' }))
   expect(skipRequest).toHaveBeenCalledWith(5, 11)
 })
