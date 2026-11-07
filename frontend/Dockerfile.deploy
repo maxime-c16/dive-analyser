@@ -20,6 +20,9 @@ RUN echo "$APP_SHA" > /tmp/source-sha
 
 COPY . .
 ENV VITE_APP_SHA=$APP_SHA
+# Leave room for the live services and filesystem cache on the small deploy
+# host. This applies only to compilation; the final nginx image has no Node.
+ENV NODE_OPTIONS=--max-old-space-size=768
 RUN npm run build
 
 FROM nginx:1.27-alpine
