@@ -10,7 +10,7 @@ it('keeps all-panel aggregates while paging and loads the remaining notes on the
   vi.mocked(getResults).mockResolvedValue({ ...results, ratings: ratings.slice(50) })
   const { container } = render(<ResultsBoard results={results} score={14} automatic />)
   expect(container.querySelectorAll('.eval-results-peers .eval-card')).toHaveLength(4)
-  expect(screen.getByText('60 vote(s) · community average 7.0')).toBeInTheDocument()
+  expect(screen.getByText('60 votes · community average 7.0')).toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: /60 scores/ }))
   const dialog = screen.getByRole('dialog')
   expect(within(dialog).getAllByRole('img')).toHaveLength(50)

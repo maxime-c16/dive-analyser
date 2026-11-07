@@ -112,7 +112,7 @@ const routeLoaders: Record<string, () => Promise<unknown>> = {
   '/calendar': loadCalendar,
 };
 
-function IntentNavLink({ primaryActive, ...props }: React.ComponentProps<typeof NavLink> & { primaryActive?: boolean }) {
+function IntentNavLink({ primaryActive, end, caseSensitive, ...props }: React.ComponentProps<typeof NavLink> & { primaryActive?: boolean }) {
   const targetPath = typeof props.to === 'string' ? props.to : props.to.pathname ?? '';
   const path = targetPath.split(/[?#]/)[0];
   // Prefetch, not the route loader: a failed speculative import must never
@@ -121,7 +121,7 @@ function IntentNavLink({ primaryActive, ...props }: React.ComponentProps<typeof 
   const prefetch = loader ? () => loadChunkPrefetch(loader) : undefined;
   const intent = useNavigationIntent(path, prefetch);
   if (primaryActive !== undefined) return <Link {...intent} {...props} className={typeof props.className === 'string' ? props.className : undefined} style={typeof props.style === 'object' ? props.style : undefined} aria-current={primaryActive ? 'page' : undefined}>{typeof props.children === 'function' ? null : props.children}</Link>;
-  return <NavLink {...intent} {...props} />;
+  return <NavLink {...intent} {...props} end={end} caseSensitive={caseSensitive} />;
 }
 
 /**
@@ -176,20 +176,21 @@ function AppNavLink({
 }: NavItem & { emphasis?: boolean }) {
   const { t } = useTranslation();
   const messagesAria = useMessagesUnreadAria();
+  const location = useLocation();
+  const primary = emphasis ? primaryTabFor(to) : null;
+  const selected = primary ? primaryTabFor(location.pathname) === primary : undefined;
+  const navClasses = (isActive: boolean) => [
+    "flex items-center gap-3 border border-transparent px-3 py-2.5 transition-colors",
+    emphasis ? "text-base font-semibold" : "text-sm font-medium",
+    isActive ? "border-app bg-app-panel text-app-text" : "text-app-muted hover:border-app hover:bg-app-panel/70 hover:text-app-text",
+  ].join(" ");
   return (
     <IntentNavLink
       to={to}
       end={to === "/"}
       aria-label={to === "/messages" ? messagesAria : undefined}
-      className={({ isActive }) =>
-        [
-          "flex items-center gap-3 border border-transparent px-3 py-2.5 transition-colors",
-          emphasis ? "text-base font-semibold" : "text-sm font-medium",
-          isActive
-            ? "border-app bg-app-panel text-app-text"
-            : "text-app-muted hover:border-app hover:bg-app-panel/70 hover:text-app-text",
-        ].join(" ")
-      }
+      primaryActive={selected}
+      className={selected === undefined ? ({ isActive }) => navClasses(isActive) : navClasses(selected)}
     >
       <Icon className={emphasis ? "h-5 w-5" : "h-4 w-4"} />
       <span>{t(label)}</span>
@@ -246,6 +247,7 @@ export function breadcrumbTrail(
   pathname: string,
   translate: (key: string) => string = (key) => key,
 ): Crumb[] {
+  if (/^\/room(?:\/|$)/.test(pathname)) return [{ labelKey: "room.title", href: pathname === "/room" ? undefined : "/room" }];
   if (/^\/calendar(?:\/|$)/.test(pathname)) return [{ labelKey: "nav.calendar", href: pathname === "/calendar" ? undefined : "/calendar" }];
   if (pathname === "/messages" || /^\/messages\/\d+\/?$/.test(pathname)) return [{ labelKey: "nav.messages" }];
   if (/^\/series(?:\/|$)/.test(pathname)) return [{ labelKey: "series.mySeries", href: pathname === "/series" ? undefined : "/series" }];
@@ -256,6 +258,8 @@ export function breadcrumbTrail(
       { label: `${decodeURIComponent(analysisMatch[1])} ${translate("breadcrumbs.analysis")}` },
     ];
   }
+  if (/^\/community(?:\/|$)/.test(pathname)) return [{ labelKey: "nav.community" }];
+  if (/^\/evaluations(?:\/|$)/.test(pathname)) return [{ labelKey: "nav.evaluations" }];
   switch (pathname) {
     case "/":
     case "/dives":
@@ -405,7 +409,7 @@ function MobileTabLink({ item, active, location, remembered, iconOnly }: {
         event.preventDefault(); window.scrollTo({ top: 0, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
       }
     }}><span className="relative"><Icon className="h-5 w-5" />
-      {tab === 'messages' && <MessagesUnreadBadge className="absolute -top-1.5 -right-2.5" />}</span><span className={iconOnly ? "sr-only" : undefined}>{t(label)}</span></IntentNavLink>;
+      {tab === 'messages' && <MessagesUnreadBadge className="absolute -top-1.5 -right-2.5" />}</span><span className={iconOnly ? "sr-only" : undefined}><span className="mobile-label-full">{t(label)}</span><span className="mobile-label-compact" aria-hidden="true">{t(`nav.compact.${tab}`)}</span></span></IntentNavLink>;
 }
 
 function MobileTabBar({ policy, remembered }: { policy: ReturnType<typeof useMobileNavPolicy>; remembered: ReturnType<typeof useTabMemory> }) {
@@ -430,7 +434,7 @@ function MobileTabBar({ policy, remembered }: { policy: ReturnType<typeof useMob
   }, [policy]);
   if (policy !== 'visible') return null;
   return <nav ref={bar} className={`mobile-tab-bar lg:hidden ${five ? "calendar-five-tabs" : ""}`} aria-label={t('nav.primaryNavigationAria')}>
-    {items.map(item => <MobileTabLink key={item.to} item={item} active={active} location={location} remembered={remembered} iconOnly={five} />)}
+    {items.map(item => <MobileTabLink key={item.to} item={item} active={active} location={location} remembered={remembered} iconOnly={false} />)}
   </nav>;
 }
 

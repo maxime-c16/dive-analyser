@@ -348,6 +348,7 @@ def my_requests(db: Session, user, limit: int = 10, offset: int = 0) -> dict:
                         "height": dive.height,
                         "platform_type": dive.platform_type,
                         "owner_display_name": None,
+                        "dive_datetime": dive.dive_datetime.isoformat(),
                     },
                     **(aggregates.get(request_row.id) or {"rating_count": 0, "mean_score": None}),
                 }

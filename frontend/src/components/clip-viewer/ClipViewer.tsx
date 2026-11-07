@@ -1,3 +1,4 @@
+import { scoreNumber } from '../evaluation/scoreFormatting'
 import { preparePlaybackWindow } from '../../utils/preparedPlayback'
 import { useTranslation } from 'react-i18next'
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
@@ -782,7 +783,7 @@ export default function ClipViewer({
   const diveName = fullName === attempt.dive_code ? "" : fullName;
   const facts = [
     `${attempt.height} ${platformTypeName(attempt.platform_type)}`,
-    attempt.official_dd ? `DD ${attempt.official_dd.toFixed(1)}` : null,
+    attempt.official_dd ? `DD ${scoreNumber(attempt.official_dd, i18n.language)}` : null,
     attempt.is_sync ? "SYNC" : t("analysis.individual"),
     ...modifiersFor(attempt),
     attemptDate(attempt),
@@ -985,7 +986,7 @@ export default function ClipViewer({
             </div>
             <div className="clip-caption">
               <div className="clip-caption-score">
-                <span className={`clip-score is-${attempt.performance}`}>{attemptScore(attempt).toFixed(1)}</span>
+                <span className={`clip-score is-${attempt.performance}`}>{scoreNumber(attemptScore(attempt), i18n.language)}</span>
                 <span>{performanceLabel(attempt.performance)}</span>
                 {attempt.visibility === "private" && (
                   <span className="clip-private" aria-label={t("clipViewer.private")} title={t("clipViewer.private")}><Lock size={12} aria-hidden="true" /></span>
@@ -1031,7 +1032,7 @@ export default function ClipViewer({
                 </span>
                 <span className="clip-description-facts">
                   <span>{attempt.height}</span>
-                  {attempt.official_dd ? <span>DD {attempt.official_dd.toFixed(1)}</span> : null}
+                  {attempt.official_dd ? <span>DD {scoreNumber(attempt.official_dd, i18n.language)}</span> : null}
                   {attempt.is_sync ? <span>SYNC</span> : null}
                   {modifiersFor(attempt).map((modifier) => <span key={modifier}>{modifier}</span>)}
                   <strong>
@@ -1093,7 +1094,7 @@ export default function ClipViewer({
                 <div className="clip-panel-summary">
                   <div className="clip-panel-title">
                     <h2 id="clip-viewer-title">{attempt.dive_code}</h2>
-                    <span className="clip-panel-score">{attemptScore(attempt).toFixed(1)}</span>
+                    <span className="clip-panel-score">{scoreNumber(attemptScore(attempt), i18n.language)}</span>
                   </div>
                   {diveName && <p className="clip-panel-name">{diveName}</p>}
                   {/* Diver attribution: shown only when the data carries a

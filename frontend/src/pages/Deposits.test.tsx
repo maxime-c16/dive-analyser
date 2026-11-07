@@ -52,8 +52,8 @@ it('keeps pickup and acceptance available for the actual owner', async () => {
 it('counts only owned clips in the library pickup banner', async () => {
   vi.mocked(listPendingBatches).mockResolvedValue([batch, { ...batch, batch_id: 'mine', diver_id: 1, pending: 2 }])
   render(<MemoryRouter><PendingBanner /></MemoryRouter>)
-  expect(await screen.findByText('2 new clip(s) to pick up')).toBeInTheDocument()
-  expect(screen.queryByText('8 new clip(s) to pick up')).not.toBeInTheDocument()
+  expect(await screen.findByText('2 new clips to pick up')).toBeInTheDocument()
+  expect(screen.queryByText('8 new clips to pick up')).not.toBeInTheDocument()
 })
 
 function owner() {

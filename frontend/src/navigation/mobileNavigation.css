@@ -10,7 +10,7 @@
   box-shadow: 0 8px 28px rgb(0 0 0 / .3);
   max-width: 560px; margin-inline: auto;
 }
-.mobile-tab { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-height: 52px; min-width: 0; border-radius: 999px; padding: 5px 1px; color: var(--app-muted); font-size: .6875rem; font-weight: 600; line-height: 1.2; text-align: center; overflow-wrap: anywhere; }
+.mobile-tab { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-height: 52px; min-width: 0; border-radius: 999px; padding: 5px 1px; color: var(--app-muted); font-size: .6875rem; font-weight: 600; line-height: 1.2; text-align: center; white-space: nowrap; }
 .mobile-tab svg { flex-shrink: 0; }
 .mobile-tab-active { color: var(--app-text); background: #303d44; box-shadow: inset 0 0 0 1px var(--app-border); }
 .mobile-tab:focus-visible, .mobile-account-trigger:focus-visible { outline: 2px solid var(--app-accent); outline-offset: 3px; }
@@ -23,13 +23,57 @@
    band above a large title in native apps. The shell starts below that band,
    so nothing interactive sits in the blur. The band is proportional to the
    inset, so browser tabs/Android (inset 0) keep no extra space. */
-@media (max-width: 1023px) { .shell-main, .mobile-header { padding-top: calc(env(safe-area-inset-top) * 1.7); } .mobile-header ~ .shell-main { padding-top: 0; } }
+@media (max-width: 1023px) { .shell-main, .mobile-header { padding-top: env(safe-area-inset-top); } .mobile-header ~ .shell-main { padding-top: 0; } }
 .mobile-shell-actions [data-testid="notifications-button"] { min-width: 44px; justify-content: center; }
 .mobile-shell-actions [data-testid="notifications-button"] > span:not([data-testid]) { display: none; }
-@media (max-width: 340px) { .mobile-tab { font-size: .65625rem; } }
+@media (max-width: 340px) { .mobile-tab { font-size:11px; } }
 
 @media (max-width: 1023px) {
   .mobile-bottom-notice.mobile-bottom-notice { bottom: calc(20px + var(--mobile-nav-offset, 0px) + var(--mobile-notice-before, 0px)); max-width: calc(100vw - 32px); max-height: calc((100dvh - var(--mobile-nav-offset, 0px) - 104px) / var(--mobile-notice-count, 1)); overflow-y: auto; }
 }
 
 .calendar-five-tabs { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+
+/* Global actions stay secondary to the page's task. */
+.mobile-shell-actions [data-testid="notifications-button"] { width: 44px; padding: 0; border: 0; position: relative; color: var(--app-muted); }
+.mobile-shell-actions [data-testid="notifications-badge"] { position: absolute; top: 0; right: 0; min-width: 16px; min-height: 16px; font-size: 10px; padding: 0 4px; }
+.mobile-shell-actions .mobile-account-trigger { border: 0; background: transparent; }
+.mobile-tab-active { color: var(--app-accent); background: color-mix(in srgb, var(--app-accent) 10%, var(--app-panel)); box-shadow: none; }
+.mobile-tab-bar { border-radius: 20px; box-shadow: 0 4px 16px rgb(0 0 0 / .2); }
+.mobile-tab { border-radius: 14px; }
+@media (max-width: 639px) { .library-heading { gap: 8px; padding-bottom: 12px; } .library-heading > .basis-full { height: 0; } .library-heading h1 { font-size: 26px; } }
+
+@media (max-width: 639px) {
+  .library-heading { display:grid; grid-template-columns:minmax(0,1fr) 44px 96px; align-items:center; gap:12px 8px; }
+  .library-heading h1 { grid-column:1; grid-row:1; }
+  .library-heading > .mobile-shell-actions { grid-column:3; grid-row:1; }
+  .library-heading > .add-videos-trigger { grid-column:2; grid-row:1; padding:0; }
+  .library-heading > .add-videos-trigger span { display:none; }
+  .library-heading > .basis-full { display:none; }
+  .library-heading > div.h-11 { grid-column:1 / -1; grid-row:2; margin-right:52px; border-radius:12px; }
+  .library-heading > button:not(.add-videos-trigger) { grid-column:3; grid-row:2; justify-self:end; }
+  .library-heading > [role=status] { grid-column:1 / -1; }
+  .library-heading > div.h-11 button { padding-inline:6px; white-space:nowrap; }
+  .mobile-tab { font-size:11px; }
+
+}
+
+@media (max-width: 340px) { .mobile-tab-bar { left:4px; right:4px; } .mobile-tab { letter-spacing:-.02em; } }
+
+
+
+@media (max-width: 359px) {
+  .mobile-tab-bar { display:grid; }
+  .calendar-five-tabs { grid-template-columns:.82fr 1fr 1.08fr 1fr 1.1fr; }
+  .library-heading { grid-template-columns:44px minmax(0,1fr) 44px; }
+  .library-heading h1 { grid-column:1 / -1; grid-row:1; max-width:calc(100% - 104px); font-size:24px; }
+  .library-heading > .add-videos-trigger { grid-column:1; grid-row:2; width:44px; }
+  .library-heading > .mobile-shell-actions { grid-column:2 / -1; grid-row:1; justify-self:end; }
+  .library-heading > div.h-11 { grid-column:2; grid-row:2; margin-right:0; }
+  .library-heading > div.h-11 button { font-size:12px; padding-inline:2px; }
+  .library-heading > button:not(.add-videos-trigger) { grid-column:3; grid-row:2; }
+
+}
+
+.mobile-label-compact { display:none; }
+@media(max-width:359px) { .mobile-label-full { display:none; } .mobile-label-compact { display:inline; } }

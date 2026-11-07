@@ -6,6 +6,7 @@ import ScoreInput from './ScoreInput'
 it('has no default vote, accepts zero and keeps half points within the score scale', () => {
   function Harness() { const [score, setScore] = useState<number | null>(null); return <ScoreInput score={score} disabled={false} onScore={setScore} /> }
   render(<Harness />)
+  expect(screen.queryByRole('img')).not.toBeInTheDocument()
   const half = screen.getByRole('button', { name: '+ ½' })
   expect(half).toBeDisabled()
   fireEvent.click(screen.getByRole('button', { name: '0 out of 10' }))

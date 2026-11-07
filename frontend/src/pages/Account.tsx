@@ -437,7 +437,7 @@ function LanguageSection() {
  * is unreachable or returns an unexpected shape.
  */
 function DiverScoreSection() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [score, setScore] = useState<DiverScore | null>(null)
   const [loaded, setLoaded] = useState(false)
   useEffect(() => {
@@ -461,7 +461,7 @@ function DiverScoreSection() {
   const rows = [
     {
       label: t('account.diverScore.performance', {
-        mean: score.performance.mean_score !== null ? score.performance.mean_score.toFixed(1) : '—',
+        mean: score.performance.mean_score !== null ? score.performance.mean_score.toLocaleString(i18n.language, { minimumFractionDigits:1, maximumFractionDigits:1 }) : '—',
         count: score.performance.rating_count,
       }),
       points: score.performance.points,
@@ -490,7 +490,7 @@ function DiverScoreSection() {
       </div>
       <p className="mt-1 text-sm text-app-muted">{t('account.diverScore.subtitle')}</p>
       <p className="mt-3 text-4xl font-semibold text-app-accent" aria-live="polite">
-        {score.score}
+        {score.score.toLocaleString(i18n.language)}
         <span className="text-base font-normal text-app-muted"> / 100</span>
       </p>
       <ul className="mt-4 space-y-3">
@@ -499,7 +499,7 @@ function DiverScoreSection() {
             <div className="flex items-baseline justify-between gap-4 text-sm">
               <span className="text-app-text">{row.label}</span>
               <span className="shrink-0 text-xs text-app-muted">
-                {row.points} / {row.weight}
+                {row.points.toLocaleString(i18n.language)} / {row.weight.toLocaleString(i18n.language)}
               </span>
             </div>
             <div

@@ -1,3 +1,4 @@
+import { scoreNumber } from '../evaluation/scoreFormatting'
 import { useEffect, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Attempt } from '../../utils/attemptPresentation'
@@ -18,7 +19,7 @@ export default function ClipFilmstrip({
   attempts: Attempt[]
   onSelect: (attempt: Attempt) => void
 }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const day = attempt.dive_datetime.slice(0, 10)
   const items = useMemo(() => attempts.filter((item) => item.dive_datetime.slice(0, 10) === day), [attempts, day])
   const listRef = useRef<HTMLOListElement>(null)
@@ -39,13 +40,13 @@ export default function ClipFilmstrip({
             <button
               type="button"
               aria-current={item.id === attempt.id ? 'true' : undefined}
-              aria-label={t('clipViewer.openFromStrip', { code: item.dive_code, score: attemptScore(item).toFixed(1) })}
+              aria-label={t('clipViewer.openFromStrip', { code: item.dive_code, score: scoreNumber(attemptScore(item), i18n.language) })}
               onClick={() => item.id !== attempt.id && onSelect(item)}
             >
               <span className="clip-filmstrip-thumb"><DiveThumbnail dive={item} compact /></span>
               <span className="clip-filmstrip-code">{item.dive_code}</span>
               <span className="clip-filmstrip-height">{item.height}</span>
-              <span className="clip-filmstrip-score">{attemptScore(item).toFixed(1)}</span>
+              <span className="clip-filmstrip-score">{scoreNumber(attemptScore(item), i18n.language)}</span>
             </button>
           </li>
         ))}

@@ -217,3 +217,7 @@
 /* Reveal: skip to the next dive once everyone has seen the cards. */
 .gm-next { margin-top:auto; }
 .gm-page.gm-phase-reveal { display:flex; flex-direction:column; }
+
+.gm-join-code .cm-search { min-width:0; }
+.gm-join-code .ca-btn { flex:none; }
+@media(max-width:359px) { .gm-join-code { display:grid; grid-template-columns:minmax(0,1fr); } .gm-join-code .ca-btn { width:100%; } }

@@ -145,7 +145,7 @@ export default function Community() {
     <label className="cm-search">
       <Search size={16} aria-hidden="true" />
       <span className="sr-only">{t('community.search')}</span>
-      <input type="search" maxLength={120} value={q} onChange={event => setParams(event.target.value ? { q: event.target.value } : {}, { replace: true })} placeholder={t('community.search')} />
+      <input type="search" maxLength={120} value={q} onChange={event => setParams(event.target.value ? { q: event.target.value } : {}, { replace: true })} placeholder={t('community.searchPlaceholder')} />
     </label>
     {error && <p role="alert" className="cm-alert">{t('community.error')} <button type="button" onClick={() => setRetry(value => value + 1)}>{t('common.retry')}</button></p>}
 
@@ -157,7 +157,7 @@ export default function Community() {
       {(totalsKnown ? (totals!.recent > 0 || recent.length > 0) : recent.length > 0) && <section className="cm-section ca-arrive" aria-labelledby="cm-recent">
         <h2 id="cm-recent" className="cm-h2">{t('community.recentlyActive')}{totalsKnown && <span>{recentTotal}</span>}</h2>
         <div className="cm-stories">{recent.map((member, index) => <Link key={member.user_id} to={`/users/${member.user_id}`} className="cm-story ca-pop" style={{ '--i': index } as CSSProperties}>
-          <span className={`cm-story-ring${now - lastAt(member) <= 7 * DAY_MS ? ' is-hot' : ''}`}><MemberAvatar member={member} size={60} /></span>
+          <span className={`cm-story-ring${now - lastAt(member) <= 7 * DAY_MS ? ' is-hot' : ''}`}><MemberAvatar member={member} size={36} /></span>
           <b>{member.display_name}</b>
           <span className="sr-only">{', '}</span>
           <small>{member.latest_dive_at && formatDistanceToNowStrict(parseISO(member.latest_dive_at), { locale: appLocale() })}</small>

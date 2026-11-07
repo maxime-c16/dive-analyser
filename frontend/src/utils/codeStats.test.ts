@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { DAY_MS, extremes, median, quantile, recentTrend, rolling, scoreBand, smoothingWindow } from './codeStats'
+import { DAY_MS, fmtScore, extremes, median, quantile, recentTrend, rolling, scoreBand, smoothingWindow } from './codeStats'
 
 describe('codeStats', () => {
   it('computes quantiles and rolling medians', () => {
@@ -34,4 +34,14 @@ describe('codeStats', () => {
   it('maps scores to the Library rating colours', () => {
     expect([10, 7, 4.5, 2, 0].map(scoreBand)).toEqual(['P', 'G', 'M', 'B', 'F'])
   })
+})
+
+
+it('formats score decimals in the requested language without changing rounding or missing values', () => {
+  expect(fmtScore(5.2, 'fr')).toBe('5,2')
+  expect(fmtScore(5.2, 'en')).toBe('5.2')
+  expect(fmtScore(4.45, 'fr')).toBe('4,5')
+  expect(fmtScore(0, 'fr')).toBe('0,0')
+  expect(fmtScore(-0.001, 'fr')).toBe('0,0')
+  expect(fmtScore(null, 'fr')).toBe('—')
 })

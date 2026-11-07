@@ -272,3 +272,18 @@
 .calendar-legacy .calendar-member > div > span { color: var(--app-muted); font-size: 13px; }
 .calendar-legacy .calendar-inline-form { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; }
 .calendar-legacy .calendar-inline-form select, .calendar-legacy .calendar-inline-form input { min-height: 40px; padding: 6px 12px; font-size: 14px; }
+
+/* Filter choices retain one compact row on narrow phones. */
+.cal-filters { flex-wrap:wrap; overflow:visible; }
+.cal-type-picker { display:none; }
+@media(max-width:639px) {
+  .cal-type-picker { display:block; min-width:0; max-width:100%; min-height:40px; padding:6px 28px 6px 12px; border:1px solid var(--app-border); border-radius:10px; background:var(--app-panel); color:var(--app-text); font:inherit; font-size:14px; }
+  .cal-type-pill, .cal-filters .ca-divider { display:none; }
+}
+/* Event identity leads the next-session card; relative time is metadata. */
+.cal-next { gap:12px; background:var(--app-panel); border-color:var(--app-border); }
+.cal-next-top { align-items:center; }
+.cal-next-top .cal-tag { font-size:13px; line-height:1.4; }
+.cal-count { font-size:16px; line-height:1.4; font-weight:600; letter-spacing:0; white-space:nowrap; color:var(--app-muted); }
+.cal-count small { font-size:13px; }
+@media(max-width:599px) { .cal-next { padding:12px; } .cal-next-title { font-size:19px; } }

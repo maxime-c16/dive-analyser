@@ -64,8 +64,8 @@ export type LeaderboardMember = MemberIdentity & {
   median: number | null; delta: number | null; streak_weeks: number; last_attempt_at: string | null
 }
 export type Leaderboard = { period: LeaderboardPeriod; start: string; end: string; members: LeaderboardMember[] }
-export function getLeaderboard(period: LeaderboardPeriod): Promise<Leaderboard> {
-  return request(`/leaderboard?period=${period}`)
+export function getLeaderboard(period: LeaderboardPeriod, signal?: AbortSignal): Promise<Leaderboard> {
+  return request(`/leaderboard?period=${period}`, { signal })
 }
 
 /** A member's per-code summaries over the dives visible to me (same shape as the Library's). */

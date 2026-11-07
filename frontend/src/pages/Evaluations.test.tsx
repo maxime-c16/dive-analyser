@@ -1,11 +1,11 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, expect, it, vi } from 'vitest'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom'
 import Evaluations from './Evaluations'
 import type { EvaluationOverview } from '../services/evaluationApi'
 
 vi.mock('../contexts/AuthContext', () => ({ useAuth: () => ({ user: { user_id: 1 } }) }))
-vi.mock('../components/evaluation/EvaluationSpaces', () => ({ OwnedRequests: () => <p>Owned</p>, MyJudgements: () => <p>History list</p> }))
+vi.mock('../components/evaluation/EvaluationSpaces', () => ({ OwnedRequests: () => <p>Owned</p>, MyJudgements: ({ page, onPage }: { page:number; onPage:(page:number)=>void }) => <><p>History list</p><output data-testid="history-page">{page}</output><button onClick={() => onPage(page + 1)}>Advance history</button></> }))
 vi.mock('../components/evaluation/AutomaticScores', () => ({ default: () => <p>Community list</p> }))
 vi.mock('../components/evaluation/JurySession', () => ({
   default: (props: { automatic?: boolean; daily?: boolean; resumeStackId?: number; doneBefore?: number; drawSize?: number; onDone: () => void }) =>
@@ -68,7 +68,7 @@ it('lays today’s cards on the table with the judge’s style, streak and next 
   expect(screen.getByRole('heading', { name: 'Generous judge' })).toBeInTheDocument()
   expect(screen.getByText('4-day streak')).toBeInTheDocument()
   expect(screen.getByRole('timer')).toHaveTextContent(/\d\d:\d\d:\d\d/)
-  expect(screen.getByText('2 dive(s) waiting for your score.')).toBeInTheDocument()
+  expect(screen.getByText('2 dives waiting for your score.')).toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: /Deal 5 more/ }))
   expect(await screen.findByText(/"automatic":true,"daily":false/)).toBeInTheDocument()
 })
@@ -112,4 +112,28 @@ it('falls back to five for invalid stored sizes and ignores another account’s 
   vi.mocked(getEvaluationOverview).mockResolvedValue(overview({}))
   renderAt('/evaluations?tab=judge')
   expect(await screen.findByText(/"size":5/)).toBeInTheDocument()
+})
+
+it('offers recovery when the overview request times out and loads a fresh overview on retry', async () => {
+  vi.mocked(getEvaluationOverview)
+    .mockRejectedValueOnce(new Error('timeout of 12000ms exceeded'))
+    .mockResolvedValueOnce(overview({ daily: { ...stack, remaining: 0 } }))
+  renderAt('/evaluations?tab=judge')
+  expect(await screen.findByRole('alert')).toHaveTextContent('The evaluation queue is unavailable.')
+  fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+  expect(await screen.findByRole('combobox', { name: 'Dives per draw' })).toBeInTheDocument()
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  expect(getEvaluationOverview).toHaveBeenCalledTimes(2)
+})
+
+
+it('restores the history page from its URL and browser Back restores the previous page', async () => {
+  function RouteTrace() { const location = useLocation(); const navigate = useNavigate(); return <><output data-testid="route">{location.search}</output><button onClick={() => navigate(-1)}>Browser back</button></> }
+  render(<MemoryRouter initialEntries={['/evaluations?tab=history&historyPage=3']}><Evaluations /><RouteTrace /></MemoryRouter>)
+  expect(screen.getByTestId('history-page')).toHaveTextContent('3')
+  fireEvent.click(screen.getByRole('button', { name:'Advance history' }))
+  expect(screen.getByTestId('route')).toHaveTextContent('historyPage=4')
+  expect(screen.getByTestId('history-page')).toHaveTextContent('4')
+  fireEvent.click(screen.getByRole('button', { name:'Browser back' }))
+  expect(screen.getByTestId('history-page')).toHaveTextContent('3')
 })

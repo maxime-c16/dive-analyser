@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { ArrowLeft, Check, LogOut, Play, Plus, Send, Users, X } from 'lucide-react'
@@ -76,7 +76,7 @@ function Thread({ id, onLeave }: { id: number; onLeave: (id: number) => void }) 
   useBottomAction(viewport.width < 768)
   const phone = viewport.width < 768
   const typing = phone && viewport.editing
-  const visibleBox = useVisibleBox(typing)
+  const visibleBox = useVisibleBox(phone)
   const changeBody = (value: ReturnType<typeof emptyMentionValue>) => { if (!value.body) { sendKey.current = null; discardPendingSend(user?.user_id, id) } setBody(value); saveMessageDraft(user?.user_id, id, value) }
   const [retry, setRetry] = useState(0)
   const alive = useRef(true)
@@ -91,17 +91,17 @@ function Thread({ id, onLeave }: { id: number; onLeave: (id: number) => void }) 
   const mutation = useRef(0)
   const sendKey = useRef<{ value: string; key: string } | null>(readPendingSend(user?.user_id, id))
   const thread = useRef<HTMLElement>(null)
-  const [top, setTop] = useState(0)
-  useLayoutEffect(() => {
-    if (viewport.width >= 768 || !thread.current) return
-    window.scrollTo({ top: 0, behavior: 'instant' })
-    const measure = () => { if (thread.current) setTop(thread.current.getBoundingClientRect().top + window.scrollY) }
-    measure()
-    // The mobile shell bar can mount after this thread (arriving from the inbox) and push it down.
-    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure)
-    observer?.observe(document.body)
-    return () => observer?.disconnect()
-  }, [viewport.width])
+  useEffect(() => {
+    if (!phone || !thread.current) return
+    // Keep drags on the header/margins from moving Safari's layout viewport.
+    const node = thread.current
+    const preventOuterPan = (event: TouchEvent) => {
+      if (event.touches.length > 1) return
+      if (!(event.target instanceof Element) || !event.target.closest('.msg-history, textarea, .msg-menu-pop')) event.preventDefault()
+    }
+    node.addEventListener('touchmove', preventOuterPan, { passive: false })
+    return () => node.removeEventListener('touchmove', preventOuterPan)
+  }, [phone])
   useEffect(() => {
     const completed = (event: Event) => {
       const sent = (event as CustomEvent).detail
@@ -163,6 +163,7 @@ function Thread({ id, onLeave }: { id: number; onLeave: (id: number) => void }) 
     return () => { alive.current = false; clearInterval(timer); window.removeEventListener('focus', focus); document.removeEventListener('visibilitychange', focus) }
   }, [id, retry, load, markVisibleRead])
   useEffect(() => { if (!loading) end.current?.scrollIntoView({ block: 'end' }) }, [loading])
+  const canCompose = !!conversation && !loading && initialized.current
   const peers = conversation?.members.filter(m => m.user_id !== user?.user_id) ?? []
   const me = user?.user_id ?? 0
   const group = conversation?.kind === 'group'
@@ -188,10 +189,11 @@ function Thread({ id, onLeave }: { id: number; onLeave: (id: number) => void }) 
     }).catch(() => { if (alive.current) setError(true) }).finally(() => { if (alive.current) setBusy(false) })
   }
   // While typing on a phone the conversation is pinned to what the keyboard leaves visible: header on top, input right above the keys.
-  const pinned = typing ? { position: 'fixed', left: 0, right: 0, top: visibleBox.top, height: visibleBox.height, zIndex: 45 } as React.CSSProperties : {}
-  return <section ref={thread} className={`message-thread msg-thread${typing ? ' is-typing' : ''}`} style={{ '--message-viewport-height': `${viewport.height}px`, '--message-top': `${top}px`, ...pinned } as React.CSSProperties}>
+  const pinned = phone ? { position: 'fixed', left: 0, right: 0, top: visibleBox.top, height: visibleBox.height, zIndex: 45 } as React.CSSProperties : {}
+  return <section ref={thread} className={`message-thread msg-thread${typing ? ' is-typing' : ''}`} style={{ '--message-viewport-height': `${viewport.height}px`, ...pinned } as React.CSSProperties}>
     <header className="msg-thread-head">
       <Link to="/messages" className="msg-icon-btn msg-back" aria-label={t('messages.title')}><ArrowLeft size={18} /></Link>
+      {!conversation && <span className="msg-peer msg-peer-loading" aria-busy="true"><span className="msg-peer-name"><b>{t('messages.conversation')}</b></span></span>}
       {group
         ? <div className="msg-menu msg-group-head">
             <button type="button" className="msg-peer" aria-expanded={menu} aria-haspopup="dialog" onClick={() => setMenu(v => !v)}>
@@ -253,7 +255,7 @@ function Thread({ id, onLeave }: { id: number; onLeave: (id: number) => void }) 
     </div>
     <form className="message-composer msg-composer" onSubmit={async e => {
       e.preventDefault()
-      if (!body.body.trim() || busy) return
+      if (!body.body.trim() || busy || !canCompose) return
       const payload = mentionPayload(body), value = JSON.stringify(payload)
       if (sendKey.current?.value !== value) sendKey.current = { value, key: crypto.randomUUID() }
       const sending = sendKey.current
@@ -270,8 +272,8 @@ function Thread({ id, onLeave }: { id: number; onLeave: (id: number) => void }) 
       finally { if (alive.current) setBusy(false) }
     }}>
       <label htmlFor="direct-message" className="sr-only">{t('messages.compose')}</label>
-      <MentionComposer id="direct-message" placeholder={t('messages.placeholderShort')} value={body} onChange={changeBody} disabled={busy} />
-      <button type="submit" className="msg-send" aria-label={t('messages.send')} disabled={busy || !body.body.trim()}><Send size={18} /></button>
+      <MentionComposer id="direct-message" placeholder={t('messages.placeholderShort')} value={body} onChange={changeBody} disabled={busy || !canCompose} />
+      <button type="submit" className="msg-send" aria-label={t('messages.send')} disabled={busy || !canCompose || !body.body.trim()}><Send size={18} /></button>
     </form>
   </section>
 }
@@ -365,7 +367,7 @@ export default function Messages() {
     <div className="messages-grid msg-grid">
       <aside className={`msg-inbox${id ? ' is-behind' : ''}`} aria-label={t('messages.inbox')}>
         {loading && items.length === 0 && <div className="grid min-h-[30vh] place-items-center"><PageLoading /></div>}
-        {!loading && !items.length && <div className="msg-empty">
+        {!loading && !error && !items.length && <div className="msg-empty">
           <p>{t('messages.empty')}</p>
           <button type="button" className="msg-new-btn" onClick={() => setChoose(true)}><Plus size={18} /><span>{t('messages.newShort')}</span></button>
         </div>}

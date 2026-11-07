@@ -159,13 +159,12 @@ function AccountUpdates({ accountId, children }: { accountId: number; children: 
 
   return <Context.Provider value={{ open, unread: unread || !compatible }}>
     {children}
-    {toast && compatible && showNotice && <div ref={noticeElement} role="status" className="mobile-bottom-notice fixed bottom-[calc(1.25rem+var(--mobile-nav-offset,0px))] left-4 right-4 z-40 border border-app-strong border-l-2 border-l-[var(--app-accent)] bg-app-panel p-5 shadow-2xl sm:left-auto sm:right-6 sm:w-[410px]">
-      <div className="flex items-start justify-between gap-3">
-        <h2 className="flex items-center gap-2 text-sm font-semibold"><Sparkles className="h-4 w-4 shrink-0 text-app-accent" />{t('whatsNew.updateHeadline')}</h2>
+    {toast && compatible && showNotice && <div ref={noticeElement} role="status" className="mobile-bottom-notice fixed bottom-[calc(1.25rem+var(--mobile-nav-offset,0px))] left-4 right-4 z-40 border border-app-strong border-l-2 border-l-[var(--app-accent)] bg-app-panel p-3 shadow-lg rounded-xl sm:left-auto sm:right-6 sm:w-[410px]">
+      <div className="flex items-center justify-between gap-3">
+        <button onClick={openToast} className="min-h-11 text-left text-sm font-semibold text-app-accent">{t('whatsNew.seeWhatsNew')}</button>
         <button aria-label={t('whatsNew.dismissHint')} onClick={dismiss} className="-mr-2 -mt-2 flex h-11 w-11 shrink-0 items-center justify-center bg-transparent text-app-muted"><X className="h-5 w-5" /></button>
       </div>
-      <p className="mb-4 mt-2 text-sm text-app-muted">{toast.length === 1 ? t(`releaseNotes.${toast[0].id}.title`, { defaultValue: toast[0].title }) : t('whatsNew.improvementsReady', { count: toast.length })}</p>
-      <button onClick={openToast} className="min-h-11 bg-app-accent px-4 text-sm font-semibold text-[#0d211c]">{t('whatsNew.seeWhatsNew')}</button>
+      {toast.length === 1 && <p className="mt-1 text-sm text-app-muted">{t(`releaseNotes.${toast[0].id}.title`, { defaultValue: toast[0].title })}</p>}
     </div>}
     {panel && <UpdatePanel manifest={panel} compatible={buildSha === 'dev' || !panel.frontend_sha || panel.frontend_sha === buildSha} close={closePanel} />}
   </Context.Provider>

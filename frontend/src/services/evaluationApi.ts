@@ -170,6 +170,7 @@ export type OwnerRequestSummary = {
     height: string
     platform_type: string
     owner_display_name: string | null
+    dive_datetime?: string
   }
   rating_count: number
   mean_score: number | null
@@ -215,7 +216,7 @@ export const SELF_EVALUATION = 'SELF_EVALUATION'
 export const SESSION_EXPIRED = 'SESSION_EXPIRED'
 
 export async function createSession(clientSessionId: string): Promise<EvaluationSession> {
-  const { data } = await api.post('/api/v1/evaluations/sessions', { client_session_id: clientSessionId })
+  const { data } = await api.post('/api/v1/evaluations/sessions', { client_session_id: clientSessionId }, { timeout: 12_000 })
   return data
 }
 
@@ -225,13 +226,13 @@ export async function getQueue(
   limit: number = QUEUE_BATCH_DEFAULT,
 ): Promise<QueueBatch> {
   const { data } = await api.get(`/api/v1/evaluations/sessions/${sessionId}/queue`, {
-    params: { batch_id: batchId, limit },
+    params: { batch_id: batchId, limit }, timeout: 12_000,
   })
   return data
 }
 
 export async function skipRequest(sessionId: number, requestId: number): Promise<void> {
-  await api.post(`/api/v1/evaluations/sessions/${sessionId}/skip`, { request_id: requestId })
+  await api.post(`/api/v1/evaluations/sessions/${sessionId}/skip`, { request_id: requestId }, { timeout: 12_000 })
 }
 
 export async function submitRating(
@@ -340,19 +341,26 @@ export const EVALUATION_FIXTURES = {
 }
 
 export async function createAutomaticStack(clientSessionId: string, daily: boolean, size = 5): Promise<EvaluationSession> {
-  const { data } = await api.post('/api/v1/evaluations/automatic/stacks', { client_session_id: clientSessionId, daily, size })
+  const { data } = await api.post('/api/v1/evaluations/automatic/stacks', { client_session_id: clientSessionId, daily, size }, { timeout: 12_000 })
   return data
 }
 export async function getAutomaticQueue(stackId: number): Promise<QueueBatch> {
-  const { data } = await api.get(`/api/v1/evaluations/automatic/stacks/${stackId}/queue`)
+  const { data } = await api.get(`/api/v1/evaluations/automatic/stacks/${stackId}/queue`, { timeout: 12_000 })
   return data
 }
 export async function skipAutomaticDive(stackId: number, diveId: number): Promise<void> {
-  await api.post(`/api/v1/evaluations/automatic/stacks/${stackId}/skip`, { request_id: diveId })
+  await api.post(`/api/v1/evaluations/automatic/stacks/${stackId}/skip`, { request_id: diveId }, { timeout: 12_000 })
 }
-export type AutomaticScore = { dive_id: number; dive_code: string; height: string; excluded: boolean; rating_count: number; mean_score: number | null; provisional: boolean }
-export async function getAutomaticScores(offset = 0): Promise<{ items: AutomaticScore[]; total: number }> {
-  const { data } = await api.get('/api/v1/evaluations/automatic/mine', { params: { offset, limit: 20 } })
+export type AutomaticScore = { thumb_url?: string | null; thumbhash?: string | null; dive_datetime?: string; video_uuid?: string | null; dive_id: number; dive_code: string; height: string; excluded: boolean; rating_count: number; mean_score: number | null; provisional: boolean }
+export type AutomaticScoreFilters = { search?: string; height?: string; date_from?: string; score_state?: 'all' | 'scored' | 'awaiting'; sort?: 'recent' | 'top' | 'votes' }
+export async function getAutomaticScores(offset = 0, filters: AutomaticScoreFilters = {}): Promise<{ items: AutomaticScore[]; total: number }> {
+  const { date_from, ...otherFilters } = filters
+  const { data } = await api.get('/api/v1/evaluations/automatic/mine', { params: { offset, limit: 20, ...otherFilters, ...(date_from ? { date_from } : {}) } })
+  // An older server ignores unknown query parameters. Never present its
+  // unfiltered page as the result of a successful search.
+  if (data.filter_version !== 1 && (filters.search || filters.height || filters.date_from || (filters.score_state && filters.score_state !== 'all') || (filters.sort && filters.sort !== 'recent'))) {
+    throw Object.assign(new Error('Automatic dive filters unavailable'), { code:'AUTOMATIC_FILTERS_UNAVAILABLE' })
+  }
   return data
 }
 export async function setAutomaticExclusion(diveId: number, excluded: boolean): Promise<void> {
@@ -371,7 +379,7 @@ export type EvaluationOverview = {
   judge: { compared: number; bias: number | null; streak: number }
 }
 export async function getEvaluationOverview(): Promise<EvaluationOverview> {
-  const { data } = await api.get('/api/v1/evaluations/overview')
+  const { data } = await api.get('/api/v1/evaluations/overview', { timeout: 12_000 })
   return data
 }
 

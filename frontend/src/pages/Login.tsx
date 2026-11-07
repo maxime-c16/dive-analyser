@@ -41,7 +41,7 @@ export default function Login() {
         body: JSON.stringify({ email, password, remember_me: rememberMe }),
       }))
       if (!res.ok) {
-        setError(t('login.invalidCredentials'))
+        setError(t(res.status === 401 ? 'login.invalidCredentials' : 'login.networkError'))
         return
       }
       setPassword('')

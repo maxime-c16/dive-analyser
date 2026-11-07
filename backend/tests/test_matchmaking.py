@@ -46,6 +46,8 @@ def test_immutable_votes_separate_from_manual(workspace):
     from app.models.evaluation import EvaluationRating
     assert db.query(EvaluationRating).count() == 0
     summary = login('alice').get('/api/v1/evaluations/automatic/mine').json()['items'][0]
+    assert summary['video_uuid'] == 'alice-public-video'
+    assert summary['dive_datetime'] == db.get(Dive, did).dive_datetime.isoformat()
     assert summary['mean_score'] == 6.5 and summary['rating_count'] == 1 and summary['provisional']
 
 
@@ -586,3 +588,90 @@ def test_existing_cold_selection_remains_resumable_without_get_side_effects(work
     assert resumed.json()['items'][0]['media']['status'] == ('ready' if media_state == 'original' else media_state)
     assert db.query(MediaJob).count() == jobs_before
     assert login('alice').get(f'/api/v1/evaluations/automatic/stacks/{sid}/queue').status_code == 404
+
+
+def test_owner_browser_searches_full_scope_before_paging(workspace):
+    db, login, dives, _, session_id = workspace
+    source = db.get(Dive, dives['alice-public'])
+    owner_id = source.diver_id
+    for n in range(25):
+        db.add(Dive(session_id=session_id, diver_id=owner_id, dive_code='203C' if n == 24 else '101B',
+                    height='1m' if n == 24 else '3m', notes='entry practice' if n == 24 else None,
+                    performance='G', performance_numeric=3, visibility='public',
+                    video_uuid=f'browse-{n}', dive_datetime=datetime(2026, 1, 1) + timedelta(days=n)))
+    db.commit()
+    client = login('alice')
+    endpoint = '/api/v1/evaluations/automatic/mine'
+    first = client.get(endpoint).json()
+    assert first['total'] == 26 and len(first['items']) == 20
+    last = client.get(endpoint, params={'offset':20}).json()
+    assert len(last['items']) == 6
+    assert not ({r['dive_id'] for r in first['items']} & {r['dive_id'] for r in last['items']})
+    for params in ({'search':'203c'}, {'search':'entry practice'}, {'height':'1m'}, {'date_from':'2026-01-25T00:00:00','search':'203C'}):
+        response = client.get(endpoint, params=params)
+        assert response.status_code == 200, response.text
+        data = response.json()
+        assert data['total'] == 1 and data['items'][0]['dive_code'] == '203C'
+        assert data['items'][0]['video_uuid'] == 'browse-24'
+        assert data['items'][0]['dive_datetime'].startswith('2026-01-25')
+    assert client.get(endpoint, params={'search':'%'}).json()['total'] == 0
+    assert client.get(endpoint, params={'score_state':'scored'}).json()['total'] == 0
+    assert client.get(endpoint, params={'score_state':'awaiting'}).json()['total'] == 26
+    assert login('bob').get(endpoint, params={'search':'entry practice'}).json()['total'] == 0
+    assert login('viewer').get(endpoint).json()['total'] == 0
+
+
+def test_owner_browser_sort_and_counts_apply_before_limit(workspace):
+    db, login, dives, users, _ = workspace
+    did = dives['alice-public']
+    db.add(AutomaticRating(dive_id=did, evaluator_user_id=users['bob'].id, score_half_steps=15, video_uuid='alice-public-video', dive_code='101B', height='3m', dive_name='Forward dive'))
+    db.commit()
+    response = login('alice').get('/api/v1/evaluations/automatic/mine', params={'score_state':'scored', 'sort':'top', 'limit':1})
+    assert response.status_code == 200, response.text
+    assert response.json()['total'] == 1
+    assert response.json()['items'][0]['mean_score'] == 7.5
+    assert login('alice').get('/api/v1/evaluations/automatic/mine', params={'score_state':'awaiting'}).json()['total'] == 0
+
+
+def test_owner_browser_detail_query_count_does_not_grow_with_page_size(workspace):
+    from sqlalchemy import event
+    db, login, dives, _, session_id = workspace
+    source = db.get(Dive, dives['alice-public'])
+    for n in range(24):
+        db.add(Dive(session_id=session_id, diver_id=source.diver_id, dive_code='101B', height='3m',
+                    performance='G', performance_numeric=3, visibility='public',
+                    video_uuid=f'bounded-{n}', dive_datetime=datetime(2026,1,1)))
+    db.commit()
+    client = login('alice')
+    statements = []
+    def record(_conn, _cursor, statement, _parameters, _context, _many):
+        if statement.lstrip().upper().startswith('SELECT'):
+            statements.append(statement)
+    event.listen(db.bind, 'before_cursor_execute', record)
+    try:
+        one = client.get('/api/v1/evaluations/automatic/mine', params={'limit':1})
+        one_count = len(statements)
+        statements.clear()
+        many = client.get('/api/v1/evaluations/automatic/mine', params={'limit':20})
+        assert one.status_code == many.status_code == 200
+        assert one.json()['total'] == many.json()['total'] == 25
+        assert len(many.json()['items']) == 20
+        assert len(statements) <= one_count + 1
+    finally:
+        event.remove(db.bind, 'before_cursor_execute', record)
+
+
+def test_owner_browser_keeps_legacy_7m_and_7point5m_values_distinct(workspace):
+    db, login, dives, _, session_id = workspace
+    source = db.get(Dive, dives['alice-public'])
+    source.height = '7m'
+    db.add(Dive(session_id=session_id, diver_id=source.diver_id, dive_code='203C', height='7.5m',
+                performance='G', performance_numeric=3, visibility='public',
+                video_uuid='height-7point5', dive_datetime=datetime(2026,1,1)))
+    db.commit()
+    client = login('alice')
+    for height, expected in [('7m', '101B'), ('7.5m', '203C')]:
+        page = client.get('/api/v1/evaluations/automatic/mine', params={'height':height}).json()
+        assert page['total'] == 1
+        assert page['items'][0]['height'] == height
+        assert page['items'][0]['dive_code'] == expected

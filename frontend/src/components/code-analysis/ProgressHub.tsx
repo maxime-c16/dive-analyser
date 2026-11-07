@@ -11,11 +11,11 @@ import { Sparkline, TrendBadge } from './parts'
 const STALE_DAYS = 45
 
 function Delta({ current, previous, digits = 0 }: { current: number | null; previous: number | null; digits?: number }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   if (current == null || previous == null) return null
   const delta = current - previous
   const tone = delta > 0 ? 'ca-up' : delta < 0 ? 'ca-down' : 'ca-flat'
-  return <p className={tone}>{delta > 0 ? '▲ +' : delta < 0 ? '▼ ' : '= '}{Math.abs(delta) < 1e-9 ? '0' : delta.toFixed(digits)} {t('codeAnalysis.vsPrevious30')}</p>
+  return <p className={tone}>{delta > 0 ? '▲ +' : delta < 0 ? '▼ ' : '= '}{Math.abs(delta) < 1e-9 ? '0' : delta.toLocaleString(i18n.language, { minimumFractionDigits:digits, maximumFractionDigits:digits, useGrouping:false })} {t('codeAnalysis.vsPrevious30')}</p>
 }
 
 /** Library › Progrès: what moved, what was dropped, and where the volume went. */
@@ -42,7 +42,7 @@ export default function ProgressHub({ data }: { data: CodeSummaries }) {
   const { current, previous } = data.activity
   const kpi = (key: keyof ActivityWindow, label: string, digits = 0) => <div className="ca-hk">
     <dt>{label}</dt>
-    <dd className={key === 'median' && current.median != null ? `ca-t-${scoreBand(current.median)}` : undefined}>{current[key] == null ? '—' : Number(current[key]).toFixed(digits)}</dd>
+    <dd className={key === 'median' && current.median != null ? `ca-t-${scoreBand(current.median)}` : undefined}>{current[key] == null ? '—' : Number(current[key]).toLocaleString(i18n.language, { minimumFractionDigits:digits, maximumFractionDigits:digits, useGrouping:false })}</dd>
     <Delta current={current[key]} previous={previous[key]} digits={digits} />
   </div>
   const mover = (code: CodeSummary, side: React.ReactNode) => <button key={code.dive_code} type="button" className="ca-mv" onClick={() => open(code.dive_code)}>

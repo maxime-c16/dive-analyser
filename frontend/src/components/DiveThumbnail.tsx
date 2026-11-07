@@ -1,3 +1,4 @@
+import { Film } from 'lucide-react'
 import { prepareLibraryPlayback } from '../utils/preparedPlayback'
 import { useTranslation } from 'react-i18next'
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -10,7 +11,7 @@ export default function DiveThumbnail({
   dive,
   compact = false,
 }: {
-  dive: Attempt;
+  dive: Pick<Attempt, "video_uuid" | "dive_code" | "thumb_url" | "animated_url" | "thumbhash">;
   compact?: boolean;
 }) {
   const { t } = useTranslation()
@@ -45,6 +46,7 @@ export default function DiveThumbnail({
     setAnimatedError(false);
     setImgError(false);
     setThumbError(false);
+    setPreview(dive.video_uuid ? cachedPreview(dive.video_uuid) || null : null);
     if (!dive.video_uuid) return;
     // If already cached, apply immediately — no network request needed.
     const cached = cachedPreview(dive.video_uuid);
@@ -101,6 +103,7 @@ export default function DiveThumbnail({
   return (
     <div
       ref={containerRef}
+      data-preview-state={(animated || thumb || (preview?.posterUrl && !imgError) || placeholder || (preview?.videoThumbUrl && !(dive.thumb_url || preview?.thumbUrl || dive.animated_url || preview?.animatedUrl))) ? 'ready' : preview === null && dive.video_uuid ? 'loading' : 'missing'}
       data-thumbhash={placeholder ? "ready" : undefined}
       style={placeholder ? { backgroundImage: `url(${placeholder})`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}
       className={`relative overflow-hidden bg-app-panel-elevated ${compact ? "h-full w-full" : "aspect-[4/3] w-full"}`}
@@ -132,9 +135,11 @@ export default function DiveThumbnail({
         />
       ) : placeholder ? null : (
         // No media at all — show the dive code as a visual placeholder
-        <div className="flex h-full w-full items-end bg-[linear-gradient(135deg,#243136_0%,#15191c_58%,#0d1113_100%)] p-3">
+        <div className="flex h-full w-full flex-col items-center justify-center gap-3 bg-app-panel p-4 text-center text-app-muted">
+          <Film size={28} strokeWidth={1.5} aria-hidden />
+          <span className="text-sm leading-snug">{t(preview === null && dive.video_uuid ? 'thumbnail.loading' : 'thumbnail.unavailable')}</span>
           <span
-            className={`font-mono font-semibold tracking-tight text-app-muted ${compact ? "text-sm" : "text-xl"}`}
+            className="sr-only"
           >
             {dive.dive_code}
           </span>

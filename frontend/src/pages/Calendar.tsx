@@ -216,7 +216,7 @@ export default function Calendar() {
       <div className={`cal-next cal-src-${sourceOf(next)}${intro ? " ca-pop" : ""}`}>
         <Link className="cal-next-link" to={`/calendar/o/${next.id}${search}`}>
           <span className="cal-next-top">
-            <span className="cal-tag"><i className="cal-dot" />{t.nextUp}{group ? ` · ${group}` : ""}</span>
+            <span className="cal-tag"><i className="cal-dot" />{t.nextUp}{group && !next.event.title.toLocaleLowerCase().includes(group.toLocaleLowerCase()) ? ` · ${group}` : ""}</span>
             <span className="cal-count">{n === 0 ? t.today : n}{n > 0 && <small>{t.daysLeft(n)}</small>}</span>
           </span>
           <span className="cal-next-title">{next.event.title}</span>
@@ -318,8 +318,11 @@ export default function Calendar() {
         </label>
       )}
       <div className="ca-scroll cal-filters" role="group" aria-label={t.source}>
+        <select className="cal-type-picker" aria-label={t.source} value={source} onChange={e => update({ source:e.target.value || null })}>
+          {(["", "club", "outing", "competition"] as const).map(s => <option key={s} value={s}>{s ? t[s] : t.allShort}</option>)}
+        </select>
         {(["", "club", "outing", "competition"] as const).map((s) => (
-          <button key={s} type="button" className={`ca-pill${s ? ` cal-src-${s}` : ""}`} aria-pressed={source === s} onClick={() => update({ source: s || null })}>
+          <button key={s} type="button" className={`ca-pill cal-type-pill${s ? ` cal-src-${s}` : ""}`} aria-pressed={source === s} onClick={() => update({ source: s || null })}>
             {s && <i className="cal-dot" />}{s ? t[s] : t.allShort}
           </button>
         ))}

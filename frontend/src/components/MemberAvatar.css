@@ -4,6 +4,9 @@
 .member-avatar-hud{position:absolute;inset:0;width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:1.5;pointer-events:none}
 .member-avatar-hud .hud-muted{opacity:.28;stroke-width:1}
 .member-avatar-hud .hud-bold{stroke-width:3}
+/* Keep chosen frames for large profile views; lists use quiet, readable faces. */
+.msg-peer .member-avatar-hud,.msg-inbox .member-avatar-hud,.cm-story .member-avatar-hud,.cm-row .member-avatar-hud,.cm-step .member-avatar-hud,.mobile-shell-actions .member-avatar-hud { display:none; }
+.msg-peer .member-avatar-face,.cm-story .member-avatar-face,.cm-row .member-avatar-face,.cm-step .member-avatar-face,.mobile-shell-actions .member-avatar-face { inset:4%; border-radius:50%; }
 .member-avatar[data-hud=depth] .member-avatar-face{inset:14%;border-radius:20%}
 .member-avatar[data-hud=orbit] .member-avatar-face{inset:10%}
 .avatar-manager{margin-top:20px;padding-top:20px;border-top:1px solid var(--app-border)}

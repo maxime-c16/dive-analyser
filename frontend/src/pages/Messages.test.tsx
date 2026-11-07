@@ -232,3 +232,57 @@ it('caps group selection at 15 others and explains the limit', async () => {
   await waitFor(() => expect(api.startGroup).toHaveBeenCalledTimes(1))
   expect(vi.mocked(api.startGroup).mock.calls[0][0]).toHaveLength(15)
 })
+
+it('keeps the mobile thread pinned to viewport resize and scroll, blocks margin drags, and preserves pinch zoom', async () => {
+  const originalWidth = window.innerWidth
+  const visibleViewport = Object.assign(new EventTarget(), { height: 500, offsetTop: 32 })
+  Object.defineProperty(window, 'innerWidth', { configurable: true, value: 390 })
+  vi.stubGlobal('visualViewport', visibleViewport)
+  try {
+    const view = render(<MemoryRouter initialEntries={['/messages/3']}><Routes><Route path="/messages/:conversationId" element={<Messages />} /></Routes></MemoryRouter>)
+    await screen.findByText(message.body)
+    const thread = document.querySelector<HTMLElement>('.msg-thread')!
+    expect(thread.style.position).toBe('fixed')
+    expect(thread.style.top).toBe('32px')
+    expect(thread.style.height).toBe('500px')
+    act(() => { visibleViewport.offsetTop = 55; visibleViewport.height = 400; visibleViewport.dispatchEvent(new Event('scroll')) })
+    expect(thread.style.top).toBe('55px')
+    expect(thread.style.height).toBe('400px')
+    const drag = new Event('touchmove', { bubbles: true, cancelable: true })
+    Object.defineProperty(drag, 'touches', { value: [{}] })
+    thread.querySelector('header')!.dispatchEvent(drag)
+    expect(drag.defaultPrevented).toBe(true)
+    const pinch = new Event('touchmove', { bubbles: true, cancelable: true })
+    Object.defineProperty(pinch, 'touches', { value: [{}, {}] })
+    thread.dispatchEvent(pinch)
+    expect(pinch.defaultPrevented).toBe(false)
+    view.unmount()
+  } finally {
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: originalWidth })
+    vi.unstubAllGlobals()
+  }
+})
+
+
+it('keeps conversation identity space and blocks composition until the peer has loaded', async () => {
+  let resolveConversation!: (value: Awaited<ReturnType<typeof api.getConversation>>) => void
+  vi.mocked(api.getConversation).mockReturnValueOnce(new Promise(resolve => { resolveConversation = resolve }))
+  show()
+  await screen.findByText(message.body)
+  expect(document.querySelector('.msg-peer-loading')).toHaveTextContent('Conversation')
+  expect(screen.getByRole('textbox', { name: 'Your message' })).toBeDisabled()
+  expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled()
+  await act(async () => resolveConversation({ id: 3, kind: 'direct', members: [{ user_id: 2, display_name: 'Fouiny', handle: null, bio: '', avatar_url: null }] }))
+  expect(screen.getByRole('textbox', { name: 'Your message' })).toBeEnabled()
+  expect(document.querySelector('.msg-peer-loading')).not.toBeInTheDocument()
+})
+
+
+it('keeps a shared dive identifiable when its poster fails', async () => {
+  vi.mocked(api.getMessages).mockResolvedValue({ items:[{ ...message, body:'', dive:{ available:true, id:5, dive_code:'101A', height:'1m', poster_url:'/broken-poster' } }], next_before:null })
+  const { container } = render(<MemoryRouter initialEntries={['/messages/3']}><Routes><Route path="/messages/:conversationId" element={<Messages />} /></Routes></MemoryRouter>)
+  await screen.findByRole('link', { name:'Watch dive · 101A · 1m' })
+  fireEvent.error(container.querySelector('.msg-dive-thumb img')!)
+  expect(screen.getByText('Preview unavailable')).toBeInTheDocument()
+  expect(screen.getByRole('link', { name:'Watch dive · 101A · 1m' })).toHaveAttribute('href', '/dives?clip=5&scope=all')
+})

@@ -1,3 +1,4 @@
+import { platformTypeName } from '../../utils/attemptPresentation'
 /**
  * Owner space (Mes évaluations) and personal jury history (Mes jugements).
  * Owned requests list active/suspended states with community aggregates
@@ -9,11 +10,13 @@
  * replacing pages without a way back).
  */
 import { scoreNumber } from './scoreFormatting'
-import { useCallback, useEffect, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
 import { ScoreCard } from './ScoreCards'
 import WarmUp from './EvaluationWarmUp'
 import { points } from './JudgeTable'
 import { useTranslation } from 'react-i18next'
+import { Link } from 'react-router-dom'
+import DiveThumbnail from '../DiveThumbnail'
 import {
   getMyRatings,
   getOwnedRequests,
@@ -27,27 +30,32 @@ const PAGE = 10
 
 function usePagedLoader<T>(
   loader: (limit: number, offset: number) => Promise<{ items: T[]; total: number }>,
+  initialOffset = 0,
 ) {
   const [state, setState] = useState<
     { kind: 'loading' } | { kind: 'error' } | { kind: 'loaded'; items: T[]; total: number; offset: number }
   >({ kind: 'loading' })
   const [busy, setBusy] = useState(false)
+  const generation = useRef(0)
 
   const load = useCallback(async (offset: number) => {
+    const request = ++generation.current
     setBusy(true)
     try {
       const page = await loader(PAGE, offset)
+      if (request !== generation.current) return
       setState({ kind: 'loaded', items: page.items, total: page.total, offset })
     } catch {
-      setState({ kind: 'error' })
+      if (request === generation.current) setState({ kind: 'error' })
     } finally {
-      setBusy(false)
+      if (request === generation.current) setBusy(false)
     }
   }, [loader])
 
   useEffect(() => {
-    void load(0)
-  }, [load])
+    void load(initialOffset)
+    return () => { generation.current += 1 }
+  }, [load, initialOffset])
 
   return { state, busy, load }
 }
@@ -62,18 +70,28 @@ function Pager({
   onOffset: (offset: number) => void
 }) {
   const { t } = useTranslation()
+  const pager = useRef<HTMLDivElement>(null)
+  const previousOffset = useRef(offset)
+  useEffect(() => {
+    if (previousOffset.current === offset) return
+    previousOffset.current = offset
+    const first = pager.current?.closest('.eval-owned, .eval-judged')?.querySelector<HTMLElement>('.eval-history-day h3, .eval-owned-item header strong')
+    first?.focus({ preventScroll:true })
+    first?.scrollIntoView?.({ block:'start' })
+  }, [offset])
   if (total <= count) return null
   return (
-    <div className="eval-pager">
+    <div className="eval-pager" ref={pager}>
+      <span className="eval-page-position">{t('evaluations.pagePosition', { current:Math.floor(offset / PAGE) + 1, total:Math.ceil(total / PAGE) })}</span>
       <button type="button" disabled={busy || offset === 0} onClick={() => onOffset(Math.max(0, offset - PAGE))}>
-        {t('evaluations.previous')}
+        {t('evaluations.previousPage')}
       </button>
       <button
         type="button"
         disabled={busy || offset + count >= total}
         onClick={() => onOffset(offset + PAGE)}
       >
-        {t('evaluations.next')}
+        {t('evaluations.nextPage')}
       </button>
     </div>
   )
@@ -93,26 +111,28 @@ export function OwnedRequests() {
       </div>
     )
   return (
-    <div className="eval-owned">
+    <div className="eval-owned" aria-busy={busy}>
       <p className="eval-status" role="status">{t('evaluations.ownedCount', { count: state.total })}</p>
       {state.items.length === 0 && <p>{t('evaluations.ownedEmpty')}</p>}
       <ul className="eval-owned-list">
         {state.items.map((row) => (
           <li key={row.request_id} className="eval-owned-item">
             <header>
-              <strong>{row.dive.dive_code}</strong>
-              <span>{row.dive.height} · {row.dive.platform_type}</span>
+              {row.active && row.dive.video_uuid ? <Link className="eval-request-identity" to={`/dives?clip=${row.dive_id}&scope=all`}>
+                <span className="eval-request-thumb" aria-hidden="true"><DiveThumbnail dive={row.dive} compact /></span>
+                <strong tabIndex={-1}>{row.dive.dive_code}</strong>
+              </Link> : <strong tabIndex={-1}>{row.dive.dive_code}</strong>}
+              <span>{row.dive.height} · {platformTypeName(row.dive.platform_type)}</span>
               <span className={`eval-badge ${row.active ? 'is-active' : 'is-closed'}`}>
                 {row.active ? t('evaluations.ownedActive') : t('evaluations.ownedClosed')}
               </span>
             </header>
+            {row.dive.dive_datetime && <time className="eval-request-date" dateTime={row.dive.dive_datetime}>{new Date(row.dive.dive_datetime).toLocaleString(i18n.language, { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' })}</time>}
             {row.prompt && <p className="eval-owned-prompt">{row.prompt}</p>}
             <footer>
-              <span role="status">
-                {t('evaluations.panelSummary', {
-                  count: row.rating_count,
-                  mean: scoreNumber(row.mean_score, i18n.language),
-                })}
+              <span className="eval-request-result" role="status" aria-label={t('evaluations.panelSummary', { count:row.rating_count, mean:scoreNumber(row.mean_score, i18n.language) })}>
+                <strong>{row.mean_score == null ? '—' : scoreNumber(row.mean_score, i18n.language)}<small> / 10</small></strong>
+                <span>{t('evaluations.requestVotes', { count:row.rating_count })}</span>
               </span>
               {/* Owner keeps playable access through the normal Library
                   transport; a suspended request stays here in text only. */}
@@ -179,11 +199,10 @@ export function OwnedPanelLink({ requestId, automatic = false }: { requestId: nu
         </span>
       )}
       {state.kind === 'open' && (
-        <>
+        <span className="eval-panel-content">
           <ul className="eval-panel-list">
             {state.rows.map((rating) => (
               <li key={rating.id} className="eval-panel-note">
-                <ScoreCard scoreHalfSteps={rating.score_half_steps} ariaLabel={scoreNumber(rating.score_half_steps / 2, i18n.language)} />
                 <strong>{scoreNumber(rating.score_half_steps / 2, i18n.language)}</strong> {rating.author ?? '—'}
                 {rating.comment ? <p className="eval-panel-comment">{rating.comment}</p> : null}
               </li>
@@ -195,7 +214,7 @@ export function OwnedPanelLink({ requestId, automatic = false }: { requestId: nu
               {t('evaluations.more')}
             </button>
           )}
-        </>
+        </span>
       )}
     </span>
   )
@@ -217,17 +236,17 @@ function dayLabel(iso: string, t: (key: string) => string, locale: string): stri
   return date.toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long' })
 }
 
-export function MyJudgements() {
+export function MyJudgements({ page = 1, onPage }: { page?:number; onPage?:(page:number) => void } = {}) {
   const { t, i18n } = useTranslation()
   const loader = useCallback((limit: number, offset: number) => getMyRatings(limit, offset), [])
-  const { state, busy, load } = usePagedLoader<MyRatingItem>(loader)
+  const { state, busy, load } = usePagedLoader<MyRatingItem>(loader, (page - 1) * PAGE)
 
   if (state.kind === 'loading') return <WarmUp />
   if (state.kind === 'error')
     return (
       <div className="eval-state" role="alert">
         <p>{t('evaluations.judgedError')}</p>
-        <button type="button" onClick={() => void load(0)}>{t('evaluations.retry')}</button>
+        <button type="button" onClick={() => void load((page - 1) * PAGE)}>{t('evaluations.retry')}</button>
       </div>
     )
   const days: Array<{ label: string; rows: MyRatingItem[] }> = []
@@ -238,18 +257,18 @@ export function MyJudgements() {
   }
   let index = 0
   return (
-    <div className="eval-judged eval-history">
+    <div className="eval-judged eval-history" aria-busy={busy}>
       <p className="eval-status" role="status">{t('evaluations.judgedCount', { count: state.total })}</p>
       {state.items.length === 0 && <p className="eval-empty-pool">{t('evaluations.judgedEmpty')}</p>}
       {days.map((day) => (
         <section key={day.label} className="eval-history-day">
-          <h3>{day.label}</h3>
+          <h3 tabIndex={-1}>{day.label}</h3>
           <ul className="eval-history-list">
             {day.rows.map((row) => <HistoryRow key={`${row.kind ?? 'request'}-${row.request_id}`} row={row} index={index++} />)}
           </ul>
         </section>
       ))}
-      <Pager total={state.total} offset={state.offset} count={state.items.length} busy={busy} onOffset={(offset) => void load(offset)} />
+      <Pager total={state.total} offset={state.offset} count={state.items.length} busy={busy} onOffset={(offset) => onPage ? onPage(Math.floor(offset / PAGE) + 1) : void load(offset)} />
     </div>
   )
 }

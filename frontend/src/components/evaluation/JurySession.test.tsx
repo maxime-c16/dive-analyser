@@ -7,7 +7,7 @@
  * retention, 409 flows, pass and summary with recap.
  */
 import React from 'react'
-import { render, screen, waitFor, within, fireEvent } from '@testing-library/react'
+import { render, screen, waitFor, within, fireEvent, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, expect, it, vi } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
@@ -148,7 +148,7 @@ it('shows the choose-score placeholder, then one named own card after confirmati
   await userEvent.click(screen.getByRole('button', { name: 'Confirm score' }))
   await screen.findByRole('img', { name: 'Your score card 6.5' })
   // Dedupe: 3 stored ratings → exactly 3 cards (2 peers + own), never 4.
-  const panel = screen.getByText('3 vote(s) · community average 6.5').closest('.eval-reveal') as HTMLElement
+  const panel = screen.getByText('3 votes · community average 6.5').closest('.eval-reveal') as HTMLElement
   const cards = within(panel).getAllByRole('img')
   expect(cards).toHaveLength(3)
   expect(within(panel).getAllByText('You')).toHaveLength(1)
@@ -227,7 +227,7 @@ it('passes through the server skip endpoint and reaches the summary with the rec
   await userEvent.click(screen.getByRole('button', { name: 'Quit session' }))
   const discard = screen.queryByRole('alertdialog')
   if (discard) await userEvent.click(within(discard).getByRole('button', { name: 'Quit session' }))
-  await screen.findByText('You judged 0 dive(s) this session.')
+  await screen.findByText('You judged 0 dives this session.')
   expect(screen.getByText('107B · 3m')).toBeInTheDocument()
   expect(screen.getByRole('link', { name: 'Have a dive evaluated' })).toBeInTheDocument()
 })
@@ -242,7 +242,7 @@ it('summary from a rated session lists the dive with its own score card', async 
   await userEvent.click(screen.getByRole('button', { name: 'Quit session' }))
   const discard = screen.queryByRole('alertdialog')
   if (discard) await userEvent.click(within(discard).getByRole('button', { name: 'Quit session' }))
-  await screen.findByText('You judged 1 dive(s) this session.')
+  await screen.findByText('You judged 1 dive this session.')
   expect(screen.getByText('107B')).toBeInTheDocument()
   expect(screen.getByRole('link', { name: 'Have a dive evaluated' })).toBeInTheDocument()
 })
@@ -310,6 +310,11 @@ it('does not put decorative cards over the first take', async () => {
   await screen.findByText('EvalVideo')
   expect(document.querySelector('.eval-intro')).toBeNull()
   expect(screen.queryByRole('button', { name: 'Confirm score' })).not.toBeInTheDocument()
+  expect(await screen.findByText('Watch the dive to the end to score it.')).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Skip this dive' })).toBeEnabled()
+  await userEvent.click(screen.getByRole('button', { name: 'Finish video' }))
+  expect(await screen.findByRole('group', { name: 'Judging actions' })).toBeInTheDocument()
+  expect(screen.queryByText('Watch the dive to the end to score it.')).not.toBeInTheDocument()
 })
 
 it('a late vote response after quit never resurrects the stage', async () => {
@@ -325,14 +330,14 @@ it('a late vote response after quit never resurrects the stage', async () => {
   await userEvent.click(screen.getByRole('button', { name: 'Quit session' }))
   const discard = screen.queryByRole('alertdialog')
   if (discard) await userEvent.click(within(discard).getByRole('button', { name: 'Quit session' }))
-  await screen.findByText('You judged 0 dive(s) this session.')
+  await screen.findByText('You judged 0 dives this session.')
   resolveVote(voteResponse)
   await new Promise((resolve) => setTimeout(resolve, 120))
   // The stage stays retired: summary, scores marked saved server-side but no
   // reveal resurrect, no Confirm to re-enter a live dive.
   expect(screen.queryByText('107B · 3m')).not.toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Confirm score' })).not.toBeInTheDocument()
-  expect(screen.getByText('You judged 0 dive(s) this session.')).toBeInTheDocument()
+  expect(screen.getByText('You judged 0 dives this session.')).toBeInTheDocument()
 })
 
 it('Evaluate again starts a FRESH session (count/recap/skip cleared)', async () => {
@@ -347,16 +352,16 @@ it('Evaluate again starts a FRESH session (count/recap/skip cleared)', async () 
   await userEvent.click(screen.getByRole('button', { name: 'Quit session' }))
   const discard = screen.queryByRole('alertdialog')
   if (discard) await userEvent.click(within(discard).getByRole('button', { name: 'Quit session' }))
-  await screen.findByText('You judged 1 dive(s) this session.')
+  await screen.findByText('You judged 1 dive this session.')
   vi.mocked(getQueue).mockResolvedValueOnce(emptyBatch)
   await userEvent.click(screen.getByRole('button', { name: 'Evaluate again' }))
   // Landing reset: the previous session's count/recap are gone.
-  expect(screen.queryByText('You judged 1 dive(s) this session.')).not.toBeInTheDocument()
+  expect(screen.queryByText('You judged 1 dive this session.')).not.toBeInTheDocument()
   expect(screen.queryByRole('img', { name: 'Your score card 6.5' })).not.toBeInTheDocument()
   // A fresh series starts in one click, with the counter reset.
   await screen.findByText('No more dives to judge right now. New requests will appear here.')
   // The second exhausted run still shows the RESET counter (0), not 1.
-  expect(screen.getByText('You judged 0 dive(s) this session.')).toBeInTheDocument()
+  expect(screen.getByText('You judged 0 dives this session.')).toBeInTheDocument()
 })
 
 it('ends on the summary when the queue is empty at start', async () => {
@@ -410,7 +415,7 @@ it('reveal joins MY card first, then peers flip in cascade with names', async ()
   await openFirstDive()
   await choose(11)
   await userEvent.click(screen.getByRole('button', { name: 'Confirm score' }))
-  const panel = screen.getByText('3 vote(s) · community average 6.5').closest('.eval-reveal') as HTMLElement
+  const panel = screen.getByText('3 votes · community average 6.5').closest('.eval-reveal') as HTMLElement
   const figures = panel.querySelectorAll('.eval-card-figure')
   expect(figures).toHaveLength(3)
   // The just-confirmed personal card leads the sequence.
@@ -491,7 +496,7 @@ it('offers retry and pass when the ready video fails before ending', async () =>
   await userEvent.click(screen.getByRole('button', { name: 'Retry' }))
   expect(screen.queryByRole('group', { name: 'Score from 0 to 10 by half point' })).not.toBeInTheDocument()
   await userEvent.click(screen.getByRole('button', { name: 'Fail video' }))
-  await userEvent.click(await screen.findByRole('button', { name: 'Pass' }))
+  await userEvent.click(await screen.findByRole('button', { name: 'Skip this dive' }))
   expect(skipRequest).toHaveBeenCalledWith(5, 11)
 })
 
@@ -551,4 +556,42 @@ it('starts the visible player behind the first-frame overlay while keeping the n
   expect(screen.getByRole('dialog')).toHaveAttribute('data-preparing', 'true')
   fireEvent.click(within(document.querySelector<HTMLElement>('[data-request="11"]')!).getByText('Buffer video'))
   expect(screen.getByRole('dialog')).not.toHaveAttribute('data-preparing', 'true')
+})
+
+
+it('shows immediate feedback and prevents duplicate skips while the video is loading', async () => {
+  autoFinishVideo = false
+  autoBufferVideo = false
+  vi.mocked(getQueue).mockResolvedValueOnce(batch)
+  let complete!: () => void
+  vi.mocked(skipRequest).mockReturnValueOnce(new Promise<void>(resolve => { complete = resolve }))
+  render(<MemoryRouter><JurySession /></MemoryRouter>)
+  await userEvent.click(screen.getByRole('button', { name: 'Start judging' }))
+  const skip = await screen.findByRole('button', { name: 'Skip this dive' })
+  await userEvent.click(skip)
+  expect(screen.getByRole('button', { name: 'Skipping…' })).toBeDisabled()
+  fireEvent.click(skip)
+  expect(skipRequest).toHaveBeenCalledTimes(1)
+  await act(async () => complete())
+  await screen.findByText('105C · 3m')
+})
+
+it('offers recovery after 30 seconds without a decoded frame, and retry starts a fresh deadline', async () => {
+  autoFinishVideo = false
+  autoBufferVideo = false
+  vi.mocked(getQueue).mockResolvedValueOnce(batch)
+  vi.useFakeTimers()
+  try {
+    render(<MemoryRouter><JurySession /></MemoryRouter>)
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Start judging' })))
+    expect(screen.getByText('Loading video…')).toBeInTheDocument()
+    await act(async () => { vi.advanceTimersByTime(30_000) })
+    expect(screen.getByRole('alert')).toHaveTextContent('The video could not be prepared')
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    expect(screen.getByText('Loading video…')).toBeInTheDocument()
+    await act(async () => { vi.advanceTimersByTime(29_999) })
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    await act(async () => { vi.advanceTimersByTime(1) })
+    expect(screen.getByRole('alert')).toBeInTheDocument()
+  } finally { vi.useRealTimers() }
 })

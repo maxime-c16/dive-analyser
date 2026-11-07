@@ -136,7 +136,7 @@
 .msg-react { display: grid; flex: none; place-items: center; width: 30px; height: 30px; padding: 0; border: 0; border-radius: 999px; background: transparent; color: var(--app-muted); opacity: 0; transition: opacity .2s, color .2s; }
 .msg-item:hover .msg-react, .msg-react:focus-visible { opacity: 1; }
 .msg-react.is-on { color: #fb7185; }
-@media (hover: none) { .msg-react { width: 0; overflow: hidden; } .msg-react:focus-visible { width: 30px; } }
+@media (hover: none) { .msg-react { width: 40px; height: 40px; opacity: 1; } }
 .msg-meta { display: flex; gap: 6px; margin: 3px 8px 0; color: var(--app-muted); font-size: 11px; font-variant-numeric: tabular-nums; }
 
 .msg-composer { display: flex; flex-shrink: 0; align-items: flex-end; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--app-border); }
@@ -202,3 +202,6 @@
 .msg-title-row input:focus { border-color: var(--app-accent); }
 .msg-menu-pop .msg-title-save { display: grid; flex: none; place-items: center; width: 40px; min-height: 40px; padding: 0; border-radius: 999px; background: var(--app-accent); color: #06201b; animation: msg-badge 280ms var(--msg-spring, cubic-bezier(.3, 1.4, .5, 1)) backwards; }
 .msg-name-field { flex: none; color: var(--app-text); }
+
+.msg-dive-thumb[data-missing=true] { aspect-ratio:4/3; display:grid; place-items:center; padding:12px; text-align:center; }
+.msg-dive-fallback, .msg-empty-content { color:var(--app-muted); font-size:12px; }

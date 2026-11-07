@@ -1,62 +1,143 @@
-import i18n from '../../i18n'
+import userEvent from '@testing-library/user-event'
+import { MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, expect, it, vi } from 'vitest'
 import AutomaticScores from './AutomaticScores'
-import { getAutomaticScores, setAutomaticExclusion } from '../../services/evaluationApi'
-vi.mock('../../services/evaluationApi', () => ({ getAutomaticScores: vi.fn(), setAutomaticExclusion: vi.fn() }))
-beforeEach(() => { vi.clearAllMocks() })
-it('keeps the exclusion state unchanged on failure and only confirms after persistence', async () => {
-  vi.mocked(getAutomaticScores).mockResolvedValue({ items: [{ dive_id: 1, dive_code: '101B', height: '3m', excluded: false, rating_count: 2, mean_score: 6.5, provisional: true }], total: 1 })
+import { getAutomaticScores, setAutomaticExclusion, type AutomaticScore } from '../../services/evaluationApi'
+vi.mock('../../services/evaluationApi', () => ({ getAutomaticScores:vi.fn(), setAutomaticExclusion:vi.fn() }))
+vi.mock('../DiveThumbnail', () => ({ default:({ dive }:{ dive:AutomaticScore }) => <img alt={`Video ${dive.dive_code}`} src={dive.thumb_url || '/poster'} /> }))
+const dive = (id:number, patch:Partial<AutomaticScore> = {}):AutomaticScore => ({ dive_id:id, dive_code:'101B', height:'3m', dive_datetime:'2026-11-04T10:20:00', video_uuid:`video-${id}`, thumb_url:'/poster', excluded:false, rating_count:0, mean_score:null, provisional:true, ...patch })
+beforeEach(() => { vi.clearAllMocks(); vi.mocked(getAutomaticScores).mockResolvedValue({ items:[dive(1)], total:1 }) })
+it('keeps results settled when the unchanged empty or submitted search is repeated', async () => {
+  vi.mocked(getAutomaticScores).mockResolvedValue({ items:[dive(1)], total:41 })
+  const { container } = render(<MemoryRouter><AutomaticScores /></MemoryRouter>)
+  await screen.findByText('41 dives')
+  const submit = screen.getByRole('button', { name:'Search dives' })
+  await userEvent.click(submit)
+  expect(container.querySelector('.eval-library')).toHaveAttribute('aria-busy','false')
+  expect(screen.getByText('41 dives')).toBeVisible()
+  expect(screen.getByRole('button', { name:'Next page' })).toBeEnabled()
+  expect(getAutomaticScores).toHaveBeenCalledTimes(1)
+  await userEvent.type(screen.getByRole('searchbox'), '203C')
+  await userEvent.click(submit)
+  await waitFor(() => expect(getAutomaticScores).toHaveBeenCalledTimes(2))
+  await screen.findByText('41 dives')
+  await userEvent.click(submit)
+  expect(container.querySelector('.eval-library')).toHaveAttribute('aria-busy','false')
+  expect(screen.getByText('41 dives')).toBeVisible()
+  expect(getAutomaticScores).toHaveBeenCalledTimes(2)
+})
+it('shows identifiable videos immediately, with date and a secondary selection control', async () => {
+  render(<MemoryRouter><AutomaticScores /></MemoryRouter>)
+  const link = await screen.findByRole('link', { name:/101B/ })
+  expect(link).toHaveAttribute('href','/dives?clip=1&scope=all')
+  expect(link.querySelector('time')).toHaveAttribute('datetime','2026-11-04T10:20:00')
+  expect(link.querySelector('img')).toBeVisible()
+  expect(screen.queryByText(/Attempt #/)).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name:'Show the jury panel' })).not.toBeInTheDocument()
+  expect(screen.getByRole('switch', { name:'Exclude from automatic selections' })).toBeChecked()
+})
+it('searches and filters the entire collection through the server and resets pagination', async () => {
+  vi.mocked(getAutomaticScores).mockResolvedValue({ items:[dive(1)], total:41 })
+  render(<MemoryRouter><AutomaticScores /></MemoryRouter>)
+  await userEvent.click(await screen.findByRole('button', { name:'Next page' }))
+  await waitFor(() => expect(getAutomaticScores).toHaveBeenLastCalledWith(20, expect.anything()))
+  await userEvent.type(screen.getByRole('searchbox'), '203C')
+  await userEvent.click(screen.getByRole('button', { name:'Search dives' }))
+  await waitFor(() => expect(getAutomaticScores).toHaveBeenLastCalledWith(0, expect.objectContaining({ search:'203C' })))
+  await userEvent.selectOptions(screen.getByRole('combobox', { name:'All heights' }), '3m')
+  await waitFor(() => expect(getAutomaticScores).toHaveBeenLastCalledWith(0, expect.objectContaining({ search:'203C', height:'3m' })))
+  await userEvent.selectOptions(screen.getByRole('combobox', { name:'Community score' }), 'awaiting')
+  await waitFor(() => expect(getAutomaticScores).toHaveBeenLastCalledWith(0, expect.objectContaining({ score_state:'awaiting' })))
+})
+it('paginates while preserving filters and focuses the first new video', async () => {
+  vi.mocked(getAutomaticScores).mockResolvedValueOnce({ items:Array.from({ length:20 }, (_, i) => dive(i+1)), total:21 })
+    .mockResolvedValueOnce({ items:[dive(21, { dive_code:'203C' })], total:21 })
+  render(<MemoryRouter><AutomaticScores /></MemoryRouter>)
+  await userEvent.click(await screen.findByRole('button', { name:'Next page' }))
+  const next = await screen.findByRole('link', { name:/203C/ })
+  await waitFor(() => expect(next).toHaveFocus())
+  expect(screen.getByText('Page 2 of 2')).toBeInTheDocument()
+  expect(screen.getByRole('button', { name:'Next page' })).toBeDisabled()
+})
+it('does not overwrite a newer search with a late response', async () => {
+  let finish!: (data:{ items:AutomaticScore[]; total:number }) => void
+  vi.mocked(getAutomaticScores).mockImplementationOnce(() => new Promise(resolve => { finish=resolve }))
+    .mockResolvedValueOnce({ items:[dive(2, { dive_code:'203C' })], total:1 })
+  render(<MemoryRouter><AutomaticScores /></MemoryRouter>)
+  await userEvent.type(screen.getByRole('searchbox'), '203C')
+  await userEvent.click(screen.getByRole('button', { name:'Search dives' }))
+  await screen.findByRole('link', { name:/203C/ })
+  await act(async () => finish({ items:[dive(1)], total:1 }))
+  expect(screen.queryByRole('link', { name:/101B/ })).not.toBeInTheDocument()
+})
+it('keeps selection unchanged on failure and confirms it only after persistence', async () => {
   vi.mocked(setAutomaticExclusion).mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce()
-  render(<AutomaticScores />)
-  const toggle = await screen.findByRole('switch', { name: 'Exclude from automatic selections' })
+  render(<MemoryRouter><AutomaticScores /></MemoryRouter>)
+  const toggle = await screen.findByRole('switch', { name:'Exclude from automatic selections' })
   fireEvent.click(toggle)
   await screen.findByRole('alert')
   expect(toggle).toBeChecked()
   await waitFor(() => expect(toggle).not.toBeDisabled())
   fireEvent.click(toggle)
-  expect(await screen.findByRole('switch', { name: 'Include in automatic selections' })).not.toBeChecked()
-  expect(setAutomaticExclusion).toHaveBeenLastCalledWith(1, true)
-  expect(screen.getByText(/6.5.*2 reviewers.*provisional/)).toBeInTheDocument()
+  expect(await screen.findByRole('switch', { name:'Include in automatic selections' })).not.toBeChecked()
+  expect(setAutomaticExclusion).toHaveBeenLastCalledWith(1,true)
 })
-it('fetches the next page without dropping the public-dive explanation', async () => {
-  vi.mocked(getAutomaticScores).mockResolvedValueOnce({ items: Array.from({ length: 20 }, (_, n) => ({ dive_id: n + 1, dive_code: '101B', height: '3m', excluded: false, rating_count: 0, mean_score: null, provisional: true })), total: 21 })
-    .mockResolvedValueOnce({ items: [{ dive_id: 21, dive_code: '103B', height: '3m', excluded: true, rating_count: 0, mean_score: null, provisional: true }], total: 21 })
-  render(<AutomaticScores />)
-  fireEvent.click(await screen.findByRole('button', { name: 'Show more' }))
-  await screen.findByText('103B · 3m')
-  expect(screen.getByRole('switch', { name: 'Include in automatic selections' })).not.toBeChecked()
-  expect(getAutomaticScores).toHaveBeenLastCalledWith(20)
-  expect(screen.getByText(/Public dives can be selected automatically/)).toBeInTheDocument()
+it('keeps the rules accessible without a permanent explanatory row', async () => {
+  render(<MemoryRouter><AutomaticScores /></MemoryRouter>)
+  await screen.findByRole('link', { name:/101B/ })
+  const info = screen.getByLabelText('How do community scores work?')
+  await userEvent.click(info)
+  expect(info.closest('details')).toHaveAttribute('open')
+  expect(screen.getByText(/Public dives can be selected automatically/)).toBeVisible()
 })
 
-it('sorts the loaded page by score or by judges without refetching', async () => {
-  vi.mocked(getAutomaticScores).mockResolvedValue({ items: [
-    { dive_id: 1, dive_code: '101B', height: '1m', excluded: false, rating_count: 1, mean_score: 9, provisional: true },
-    { dive_id: 2, dive_code: '203C', height: '3m', excluded: false, rating_count: 4, mean_score: 5.5, provisional: true },
-    { dive_id: 3, dive_code: '5231D', height: '3m', excluded: false, rating_count: 0, mean_score: null, provisional: true },
-  ], total: 3 })
-  render(<AutomaticScores />)
-  await screen.findByText('101B · 1m')
-  const order = () => screen.getAllByText(/ · \dm$/).map(node => node.textContent)
-  expect(order()).toEqual(['101B · 1m', '203C · 3m', '5231D · 3m'])
-  fireEvent.click(screen.getByRole('button', { name: 'Most judged' }))
-  expect(order()).toEqual(['203C · 3m', '101B · 1m', '5231D · 3m'])
-  fireEvent.click(screen.getByRole('button', { name: 'Top score' }))
-  expect(order()[0]).toBe('101B · 1m')
-  expect(getAutomaticScores).toHaveBeenCalledTimes(1)
+it('clears stale counts and paging after unsupported search and offers a working reset', async () => {
+  vi.mocked(getAutomaticScores).mockResolvedValueOnce({ items:[dive(1)], total:2701 })
+    .mockRejectedValueOnce(Object.assign(new Error('unsupported'), { code:'AUTOMATIC_FILTERS_UNAVAILABLE' }))
+    .mockResolvedValueOnce({ items:[dive(1)], total:2701 })
+  render(<MemoryRouter><AutomaticScores /></MemoryRouter>)
+  await screen.findByText('2701 dives')
+  await userEvent.type(screen.getByRole('searchbox'), '203C')
+  await userEvent.click(screen.getByRole('button', { name:'Search dives' }))
+  await screen.findByText('Search is unavailable for now.')
+  expect(screen.queryByText('2701 dives')).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name:'Next page' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name:'Retry' })).not.toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name:'Show all dives' }))
+  await screen.findByText('2701 dives')
+  expect(screen.getByRole('searchbox')).toHaveValue('')
 })
 
-it('uses French decimal commas in both the scoreboard tiles and accessible summaries', async () => {
-  vi.mocked(getAutomaticScores).mockResolvedValue({ items: [{ dive_id: 1, dive_code: '101B', height: '3m', excluded: false, rating_count: 2, mean_score: 6.5, provisional: true }], total: 1 })
-  await act(async () => { await i18n.changeLanguage('fr') })
-  try {
-    const { container } = render(<AutomaticScores />)
-    expect(await screen.findByText(/6,5.*2 évaluateurs.*provisoire/)).toBeInTheDocument()
-    await waitFor(() => expect(container.querySelector('.eval-flap')).toHaveTextContent('6,5'))
-    expect(container.querySelector('.eval-flap [data-char="dot"]')).toHaveTextContent(',')
-    await act(async () => { await i18n.changeLanguage('en') })
-    expect(screen.getByText(/6.5.*2 reviewers.*provisional/)).toBeInTheDocument()
-    await waitFor(() => expect(container.querySelector('.eval-flap')).toHaveTextContent('6.5'))
-  } finally { await act(async () => { await i18n.changeLanguage('en') }) }
+it('does not reserve a poster area when the old response has no video identity', async () => {
+  vi.mocked(getAutomaticScores).mockResolvedValue({ items:[dive(1, { video_uuid:null, dive_datetime:undefined, thumb_url:null })], total:1 })
+  const { container } = render(<MemoryRouter><AutomaticScores /></MemoryRouter>)
+  await screen.findByText('Attempt #1')
+  expect(container.querySelector('.eval-library-thumb')).not.toBeInTheDocument()
+  expect(screen.getByRole('link', { name:/101B/ })).toHaveAccessibleName('101B 3m Attempt #1')
+})
+
+it('keeps active filter count visible when their panel is closed and supports stored 7m', async () => {
+  render(<MemoryRouter><AutomaticScores /></MemoryRouter>)
+  await screen.findByRole('link', { name:/101B/ })
+  await userEvent.selectOptions(screen.getByRole('combobox', { name:'All heights' }), '7m')
+  await waitFor(() => expect(getAutomaticScores).toHaveBeenLastCalledWith(0, expect.objectContaining({ height:'7m' })))
+  expect(screen.getByRole('button', { name:'1 active filter' })).toHaveAttribute('aria-expanded','false')
+})
+
+function Reader() { const navigate = useNavigate(); return <button onClick={() => navigate(-1)}>Back to evaluations</button> }
+function Address() { const location = useLocation(); return <output data-testid="address">{location.search}</output> }
+it('restores URL filters, page and the originating card when returning from its video', async () => {
+  vi.mocked(getAutomaticScores).mockResolvedValue({ items:[dive(21, { dive_code:'203C' })], total:41 })
+  render(<MemoryRouter initialEntries={['/evaluations?tab=dives&divePage=2&diveSearch=203C&diveHeight=7m']}>
+    <Address /><Routes><Route path="/evaluations" element={<AutomaticScores />} /><Route path="/dives" element={<Reader />} /></Routes>
+  </MemoryRouter>)
+  await userEvent.click(await screen.findByRole('link', { name:/203C/ }))
+  await userEvent.click(screen.getByRole('button', { name:'Back to evaluations' }))
+  const link = await screen.findByRole('link', { name:/203C/ })
+  await waitFor(() => expect(link).toHaveFocus())
+  expect(screen.getByTestId('address')).toHaveTextContent('divePage=2')
+  expect(screen.getByTestId('address')).toHaveTextContent('diveFocus=21')
+  expect(screen.getByRole('searchbox')).toHaveValue('203C')
+  expect(getAutomaticScores).toHaveBeenLastCalledWith(20, expect.objectContaining({ search:'203C', height:'7m' }))
 })

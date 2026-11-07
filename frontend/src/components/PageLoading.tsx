@@ -20,9 +20,8 @@ export default function PageLoading({ message, fullscreen = false, center = fals
 }) {
   const { t } = useTranslation()
   const body = (
-    <div className="eval-warmup" role="status">
-      <span className="eval-warmup-cards" aria-hidden><i /><i /><i /></span>
-      <span className="eval-warmup-board" aria-hidden />
+    <div className="page-loading" role="status">
+      <span className="page-loading-indicator" aria-hidden />
       <p>{message ?? t('common.loadingPage')}</p>
     </div>
   )

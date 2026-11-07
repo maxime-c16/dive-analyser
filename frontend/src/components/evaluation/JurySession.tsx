@@ -95,8 +95,10 @@ export default function JurySession({
   const { t } = useTranslation()
   const [phase, setPhase] = useState<Phase>({ kind: 'landing' })
   const [watching, setWatching] = useState(true)
+  const [watchProgress, setWatchProgress] = useState({ current:0, duration:0 })
   const [buffered, setBuffered] = useState<Set<number>>(() => new Set())
   const [prepared, setPrepared] = useState<Set<number>>(() => new Set())
+  const [passing, setPassing] = useState(false)
   const [waitingForNext, setWaitingForNext] = useState(false)
   const [unavailable, setUnavailable] = useState<Set<number>>(() => new Set())
   const [mediaAttempts, setMediaAttempts] = useState<Record<number, number>>({})
@@ -219,6 +221,7 @@ export default function JurySession({
 
   function serveNext() {
     setWatching(true)
+    setWatchProgress({ current:0, duration:0 })
     setReplayCount(0)
     const next = batchRef.current.shift()!
     if (next.media.status === 'preparing' || (next.media.status === 'ready' && next.media.playback_url)) {
@@ -336,6 +339,7 @@ export default function JurySession({
     if (current.kind !== 'reviewing' && current.kind !== 'media-unavailable') return
     if (submittingRef.current) return
     submittingRef.current = true
+    setPassing(true)
     setPassed((list) => [
       ...list.filter((entry) => entry.request_id !== current.item.request_id),
       { request_id: current.item.request_id, dive_code: current.item.dive.dive_code, height: current.item.dive.height },
@@ -349,7 +353,7 @@ export default function JurySession({
       submittingRef.current = false
     }
     if (supersededRef.current || !aliveRef.current) return
-    await advance()
+    try { await advance() } finally { if (aliveRef.current) setPassing(false) }
   }
 
   function quit() {
@@ -360,7 +364,7 @@ export default function JurySession({
     setPhase({ kind: 'summary' })
   }
 
-  const replayDive = () => { setWaitingForNext(false); setCommentOpen(false); setWatching(true); setReplayCount(value => value + 1) }
+  const replayDive = () => { setWatchProgress({ current:0, duration:0 }); setWaitingForNext(false); setCommentOpen(false); setWatching(true); setReplayCount(value => value + 1) }
 
   const inStage = phase.kind === 'reviewing' || phase.kind === 'submitting' || phase.kind === 'reveal' || phase.kind === 'media-unavailable' || phase.kind === 'closed'
   const stageItem = inStage ? (phase as { item: QueueItem }).item : null
@@ -372,6 +376,16 @@ export default function JurySession({
     : []
 
   const preparingFirstFrame = stageItem !== null && phase.kind === 'reviewing' && !buffered.has(stageItem.request_id)
+  useEffect(() => {
+    if (!preparingFirstFrame || !stageItem) return
+    const item = stageItem
+    const timer = window.setTimeout(() => {
+      setWatching(false)
+      setPhase(current => current.kind === 'reviewing' && current.item.request_id === item.request_id
+        ? { kind: 'media-unavailable', item, reason: 'missing' } : current)
+    }, 30_000)
+    return () => window.clearTimeout(timer)
+  }, [preparingFirstFrame, stageItem, mediaAttempts])
   const nextBuffered = !upcomingItem || prepared.has(upcomingItem.request_id) || buffered.has(upcomingItem.request_id) || unavailable.has(upcomingItem.request_id)
   useEffect(() => {
     if (waitingForNext && nextBuffered && !supersededRef.current) {
@@ -381,7 +395,7 @@ export default function JurySession({
   }, [waitingForNext, nextBuffered, advance])
 
   return (
-    <section className="eval-session" aria-label={t('evaluations.juryArea')}>
+    <section className="eval-session" aria-label={inStage ? undefined : t('evaluations.juryArea')}>
       {phase.kind === 'landing' && (
         <div className="eval-landing">
           {judgedCount > 0 && <p className="eval-count" role="status">{t('evaluations.counted', { count: judgedCount })}</p>}
@@ -405,8 +419,9 @@ export default function JurySession({
           onClose={() => { if (phase.kind === 'reviewing' && (score !== null || comment.trim())) setQuitRequested(true); else quit() }}
           hideChrome={watching && (phase.kind === 'reviewing' || phase.kind === 'reveal')}
           preparing={preparingFirstFrame || phase.kind === 'media-unavailable'}
-          overlays={preparingFirstFrame ? <div className="eval-stage-preparation"><EvaluationWarmUp /><button className="eval-pass" onClick={() => void pass()}>{t('evaluations.pass')}</button></div> : phase.kind === 'media-unavailable' ? <div className="eval-stage-preparation">
+          overlays={preparingFirstFrame ? <div className="eval-stage-preparation"><EvaluationWarmUp video /><button type="button" className="eval-pass" disabled={passing} onClick={() => void pass()}>{t(passing ? 'evaluations.skipping' : 'evaluations.skipDive')}</button></div> : phase.kind === 'media-unavailable' ? <div className="eval-stage-preparation">
             <div className="eval-preparation-error" role="alert">
+              <p className="eval-preparation-identity"><strong>{stageItem.dive.owner_display_name ?? t('evaluations.unknownOwner')}</strong><span>{stageItem.dive.dive_code} · {stageItem.dive.height}</span></p>
               <p>{t('evaluations.mediaFailed')}</p>
               <div className="eval-preparation-actions">
                 <button type="button" className="eval-start" onClick={() => {
@@ -416,7 +431,7 @@ export default function JurySession({
                   setMediaAttempts(previous => ({ ...previous, [item.request_id]: (previous[item.request_id] ?? 0) + 1 }))
                   replayDive(); setPhase({ kind: 'reviewing', item })
                 }}>{t('evaluations.retry')}</button>
-                <button type="button" className="eval-pass" onClick={() => void pass()}>{t('evaluations.pass')}</button>
+                <button type="button" className="eval-pass" disabled={passing} onClick={() => void pass()}>{t(passing ? 'evaluations.skipping' : 'evaluations.skipDive')}</button>
               </div>
             </div>
           </div> : undefined}
@@ -452,6 +467,7 @@ export default function JurySession({
                     onBuffered={() => setBuffered(previous => previous.has(item.request_id) ? previous : new Set(previous).add(item.request_id))}
                     onPrepared={() => setPrepared(previous => previous.has(item.request_id) ? previous : new Set(previous).add(item.request_id))}
                     onEnded={active ? () => setWatching(false) : undefined}
+                    onPlaybackProgress={active ? (current, duration) => setWatchProgress({ current, duration }) : undefined}
                     onReplay={active && (phase.kind === 'reviewing' || phase.kind === 'reveal') ? replayDive : undefined}
                     onFailure={active ? () => { setWatching(false); setPhase({ kind: 'media-unavailable', item, reason: 'missing' }) } : () => setUnavailable(previous => previous.has(item.request_id) ? previous : new Set(previous).add(item.request_id))}
                     paused={!active || !watching || (phase.kind !== 'reviewing' && phase.kind !== 'reveal')}
@@ -462,6 +478,11 @@ export default function JurySession({
           }
         >
           {quitRequested && <QuitQuestion onStay={() => setQuitRequested(false)} onQuit={() => { setQuitRequested(false); quit() }} />}
+          {phase.kind === 'reviewing' && watching && !preparingFirstFrame && <div className="eval-watch-state">
+            <p role="status">{t('evaluations.watchToScore')}</p>
+            {watchProgress.duration > 0 && <div className="eval-watch-progress"><progress aria-label={t('evaluations.videoProgress')} value={watchProgress.current} max={watchProgress.duration} /><span>{Math.floor(watchProgress.current)} / {Math.ceil(watchProgress.duration)} s</span></div>}
+            <button type="button" className="eval-pass" disabled={passing} onClick={() => void pass()}>{t(passing ? 'evaluations.skipping' : 'evaluations.skipDive')}</button>
+          </div>}
           {phase.kind === 'reviewing' && !watching && (
             <JudgingDock
               score={score}

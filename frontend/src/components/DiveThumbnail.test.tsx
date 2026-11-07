@@ -152,3 +152,11 @@ it.each([
     else Reflect.deleteProperty(navigator, 'connection')
   }
 })
+
+
+it('explains absent previews instead of presenting a blank media card', () => {
+  vi.mocked(cachedPreview).mockReturnValue({ posterUrl: null, videoThumbUrl: null, playbackUrl: null, ready: false })
+  const { container } = render(<DiveThumbnail dive={dive} compact />)
+  expect(screen.getByText('Preview unavailable')).toBeVisible()
+  expect(container.querySelector('video')).toBeNull()
+})

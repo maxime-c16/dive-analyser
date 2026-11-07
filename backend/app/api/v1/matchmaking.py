@@ -158,20 +158,47 @@ def exclusion(dive_id: int, body: ExclusionBody, request: Request, db: Session =
 
 
 @router.get('/evaluations/automatic/mine')
-def mine(request: Request, response: Response, limit: int = Query(20, ge=1, le=50), offset: int = Query(0, ge=0), db: Session = Depends(get_db)):
+def mine(request: Request, response: Response, limit: int = Query(20, ge=1, le=50), offset: int = Query(0, ge=0),
+         search: str = Query('', max_length=100), height: str = Query('', max_length=5),
+         date_from: datetime | None = None,
+         score_state: str = Query('all', pattern='^(all|scored|awaiting)$'),
+         sort: str = Query('recent', pattern='^(recent|top|votes)$'), db: Session = Depends(get_db)):
     user = _require_user(request, db)
     _secure_headers(response)
     query = db.query(Dive).filter(Dive.diver_id.in_(owned_diver_ids(db, user.id)), Dive.visibility == 'public', Dive.video_uuid.isnot(None))
-    from sqlalchemy import func
+    from sqlalchemy import func, or_
     from app.models.matchmaking import AutomaticRating
+    if search.strip():
+        term = '%' + search.strip().replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_') + '%'
+        query = query.filter(or_(Dive.dive_code.ilike(term, escape='\\'), Dive.notes.ilike(term, escape='\\')))
+    if height:
+        query = query.filter(Dive.height == height)
+    if date_from:
+        query = query.filter(Dive.dive_datetime >= date_from)
     totals = db.query(AutomaticRating.dive_id.label('dive_id'), func.count(AutomaticRating.id).label('count'),
-        func.avg(AutomaticRating.score_half_steps).label('mean')).filter(service.community_vote_clause()).group_by(AutomaticRating.dive_id).subquery()
-    rows = query.outerjoin(ReviewExclusion, ReviewExclusion.dive_id == Dive.id).outerjoin(totals, totals.c.dive_id == Dive.id).add_columns(
-        ReviewExclusion.excluded, totals.c.count, totals.c.mean).order_by(Dive.dive_datetime.desc(), Dive.id).offset(offset).limit(limit).all()
-    items = [{'dive_id': dive.id, 'dive_code': dive.dive_code, 'height': dive.height, 'excluded': bool(excluded),
-        'rating_count': count or 0, 'mean_score': round(mean / 2, 1) if count else None, 'provisional': True}
+        func.avg(AutomaticRating.score_half_steps).label('mean')).filter(
+            AutomaticRating.dive_id.in_(query.with_entities(Dive.id)), service.community_vote_clause()
+        ).group_by(AutomaticRating.dive_id).subquery()
+    query = query.outerjoin(totals, totals.c.dive_id == Dive.id)
+    if score_state == 'scored':
+        query = query.filter(totals.c.count > 0)
+    elif score_state == 'awaiting':
+        query = query.filter(totals.c.count.is_(None))
+    total = query.count()
+    order = [Dive.dive_datetime.desc(), Dive.id.desc()]
+    if sort == 'top':
+        order = [func.coalesce(totals.c.mean, -1).desc(), *order]
+    elif sort == 'votes':
+        order = [func.coalesce(totals.c.count, 0).desc(), *order]
+    rows = query.outerjoin(ReviewExclusion, ReviewExclusion.dive_id == Dive.id).add_columns(
+        ReviewExclusion.excluded, totals.c.count, totals.c.mean).order_by(*order).offset(offset).limit(limit).all()
+    from app.api.v1.dives import _library_visuals
+    visuals = _library_visuals(db, [dive.video_uuid for dive, *_ in rows])
+    items = [{'dive_id': dive.id, 'dive_code': dive.dive_code, 'height': dive.height, 'dive_datetime': dive.dive_datetime.isoformat(), 'video_uuid': dive.video_uuid, 'excluded': bool(excluded),
+        'rating_count': count or 0, 'mean_score': round(mean / 2, 1) if count else None, 'provisional': True,
+        **visuals.get(dive.video_uuid, {})}
         for dive, excluded, count, mean in rows]
-    return {'items': items, 'total': query.count(), 'limit': limit, 'offset': offset}
+    return {'items': items, 'total': total, 'limit': limit, 'offset': offset, 'filter_version': 1}
 
 
 @router.get('/evaluations/automatic/{dive_id}/results')

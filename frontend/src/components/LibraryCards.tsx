@@ -1,3 +1,4 @@
+import { scoreNumber } from './evaluation/scoreFormatting'
 import { Link } from "react-router-dom";
 import { SessionPoster } from "./session-video/SessionGallery";
 import { formatDuration, type SharedTrainingSession } from "../services/sessionVideosApi";
@@ -10,12 +11,12 @@ import { diveCodeName } from "../i18n/diveNames";
 import { attemptScore, modifiersFor, type Attempt } from "../utils/attemptPresentation";
 
 /** Height, context and modifiers; the springboard/platform word is implied by the height. */
-function attemptFacts(attempt: Attempt) {
+function attemptFacts(attempt: Attempt, language: string) {
   return [
     attempt.height,
     attempt.is_sync ? "SYNC" : null,
     ...modifiersFor(attempt),
-    attempt.official_dd ? `DD ${attempt.official_dd.toFixed(1)}` : null,
+    attempt.official_dd ? `DD ${scoreNumber(attempt.official_dd, language)}` : null,
   ]
     .filter(Boolean)
     .join(" · ");
@@ -59,7 +60,7 @@ function LibraryCard({
   showDiver: boolean;
   thumbnail?: (attempt: Attempt) => React.ReactNode;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   return (
     <button
       type="button"
@@ -76,10 +77,10 @@ function LibraryCard({
         .filter(Boolean)
         .join(" · ")}
     >
-      <div className="relative aspect-[9/16] w-full overflow-hidden rounded-xl border border-app transition-colors group-hover:border-app-strong">
+      <div className="library-card-media relative aspect-[9/16] w-full overflow-hidden rounded-xl border border-app transition-colors group-hover:border-app-strong">
         {thumbnail ? thumbnail(attempt) : <DiveThumbnail dive={attempt} compact />}
-        <span className={`absolute bottom-1.5 left-1.5 rounded-full px-1.5 py-px text-xs font-bold tabular-nums text-black/80 ${RATING_BADGE[attempt.performance] ?? "bg-app-muted"}`} title={t("dives.scoreChipTitle", { score: attemptScore(attempt).toFixed(1), letter: attempt.performance })}>
-          {attemptScore(attempt).toFixed(1)}
+        <span className={`absolute bottom-1.5 left-1.5 rounded-full px-1.5 py-px text-xs font-bold tabular-nums text-black/80 ${RATING_BADGE[attempt.performance] ?? "bg-app-muted"}`} title={t("dives.scoreChipTitle", { score: scoreNumber(attemptScore(attempt), i18n.language), letter: attempt.performance })}>
+          {scoreNumber(attemptScore(attempt), i18n.language)}
         </span>
       </div>
       <span className="mt-1.5 px-0.5 font-mono text-sm font-semibold tracking-tight text-app-text">{attempt.dive_code}</span>
@@ -88,8 +89,8 @@ function LibraryCard({
           {attempt.person_name}
         </p>
       )}
-      {name && <p className="mt-0.5 px-0.5 text-[11px] leading-snug text-app-muted">{name}</p>}
-      <p className="mt-auto px-0.5 pt-1 text-[10px] leading-snug text-app-muted opacity-70">{attemptFacts(attempt)}</p>
+      {name && <p className="mt-0.5 px-0.5 text-sm leading-snug text-app-muted">{name}</p>}
+      <p className="mt-auto px-0.5 pt-1 text-xs leading-relaxed text-app-muted">{attemptFacts(attempt, i18n.language)}</p>
     </button>
   );
 }
@@ -130,7 +131,7 @@ export function LibraryCardGrid({
             <span className="text-xs tabular-nums text-app-muted">{group.items.length + sessions.filter(s=>s.date===group.key).length}</span>
             <span className="h-px flex-1 self-center bg-app-border" aria-hidden="true" />
           </div>
-          <div className="grid grid-cols-4 gap-x-2 gap-y-4 sm:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8">
+          <div className="grid grid-cols-2 gap-x-3 gap-y-5 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
             {sessions.filter(s=>s.date===group.key).map(session=><Link key={`session-${session.session_id}`} to={`/sessions/shared/${session.session_id}`} className="group flex h-full min-w-0 flex-col text-left" aria-label={t("libraryUX.sessionRowAria", { count: session.video_count })}>
               <div className="relative aspect-[9/16] w-full overflow-hidden rounded-xl border border-app">{session.videos[0] && <SessionPoster video={session.videos[0]}/>}<span className="absolute bottom-1.5 left-1.5 rounded-full bg-app-accent px-2 text-xs font-bold text-black">{t("libraryUX.sessionBadge")}</span></div>
               <span className="mt-1.5 text-sm font-semibold">{t("libraryUX.sessionVideos", { count: session.video_count })}</span><span className="text-xs text-app-muted">{formatDuration(session.total_duration)}</span>
