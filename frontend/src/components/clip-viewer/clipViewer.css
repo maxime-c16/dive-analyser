@@ -1660,8 +1660,8 @@
   color: var(--app-muted);
 }
 .clip-panel-actions {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
   gap: 6px;
   padding: 12px 22px;
   border-bottom: 1px solid var(--app-border);
@@ -1669,6 +1669,7 @@
 .clip-panel-actions > button,
 .clip-panel-actions > a {
   display: inline-flex;
+  justify-content:center;
   align-items: center;
   gap: 6px;
   height: 36px;
@@ -1812,14 +1813,6 @@
   .clip-viewer.is-studio .clip-panel-scroll {
     overflow: visible;
   }
-}
-.clip-panel-actions > button:has(> .lucide-download) {
-  width: 36px;
-  padding: 0;
-  justify-content: center;
-}
-.clip-panel-actions > button:has(> .lucide-download) span {
-  display: none;
 }
 .clip-viewer.is-studio .clip-speed select {
   height: 30px;

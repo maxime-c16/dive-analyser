@@ -9,11 +9,11 @@ export default function ScoreInput({ score, disabled, onScore }: {
   const { t, i18n } = useTranslation()
   const whole = score === null ? null : Math.floor(score / 2)
   const half = score !== null && score % 2 === 1
-  return <div className="eval-score-input">
-    <div className="eval-score-card">
+  return <div className="eval-score-input" data-unselected={score === null ? "true" : undefined}>
+    {score !== null && <div className="eval-score-card">
       <ScoreCard scoreHalfSteps={score} ariaLabel={score === null ? t('evaluations.chooseScore') : t('evaluations.ariaScoreOf', { score: scoreNumber(score / 2, i18n.language) })} />
       <span>{t('evaluations.you')}</span>
-    </div>
+    </div>}
     <div className="eval-score-controls">
       <div className="eval-half-row">
         <button type="button" className="eval-half-toggle" aria-pressed={half} disabled={disabled || whole === null || whole === 10}

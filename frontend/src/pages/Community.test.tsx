@@ -30,7 +30,7 @@ describe('Community discovery', () => {
     const divers = await screen.findByRole('region', { name: /Divers/ })
     expect(divers).toHaveTextContent(/32 shared dives/)
     expect(screen.getByRole('region', { name: /Other members/ })).toHaveTextContent('Alex')
-    expect(screen.getByRole('region', { name: /Recently active/ })).toHaveTextContent('Fanny')
+    expect(screen.getByRole('region', { name: /Latest activity/ })).toHaveTextContent('Fanny')
     expect(screen.queryByText('Me')).not.toBeInTheDocument()
     expect(screen.queryByText('Twin')).not.toBeInTheDocument()
   })
@@ -301,4 +301,21 @@ describe('Retry re-owns the in-flight continuation state', () => {
     await waitFor(() => expect(screen.getByRole('link', { name: /Bill/ })).toBeInTheDocument())
     spy.mockRestore()
   })
+})
+
+it('recovers the rankings locally after a failed request', async () => {
+  let rankingsCalls = 0
+  vi.spyOn(globalThis, 'fetch').mockImplementation(input => {
+    if (String(input).includes('/leaderboard')) {
+      rankingsCalls++
+      return rankingsCalls === 1 ? response({}, false) : response({ ...board, members: [{ ...fanny, attempts: 7, streak_weeks: 1, codes: 2, delta: null }] })
+    }
+    return response({ items: [], next_after: null })
+  })
+  renderPage()
+  const alert = await screen.findByRole('alert')
+  await userEvent.click(within(alert).getByRole('button', { name: 'Retry' }))
+  expect(await screen.findByRole('link', { name: /Fanny.*7/ })).toBeInTheDocument()
+  expect(rankingsCalls).toBe(2)
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument()
 })

@@ -1,4 +1,6 @@
-/** Pure statistics for one dive code's attempts (all scores on the 0-10 athlete scale). */
+import i18n from '../i18n'
+
+/** Statistics for one dive code's attempts (all scores on the 0-10 athlete scale). */
 
 export function quantile(values: number[], p: number): number | null {
   if (!values.length) return null
@@ -66,6 +68,6 @@ export function recentTrend<T>(items: T[], score: (item: T) => number, date: (it
 }
 
 /** One decimal, rounded half up like the backend, so cards, charts and pages show the same value. */
-export function fmtScore(value: number | null | undefined): string {
-  return value == null || Number.isNaN(value) ? '—' : (Math.round(value * 10 + 1e-6) / 10).toFixed(1)
+export function fmtScore(value: number | null | undefined, locale = i18n.resolvedLanguage || i18n.language || 'en'): string {
+  return value == null || Number.isNaN(value) ? '—' : new Intl.NumberFormat(locale, { minimumFractionDigits:1, maximumFractionDigits:1, useGrouping:false }).format((Math.round(value * 10 + 1e-6) / 10) || 0)
 }

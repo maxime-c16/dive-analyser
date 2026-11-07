@@ -1,0 +1,8 @@
+{
+  "id": "mobile-ui-feedback",
+  "date": "2026-11-06",
+  "title": "Une interface mobile plus lisible et prévisible",
+  "body": "Retrouvez vos plongeons évalués avec leurs vidéos, leurs dates et des filtres par code, hauteur ou note. La navigation mobile est plus lisible, la conversation reste dans la zone visible du téléphone et le jury permet de reprendre une vidéo qui ne démarre pas.",
+  "audience": "all",
+  "components": ["frontend", "backend"]
+}

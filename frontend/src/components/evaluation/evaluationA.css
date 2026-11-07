@@ -30,7 +30,7 @@
 .eval-judge-actions button { min-height: 48px; min-width: 44px; border-radius: 12px; }
 .eval-confirm { flex: 1; border: 1px solid var(--app-accent); background: var(--app-accent); box-shadow: none; color: #06251f; min-width: 0; }
 .eval-pass, .eval-comment-toggle { background: var(--app-panel-elevated); border: 1px solid var(--app-border); border-radius: 12px; color: var(--app-text); min-height: 44px; }
-.eval-confirm:disabled { opacity: .45; background: var(--app-accent); color: #06251f; }
+.eval-confirm:disabled { opacity:1; background:var(--app-panel-elevated); color:var(--app-muted); border-color:var(--app-border); }
 .eval-results-board { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 12px; }
 .eval-card-figure { margin: 0; display: grid; justify-items: center; gap: 4px; min-width: 0; }
 .eval-card-figure figcaption { font-size: 11px; color: var(--app-muted); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -73,11 +73,12 @@
   .eval-stage-head .eval-meta, .eval-stage-head .eval-count { font-size: 11px; }
   .eval-stage-root .eval-stage-dock { top: auto; height: 300px; }
   .eval-stage-root .eval-stage-dock > .eval-judging, .eval-stage-root .eval-stage-dock > .eval-reveal { padding: 8px 10px 0; gap: 6px; }
-  .eval-score-input { display: grid; grid-template-columns: 56px minmax(0,1fr); gap: 10px; flex: 1; align-content: start; }
-  .eval-score-card { align-self: start; }
+  .eval-score-input { display: grid; grid-template-columns: minmax(0,1fr); gap: 10px; flex: 1; align-content: start; }
+  .eval-score-card { display:none; }
+  .eval-score-controls { grid-column:1; }
   .eval-score-card .eval-card { --eval-card-w: 48px; }
   .eval-score-controls { align-content: start; gap: 6px; }
-  .eval-keypad { grid-template-columns: repeat(auto-fit,minmax(44px,1fr)); gap: 6px; }
+  .eval-keypad { grid-template-columns: repeat(6,minmax(0,1fr)); gap: 6px; }
   .eval-score-readout { font-size: 12px; }
   .eval-judge-actions { margin: auto -10px 0; padding: 6px 8px calc(6px + env(safe-area-inset-bottom)); }
   .eval-judge-actions button { min-height: 46px; padding: 6px 10px; font-size: 14px; }
@@ -188,7 +189,7 @@
 @media (orientation: portrait), (max-width: 599px), (max-height: 500px) {
   .eval-stage-root[data-watching=true] .eval-stage-head { inset: 0; height: auto; padding: 0; pointer-events: none; align-items: start; }
   .eval-stage-root[data-watching=true] .eval-stage-head .eval-quit { position: absolute; top: calc(8px + env(safe-area-inset-top)); left: 10px; pointer-events: auto; }
-  .eval-stage-root[data-watching=true] .eval-stage-head-center { position: absolute; bottom: calc(78px + env(safe-area-inset-bottom)); left: 16px; right: auto; visibility: visible; width: fit-content; max-width: calc(100% - 32px); }
+  .eval-stage-root[data-watching=true] .eval-stage-head-center { position: absolute; bottom: calc(146px + env(safe-area-inset-bottom)); left: 16px; right: auto; visibility: visible; width: fit-content; max-width: calc(100% - 32px); }
   .eval-stage-root[data-watching=true] .eval-head-owner { font-size: 15px; }
   .eval-stage-root[data-watching=true] .eval-stage-head .eval-meta { font-size: 13px; }
   .eval-stage-root[data-watching=true] .eval-stage-head .eval-prompt-toggle { position: absolute; right: 10px; top: calc(8px + env(safe-area-inset-top)); pointer-events: auto; }
@@ -196,3 +197,35 @@
   .eval-stage-root .eval-player-controls .eval-quality-toggle { min-width: 58px; padding: 0 8px; }
 }
 .eval-stage-root[data-preparing=true] .eval-stage-head-center { visibility: hidden; }
+
+/* Preparation always has a reachable exit and a distinct skip action. */
+.eval-stage-root[data-preparing=true] .eval-stage-preparation { z-index:4; }
+.eval-stage-root[data-preparing=true] .eval-stage-head { z-index:5; pointer-events:none; }
+.eval-stage-root[data-preparing=true] .eval-stage-head .eval-quit { pointer-events:auto; }
+.eval-stage-preparation .eval-warmup { padding:24px 0; }
+.eval-stage-preparation .eval-pass:disabled { opacity:.65; }
+.eval-stage-preparation { overflow-y:auto; padding-top:calc(64px + env(safe-area-inset-top)); padding-bottom:calc(24px + env(safe-area-inset-bottom)); }
+
+.eval-watch-state { display:flex; flex:1; min-height:0; flex-direction:column; justify-content:center; align-items:flex-start; gap:16px; padding:24px; color:var(--app-muted); }
+.eval-watch-state p { margin:0; font-size:14px; line-height:1.5; max-width:26ch; }
+@media (orientation:portrait), (max-width:599px), (max-height:500px) {
+  .eval-stage-root[data-watching=true] .eval-stage-dock:has(.eval-watch-state) { display:flex; inset:auto 0 0; width:100%; height:auto; background:rgba(13,17,19,.9); }
+  .eval-watch-state { flex-direction:row; align-items:center; justify-content:space-between; padding:12px 16px max(12px,env(safe-area-inset-bottom)); gap:12px; }
+  .eval-watch-state p { font-size:12px; }
+  .eval-watch-state button { flex:none; }
+}
+
+/* Playback feedback owns two rows; identity stays above this bottom dock. */
+.eval-watch-progress { width:100%; min-width:0; max-width:260px; display:grid; gap:6px; font-size:12px; font-variant-numeric:tabular-nums; }
+.eval-watch-progress progress { display:block; width:100%; height:5px; accent-color:var(--app-accent); }
+@media (orientation:portrait), (max-width:599px), (max-height:500px) {
+  .eval-watch-state { display:grid; grid-template-columns:minmax(0,1fr) auto; width:100%; gap:10px 12px; padding:12px 16px max(12px,env(safe-area-inset-bottom)); }
+  .eval-watch-state p { grid-column:1 / -1; max-width:none; font-size:13px; line-height:1.4; }
+  .eval-watch-progress { grid-column:1; grid-row:2; }
+  .eval-watch-state button { grid-column:2; grid-row:2; min-height:44px; padding:8px 12px; }
+}
+
+.eval-preparation-identity { display:grid; gap:4px; margin:0 0 12px; color:var(--app-text); }
+.eval-preparation-identity span { font-size:13px; color:var(--app-muted); }
+
+@media(max-width:359px) { .eval-preparation-actions { flex-direction:column; width:100%; } .eval-preparation-actions button { width:100%; flex:none; white-space:normal; } }

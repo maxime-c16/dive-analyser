@@ -13,6 +13,7 @@ from sqlalchemy import text
 from pathlib import Path
 
 from app.models.session import Session as TrainingSession
+from app.models.dive import Dive
 from tests.test_member_dive_visibility import workspace
 
 
@@ -449,6 +450,7 @@ def test_history_endpoints_and_aggregates(workspace):
     assert items[r1]['active'] is True and items[r1]['rating_count'] == 1 and items[r1]['mean_score'] == 2.5
     assert items[r2]['active'] is False and items[r2]['rating_count'] == 1 and items[r2]['mean_score'] == 7.5
     assert items[r1]['dive']['dive_code'] == '101B'
+    assert items[r1]['dive']['dive_datetime'] == db.get(Dive, dives['alice-private']).dive_datetime.isoformat()
     assert 'notes' not in items[r1]['dive']  # owner history carries no personal dive notes
     assert items[r1]['prompt'] == 'Case A'
     # Evaluator history: own votes frozen + aggregates, no media URL leaked.

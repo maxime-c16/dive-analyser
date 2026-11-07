@@ -109,6 +109,8 @@ export default function JudgeRoom() {
   };
   useEffect(() => {
     setRoom(null);
+    setInvite(null);
+    setError(false);
     if (!code) return;
     let active = true;
     roomRequest("/" + code)
@@ -236,7 +238,7 @@ export default function JudgeRoom() {
               </li>
             ))}
           </ul>
-          <div className="gm-hero-modes" aria-hidden="true">
+          <div className="gm-hero-modes">
             <span className="ca-fact">{t("room.classic")}</span>
             <span className="ca-fact">{t("room.mole")}</span>
             <span className="ca-fact">{t("room.guessCode")}</span>
@@ -283,10 +285,10 @@ export default function JudgeRoom() {
             {t("room.joinGo")}
           </button>
         </form>
-        {user && (
+        {user?.user_id === 1 && (
           <label className="ca-panel gm-switch-row">
             <span className="gm-ghost">🌑</span>
-            <b>{t("room.shadow")}</b>
+            <b>{t("room.shadowOptIn")}</b>
             <input
               type="checkbox"
               role="switch"
@@ -401,7 +403,8 @@ export default function JudgeRoom() {
           );
         })}
       </div>
-      {!room && (
+      {!room && !invite && !error && <p role="status" className="cm-empty">{t('common.loading')}</p>}
+      {!room && invite && (
         <section className="gm-join ca-arrive">
           <div className="gm-join-posters">
             {invite?.posters.map((url, i) => (

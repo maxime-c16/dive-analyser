@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../../services/api";
 import type { AvatarHud } from '../MemberAvatar'
+import { useTranslation } from "react-i18next";
 export type Social = {
   liked: boolean;
   like_count: number;
@@ -23,6 +24,7 @@ export type Comment = {
 };
 
 export function useDiveSocial(id: number, basePath = `/api/v1/dives/${id}`) {
+  const { t } = useTranslation();
   const [social, setSocial] = useState<Social | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -40,12 +42,12 @@ export function useDiveSocial(id: number, basePath = `/api/v1/dives/${id}`) {
         if (alive) setSocial(data);
       })
       .catch(() => {
-        if (alive) setError("Reactions unavailable. Try again.");
+        if (alive) setError(t("clipViewer.reactionsUnavailable"));
       });
     return () => {
       alive = false;
     };
-  }, [id, basePath, epoch]);
+  }, [id, basePath, epoch, t]);
   const like = useCallback(
     async (liked: boolean) => {
       if (!social || pending.current || social.liked === liked) return;
@@ -59,13 +61,13 @@ export function useDiveSocial(id: number, basePath = `/api/v1/dives/${id}`) {
         if (activeId.current === id) setSocial(data);
       } catch {
         if (activeId.current === id)
-          setError("Could not save your like. Try again.");
+          setError(t("clipViewer.likeFailed"));
       } finally {
         pending.current = false;
         setBusy(false);
       }
     },
-    [id, basePath, social],
+    [id, basePath, social, t],
   );
   return {
     social,

@@ -2,7 +2,12 @@
   .messages-page-thread { padding: 0; }
   .messages-page-thread > .messages-heading { display: none; }
   .messages-page-thread .messages-grid { display: flex; min-height: 0; }
-  .message-thread { width: 100%; height: calc(100dvh - var(--message-top, 77px) - 20px); height: calc(var(--message-viewport-height, 100dvh) - var(--message-top, 77px) - 20px); }
+  html:has(.msg-thread), body:has(.msg-thread) { overflow: hidden; overscroll-behavior: none; }
+  .message-thread { width: 100%; box-sizing: border-box; padding-top: env(safe-area-inset-top); padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); background: var(--app-bg); overscroll-behavior: none; }
   .message-history { flex: 1; min-height: 0; max-height: none; overscroll-behavior: contain; }
   .message-composer { flex-shrink: 0; padding-bottom: max(12px, env(safe-area-inset-bottom)); }
+  .is-typing .message-composer { padding-bottom: 10px; }
+  .msg-thread .msg-thread-head { min-height: 60px; padding: 8px 12px; }
+  .msg-thread .msg-thread-head .msg-peer-name b { font-size: 20px; line-height: 26px; }
+  .msg-thread .msg-thread-head .mobile-shell-actions { display: none; }
 }

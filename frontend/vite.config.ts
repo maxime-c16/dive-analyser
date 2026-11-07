@@ -14,6 +14,24 @@ const previewHttps =
       }
     : undefined
 
+// The remote backend validates Origin against its own Host. Only translate
+// requests that were same-origin at this local proxy; foreign origins keep
+// their original value and remain subject to the backend's CSRF rejection.
+function localProxy(target: string) {
+  return {
+    target, changeOrigin: true, secure: false,
+    configure(proxy: import('vite').HttpProxy.Server) {
+      proxy.on('proxyReq', (outgoing, request) => {
+        const origin = request.headers.origin
+        if (!origin) return
+        try {
+          if (new URL(origin).host === request.headers.host) outgoing.setHeader('origin', new URL(target).origin)
+        } catch { /* Invalid origins pass through for backend validation. */ }
+      })
+    },
+  }
+}
+
 export default defineConfig({
   plugins: [
     react(),
@@ -54,11 +72,10 @@ export default defineConfig({
     // Proxy API requests to the backend during development
     // In Docker: uses PROXY_TARGET from docker-compose.yml (http://backend:8000)
     proxy: {
+      '/media': localProxy(process.env.PROXY_TARGET || 'http://localhost:8000'),
       '/api': {
-        target: process.env.PROXY_TARGET || 'http://localhost:8000',
+        ...localProxy(process.env.PROXY_TARGET || 'http://localhost:8000'),
         ws: true,
-        changeOrigin: true,
-        secure: false,
       },
     },
   },
@@ -69,15 +86,15 @@ export default defineConfig({
   preview: {
     host: '0.0.0.0',
     port: 4173,
+    allowedHosts: (process.env.PREVIEW_ALLOWED_HOSTS || '').split(',').filter(Boolean),
     https: previewHttps,
     // Production preview (`vite preview`) proxies API calls to the live
     // backend so the deployed-style bundle can be validated end-to-end
     // before an authorized production deployment.
     proxy: {
+      '/media': localProxy(process.env.PREVIEW_PROXY_TARGET || 'http://127.0.0.1:6002'),
       '/api': {
-        target: process.env.PREVIEW_PROXY_TARGET || 'http://127.0.0.1:6002',
-        changeOrigin: true,
-        secure: false,
+        ...localProxy(process.env.PREVIEW_PROXY_TARGET || 'http://127.0.0.1:6002'),
       },
     },
   },

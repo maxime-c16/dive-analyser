@@ -41,7 +41,7 @@ it('a stored vote shows the jury and peer remarks, without a keypad', () => {
     error={false} onReload={() => {}} onRated={() => {}} />)
   expect(screen.getByText('Community score · provisional')).toBeInTheDocument()
   expect(screen.queryByRole('group')).toBeNull()
-  expect(screen.getByText('average · 2 judge(s)')).toBeInTheDocument()
+  expect(screen.getByText('average · 2 judges')).toBeInTheDocument()
   expect(screen.getByText(/Clean entry/)).toBeInTheDocument()
 })
 

@@ -16,7 +16,7 @@ export default function ScoreChart({ points, smoothing, selected, onSelect, labe
   onSelect: (index: number, extreme?: Extreme) => void
   label: string
 }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const host = useRef<HTMLDivElement>(null)
   const line = useRef<SVGPathElement>(null)
   const [width, setWidth] = useState(0)
@@ -105,7 +105,7 @@ export default function ScoreChart({ points, smoothing, selected, onSelect, labe
     {width > 0 && <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} aria-hidden="true">
       {[0, 2.5, 5, 7.5, 10].map(value => <g key={value}>
         <line className="ca-grid" x1={L} x2={W - R} y1={y(value)} y2={y(value)} />
-        <text className="ca-axis" x={L - 6} y={y(value) + 3} textAnchor="end">{value}</text>
+        <text className="ca-axis" x={L - 6} y={y(value) + 3} textAnchor="end">{value.toLocaleString(i18n.language)}</text>
       </g>)}
       {monthTicks.map(tick => <text key={tick.index} className="ca-axis" x={x(tick.index)} y={H - 6}>{tick.text}</text>)}
       {bandPath && <path className="ca-band" d={bandPath} />}

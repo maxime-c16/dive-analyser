@@ -54,6 +54,9 @@ export default function Evaluations() {
   // explicit tab (never the arrival view).
   const tab: Tab = TABS.some(item => item.key === requested) ? requested as Tab : LEGACY[requested] ?? 'dives'
   const setTab = (value: Tab) => setSearch(previous => { const next = new URLSearchParams(previous); next.set('tab', value); return next })
+  const rawHistoryPage = search.get('historyPage') ?? '1'
+  const historyPage = /^\d{1,6}$/.test(rawHistoryPage) && Number(rawHistoryPage) >= 1 ? Number(rawHistoryPage) : 1
+  const setHistoryPage = (page:number) => setSearch(previous => { const next = new URLSearchParams(previous); if (page <= 1) next.delete('historyPage'); else next.set('historyPage', String(page)); return next })
   const [judging, setJudging] = useState(false)
   // Survives tab switches inside the page, resets when the member leaves it.
   const [paused, setPaused] = useState(false)
@@ -68,21 +71,19 @@ export default function Evaluations() {
   return (
     <div className="evaluations-page" data-judging={judging ? 'true' : undefined}>
       <div className="evaluations-heading"><h1 className="evaluations-title">{t('evaluations.title')}</h1><MobileShellActions /></div>
-      <Link className="ca-btn" to="/room">{t("room.title")}</Link>
-      <Tabs tab={tab} onTab={setTab} />
+      <div className="evaluations-navigation"><Tabs tab={tab} onTab={setTab} /><Link className="eval-room-link" to="/room" aria-label={t("room.title")}><span className="eval-room-full">{t("room.title")}</span><span className="eval-room-short" aria-hidden>{t("evaluations.roomShort")}</span></Link></div>
       <div key={tab} className="evaluations-body" role="tabpanel" id={`evaluations-panel-${tab}`} aria-labelledby={`evaluations-tab-${tab}`}>
         {tab === 'judge' && <JudgeHub key={user?.user_id ?? 'guest'} paused={paused} onPause={() => setPaused(true)} onStageChange={setJudging} onHistory={() => setTab('history')} />}
         {tab === 'dives' && (
-          <>
-            <AutomaticScores />
+          <div className="eval-mine-layout">
             <section className="eval-section">
               <h2>{t('evaluations.tabMine')}</h2>
-              <p className="eval-note">{t('evaluations.requestDiveHint')}</p>
               <OwnedRequests />
             </section>
-          </>
+            <AutomaticScores />
+          </div>
         )}
-        {tab === 'history' && <MyJudgements />}
+        {tab === 'history' && <MyJudgements page={historyPage} onPage={setHistoryPage} />}
       </div>
       {!user && <p className="eval-error" role="alert">{t('evaluations.signInNeeded')}</p>}
     </div>

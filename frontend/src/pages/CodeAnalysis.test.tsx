@@ -1,8 +1,9 @@
 import React from 'react'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { beforeEach, expect, it, vi } from 'vitest'
+import i18n from '../i18n'
 import CodeAnalysis from './CodeAnalysis'
 import { getCodeAttemptsResult, getCodeSummaries } from '../services/codeSummariesApi'
 
@@ -146,4 +147,22 @@ it('keeps an ungraded dive in counts but out of every score view', async () => {
   const latestRep = screen.getByRole('button', { name: /Latest/ })
   expect(within(latestRep).getByText('4.5')).toBeInTheDocument()
   expect(within(latestRep).queryByText('0.0')).toBeNull()
+})
+
+
+it('updates chart axis numbers and month labels when the app language changes', async () => {
+  const width = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(600)
+  vi.mocked(getCodeAttemptsResult).mockResolvedValue({ items:[{ ...attempts[0], dive_datetime:'2026-02-07T10:00:00' }] as never, capped:false })
+  try {
+    const { container } = renderPage('/dives/analysis/5122D')
+    await screen.findByRole('heading', { name:'5122D' })
+    await waitFor(() => expect(container.querySelector('.ca-chart svg')).toBeInTheDocument())
+    const labels = () => [...container.querySelectorAll('.ca-chart .ca-axis')].map(e => e.textContent)
+    expect(labels()).toContain('2.5')
+    expect(labels()).toContain('Feb 26')
+    await act(async () => { await i18n.changeLanguage('fr') })
+    expect(labels()).toContain('2,5')
+    expect(labels()).toContain('févr 26')
+    expect(labels()).not.toContain('Feb 26')
+  } finally { width.mockRestore(); await act(async () => { await i18n.changeLanguage('en') }) }
 })

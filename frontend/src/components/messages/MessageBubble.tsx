@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Heart, Play } from 'lucide-react'
@@ -30,8 +30,11 @@ export default function MessageBubble({ message, userId, onReact, onVisible, bus
     observer.observe(ref.current)
     return () => { observer.disconnect(); onVisible(message.id, false) }
   }, [message.id, mine, onVisible])
+  const [posterFailed, setPosterFailed] = useState(false)
+  useEffect(() => setPosterFailed(false), [message.dive?.poster_url])
+  const missingPoster = !message.dive?.poster_url || posterFailed
   const count = message.reactions.length
-  const time = new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  const time = new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
   return <article ref={ref} aria-label={mine ? t('messages.yourMessage') : t('messages.receivedMessage')}
     className={`msg-item ${mine ? 'is-mine' : 'is-theirs'}${first ? ' is-first' : ''}${last ? ' is-last' : ''}${fresh ? ' is-fresh' : ''}${sender !== undefined ? ' in-group' : ''}`}
     onPointerUp={e => {
@@ -43,12 +46,13 @@ export default function MessageBubble({ message, userId, onReact, onVisible, bus
     {sender !== undefined && !mine && last && <span className="msg-sender-avatar" aria-hidden="true">{sender ? <MemberAvatar member={sender} size={28} /> : null}</span>}
     <div className="msg-bubble-row">
       <div className={`msg-bubble${message.dive && !message.body ? ' is-media' : ''}`}>
+        {!message.body && !message.dive && <p className="msg-text msg-empty-content">{t('messages.emptyMessage')}</p>}
         {message.body && <p className="msg-text"><MentionText body={message.body} mentions={message.mentions} /></p>}
         {message.dive && (message.dive.available
           ? <Link to={`/dives?clip=${message.dive.id}&scope=all`} className="msg-dive" aria-label={`${t('messages.watch')} · ${message.dive.dive_code} · ${message.dive.height}`}>
-              <span className="msg-dive-thumb">
-                {message.dive.poster_url && <img src={message.dive.poster_url} alt="" loading="lazy" decoding="async" />}
-                <span className="msg-dive-play" aria-hidden="true"><Play size={18} fill="currentColor" /></span>
+              <span className="msg-dive-thumb" data-missing={missingPoster ? 'true' : undefined}>
+                {!missingPoster && <img src={message.dive.poster_url!} alt="" loading="lazy" decoding="async" onError={() => setPosterFailed(true)} />}
+                {missingPoster ? <span className="msg-dive-fallback">{t('thumbnail.unavailable')}</span> : <span className="msg-dive-play" aria-hidden="true"><Play size={18} fill="currentColor" /></span>}
               </span>
               <span className="msg-dive-cap"><b>{message.dive.dive_code}</b><span>{message.dive.height}</span></span>
             </Link>

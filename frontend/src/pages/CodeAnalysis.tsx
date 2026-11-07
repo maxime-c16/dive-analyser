@@ -163,7 +163,7 @@ export default function CodeAnalysis() {
       return { key: group[0].id, month: group[0].dive_datetime.slice(0, 7), monthLabel: monthLabel(group[0].dive_datetime), value: mid, band: scoreBand(mid), lo: Math.min(...values), hi: Math.max(...values) }
     })
     return scored.map(item => ({ key: item.id, month: item.dive_datetime.slice(0, 7), monthLabel: monthLabel(item.dive_datetime), value: attemptScore(item), band: item.performance || 'F' }))
-  }, [scored, scoredGroups, mode])
+  }, [scored, scoredGroups, mode, i18n.language])
   const smoothing = smoothingWindow(points.length, mode === 'sessions')
 
   const pointOf = (id: number | null) => id == null ? -1 : mode === 'sessions' ? scoredGroups.findIndex(group => group.some(item => item.id === id)) : scored.findIndex(item => item.id === id)
@@ -308,8 +308,8 @@ export default function CodeAnalysis() {
               <b className="text-app-text">{t('codeAnalysis.thisDive')} · <span className={`ca-t-${focus.performance}`}>{fmtScore(attemptScore(focus))}</span></b> <span className="ca-flat" style={{ fontSize: 12 }}>{date(focus.dive_datetime, 'd MMM · HH:mm')}</span>
               <span className="ca-focus-facts">
                 <span className="ca-fact" title={t('codeAnalysis.rankTitle', { total: all.length })}>{rankText(rank(focus, all), all.length)}</span>
-                <span className={`ca-fact ${delta >= 0.25 ? 'ca-up' : delta <= -0.25 ? 'ca-down' : ''}`}>{delta >= 0 ? '+' : ''}{fmtScore(delta)} {t('codeAnalysis.vsMedian')}</span>
-                {previous && <span className={`ca-fact ${attemptScore(focus) > attemptScore(previous) ? 'ca-up' : attemptScore(focus) < attemptScore(previous) ? 'ca-down' : ''}`}>{attemptScore(focus) > attemptScore(previous) ? '▲' : attemptScore(focus) < attemptScore(previous) ? '▼' : '='} {t('codeAnalysis.vsPreviousDive', { score: fmtScore(attemptScore(previous)) })}</span>}
+                {Math.abs(delta) >= 0.05 && <span className={`ca-fact ${delta >= 0.25 ? 'ca-up' : delta <= -0.25 ? 'ca-down' : ''}`}>{delta >= 0 ? '+' : ''}{fmtScore(delta)} {t('codeAnalysis.vsMedian')}</span>}
+                {previous && Math.abs(attemptScore(focus) - attemptScore(previous)) >= 0.05 && <span className={`ca-fact ${attemptScore(focus) > attemptScore(previous) ? 'ca-up' : attemptScore(focus) < attemptScore(previous) ? 'ca-down' : ''}`}>{attemptScore(focus) > attemptScore(previous) ? '▲' : attemptScore(focus) < attemptScore(previous) ? '▼' : '='} {t('codeAnalysis.vsPreviousDive', { score: fmtScore(attemptScore(previous)) })}</span>}
                 {!beaten && before.length > 0 && <span className="ca-fact ca-up">{t('codeAnalysis.record')}</span>}
                 {weeks != null && weeks >= 3 && <span className="ca-fact ca-up">{t('codeAnalysis.bestSince', { count: weeks })}</span>}
               </span>

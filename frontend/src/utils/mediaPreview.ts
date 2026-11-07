@@ -123,10 +123,15 @@ async function drainQueue() {
 
 async function flushChunk(entries: PendingEntry[], signal: AbortSignal): Promise<void> {
   let payload: Record<string, StatusShape> | null = null;
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  signal.addEventListener('abort', abort, { once: true });
+  if (signal.aborted) abort();
+  const deadline = setTimeout(abort, 12_000);
   try {
     const response = await fetch("/api/v1/media/status/batch", {
       method: "POST",
-      signal,
+      signal: controller.signal,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ video_uuids: entries.map(({ videoUuid }) => videoUuid) }),
     });
@@ -135,6 +140,9 @@ async function flushChunk(entries: PendingEntry[], signal: AbortSignal): Promise
   } catch {
     // Keep placeholders on transport failure. Never fan a failed batch
     // out into up to 100 individual requests against an overloaded server.
+  } finally {
+    clearTimeout(deadline);
+    signal.removeEventListener('abort', abort);
   }
   if (payload !== null) {
     // The backend answers for every requested uuid; unknown assets report

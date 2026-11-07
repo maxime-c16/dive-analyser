@@ -12,7 +12,7 @@
   --app-border: rgba(82, 96, 105, 0.45);
   --app-border-strong: rgba(126, 146, 156, 0.7);
   --app-text: #edf2f4;
-  --app-muted: #98a2aa;
+  --app-muted: #a6b1b8;
   --app-accent: #54beab;
 }
 
@@ -25,10 +25,11 @@ a:hover {
   color: #8bd8c9;
 }
 
+@layer base {
 button {
   /* Keep Preflight’s solid style so border utilities can restore an outline. */
   border-width: 0;
-  border-radius: 0;
+  border-radius: 0.625rem;
   padding: 0;
   font-size: inherit;
   font-weight: inherit;
@@ -39,6 +40,8 @@ button {
     border-color 0.2s,
     background-color 0.2s,
     color 0.2s;
+}
+
 }
 
 button:focus {
@@ -320,3 +323,15 @@ select {
 
 /* Reserved by future mobile navigation; this PR introduces no bottom bar. */
 :root { --mobile-nav-offset: 0px; }
+
+/* Shared loading and action states. No animation is required to understand them. */
+.page-loading { display:flex; align-items:center; justify-content:center; gap:12px; padding:40px 16px; color:var(--app-muted); font-size:14px; }
+.page-loading-indicator { width:18px; height:18px; flex:none; border:2px solid var(--app-border-strong); border-top-color:var(--app-accent); border-radius:50%; animation:ops-spin .9s linear infinite; }
+.page-loading p { margin:0; }
+button:disabled { cursor:default; }
+@media (prefers-reduced-motion: reduce) { .page-loading-indicator { animation:none; } }
+
+/* Missing media should not consume a portrait-sized empty screen. */
+.library-card-media:has([data-preview-state=missing]) { aspect-ratio:4 / 3; }
+.library-card-media:has([data-preview-state=missing]) > [data-preview-state] { min-height:110px; }
+.library-card-media [data-preview-state=missing] { padding-bottom:20px; }

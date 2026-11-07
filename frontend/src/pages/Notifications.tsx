@@ -9,6 +9,7 @@ import {
   type AppNotification,
   type CalendarNotificationView,
 } from '../services/notificationsApi'
+import { notificationText } from '../utils/notificationText'
 import PageLoading from '../components/PageLoading'
 import { MobileShellActions } from '../navigation/mobileShellActions'
 
@@ -16,11 +17,11 @@ function typeLabel(t: (key: string, options?: Record<string, unknown>) => string
   return t(`notifications.types.${type}`, { defaultValue: type })
 }
 
-function formatWhen(iso: string | null): string {
+function formatWhen(iso: string | null, locale: string): string {
   if (!iso) return ''
   const date = new Date(iso)
   if (Number.isNaN(date.getTime())) return ''
-  return date.toLocaleString()
+  return date.toLocaleString(locale)
 }
 
 /** "Dive of <date>" when the real session date is known and differs from the
@@ -96,16 +97,17 @@ function NotificationRow({
   const lang = i18n.resolvedLanguage?.startsWith('fr') ? 'fr' : 'en'
   const calendar = item.calendar
   const calendarView = calendar && !calendar.redacted ? calendar : null
+  const generated = notificationText(item, t)
   const title = calendar
     ? calendarView
       ? `${t(`notifications.calendar.${calendarView.kind}`)} · ${calendarView.event_title}`
       : typeLabel(t, item.type)
-    : item.title
+    : generated.title
   const body = calendar
     ? calendarView
       ? calendarLines(t, calendarView, lang).join(' · ')
       : t('notifications.calendar.redacted')
-    : item.body
+    : generated.body
   // The item carries the sync moment as its own date; when the server
   // resolved the dive's real session date and it differs, state it — the
   // "Open dive" action points at that session, not the arrival day.
@@ -122,7 +124,7 @@ function NotificationRow({
         </p>
         {item.created_at && (
           <time dateTime={item.created_at} className="shrink-0 text-xs text-app-muted">
-            {formatWhen(item.created_at)}
+            {formatWhen(item.created_at, i18n.language)}
           </time>
         )}
       </div>

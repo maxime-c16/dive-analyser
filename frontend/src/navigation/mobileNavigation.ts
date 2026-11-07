@@ -4,7 +4,7 @@ export function primaryTabFor(path: string): PrimaryTab | null {
   if (/^\/dives(?:\/|$)/.test(path)) return 'dives'
   if (/^\/messages(?:\/|$)/.test(path)) return 'messages'
   if (/^\/(?:community|users)(?:\/|$)/.test(path)) return 'community'
-  if (/^\/evaluations\/?$/.test(path)) return 'evaluations'
+  if (/^\/(?:evaluations|room)(?:\/|$)/.test(path)) return 'evaluations'
   return null
 }
 export function navPolicyFor(path: string, width: number, state: { overlays?: number; editing?: boolean; bottomAction?: boolean; clip?: boolean } = {}): 'visible' | 'hidden' | 'replaced' {

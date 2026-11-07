@@ -71,6 +71,7 @@ function EvaluationScopedPlayer({
   automatic = false,
   watching = false,
   onEnded,
+  onPlaybackProgress,
   onReplay,
   onFailure,
   preloadOnly = false,
@@ -89,11 +90,16 @@ function EvaluationScopedPlayer({
   automatic?: boolean
   watching?: boolean
   onEnded?: () => void
+  onPlaybackProgress?: (current: number, duration: number) => void
   onReplay?: () => void
   onFailure?: () => void
 }) {
   const { t } = useTranslation()
   const videoRef = useRef<HTMLVideoElement>(null)
+  const reportPlaybackProgress = () => {
+    const video = videoRef.current
+    if (!preloadOnly && video && Number.isFinite(video.duration) && video.duration > 0) onPlaybackProgress?.(Math.max(0, Math.min(video.currentTime, video.duration)), video.duration)
+  }
   const [wholeFrame, setWholeFrame] = useState(false)
   const [cover, setCover] = useState(1)
   const [pinchProgress, setPinchProgress] = useState(0)
@@ -503,7 +509,8 @@ function EvaluationScopedPlayer({
         onKeyDown={event => { if (event.key === ' ' || event.key === 'Enter') { event.preventDefault(); togglePlay() } }}
         onEnded={onEnded}
         onError={mediaError}
-        onLoadedMetadata={measureFrame}
+        onLoadedMetadata={() => { measureFrame(); reportPlaybackProgress() }}
+        onTimeUpdate={reportPlaybackProgress}
         onLoadedData={() => { hasDecodedFrameRef.current = true; onBuffered?.() }}
         onPlaying={() => { hasDecodedFrameRef.current = true }}
         muted={muted}

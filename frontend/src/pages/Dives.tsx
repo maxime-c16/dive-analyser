@@ -1,3 +1,4 @@
+import { scoreNumber } from '../components/evaluation/scoreFormatting'
 import {trainingSessions, formatDuration, type SharedTrainingSession} from "../services/sessionVideosApi";
 import { useLocation, useNavigate, type NavigateOptions } from 'react-router-dom'
 import React, { lazy, Suspense, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
@@ -61,12 +62,12 @@ const PERIODS: Array<[string, number]> = [
 ];
 
 function ScoreBadge({ dive }: { dive: Dive }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   // The surface chip is the letter; hovering (and the Details tab) give the
   // /10 scale and where the logged score actually sits on it.
   return (
     <span
-      title={t("dives.scoreChipTitle", { score: attemptScore(dive).toFixed(1), letter: performanceLabel(dive.performance) || dive.performance })}
+      title={t("dives.scoreChipTitle", { score: scoreNumber(attemptScore(dive), i18n.language), letter: performanceLabel(dive.performance) || dive.performance })}
       className={`inline-flex border px-2 py-1 text-xs font-medium ${performanceClass[dive.performance] || performanceClass.M}`}
     >
       {performanceLabel(dive.performance) || dive.performance}
@@ -130,7 +131,7 @@ function SessionRow({ session }: { session: SharedTrainingSession }) {
   );
 }
 
-function AttemptRow({ dive, onOpen, showDiver = false }: { dive: Dive; onOpen: () => void; showDiver?: boolean }) {  const { t } = useTranslation();
+function AttemptRow({ dive, onOpen, showDiver = false }: { dive: Dive; onOpen: () => void; showDiver?: boolean }) {  const { t, i18n } = useTranslation();
   const score = attemptScore(dive);
   return (
     <button
@@ -161,7 +162,7 @@ function AttemptRow({ dive, onOpen, showDiver = false }: { dive: Dive; onOpen: (
         </p>
       </div>
       <div className="hidden text-sm font-semibold text-app-text sm:block">
-        {score.toFixed(1)} / 10
+        {scoreNumber(score, i18n.language)} / 10
       </div>
       <div className="hidden text-right text-xs text-app-muted sm:block">
         {format(parseISO(dive.dive_datetime), "d MMM yyyy", { locale: appLocale() })}
@@ -935,7 +936,7 @@ function DiveLibrary() {
 
   return (
     <div className="mx-auto max-w-[1440px] pb-10">
-      <header className="flex flex-wrap items-center gap-x-2 gap-y-3 border-b border-app pb-3 sm:flex-nowrap sm:items-end sm:gap-4 sm:pb-5">
+      <header className="library-heading flex flex-wrap items-center gap-x-2 gap-y-3 border-b border-app pb-3 sm:flex-nowrap sm:items-end sm:gap-4 sm:pb-5">
         <h1 className="min-w-0 flex-1 text-3xl font-semibold tracking-tight text-app-text sm:text-4xl">
           {t("nav.dives")}
         </h1>
@@ -970,7 +971,6 @@ function DiveLibrary() {
         >
           <RefreshCw className="h-4 w-4" />
         </button>
-        <div className="basis-full sm:hidden" aria-hidden />
         <AddVideos onAdded={() => { clearLibraryCache(); setReloadKey(key => key + 1); }} />
       </header>
       <PendingBanner />

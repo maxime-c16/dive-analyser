@@ -162,3 +162,21 @@ it('preserves ThumbHash, thumb and signed cache capabilities for grid and player
   expect(preview.videoThumbUrl).toBe(signed)
   expect(preview.playbackUrl).toBe(signed)
 })
+
+
+it('bounds a stalled batch and allows a fresh attempt after the deadline', async () => {
+  const fetcher = vi.fn().mockImplementationOnce((_url, options) => new Promise((_resolve, reject) => {
+    options.signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true })
+  })).mockResolvedValueOnce({ ok: true, json: async () => ({ slow: { status: 'ready', poster_url: '/poster' } }) })
+  vi.stubGlobal('fetch', fetcher)
+  const { getPreview, cachedPreview } = await import('./mediaPreview')
+  const pending = getPreview('slow')
+  await vi.advanceTimersByTimeAsync(50)
+  await vi.advanceTimersByTimeAsync(12_000)
+  expect(await pending).toMatchObject({ ready: false, posterUrl: null })
+  expect(cachedPreview('slow')).toBeUndefined()
+  const retry = getPreview('slow')
+  await vi.advanceTimersByTimeAsync(50)
+  expect(await retry).toMatchObject({ ready: true, posterUrl: '/poster' })
+  expect(fetcher).toHaveBeenCalledTimes(2)
+})

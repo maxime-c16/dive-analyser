@@ -402,3 +402,9 @@ it('mobile menu isolates the page and restores its avatar after nested update hi
   expect(document.getElementById('main-content')?.closest('[inert]')).toBeNull()
   view.unmount(); vi.unstubAllGlobals()
 })
+
+
+it('uses translated breadcrumb keys for community and evaluation routes', () => {
+  expect(breadcrumbTrail('/community')).toEqual([{ labelKey: 'nav.community' }])
+  expect(breadcrumbTrail('/evaluations')).toEqual([{ labelKey: 'nav.evaluations' }])
+})
