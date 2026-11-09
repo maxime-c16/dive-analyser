@@ -85,6 +85,5 @@ unintegrated foundation here requires no deployment or database action.
 
 ## Local commits
 
-The foundation commit includes the approved proposal, resolver, draft models and
-focused tests. Its exact SHA is recorded in the following documentation commit
-and in the implementation handoff; a commit cannot include its own final SHA.
+Foundation commit: `acd958e4` (approved proposal, resolver, draft models and
+focused tests). This documentation follow-up records that immutable commit ID.
