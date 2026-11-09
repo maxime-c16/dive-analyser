@@ -11,7 +11,7 @@ export default function TechniqueWorkspace({ viewer, code, height, onSelected }:
   useEffect(() => {
     let current = true
     setContexts([])
-    api.get('/technique-history/contexts', { params: { code, after } }).then(({ data }) => { if (current) { setContexts(data.items); setNext(data.next) } }).catch(() => { if (current) setContexts([]) })
+    api.get('/api/v1/technique-history/contexts', { params: { code, after } }).then(({ data }) => { if (current) { setContexts(data.items); setNext(data.next) } }).catch(() => { if (current) setContexts([]) })
     return () => { current = false }
   }, [viewer, code, after])
   const candidates = contexts.filter(c => !height || c.height === height)

@@ -14,7 +14,7 @@ it('previews before save and keeps the immutable anchor rather than display date
   fireEvent.change(screen.getByLabelText(/^Technique$/), { target: { value: 'New cue' } })
   fireEvent.change(screen.getByLabelText(/Starting attempt|Premier essai/), { target: { value: '11' } })
   fireEvent.click(screen.getByRole('button', { name: /Preview|Prévisualiser/ }))
-  await waitFor(() => expect(post).toHaveBeenCalledWith('/technique-history/1/7/preview', expect.objectContaining({ anchor_id: 11, start_at: '2026-01-01', revision: 2 })))
+  await waitFor(() => expect(post).toHaveBeenCalledWith('/api/v1/technique-history/1/7/preview', expect.objectContaining({ anchor_id: 11, start_at: '2026-01-01', revision: 2 })))
   expect(post.mock.calls.some(([url]) => url.endsWith('/changes'))).toBe(false)
 })
 it('ignores private data returned after switching diver', async () => {

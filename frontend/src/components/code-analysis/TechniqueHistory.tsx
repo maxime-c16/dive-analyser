@@ -33,11 +33,11 @@ export default function TechniqueHistory({ diver, context, onSelected }: { diver
   const generation = useRef(0)
   const contextKey = JSON.stringify(context)
   useEffect(() => { onSelected?.(pair.length > 0 || chartActive); return () => onSelected?.(false) }, [pair.length, chartActive, onSelected])
-  const base = `/technique-history/${diver}`
+  const base = `/api/v1/technique-history/${diver}`
   useEffect(() => {
     const g = ++generation.current
     setLabel(''); setIdentity(null); setEdit(null); setDateStart(''); setUncertainUntil(''); setAnchor(null); setCopyPreview(null); setBusy(false); setPair([]); setAfter(0); setEpisodeAfter(0); setTrackAfter(0); setTracks([]); setTrack(null); setEpisodes([]); setAttempts([]); setSelected([]); setPreview(null); setError('')
-    api.get('/technique-history/preferences').then(({ data }) => { if (g === generation.current) setTimezone(data.timezone) }).catch(() => {})
+    api.get('/api/v1/technique-history/preferences').then(({ data }) => { if (g === generation.current) setTimezone(data.timezone) }).catch(() => {})
     api.get(`${base}/tracks`).then(({ data }) => { if (g === generation.current) { setTrackNext(data.next); setTracks(data.items); setTrack(data.items[0]?.id ?? null) } }).catch(() => { if (g === generation.current) setError(t('technique.unavailable')) })
     return () => { generation.current++ }
   }, [base, contextKey, t])
@@ -90,7 +90,7 @@ export default function TechniqueHistory({ diver, context, onSelected }: { diver
         <label><input type="checkbox" checked={gap} onChange={e => { setGap(e.target.checked); setPreview(null) }} />{t('technique.unknown')}</label>
         <label>{t('technique.reuse')} <select className="app-input" value={identity ?? ''} onChange={e => { setIdentity(e.target.value ? Number(e.target.value) : null); setPreview(null) }}><option value="">—</option>{episodes.filter((e, i, all) => e.technique_id && all.findIndex(other => other.technique_id === e.technique_id) === i).map(e => <option key={e.technique_id} value={e.technique_id!}>{e.label}</option>)}</select></label>
         {canFamily && <label><input type="checkbox" checked={family} onChange={e => { setFamily(e.target.checked); setPreview(null) }} />{t('technique.family', { family: familyCode })}</label>}
-        <label>{t('technique.timezone')} <input className="app-input" maxLength={80} value={timezone} onChange={e => { setTimezone(e.target.value); setPreview(null) }} onBlur={() => { const g = generation.current; void api.post('/technique-history/preferences', { timezone }).catch(() => { if (g === generation.current) setError(t('technique.conflict')) }) }} /></label>
+        <label>{t('technique.timezone')} <input className="app-input" maxLength={80} value={timezone} onChange={e => { setTimezone(e.target.value); setPreview(null) }} onBlur={() => { const g = generation.current; void api.post('/api/v1/technique-history/preferences', { timezone }).catch(() => { if (g === generation.current) setError(t('technique.conflict')) }) }} /></label>
         <label>{t('technique.notes')} <textarea className="app-input" maxLength={2000} value={notes} onChange={e => { setNotes(e.target.value); setPreview(null) }} /></label>
         <label><input type="checkbox" checked={narrowPosition} onChange={e => { setNarrowPosition(e.target.checked); setPreview(null) }} />{context.position}</label><label><input type="checkbox" checked={narrowSync} onChange={e => { setNarrowSync(e.target.checked); setPreview(null) }} />SYNC {String(context.sync)}</label>
         </details>
