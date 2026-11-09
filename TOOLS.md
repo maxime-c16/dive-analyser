@@ -35,6 +35,26 @@ keeps its sync config under `/Users/Shared/services/data/diveanalyzer/`.
   server-side. `ci/gate.sh images` fails fast with a readable message.
 - GNU `timeout/sha256sum/nproc/flock` exist through Homebrew
   (`brew install coreutils flock`) — without them the gate cannot run.
+- `backend/requirements.txt` still pins `pandas==2.1.3` / `numpy==1.26.2`
+  (no wheels for python >3.12 — they do not build on 3.13/3.14 either,
+  meson errors): run the whole gate with the cellar python 3.12 first.
+  Once, prepare the interpreter shim + isolated PyYAML (the compose
+  check imports PyYAML from PATH python):
+  ```bash
+  brew install python@3.12   # if /opt/homebrew/bin/python3.12 missing
+  mkdir -p ~/.cache/py312-shim ~/.cache/dive-fast-pylibs-312
+  ln -sfn /opt/homebrew/bin/python3.12 ~/.cache/py312-shim/python3
+  PIP_BREAK_SYSTEM_PACKAGES=1 \
+    /opt/homebrew/bin/python3.12 -m pip install --quiet \
+    --target ~/.cache/dive-fast-pylibs-312 pyyaml
+  ```
+  Then:
+  ```bash
+  export PATH="$HOME/.cache/py312-shim:$PATH" \
+         PYTHONPATH="$HOME/.cache/dive-fast-pylibs-312"
+  ci/gate.sh
+  ```
+  (venv cache is keyed by interpreter, so 3.12 and 3.14 venvs coexist.)
 - Not installed **and not required** by `ci/*` or `ops/*`: `mysql`, `yq`,
   `go`, `duckdb`, `wrangler`. Do not chase them if a task mentions them —
   grep first.
