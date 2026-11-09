@@ -27,6 +27,7 @@ class Technique(Base):
 
 class TechniqueEpisode(Base):
     __tablename__ = 'technique_episodes'
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     id = Column(Integer, primary_key=True)
     track_id = Column(Integer, ForeignKey('technique_tracks.id'), nullable=False)
     technique_id = Column(Integer, ForeignKey('techniques.id'), nullable=True)
@@ -103,3 +104,9 @@ class TechniqueSessionState(Base):
         UniqueConstraint('track_id', 'session_id', 'code', 'apparatus', 'height', 'position', 'sync'),
         CheckConstraint("state IN ('mixed', 'unknown')", name='ck_technique_session_state'),
     )
+
+
+class TechniquePreference(Base):
+    __tablename__ = 'technique_preferences'
+    user_id = Column(Integer, ForeignKey('app_users.id'), primary_key=True)
+    timezone = Column(String(80), nullable=False)

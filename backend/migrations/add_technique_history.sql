@@ -7,7 +7,7 @@ CREATE INDEX IF NOT EXISTS ix_dives_history_context ON dives(diver_id,dive_code,
 CREATE OR REPLACE FUNCTION preserve_dive_history_order() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
  IF TG_OP='INSERT' THEN NEW.history_occurred_at=coalesce(NEW.history_occurred_at,NEW.dive_datetime);
- ELSIF NEW.history_occurred_at IS DISTINCT FROM OLD.history_occurred_at THEN
+ ELSIF NEW.history_occurred_at IS DISTINCT FROM OLD.history_occurred_at AND coalesce(current_setting('app.history_correction',true),'off') <> 'on' THEN
  RAISE EXCEPTION 'Immutable history occurrence';
  END IF;
  RETURN NEW;
@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS techniques (
 ;
 
 CREATE TABLE IF NOT EXISTS technique_episodes (
+    created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
 	id SERIAL NOT NULL, 
 	track_id INTEGER NOT NULL, 
 	technique_id INTEGER, 
@@ -131,4 +132,10 @@ CREATE TABLE IF NOT EXISTS technique_session_states (
 )
 
 ;
+
+CREATE TABLE IF NOT EXISTS technique_preferences (
+ user_id integer PRIMARY KEY REFERENCES app_users(id),
+ timezone varchar(80) NOT NULL
+);
+
 COMMIT;

@@ -1,3 +1,4 @@
+import TechniqueWorkspace from '../components/code-analysis/TechniqueWorkspace'
 import React, { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { loadChunk } from '../utils/chunkLoad'
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
@@ -69,6 +70,7 @@ export default function CodeAnalysis() {
   const { t, i18n } = useTranslation()
   const lang = i18n.language?.startsWith('fr') ? 'fr' : 'en'
   const { user } = useAuth()
+  const [techniqueView, setTechniqueView] = useState(false)
   const navigate = useNavigate()
   const location = useLocation()
   const [params, setParams] = useSearchParams()
@@ -317,7 +319,7 @@ export default function CodeAnalysis() {
           </button>
         })()}
 
-        {analytics && <section className="ca-panel">
+        {analytics && !techniqueView && <section className="ca-panel">
           <div className="ca-panel-h"><h2>{t('codeAnalysis.scores')}</h2>
             <Segmented label={t('codeAnalysis.chartModeAria')} value={mode} onChange={value => { setExtreme(null); update({ mode: value === 'attempts' ? null : value, sel: null }) }}
               options={[['attempts', t('codeAnalysis.modeAttempts')], ['sessions', t('codeAnalysis.modeSessions')]] as const} /></div>
@@ -341,6 +343,7 @@ export default function CodeAnalysis() {
           </div>}
         </section>}
 
+        {user && <TechniqueWorkspace key={`${user.user_id}-${code}`} code={code} viewer={user.user_id} height={height} onSelected={setTechniqueView} />}
         <div className="ca-two">
           {analytics && (heightRows.length > 0 || phaseRows.length > 0) && <section className="ca-panel">
             <div className="ca-panel-h"><h2>{t('codeAnalysis.context')}</h2><span>{t('codeAnalysis.median')}</span></div>

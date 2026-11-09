@@ -14,13 +14,13 @@ def pg():
     engine=create_engine(url)
     with engine.begin() as c:
         c.execute(text('DROP SCHEMA public CASCADE'));c.execute(text('CREATE SCHEMA public'))
-        c.execute(text('''CREATE TABLE divers(id serial primary key); CREATE TABLE sessions(id serial primary key);
+        c.execute(text('''CREATE TABLE divers(id serial primary key,display_name text DEFAULT 'Test diver'); CREATE TABLE sessions(id serial primary key);
         CREATE TABLE app_users(id serial primary key);
         CREATE TABLE dives(id serial primary key,session_id int,diver_id int,dive_code text,
-        platform_type text,height text,position text,is_sync boolean,performance text,dive_datetime timestamp);
+        platform_type text,height text,position text,is_sync boolean,performance text,dive_datetime timestamp,video_uuid text,phase1_performance text,phase2_performance text,created_at timestamp DEFAULT CURRENT_TIMESTAMP);
         CREATE TABLE dive_modifiers(dive_id int,modifier_code text);
         INSERT INTO divers VALUES(1); INSERT INTO sessions VALUES(1);
-        INSERT INTO dives VALUES(1,1,1,'103','springboard','3','B',false,'G','2026-01-01'); SELECT setval('dives_id_seq',1);'''))
+        INSERT INTO dives VALUES(1,1,1,'103','springboard','3','B',false,'G','2026-01-01',NULL,NULL,NULL,now()); SELECT setval('dives_id_seq',1);'''))
         migration=(Path(__file__).parents[1]/'migrations/add_technique_history.sql').read_text().replace('BEGIN;','').replace('COMMIT;','')
         c.execute(text(migration));c.execute(text(migration))
     yield engine
@@ -52,6 +52,8 @@ def test_sql_full_scope_precedence_and_conflicting_recorded(pg):
         result=c.execute(text(comparison_sql()),p).mappings().one()
         assert result['eligible']==121 and result['scored']==121 and result['median']==10
         assert result['recorded_conflicting']==1 and result['inferred_only']==120
+        sessions=c.execute(text(comparison_sql(session_weight=True)),p).mappings().one()
+        assert sessions['observations']==1 and sessions['q1'] is None and sessions['median']==10
         c.execute(text("UPDATE dives SET diver_id=NULL WHERE id=1"))
         assert c.scalar(text(RESOLVED+' SELECT count(*) FROM resolved'),p)==120
 
@@ -118,3 +120,238 @@ def test_recorded_partition_uses_union_and_keeps_conflict_on_its_identity(pg):
         result=c.execute(text(comparison_sql(recorded=True)),p).mappings().one()
         assert result['side']==0 and result['recorded_conflicting']==1 and result['eligible']==1
         assert result['median']==7 and result['q1'] is None
+
+def test_comparison_one_sql_statement_and_page_independent_statistics(pg):
+    from sqlalchemy import event
+    calls=[]
+    event.listen(pg,'before_cursor_execute',lambda *args:calls.append(args[2]))
+    with pg.begin() as c:
+        params=dict(diver=1,track=1,code='103',apparatus='springboard',height='3',position='B',sync=False,left=1,right=2,left_identity=1,right_identity=2,modifiers='')
+        before=len(calls)
+        assert c.execute(text(comparison_sql(session_weight=True)),params).mappings().all()==[]
+        assert len(calls)-before==1
+
+def test_owner_required_even_when_dives_are_public(pg,monkeypatch):
+    from types import SimpleNamespace
+    from sqlalchemy.orm import Session
+    from fastapi import HTTPException
+    from app.api.v1 import technique_history as api
+    from app.models.user_auth import UserDiverAccess
+    UserDiverAccess.__table__.create(pg)
+    monkeypatch.setattr(api,'optional_session_user',lambda *args:SimpleNamespace(id=1,is_active=True,is_admin=True))
+    with Session(pg) as db:
+        with pytest.raises(HTTPException) as exc:api.owner(None,db,1)
+        assert exc.value.status_code==403
+        db.execute(text('INSERT INTO app_users VALUES(1)'))
+        db.add(UserDiverAccess(user_id=1,diver_id=1,access_kind='OWNER'));db.commit()
+        assert api.owner(None,db,1).id==1
+        db.query(UserDiverAccess).delete();db.commit()
+        with pytest.raises(HTTPException):api.owner(None,db,1)
+
+def test_api_sql_pages_and_date_normalization(pg,monkeypatch):
+    from sqlalchemy.orm import Session
+    from app.api.v1 import technique_history as api
+    from types import SimpleNamespace
+    from datetime import datetime
+    monkeypatch.setattr(api,'owner',lambda *a,**k:SimpleNamespace(id=1))
+    with pg.begin() as c:c.execute(text("INSERT INTO app_users VALUES(1); INSERT INTO technique_tracks(id,diver_id,name,revision) VALUES(1,1,'General',0)"))
+    with Session(pg) as db:
+        b=api.Change(code='103',scope='103',apparatus='springboard',height='3',position='B',label='A',revision=0,start_at=datetime(2026,1,1,1),timezone='Europe/Paris')
+        preview=api.preview(1,1,b,None,db)
+        assert preview['change']['start_at']==datetime(2026,1,1)
+        assert preview['change']['normalized'] is True
+        created=api.change(1,1,api.Change(**preview['change']),None,db)
+        assert created['episode']['start_at']=='2026-01-01T00:00:00'
+        page=api.attempts(1,1,api.ReadInput(code='103',apparatus='springboard',height='3',position='B'),None,db)
+        assert page['items'][0]['use_label']=='A' and page['next'] is None
+        assert page['items'][0]['source']=='inferred'
+
+def test_sql_rating_preserves_app_phase_weighting_and_missing_values(pg):
+    from app.services.performance_scoring import attempt_score_10
+    with pg.begin() as c:
+        c.execute(text("UPDATE dives SET phase1_performance='G',phase2_performance='P' WHERE id=1"))
+        p=dict(diver=1,track=1,code='103',apparatus='springboard',height='3',position='B',sync=False)
+        assert float(c.scalar(text(RESOLVED+' SELECT rating FROM resolved'),p))==pytest.approx(attempt_score_10('G','G','P'))
+        c.execute(text('UPDATE dives SET performance=NULL WHERE id=1'))
+        assert c.scalar(text(RESOLVED+' SELECT rating FROM resolved'),p) is None
+
+def test_copy_is_independent_and_preserves_target_upcoming_boundary(pg,monkeypatch):
+    from sqlalchemy.orm import Session
+    from app.api.v1 import technique_history as api
+    from types import SimpleNamespace
+    from datetime import datetime
+    monkeypatch.setattr(api,'owner',lambda *a,**k:SimpleNamespace(id=1))
+    with pg.begin() as c:c.execute(text("INSERT INTO app_users VALUES(1); INSERT INTO technique_tracks(id,diver_id,name,revision) VALUES(1,1,'General',0)"))
+    with Session(pg) as db:
+        common=dict(code='103',apparatus='springboard',height='3',position='B',timezone='UTC')
+        source=api.change(1,1,api.Change(**common,scope='103',label='A',revision=0,start_at=datetime(2026,1,1)),None,db)
+        api.change(1,1,api.Change(**common,scope='1',label='B',revision=1,start_at=datetime(2026,2,1)),None,db)
+        copied=api.copy_once(1,1,api.CopyInput(revision=2,episode_id=source['episode']['id'],targets=[api.CopyTarget(scope='1',apparatus='springboard',height='3')],commit=True),None,db)
+        result=db.execute(text('SELECT source_episode_id,end_at FROM technique_episodes WHERE id=:id'),{'id':copied['ids'][0]}).one()
+        assert result[0]==source['episode']['id'] and result[1]==datetime(2026,2,1)
+        edit=api.Change(**common,scope='103',label='C',revision=3,start_at=datetime(2026,1,1),episode_id=source['episode']['id'])
+        api.change(1,1,edit,None,db)
+        assert db.scalar(text('SELECT technique_id FROM technique_episodes WHERE id=:id'),{'id':copied['ids'][0]})==source['episode']['technique_id']
+
+def test_edit_moves_previous_end_and_undo_restores_both(pg,monkeypatch):
+    from sqlalchemy.orm import Session
+    from app.api.v1 import technique_history as api
+    from types import SimpleNamespace
+    from datetime import datetime
+    monkeypatch.setattr(api,'owner',lambda *a,**k:SimpleNamespace(id=1))
+    with pg.begin() as c:c.execute(text("INSERT INTO app_users VALUES(1); INSERT INTO technique_tracks(id,diver_id,name,revision) VALUES(1,1,'General',0)"))
+    with Session(pg) as db:
+        common=dict(code='103',scope='103',apparatus='springboard',height='3',position='B')
+        a=api.change(1,1,api.Change(**common,label='A',revision=0,start_at=datetime(2026,1,1)),None,db)
+        b=api.change(1,1,api.Change(**common,label='B',revision=1,start_at=datetime(2026,1,10)),None,db)
+        api.change(1,1,api.Change(**common,label='B',revision=2,start_at=datetime(2026,1,15),episode_id=b['episode']['id']),None,db)
+        assert db.scalar(text('SELECT end_at FROM technique_episodes WHERE id=:id'),{'id':a['episode']['id']})==datetime(2026,1,15)
+        api.undo(1,1,api.RevisionInput(revision=3),None,db)
+        assert db.scalar(text('SELECT end_at FROM technique_episodes WHERE id=:id'),{'id':a['episode']['id']})==datetime(2026,1,10)
+        assert db.scalar(text('SELECT start_at FROM technique_episodes WHERE id=:id'),{'id':b['episode']['id']})==datetime(2026,1,10)
+
+def test_correction_requires_all_track_revisions_and_preserves_anchor_key(pg,monkeypatch):
+    from sqlalchemy.orm import Session
+    from app.api.v1 import technique_history as api
+    from types import SimpleNamespace
+    from datetime import datetime
+    from fastapi import HTTPException
+    monkeypatch.setattr(api,'owner',lambda *a,**k:SimpleNamespace(id=1))
+    with pg.begin() as c:c.execute(text("INSERT INTO app_users VALUES(1); INSERT INTO technique_tracks(id,diver_id,name,revision) VALUES(1,1,'General',0),(2,1,'Entry',0)"))
+    with Session(pg) as db:
+        a=api.change(1,1,api.Change(code='103',scope='103',apparatus='springboard',height='3',position='B',label='A',revision=0,start_at=datetime(2026,1,1),anchor_id=1),None,db)
+        b=api.CorrectionInput(revision=1,attempt_id=1,occurred_at=datetime(2026,1,2))
+        preview=api.correct_order(1,1,b,None,db)
+        with pytest.raises(HTTPException) as exc:api.correct_order(1,1,api.CorrectionInput(**dict(b.model_dump(),commit=True)),None,db)
+        assert exc.value.status_code==409
+        db.rollback()
+        api.correct_order(1,1,api.CorrectionInput(**dict(b.model_dump(),commit=True,track_revisions=preview['preview']['track_revisions'])),None,db)
+        assert db.scalar(text('SELECT history_occurred_at FROM dives WHERE id=1'))==datetime(2026,1,2)
+        assert db.scalar(text('SELECT start_at FROM technique_episodes WHERE id=:id'),{'id':a['episode']['id']})==datetime(2026,1,1)
+        assert db.scalar(text('SELECT revision FROM technique_tracks WHERE id=2'))==1
+
+def test_episode_pages_bound_materialization_and_response_bytes(pg,monkeypatch):
+    import json,tracemalloc
+    from sqlalchemy import event
+    from sqlalchemy.orm import Session
+    from app.api.v1 import technique_history as api
+    from types import SimpleNamespace
+    monkeypatch.setattr(api,'owner',lambda *a,**k:SimpleNamespace(id=1))
+    with pg.begin() as c:
+        c.execute(text("""INSERT INTO technique_tracks(id,diver_id,name,revision) VALUES(1,1,'General',0);
+        INSERT INTO technique_episodes(track_id,scope,apparatus,height,start_at,start_id,precision,timezone,gap,notes,deleted)
+        SELECT 1,'103','springboard','3','2026-01-01'::timestamp+n*interval '1 minute',0,'date','UTC',true,repeat('x',2000),false FROM generate_series(1,75) n"""))
+    calls=[]
+    event.listen(pg,'before_cursor_execute',lambda *args:calls.append(args[2]))
+    with Session(pg) as db:
+        tracemalloc.start()
+        first=api.episodes(1,1,None,0,db)
+        second=api.episodes(1,1,None,first['next'],db)
+        _,peak=tracemalloc.get_traced_memory();tracemalloc.stop()
+        size=len(json.dumps(first,default=str).encode())
+        assert len(first['items'])==50 and len(second['items'])==25 and second['next'] is None
+        assert len(calls)<=6 and size<256*1024 and peak<2*1024*1024
+        print(f'episode detail proof: {len(calls)} SQL calls for two pages, {size} response bytes, {peak} peak traced bytes')
+
+def test_chart_curve_uses_preceding_sessions_across_page_boundary(pg,monkeypatch):
+    from sqlalchemy.orm import Session
+    from app.api.v1 import technique_history as api
+    from types import SimpleNamespace
+    monkeypatch.setattr(api,'owner',lambda *a,**k:SimpleNamespace(id=1))
+    with pg.begin() as c:
+        c.execute(text("""INSERT INTO technique_tracks(id,diver_id,name,revision) VALUES(1,1,'General',0);
+        INSERT INTO techniques(id,track_id,label,created_at) VALUES(1,1,'A',now());
+        INSERT INTO technique_episodes(track_id,technique_id,scope,apparatus,height,start_at,start_id,precision,timezone,gap,notes,deleted)
+        VALUES(1,1,'103','springboard','3','2025-01-01',0,'date','UTC',false,'',false);
+        INSERT INTO dives(session_id,diver_id,dive_code,platform_type,height,position,is_sync,performance,dive_datetime)
+        SELECT n,1,'103','springboard','3','B',false,CASE WHEN n<=50 THEN 'P' ELSE 'F' END,'2026-01-01'::timestamp+n*interval '1 day' FROM generate_series(2,61) n"""))
+    with Session(pg) as db:
+        common=dict(code='103',apparatus='springboard',height='3',position='B',episode=1)
+        first=api.chart(1,1,api.ChartInput(**common),None,db)
+        assert len(first['items'])==50
+        second=api.chart(1,1,api.ChartInput(**common,after=first['next']),None,db)
+        assert second['items'][0]['median']==0
+        assert second['items'][0]['curve_median']==10
+
+def test_bulk_recorded_identity_and_deleted_episode_provenance_survive(pg,monkeypatch):
+    from sqlalchemy.orm import Session
+    from app.api.v1 import technique_history as api
+    from types import SimpleNamespace
+    from datetime import datetime
+    monkeypatch.setattr(api,'owner',lambda *a,**k:SimpleNamespace(id=1))
+    with pg.begin() as c:c.execute(text("INSERT INTO app_users VALUES(1); INSERT INTO technique_tracks(id,diver_id,name,revision) VALUES(1,1,'General',0)"))
+    with Session(pg) as db:
+        context=dict(code='103',apparatus='springboard',height='3',position='B')
+        e=api.change(1,1,api.Change(**context,scope='103',label='A',revision=0,start_at=datetime(2025,1,1)),None,db)
+        api.assign(1,1,api.Bulk(**context,revision=1,ids=[1],state='technique',technique_id=e['episode']['technique_id']),None,db)
+        api.delete_episode(1,1,e['episode']['id'],api.DeleteInput(revision=2,commit=True),None,db)
+        attempt=api.attempts(1,1,api.ReadInput(**context),None,db)['items'][0]
+        assert attempt['use_label']=='A' and attempt['source']=='recorded'
+        assert attempt['recorded_episode_deleted'] and attempt['recorded_episode_id']==e['episode']['id']
+
+def test_track_chart_splits_same_session_and_resets_a_b_a_segments(pg,monkeypatch):
+    from sqlalchemy.orm import Session
+    from app.api.v1 import technique_history as api
+    from types import SimpleNamespace
+    monkeypatch.setattr(api,'owner',lambda *a,**k:SimpleNamespace(id=1))
+    with pg.begin() as c:
+        c.execute(text("""INSERT INTO technique_tracks(id,diver_id,name,revision) VALUES(1,1,'General',0);
+        INSERT INTO techniques(id,track_id,label,created_at) VALUES(1,1,'A',now()),(2,1,'B',now());
+        INSERT INTO dives(session_id,diver_id,dive_code,platform_type,height,position,is_sync,performance,dive_datetime)
+        VALUES(1,1,'103','springboard','3','B',false,'P','2026-01-02'),(1,1,'103','springboard','3','B',false,'F','2026-01-03');
+        INSERT INTO technique_episodes(id,track_id,technique_id,scope,apparatus,height,start_at,start_id,end_at,end_id,precision,timezone,gap,notes,deleted)
+        VALUES(1,1,1,'103','springboard','3','2025-01-01',0,'2026-01-02',2,'date','UTC',false,'',false),
+        (2,1,2,'103','springboard','3','2026-01-02',2,'2026-01-03',3,'attempt','UTC',false,'',false),
+        (3,1,1,'103','springboard','3','2026-01-03',3,NULL,NULL,'attempt','UTC',false,'',false)"""))
+    with Session(pg) as db:
+        body=api.TrackChartInput(code='103',apparatus='springboard',height='3',position='B')
+        result=api.track_chart(1,1,body,None,db)
+        assert len(result['items'])==3 and len(result['boundaries'])==3
+        assert [float(r['curve_median']) for r in result['items']]==[7,10,0]
+        assert len({r['segment'] for r in result['items']})==3
+        db.execute(text("INSERT INTO technique_session_states(track_id,session_id,code,apparatus,height,position,sync,state) VALUES(1,1,'103','springboard','3','B',false,'mixed')"));db.commit()
+        mixed=api.track_chart(1,1,body,None,db)
+        assert all(r['curve_median'] is None for r in mixed['items'])
+
+def test_compare_api_coverage_and_modifier_inventory(pg,monkeypatch):
+    from sqlalchemy.orm import Session
+    from app.api.v1 import technique_history as api
+    from types import SimpleNamespace
+    from datetime import datetime
+    from fastapi import HTTPException
+    monkeypatch.setattr(api,'owner',lambda *a,**k:SimpleNamespace(id=1))
+    with pg.begin() as c:
+        c.execute(text("""INSERT INTO app_users VALUES(1); INSERT INTO technique_tracks(id,diver_id,name,revision) VALUES(1,1,'General',0);
+        INSERT INTO dives(session_id,diver_id,dive_code,platform_type,height,position,is_sync,performance,dive_datetime)
+        VALUES(1,1,'103','springboard','3','B',false,'P','2026-01-02')"""))
+    with Session(pg) as db:
+        common=dict(code='103',apparatus='springboard',height='3',position='B')
+        a=api.change(1,1,api.Change(**common,scope='103',label='A',revision=0,start_at=datetime(2025,1,1)),None,db)
+        b=api.change(1,1,api.Change(**common,scope='103',label='B',revision=1,start_at=datetime(2026,1,2)),None,db)
+        api.session_state(1,1,api.SessionFlag(**common,revision=2,session_id=1,state='mixed'),None,db)
+        api.assign(1,1,api.Bulk(**common,revision=3,ids=[1],state='technique',technique_id=a['episode']['technique_id']),None,db)
+        pair=dict(left=a['episode']['id'],right=b['episode']['id'])
+        inventory=api.modifier_sets(1,1,api.Inventory(**common,**pair),None,db)
+        assert inventory['items'][0]['left_eligible']==1 and inventory['items'][0]['right_eligible']==1
+        periods=api.compare(1,1,api.Compare(**common,**pair,modifiers=''),None,db)
+        assert periods['sides'][1]['mixed_unknown']==1 and periods['excluded']['not_recorded']==0
+        recorded=api.compare(1,1,api.Compare(**common,**pair,modifiers='',mode='recorded'),None,db)
+        assert recorded['recorded_eligible']==1 and recorded['excluded']['not_recorded']==1
+        with pytest.raises(HTTPException) as exc:api.compare(1,1,api.Compare(**dict(common,height='1'),**pair,modifiers=''),None,db)
+        assert exc.value.status_code==422
+
+def test_context_inventory_is_complete_and_owner_scoped(pg,monkeypatch):
+    from sqlalchemy.orm import Session
+    from app.api.v1 import technique_history as api
+    from app.models.user_auth import UserDiverAccess
+    from types import SimpleNamespace
+    monkeypatch.setattr(api,'optional_session_user',lambda *a:SimpleNamespace(id=1,is_active=True))
+    UserDiverAccess.__table__.create(pg)
+    with Session(pg) as db:
+        db.execute(text("""INSERT INTO app_users VALUES(1); INSERT INTO divers(id) VALUES(2);
+        INSERT INTO dives(session_id,diver_id,dive_code,platform_type,height,position,is_sync,performance,dive_datetime)
+        VALUES(1,1,'103','springboard','1','B',false,'P','2026-01-02'),(1,2,'103','springboard','3','B',false,'P','2026-01-03')"""))
+        db.add(UserDiverAccess(user_id=1,diver_id=1,access_kind='OWNER'));db.commit()
+        result=api.context_inventory(None,'103','',db)
+        assert len(result['items'])==2 and {r['height'] for r in result['items']}=={'1','3'}
+        assert all(r['diver_id']==1 for r in result['items'])
