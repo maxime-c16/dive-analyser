@@ -233,6 +233,9 @@ export default function ImmersiveControls({
       "volumechange",
       "timeupdate",
       "loadedmetadata",
+      "durationchange",
+      "ended",
+      "emptied",
     ];
     events.forEach((event) => video.addEventListener(event, sync));
     const sound = soundRef?.current;

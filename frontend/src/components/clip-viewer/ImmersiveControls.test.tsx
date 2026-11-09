@@ -326,3 +326,15 @@ it("movement, cancellation and unmount during a hold release the press", () => {
   expect(onHudPressChange).toHaveBeenCalledTimes(calls + 2);
   expect(onHudPressChange).toHaveBeenLastCalledWith(false);
 });
+
+it("shows play when a non-looping video ends and updates duration changes", () => {
+  const t = setup();
+  Object.defineProperty(t.video, "paused", { value: false, configurable: true });
+  fireEvent.play(t.video);
+  Object.defineProperty(t.video, "paused", { value: true, configurable: true });
+  fireEvent.ended(t.video);
+  expect(screen.getByRole("button", { name: "Play video" })).toBeInTheDocument();
+  Object.defineProperty(t.video, "duration", { value: 120, configurable: true });
+  fireEvent.durationChange(t.video);
+  expect(screen.getByRole("slider")).toHaveAttribute("max", "120");
+});
