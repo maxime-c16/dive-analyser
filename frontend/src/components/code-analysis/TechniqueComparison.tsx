@@ -5,7 +5,7 @@ import { api } from '../../services/api'
 type Side = { label?: string; side: number; eligible: number; scored: number; sessions: number; recorded_matching: number; recorded_conflicting: number; inferred_only: number; mixed_unknown: number; median: number | null; q1: number | null; q3: number | null }
 type Modifier = { modifiers: string; left_eligible: number; right_eligible: number; left_scored: number; right_scored: number }
 export default function TechniqueComparison({ base, context, pair, revision, onTrack }: { onTrack: (id: number, name?: string) => void; base: string; context: object; pair: number[]; revision: number }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [setAfter, setSetAfter] = useState(''), [setNext, setSetNext] = useState<string | null>(null)
   const [sets, setSets] = useState<Modifier[]>([]), [modifier, setModifier] = useState<string | null>(null)
   const [mode, setMode] = useState('periods'), [weighting, setWeighting] = useState('attempt')
@@ -31,17 +31,24 @@ export default function TechniqueComparison({ base, context, pair, revision, onT
     return () => { current = false }
   }, [base, key, modifier, mode, weighting, t])
   if (pair.length !== 2) return null
-  return <div><h3>{t('technique.ratingsDuring')}</h3>{error && <p role="alert">{error}</p>}
-    <label>{t('technique.modifiers')} <select className="app-input" value={modifier ?? '__choose'} onChange={e => setModifier(e.target.value)}><option disabled value="__choose">—</option>{sets.map(s => <option key={s.modifiers} value={s.modifiers}>{s.modifiers || t('technique.noModifiers')} · {s.left_scored}/{s.left_eligible} | {s.right_scored}/{s.right_eligible}</option>)}</select></label>
-    <button className="ca-btn" disabled={!setAfter} onClick={() => setSetAfter('')}>{t('common.back')}</button><button className="ca-btn" disabled={setNext === null} onClick={() => setSetAfter(setNext!)}>{t('technique.modifiers')}</button>
-    <label>{t('technique.compare')} <select className="app-input" value={mode} onChange={e => setMode(e.target.value)}><option value="periods">{t('technique.periods')}</option><option value="recorded">{t('technique.recorded')}{recordedEligible != null ? ` (${recordedEligible})` : ''}</option></select></label>
-    <label>{t('technique.weighting')} <select className="app-input" value={weighting} onChange={e => setWeighting(e.target.value)}><option value="attempt">{t('technique.attempt')}</option><option value="session">{t('technique.session')}</option></select></label>
-    <div>{otherTracks.map(other => <button type="button" className="ca-btn" key={other.id} onClick={() => onTrack(other.track_id, other.name)}>{other.name} · #{other.id}</button>)}</div>
-    {moreOthers && <p>{t('technique.moreTracks')}…</p>}
-    <p>{t('technique.excluded')}: {Object.entries(excluded).map(([key, count]) => `${t(`technique.exclusion.${key}`)} ${count}`).join(' · ')}</p>
-    {kind === 'recorded-by-episode' && <p>{t('technique.recordedByEpisode')}</p>}
-    <div>{[0, 1].map(index => { const s = sides.find(s => s.side === index); return <section key={index}><h4>{s?.label} · #{pair[index]}</h4><p>{t('technique.coverage', { scored: s?.scored ?? 0, eligible: s?.eligible ?? 0, sessions: s?.sessions ?? 0 })}</p>{s && <p>{mode === 'periods' ? t('technique.attribution', { matching: s.recorded_matching, conflicting: s.recorded_conflicting, inferred: s.inferred_only, unknown: s.mixed_unknown }) : t('technique.outsideIntended', { count: s.recorded_conflicting })}</p>}</section> })}</div>
-    {sides.length === 2 && sides.every(s => s.scored > 0) ? <table><thead><tr><th>{t('technique.label')}</th><th>{t('codeAnalysis.median')}</th><th>IQR</th></tr></thead><tbody>{sides.map(s => <tr key={s.side}><th>{s.label} · #{pair[s.side]}</th><td>{s.median ?? '—'}</td><td>{s.q1 != null && s.q3 != null ? `${s.q1}–${s.q3}` : '—'}</td></tr>)}</tbody></table> : <p>{t('technique.noComparable')}</p>}
-
+  const number = (value: number | null | undefined) => value == null ? '—' : new Intl.NumberFormat(i18n.language, { maximumFractionDigits: 1, minimumFractionDigits: 1 }).format(value)
+  const comparable = sides.length === 2 && sides.every(s => s.scored > 0)
+  return <div className="th-comparison">
+    {error && <p className="th-error" role="alert">{error}</p>}
+    <div className="th-compare-modes" role="group" aria-label={t('technique.compare')}><button aria-pressed={mode === 'periods'} onClick={() => setMode('periods')}>{t('technique.periods')}</button><button aria-pressed={mode === 'recorded'} onClick={() => setMode('recorded')}>{t('technique.recordedOnly')}{recordedEligible != null ? ` (${recordedEligible})` : ''}</button></div>
+    {(sets.length > 1 || setAfter || setNext) && <label className="th-field">{t('technique.modifiers')}<select value={modifier ?? '__choose'} onChange={e => setModifier(e.target.value)}><option disabled value="__choose">{t('technique.chooseModifiers')}</option>{sets.map(s => <option key={s.modifiers} value={s.modifiers}>{s.modifiers || t('technique.noModifiers')} · {s.left_scored}/{s.left_eligible} | {s.right_scored}/{s.right_eligible}</option>)}</select></label>}
+    <div className="th-pagination">{setAfter && <button onClick={() => setSetAfter('')}>{t('common.back')}</button>}{setNext && <button onClick={() => setSetAfter(setNext!)}>{t('technique.modifiers')}</button>}</div>
+    <div className="th-coverage">{[0, 1].map(index => { const s = sides.find(s => s.side === index); return <section key={index}><h4>{s?.label ?? t(index ? 'technique.after' : 'technique.before')}</h4><p>{t('technique.coverage', { scored: s?.scored ?? 0, eligible: s?.eligible ?? 0, sessions: s?.sessions ?? 0 })}</p>{s && <p>{mode === 'periods' ? t('technique.attributionBrief', { recorded: s.recorded_matching + s.recorded_conflicting, inferred: s.inferred_only, unknown: s.mixed_unknown }) : t('technique.outsideIntended', { count: s.recorded_conflicting })}</p>}{comparable && <><strong className="th-score">{number(s?.median)}</strong><span className="th-score-caption">{t('codeAnalysis.median')}</span></>}</section> })}</div>
+    {!comparable && <p className="th-no-comparison">{t(modifier === null && sets.length > 1 ? 'technique.chooseModifiers' : 'technique.noComparable')}</p>}
+    {comparable && <h3>{t('technique.ratingsDuring')}</h3>}
+    <details className="th-details"><summary>{t('technique.comparisonDetails')}</summary><div className="th-form">
+      <label className="th-field">{t('technique.weighting')}<select value={weighting} onChange={e => setWeighting(e.target.value)}><option value="attempt">{t('technique.eachDive')}</option><option value="session">{t('technique.eachSession')}</option></select></label>
+      <p>{t('technique.modifiers')}: {modifier || t('technique.noModifiers')}</p>
+      {sides.map(s => <div key={s.side}><strong>{s.label}</strong><p>{t('technique.usualScores')}: {s.q1 != null && s.q3 != null ? `${number(s.q1)}–${number(s.q3)}` : '—'}</p><p>{t('technique.attribution', { matching: s.recorded_matching, conflicting: s.recorded_conflicting, inferred: s.inferred_only, unknown: s.mixed_unknown })}</p></div>)}
+      {Object.values(excluded).some(n => n > 0) && <p>{t('technique.excluded')}: {Object.entries(excluded).filter(([, count]) => count > 0).map(([key, count]) => `${t(`technique.exclusion.${key}`)} ${count}`).join(' · ')}</p>}
+      {kind === 'recorded-by-episode' && <p>{t('technique.recordedByEpisode')}</p>}
+      {otherTracks.length > 0 && <div><p>{t('technique.otherChanges')}</p>{otherTracks.map(other => <button type="button" className="th-text-button" key={other.id} onClick={() => onTrack(other.track_id, other.name)}>{other.name}</button>)}</div>}
+      {moreOthers && <p>{t('technique.moreTracks')}…</p>}
+    </div></details>
   </div>
 }

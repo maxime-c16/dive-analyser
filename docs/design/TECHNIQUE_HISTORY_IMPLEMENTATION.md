@@ -165,3 +165,37 @@ existing authorization and transport workflow.
 - `1f248784`: original foundation status.
 - `03baef9d`: first runtime schema/API/SQL milestone.
 - `eec9b8d4`: integrated Scores UI, complete context inventory, segmented SQL chart, exact-context comparisons, mutations/provenance, release note and dedicated PostgreSQL/frontend verification.
+
+## Mobile journey redesign
+
+The initial implementation exposed editing and administration inline. The Scores
+experience now opens on a segmented chart and readable, newest-first technique
+timeline. One selected period reveals edit, copy and tagging actions. Compare
+explicitly selects two named periods and presents coverage before side-by-side
+medians; attribution, spread, exclusions and weighting are in comparison details.
+Only the applicable resolved episode is labeled current. A new exact-code change
+retains an existing exact-code episode's position/sync constraints so it does not
+silently create a less-specific default beneath the episode the user is viewing.
+
+Record change opens a native modal (bottom sheet on phones) with a label and date,
+then a review before saving. Attempt anchors, uncertain dates, family scope and
+notes remain in additional options. Track creation, all-history chart switching,
+undo, period deletion/ending/renaming, bulk/session attribution and history-order
+correction remain available through management or a selected episode. Existing
+notes are preserved when editing. Singleton context and dead pagination controls
+are omitted, dates are localized, and long labels wrap within the viewport.
+
+Browser verification on the LAN sandbox at 390 CSS pixels exercised period
+comparison, the record/review/save flow and undo cleanup, with zero horizontal
+page/dialog overflow and no render errors. Native dialogs keep focus within the
+modal, support Escape and restore the initiating control. No production data
+was involved. Interaction tests cover the quiet default view, immutable-anchor
+preview-before-save, explicit comparison selection, cancel and diver-switch
+isolation. The production frontend build passes.
+
+Validation for this redesign: the full frontend suite passed 988 tests across
+121 files. A further focused check covers preservation of notes and scope during
+editing, alongside the journey and locale tests. TypeScript and the production
+bundle pass. Browser checks at 320 and 390 CSS pixels found no horizontal
+overflow; Tab remains in the dialog, Escape closes it and focus returns to the
+record-change button. The synthetic save was reverted through the UI undo action.
