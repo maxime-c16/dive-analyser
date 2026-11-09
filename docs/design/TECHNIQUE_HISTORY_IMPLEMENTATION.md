@@ -199,3 +199,43 @@ editing, alongside the journey and locale tests. TypeScript and the production
 bundle pass. Browser checks at 320 and 390 CSS pixels found no horizontal
 overflow; Tab remains in the dialog, Escape closes it and focus returns to the
 record-change button. The synthetic save was reverted through the UI undo action.
+
+## Finding past changes in the Library player
+
+The code page now calls this feature **Technique changes**. Its main action,
+**Find my technique changes**, opens the existing Library `ClipViewer` in a
+focused workflow. The same mobile drag-follow pager, video controls, previous/
+next keys and desktop filmstrip remain in use. Social/evaluation panels give
+way to boundary recording. A missing-media attempt still supports the shared
+swipe gesture surface, but does not pretend to contain playable video.
+
+Users browse chronologically, seek by date and mark the first clip of each new
+technique. Each marker captures the immutable attempt key and a short label.
+The draft holds at most 16 markers and can be edited or removed before saving.
+Reviewing a marker can reopen its clip with surrounding attempts, including when
+that clip has left the navigation window. The existing quick date-based change
+form remains available as a secondary action.
+
+Only 100 navigation records are retained. Forward and backward pages each fetch
+at most 51 narrow records. An anchor-centered request fetches at most 26 records
+on either side, returns at most 50 and exposes both continuation cursors. All
+three cursor paths resolve the anchor through the owner-authorized exact
+context; foreign anchors yield no results. No full-history statistics are
+calculated from this navigation window. Failed prefetches stop until an explicit
+retry; close/context changes abort requests and discard late results.
+
+Review validates markers before writes. Save applies them chronologically as
+individual atomic, revision-checked changes; this is not a multi-boundary atomic
+transaction. If a later save fails, already-saved markers are identified and the
+remaining draft is retained. Retry skips successful markers. An explicit refresh
+allows rechecking against a newer history revision. Closing an unsaved draft asks
+before discarding it; no boundary is written while browsing or naming markers.
+
+Validation: 995 frontend tests passed across 122 files, including reuse of the
+Library swipe pager, multi-marker review/save, partial-failure retry, bounded
+navigation, failed-prefetch stopping and stale-response cleanup. Twenty isolated
+PostgreSQL tests pass, including anchor lookup, reverse/forward continuity and
+foreign-context rejection. TypeScript and the production build pass. The LAN
+browser check exercised mobile swipe navigation and draft review without saving
+the temporary markers. Backend and frontend updates are required; no additional
+migration beyond add_technique_history.sql is introduced.

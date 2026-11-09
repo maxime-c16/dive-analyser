@@ -11,3 +11,10 @@ export function techniqueInputDate(date: Date, timezone: string) {
     return `${part('year')}-${part('month')}-${part('day')}T${part('hour')}:${part('minute')}`
   } catch { return date.toISOString().slice(0, 16) }
 }
+
+export function techniqueDateTime(value: string, language: string) {
+  const date = new Date(/(?:Z|[+-]\d\d:\d\d)$/.test(value) ? value : `${value}Z`)
+  if (!Number.isFinite(date.getTime())) return '—'
+  const clock = new Intl.DateTimeFormat(language.startsWith('fr') ? 'fr-FR' : 'en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC', hourCycle: 'h23' }).format(date)
+  return `${techniqueDate(value, language)} · ${clock}`
+}

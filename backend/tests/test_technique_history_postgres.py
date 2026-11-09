@@ -355,3 +355,30 @@ def test_context_inventory_is_complete_and_owner_scoped(pg,monkeypatch):
         result=api.context_inventory(None,'103','',db)
         assert len(result['items'])==2 and {r['height'] for r in result['items']}=={'1','3'}
         assert all(r['diver_id']==1 for r in result['items'])
+
+
+def test_browse_window_can_seek_an_anchor_and_page_both_directions(pg, monkeypatch):
+    from sqlalchemy.orm import Session
+    from app.api.v1 import technique_history as api
+    monkeypatch.setattr(api, 'owner', lambda *args, **kwargs: None)
+    with pg.begin() as c:
+        c.execute(text("INSERT INTO technique_tracks(id,diver_id,name,revision) VALUES(1,1,'General',0)"))
+        c.execute(text("""INSERT INTO dives(session_id,diver_id,dive_code,platform_type,height,position,is_sync,performance,dive_datetime)
+        SELECT 1,1,'103','springboard','3','B',false,'G',timestamp '2026-01-02'+n*interval '1 minute' FROM generate_series(1,150) n"""))
+    context = dict(code='103', apparatus='springboard', height='3', position='B', sync=False)
+    with Session(pg) as db:
+        first = api.attempts(1,1,api.ReadInput(**context),None,db)
+        assert len(first['items']) == 50 and first['previous'] is None and first['next'] == 50
+        second = api.attempts(1,1,api.ReadInput(**context, after=first['next']),None,db)
+        assert [r['id'] for r in second['items']] == list(range(51,101))
+        backwards = api.attempts(1,1,api.ReadInput(**context,before=second['items'][0]['id']),None,db)
+        assert [r['id'] for r in backwards['items']] == list(range(1,51))
+        assert backwards['previous'] is None
+        focused = api.attempts(1,1,api.ReadInput(**context,around=80),None,db)
+        assert [r['id'] for r in focused['items']] == list(range(55,105))
+        assert focused['previous'] == 55 and focused['next'] == 104
+        # An anchor belonging to a different exact context cannot retrieve it.
+        hidden = api.attempts(1,1,api.ReadInput(**dict(context,code='205'),around=80),None,db)
+        assert hidden['items'] == []
+        with pytest.raises(Exception,match='Choose one navigation cursor'):
+            api.attempts(1,1,api.ReadInput(**context,around=80,before=90),None,db)

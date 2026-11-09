@@ -959,3 +959,18 @@ it('own-library attempts stay unattributed: absence of a name is never inferred'
   expect(within(dialog).queryByText('FANNY')).toBeNull()
   expect(dialog).not.toHaveAccessibleName(/FANNY/)
 })
+
+it('keeps the library swipe pager inside the technique-change workflow', () => {
+  const env = stubPagerEnvironment({ mobile: true, reduce: false })
+  vi.useFakeTimers()
+  try {
+    const onMove = vi.fn()
+    render(<MemoryRouter><ClipViewer attempt={attempts[1]} attempts={attempts} onMove={onMove} onClose={() => {}} playbackRate={1} onPlaybackRateChange={() => {}} workflow={{ title: 'Technique changes', backLabel: '103B', content: <button>Mark a change here</button> }} /></MemoryRouter>)
+    expect(screen.getByRole('heading', { name: 'Technique changes' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Mark a change here' })).toBeInTheDocument()
+    expect(screen.queryByRole('tab', { name: 'Comments 0' })).not.toBeInTheDocument()
+    dragBy(screen.getByRole('button', { name: 'Test drag surface' }), -300)
+    hudAct(() => vi.advanceTimersByTime(FEED_PUSH_DURATION_MS + 50))
+    expect(onMove).toHaveBeenCalledWith(attempts[2])
+  } finally { vi.useRealTimers(); env.restore() }
+})

@@ -6,6 +6,33 @@
  */
 const en = {
   technique: {
+    checkingChanges: 'Checking changes…',
+    recheckHistory: 'Refresh and check again',
+    setupEntry: "Find my technique changes",
+    setupTitle: "Technique changes",
+    setupBrowseHint: "Scroll through your clips. Mark the first dive using a different technique.",
+    markStart: "New technique starts here",
+    editMarker: "Edit this marker",
+    startsAtClip: "Starts with this dive on {{date}}.",
+    keepMarker: "Keep this marker",
+    reviewMarkers: "Review markers ({{count}})",
+    jumpDate: "Jump to a date",
+    go: "Go",
+    loadingClips: "Loading clips…",
+    backToFirstClip: "Back to the first clips",
+    markerLimit: "Save these changes before adding more.",
+    setupReview: "Review your changes",
+    setupReviewHint: "Each marker starts a new period. Existing tags on individual dives are kept.",
+    setupImpact: "{{count}} dives from this date in the existing history",
+    keepBrowsing: "Keep browsing",
+    saveChanges: "Save changes",
+    setupSaving: "Saving…",
+    setupSavedCount: "Saved changes: {{count}}",
+    setupSaveError: "Some changes could not be saved. Saved markers are shown; the others are still here. Review again to retry.",
+    setupDiscard: "Leave without saving the remaining markers?",
+    removeMarker: "Remove marker",
+    noClips: "No dives found for this date. Try an earlier date.",
+
     showAllScores: 'Show all scores',
     showTechniqueScores: 'Show scores by technique',
     manage: "Manage history",
@@ -63,7 +90,7 @@ const en = {
     usualScores: "Middle 50% of scores",
     otherChanges: "Other changes during these periods",
     attributionBrief: "{{recorded}} tagged · {{inferred}} assumed · {{unknown}} unknown",
-deletedPeriod:"Deleted episode",anchorUnavailable:"Source attempt unavailable",lateImport:"Imported after history was recorded",moreTracks:"More tracks","previewCounts":"{{affected}} dives from this date · {{explicit}} existing tags kept","historyOrder":"History order","apparatus":"Apparatus","filters":"Filter attempts","fromUtc":"From (UTC)","toUtc":"Until (UTC)","selectPage":"Select page","selectRange":"Select range between checked attempts","correctOrder":"Correct attempt history order; anchored boundaries stay unchanged","endUtc":"End date (UTC)","end":"End / resume family","rename":"Technique name","options":"Additional options","timezone":"Timezone","notes":"Notes","excluded":"Excluded","recordedByEpisode":"Recorded use of the same technique, by episode","outsideIntended":"Recorded outside intended episode: {{count}}","exclusion":{"uncertain": "Uncertain boundary", "other_modifiers": "Other modifiers", "not_recorded": "Not explicitly recorded", "other_techniques": "Other techniques"},context:"Context",alsoApply:"Also apply to codes or families (comma separated)",nextPeriods:"Next periods","date":"Start date","approximate":"Approximate until","reuse":"Reuse technique","edit":"Edit","delete":"Delete","deletePreview":"Delete this episode? Explicit recorded use is retained. Family context may become applicable.","ratingsDuring":"Ratings during these periods","modifiers":"Modifiers","noModifiers":"No modifiers","compare":"Compare","periods":"Periods","weighting":"Weighting","attempt":"Attempt","coverage":"{{scored}} / {{eligible}} scored · {{sessions}} sessions","attribution":"Recorded matching {{matching}} · conflicting {{conflicting}} · inferred {{inferred}} · mixed/unknown {{unknown}}","noComparable":"No comparable rated attempts","title": "Technique history", "unavailable": "History unavailable", "conflict": "History changed. Refresh and preview again.", "enable": "Record technique change", "track": "Track", "label": "Technique", "start": "Starting attempt", "family": "Apply to family {{family}}", "preview": "Preview", "recorded": "Recorded use", "next": "Next attempts", "mixed": "Mixed", "unknown": "Unknown", "undo": "Undo", "inferred": "Inferred context", "session": "Session state", "unrecorded": "Unrecorded", "technique": "Technique"},
+deletedPeriod:"Deleted episode",anchorUnavailable:"Source attempt unavailable",lateImport:"Imported after history was recorded",moreTracks:"More tracks","previewCounts":"{{affected}} dives from this date · {{explicit}} existing tags kept","historyOrder":"History order","apparatus":"Apparatus","filters":"Filter attempts","fromUtc":"From (UTC)","toUtc":"Until (UTC)","selectPage":"Select page","selectRange":"Select range between checked attempts","correctOrder":"Correct attempt history order; anchored boundaries stay unchanged","endUtc":"End date (UTC)","end":"End / resume family","rename":"Technique name","options":"Additional options","timezone":"Timezone","notes":"Notes","excluded":"Excluded","recordedByEpisode":"Recorded use of the same technique, by episode","outsideIntended":"Recorded outside intended episode: {{count}}","exclusion":{"uncertain": "Uncertain boundary", "other_modifiers": "Other modifiers", "not_recorded": "Not explicitly recorded", "other_techniques": "Other techniques"},context:"Context",alsoApply:"Also apply to codes or families (comma separated)",nextPeriods:"Next periods","date":"Start date","approximate":"Approximate until","reuse":"Reuse technique","edit":"Edit","delete":"Delete","deletePreview":"Delete this episode? Explicit recorded use is retained. Family context may become applicable.","ratingsDuring":"Ratings during these periods","modifiers":"Modifiers","noModifiers":"No modifiers","compare":"Compare","periods":"Periods","weighting":"Weighting","attempt":"Attempt","coverage":"{{scored}} / {{eligible}} scored · {{sessions}} sessions","attribution":"Recorded matching {{matching}} · conflicting {{conflicting}} · inferred {{inferred}} · mixed/unknown {{unknown}}","noComparable":"No comparable rated attempts","title": "Technique changes", "unavailable": "History unavailable", "conflict": "History changed. Refresh and preview again.", "enable": "Record technique change", "track": "Track", "label": "Technique", "start": "Starting attempt", "family": "Apply to family {{family}}", "preview": "Preview", "recorded": "Recorded use", "next": "Next attempts", "mixed": "Mixed", "unknown": "Unknown", "undo": "Undo", "inferred": "Inferred context", "session": "Session state", "unrecorded": "Unrecorded", "technique": "Technique"},
   // Library UX fixes (scope A, dedicated block): keys introduced by the
   // Library-state/search/paginate fixes PR.
   libraryUX: {

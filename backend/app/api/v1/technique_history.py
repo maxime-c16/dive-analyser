@@ -71,6 +71,8 @@ class ContextInput(BaseModel):
 
 class ReadInput(ContextInput):
     after: int = Field(default=0,ge=0)
+    before: int = Field(default=0,ge=0)
+    around: int = Field(default=0,ge=0)
     session_id:int | None = None
     from_date:datetime | None = None
     to_date:datetime | None = None
@@ -80,8 +82,29 @@ class ReadInput(ContextInput):
 def attempts(diver: int, track: int, body: ReadInput, request: Request, db: Session = Depends(get_db)):
     owner(request, db, diver); row = track_for(db, diver, track)
     params = dict(body.model_dump(), diver=diver, track=track)
-    rows = db.execute(text(RESOLVED + ' SELECT id,session_id,video_uuid,dive_code,dive_datetime,history_occurred_at,performance,late_import,episode_id,recorded_episode_id,recorded_episode_deleted,intended_id,state,use_id,(SELECT label FROM techniques WHERE techniques.id=resolved.use_id AND techniques.track_id=:track) use_label,source FROM resolved WHERE (CAST(:session_id AS integer) IS NULL OR session_id=:session_id) AND (CAST(:from_date AS timestamp) IS NULL OR history_occurred_at>=:from_date) AND (CAST(:to_date AS timestamp) IS NULL OR history_occurred_at<:to_date) AND (:after=0 OR (history_occurred_at,id)>(SELECT history_occurred_at,id FROM eligible WHERE id=:after)) ORDER BY history_occurred_at,id LIMIT 51'), params).mappings().all()
-    return {'revision': row.revision, 'items': [dict(r) for r in rows[:50]], 'next': rows[49]['id'] if len(rows)>50 else None}
+    if sum(bool(value) for value in (body.after, body.before, body.around)) > 1:
+        raise HTTPException(422, 'Choose one navigation cursor')
+    query = """ SELECT id,session_id,video_uuid,dive_code,dive_datetime,history_occurred_at,performance,late_import,episode_id,recorded_episode_id,recorded_episode_deleted,intended_id,state,use_id,
+    (SELECT label FROM techniques WHERE techniques.id=resolved.use_id AND techniques.track_id=:track) use_label,source FROM resolved
+    WHERE (CAST(:session_id AS integer) IS NULL OR session_id=:session_id)
+    AND (CAST(:from_date AS timestamp) IS NULL OR history_occurred_at>=:from_date)
+    AND (CAST(:to_date AS timestamp) IS NULL OR history_occurred_at<:to_date) """
+    key = '(history_occurred_at,id)'
+    def cursor(name):
+        return f'(SELECT history_occurred_at,id FROM eligible WHERE id=:{name})'
+    if body.around:
+        # At most 52 narrow rows materialize; the anchor is scoped through
+        # eligible, including diver and exact code/apparatus/height context.
+        earlier = db.execute(text(RESOLVED + query + f' AND {key} < {cursor("around")} ORDER BY history_occurred_at DESC,id DESC LIMIT 26'), params).mappings().all()
+        later = db.execute(text(RESOLVED + query + f' AND {key} >= {cursor("around")} ORDER BY history_occurred_at,id LIMIT 26'), params).mappings().all()
+        items = list(reversed(earlier[:25])) + later[:25]
+        return {'revision': row.revision, 'items': [dict(r) for r in items], 'previous': earlier[24]['id'] if len(earlier)>25 else None, 'next': later[24]['id'] if len(later)>25 else None}
+    if body.before:
+        rows = db.execute(text(RESOLVED + query + f' AND {key} < {cursor("before")} ORDER BY history_occurred_at DESC,id DESC LIMIT 51'), params).mappings().all()
+        items = list(reversed(rows[:50]))
+        return {'revision': row.revision, 'items': [dict(r) for r in items], 'previous': rows[49]['id'] if len(rows)>50 else None, 'next': items[-1]['id'] if items else None}
+    rows = db.execute(text(RESOLVED + query + f' AND (:after=0 OR {key}>{cursor("after")}) ORDER BY history_occurred_at,id LIMIT 51'), params).mappings().all()
+    return {'revision': row.revision, 'items': [dict(r) for r in rows[:50]], 'previous': rows[0]['id'] if body.after and rows else None, 'next': rows[49]['id'] if len(rows)>50 else None}
 
 
 @router.get('/{diver}/{track}/episodes')

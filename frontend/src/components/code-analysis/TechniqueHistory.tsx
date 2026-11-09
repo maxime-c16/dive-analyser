@@ -1,4 +1,6 @@
 import './techniqueHistory.css'
+import { createPortal } from 'react-dom'
+import TechniqueSetup from './TechniqueSetup'
 import TechniqueDialog from './TechniqueDialog'
 import { techniqueDate, techniqueInputDate } from './techniqueDates'
 import { Plus, SlidersHorizontal, ArrowLeftRight, ChevronRight, Check, Pencil, Share2, ListChecks } from 'lucide-react'
@@ -37,6 +39,7 @@ export default function TechniqueHistory({ diver, context, onSelected }: { diver
   const [panel, setPanel] = useState<'change' | 'manage' | 'log' | 'share' | null>(null)
   const [comparing, setComparing] = useState(false)
   const [notice, setNotice] = useState('')
+  const [setup, setSetup] = useState(false)
   const { i18n } = useTranslation()
   const date = (value: string) => techniqueDate(value, i18n.language)
   const generation = useRef(0)
@@ -55,7 +58,7 @@ export default function TechniqueHistory({ diver, context, onSelected }: { diver
   const base = `/api/v1/technique-history/${diver}`
   useEffect(() => {
     const g = ++generation.current
-    setPanel(null); setComparing(false); setNotice(''); setLabel(''); setIdentity(null); setEdit(null); setDateStart(''); setUncertainUntil(''); setAnchor(null); setCopyPreview(null); setBusy(false); setPair([]); setAfter(0); setEpisodeAfter(0); setTrackAfter(0); setTracks([]); setTrack(null); setEpisodes([]); setAttempts([]); setSelected([]); setPreview(null); setError('')
+    setSetup(false); setPanel(null); setComparing(false); setNotice(''); setLabel(''); setIdentity(null); setEdit(null); setDateStart(''); setUncertainUntil(''); setAnchor(null); setCopyPreview(null); setBusy(false); setPair([]); setAfter(0); setEpisodeAfter(0); setTrackAfter(0); setTracks([]); setTrack(null); setEpisodes([]); setAttempts([]); setSelected([]); setPreview(null); setError('')
     api.get('/api/v1/technique-history/preferences').then(({ data }) => { if (g === generation.current) setTimezone(data.timezone) }).catch(() => {})
     api.get(`${base}/tracks`).then(({ data }) => { if (g === generation.current) { setTrackNext(data.next); setTracks(data.items); setTrack(data.items[0]?.id ?? null) } }).catch(() => { if (g === generation.current) setError(t('technique.unavailable')) })
     return () => { generation.current++ }
@@ -83,6 +86,16 @@ export default function TechniqueHistory({ diver, context, onSelected }: { diver
     finally { if (g === generation.current) setBusy(false) }
   }
   function closePanel() { setPanel(null); setPreview(null); setCopyPreview(null); setError('') }
+  async function startSetup() {
+    setError(''); setNotice('')
+    if (!tracks.length) {
+      const g = generation.current; setBusy(true)
+      try { const { data } = await api.post(`${base}/tracks`, { name: 'General' }); if (g !== generation.current) return; setTracks([data]); setTrack(data.id) }
+      catch { if (g === generation.current) setError(t('technique.conflict')); return }
+      finally { if (g === generation.current) setBusy(false) }
+    }
+    setSetup(true)
+  }
   async function newChange() {
     setError(''); setNotice(''); setEdit(null); setLabel(''); setIdentity(null); setGap(false); setFamily(false); setNotes(''); setAnchor(null)
     setDateStart(techniqueInputDate(new Date(), timezone)); setUncertainUntil(''); setNarrowPosition(currentEpisode?.scope === context.code && currentEpisode.position != null); setNarrowSync(currentEpisode?.scope === context.code && currentEpisode.sync != null); setPreview(null)
@@ -132,7 +145,8 @@ export default function TechniqueHistory({ diver, context, onSelected }: { diver
       </li>)}</ol>
     </>}
     {(episodeAfter > 0 || episodeNext != null) && <div className="th-pagination">{episodeAfter > 0 && <button onClick={() => setEpisodeAfter(0)}>{t('common.back')}</button>}{episodeNext != null && <button onClick={() => setEpisodeAfter(episodeNext!)}>{t('technique.nextPeriods')}</button>}</div>}
-    <button className="th-primary th-record" disabled={busy} onClick={() => void newChange()}><Plus size={17} />{t('technique.enable')}</button>
+    <div className="th-setup-entry"><button className="th-primary" disabled={busy} onClick={() => void startSetup()}><ListChecks size={17} />{t('technique.setupEntry')}</button><button className="th-text-button th-record" disabled={busy} onClick={() => void newChange()}><Plus size={15} />{t('technique.enable')}</button></div>
+    {setup && track != null && createPortal(<TechniqueSetup key={`${base}/${track}/${contextKey}`} base={`${base}/${track}`} context={context} revision={revision} constrainPosition={currentEpisode?.scope === context.code && currentEpisode.position != null} constrainSync={currentEpisode?.scope === context.code && currentEpisode.sync != null} onClose={() => setSetup(false)} onDone={() => { setSetup(false); setReload(n => n + 1); setNotice(t('technique.saved')) }} />, document.body)}
 
     {panel === 'change' && <TechniqueDialog title={t(preview ? 'technique.reviewChange' : edit ? 'technique.editChange' : 'technique.enable')} onClose={closePanel}>
       {error && <p className="th-error" role="alert">{error}</p>}

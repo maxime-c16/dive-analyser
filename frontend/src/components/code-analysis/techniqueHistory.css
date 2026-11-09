@@ -103,3 +103,42 @@
 .th-comparison .th-details p { font-size: 12px; line-height: 1.6; color: var(--app-muted); }
 @media (max-width: 540px) { .th-dialog { width: 100%; max-width: 100%; max-height: 92svh; margin: auto 0 0; border-radius: 24px 24px 0 0; padding-bottom: env(safe-area-inset-bottom); } .th-dialog-header { padding: 16px 20px; } .th-dialog-body { padding: 20px; } .th-tag-bar { margin-left: -20px; margin-right: -20px; padding-left: 20px; padding-right: 20px; } }
 @media (prefers-reduced-motion: reduce) { .th-history *, .th-dialog * { animation: none !important; transition: none !important; } }
+.th-setup-entry { display: grid; gap: 6px; margin-top: 18px; }
+.th-setup-entry .th-primary { width: 100%; }
+.th-setup-entry .th-text-button { justify-self: center; font-size: 12px; }
+.clip-workflow-title { min-width: 0; margin: 0; color: var(--app-text); font-size: 16px; font-weight: 600; }
+.clip-workflow { width: 360px; flex: none; display: flex; flex-direction: column; gap: 16px; padding: 22px; overflow-y: auto; overscroll-behavior: contain; border-left: 1px solid var(--app-border); background: var(--app-panel); }
+.clip-viewer.is-workflow .clip-actions, .clip-viewer.is-workflow .clip-description, .clip-viewer.is-workflow .clip-caption-score { display: none; }
+.clip-viewer.is-workflow .clip-header { position: relative; inset: auto; height: auto; min-height: 62px; padding: max(10px, env(safe-area-inset-top)) 18px 10px; background: var(--app-panel); border-bottom: 1px solid var(--app-border); opacity: 1 !important; transform: none !important; visibility: visible !important; }
+.clip-viewer.is-workflow .clip-layout { min-height: 0; height: auto; }
+.clip-viewer.is-workflow .clip-back { font-size: 12px; }
+.clip-viewer.is-workflow .clip-header-end { gap: 8px; }
+.clip-viewer.is-workflow .clip-counter { padding: 5px 8px; }
+.th-setup-position { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.th-setup-position strong { font-size: 14px; font-weight: 600; }
+.th-setup-position span, .th-setup-help { color: var(--app-muted); font-size: 12px; line-height: 1.5; }
+.th-setup-help { margin: 0; }
+.th-setup-controls { display: flex; align-items: center; gap: 10px; }
+.th-setup-controls .th-primary { flex: 1; }
+.th-setup-review-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 12px; }
+.th-setup-review-list li { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 12px 0; border-bottom: 1px solid var(--app-border); }
+.th-setup-review-list strong { display: block; font-size: 14px; overflow-wrap: anywhere; }
+.th-setup-review-list small { display: block; margin-top: 5px; color: var(--app-muted); font-size: 12px; }
+.th-setup-review-list button { min-height: 40px; }
+.th-setup-edit { display: grid; gap: 12px; }
+.th-setup-edit .th-dialog-actions { margin-top: 0; }
+.th-setup-navigation { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; }
+.th-setup-review-title { margin: 0; font-size: 16px; font-weight: 600; }
+.th-setup-review-body { display: grid; gap: 16px; }
+.th-setup-saving { font-size: 13px; color: var(--app-muted); }
+@media (max-width: 1023px) {
+  .clip-viewer.is-workflow .clip-layout { flex-direction: column; }
+  .clip-viewer.is-workflow .clip-stage-column { flex: 1; min-height: 180px; }
+  .clip-workflow { width: 100%; max-height: 44dvh; flex: none; gap: 12px; padding: 16px 18px; border-left: 0; border-top: 1px solid var(--app-border); }
+  .clip-workflow:has(.th-setup-review-body), .clip-workflow:has(.th-setup-edit) { max-height: min(65dvh, calc(100dvh - 300px)); }
+  .clip-viewer.is-workflow .clip-navigation { position: relative; inset: auto; height: auto; padding: 4px 14px max(6px, env(safe-area-inset-bottom)); background: var(--app-panel); opacity: 1 !important; transform: none !important; visibility: visible !important; }
+  .clip-workflow-title { font-size: 13px; text-align: center; }
+}
+/* Workflow actions remain reachable when the playback HUD auto-hides. */
+.clip-viewer.is-workflow .clip-header,
+.clip-viewer.is-workflow .clip-navigation { pointer-events: auto !important; }

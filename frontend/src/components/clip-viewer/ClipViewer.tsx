@@ -26,7 +26,7 @@ import { diveCodeName } from "../../i18n/diveNames";
 import { cachedPreview, getPreview } from "../../utils/mediaPreview";
 import { warmAdjacentClips } from "../../utils/playbackWarming";
 import { useModalOverlay, isTopOverlay } from "../../utils/overlays";
-import type { FeedDragEnd } from "./ImmersiveControls";
+import ImmersiveControls, { type FeedDragEnd } from "./ImmersiveControls";
 import DiveVideoPlayer from "../DiveVideoPlayer";
 import ClipViewerNavigation, { PLAYBACK_RATES } from "./ClipViewerNavigation";
 import ClipFilmstrip from "./ClipFilmstrip";
@@ -180,6 +180,7 @@ export default function ClipViewer({
   onUpdate,
   onDelete,
   onAnalyse,
+  workflow,
 }: {
   attempt: Attempt;
   attempts: Attempt[];
@@ -190,8 +191,10 @@ export default function ClipViewer({
   onUpdate?: (attempt: Attempt) => void;
   onDelete?: () => void;
   onAnalyse?: (attempt: Attempt) => void;
+  workflow?: { title: string; backLabel: string; content: React.ReactNode };
 }) {
   const { t, i18n } = useTranslation();
+  const noMediaVideo = useRef<HTMLVideoElement>(null);
   const index = attempts.findIndex((item) => item.id === attempt.id);
   const total = attempts.length;
   const location = useLocation();
@@ -863,18 +866,19 @@ export default function ClipViewer({
         aria-modal="true"
         aria-labelledby="clip-viewer-title"
         data-testid="clip-viewer"
-        className={`clip-viewer${studio ? " is-studio" : ""}${cleanView ? " is-clean" : ""}${pinching ? " is-pinching" : ""}${hudVisible ? "" : " is-hud-hidden"}`}
+        className={`clip-viewer${workflow ? " is-workflow" : ""}${studio ? " is-studio" : ""}${cleanView ? " is-clean" : ""}${pinching ? " is-pinching" : ""}${hudVisible ? "" : " is-hud-hidden"}`}
       >
         <header className="clip-header">
           <button
             type="button"
             onClick={onClose}
-            aria-label={t("notFound.backToLibrary")}
+            aria-label={workflow?.backLabel ?? t("notFound.backToLibrary")}
             className="clip-back"
           >
             <ArrowLeft size={20} />
-            <span>{t("nav.dives")}</span>
+            <span>{workflow?.backLabel ?? t("nav.dives")}</span>
           </button>
+          {workflow && <h2 id="clip-viewer-title" className="clip-workflow-title">{workflow.title}</h2>}
           <div className="clip-header-end">
             {studio && speedSelect}
             <span className="clip-counter" aria-live="polite" aria-atomic="true" title={t("clipNav.positionAria", { index: index + 1, total })}>
@@ -951,6 +955,7 @@ export default function ClipViewer({
             ) : (
               <div className="clip-no-media">
                 {t("clipViewer.noLinkedClip")}
+                {workflow && <ImmersiveControls videoRef={noMediaVideo} playbackRate={playbackRate} mediaPresented={false} onNavigate={navigate} dragEnabled={pagerEnabled} onDragUpdate={applyDrag} onDragEnd={endDrag} />}
               </div>
             )}
             {!studio && (
@@ -1082,7 +1087,8 @@ export default function ClipViewer({
               onClick={closePanel}
             />
           )}
-          <aside
+          {workflow && <aside className="clip-workflow">{workflow.content}</aside>}
+          {!workflow && <aside
             ref={panelRef}
             tabIndex={-1}
             id="clip-review-panel"
@@ -1228,7 +1234,7 @@ export default function ClipViewer({
                 </>
               )}
             </div>
-          </aside>
+          </aside>}
         </div>
         {!studio && (
           <footer className="clip-navigation">
