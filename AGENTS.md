@@ -29,8 +29,9 @@ Cheapest correct check first; full matrix in `ci/README.md`, quick table in
 
 - `ci/checkhost.sh` → one glance at what this box can run (tools, ssh aliases,
   Docker daemon). Then laptop-local tiers: `ci/gate.sh fast` (docs/release
-  notes only), `ci/gate.sh frontend | backend | agent`, and
-  `ci/gate.sh tiers -- <paths>` to pick tiers from changed paths.
+  notes only); `ci/gate.sh frontend`, `ci/gate.sh backend` and
+  `ci/gate.sh agent` for one surface; `ci/gate.sh tiers -- <paths>` to pick
+  tiers from changed paths.
 - Frontend iteration: `cd frontend && npm run --silent test:ci` — **never
   plain `npm test`** (vitest watch mode hangs the session). Backend iteration:
   `(cd backend && DATABASE_URL=sqlite:///:memory: AUTO_IMPORT=false DB_TEST=0

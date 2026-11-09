@@ -86,9 +86,12 @@ alias_resolves() {
 }
 
 report_alias() {
-    local alias="$1" ip_hint="$2"
+    # $1=alias $2=factor hint $3=severity: warn (default) or strict.
+    local alias="$1" ip_hint="$2" sev="${3:-warn}"
     if alias_resolves "$alias"; then
         ok_out "ssh alias '$alias' resolves (${ip_hint})"
+    elif [ "$sev" = strict ]; then
+        fail_out "ssh alias '$alias' not in ~/.ssh/config — ship/status to that host will fail (override: DIVE_SERVER_SSH/DIVE_MAC_SSH)"
     else
         warn_out "ssh alias '$alias' not in ~/.ssh/config — ship/status to that host will fail (override: DIVE_SERVER_SSH/DIVE_MAC_SSH)"
     fi
@@ -145,9 +148,15 @@ fi
 # ---------------------------------------------------------------- scope: ship
 
 if [ "$scope" = ship ]; then
-    report_tools "core of ship.sh on the invoking host" git python3
-    report_alias diveanalyzer-server "mcauchy@192.168.1.57 (deb-serv)"
-    report_alias diveanalyzer-mac "divesensei@192.168.1.19 (mac worker)"
+    report_tools "core of ship.sh on the invoking host" git ssh python3
+    # Strict aliases: shipping is about reaching these two hosts, so an
+    # unresolved alias fails even with --warn-only absent AND makes
+    # DIVE_CHECKHOST_STRICT=1 meaningful. Unreachable (machine off) stays a
+    # note: a deploy attempt produces the real ssh error.
+    report_alias diveanalyzer-server "mcauchy@192.168.1.57 (deb-serv)" strict
+    report_alias diveanalyzer-mac "divesensei@192.168.1.19 (mac worker)" strict
+    if alias_reachable diveanalyzer-server; then ok_out "deb-serv reachable"; else warn_out "deb-serv not answering ssh right now (machine off/asleep?)"; fi
+    if alias_reachable diveanalyzer-mac; then ok_out "mac worker reachable"; else warn_out "mac worker not answering ssh right now (deploy would fail if down)"; fi
 elif [ "$scope" = images ]; then
     report_tools "core of the images tier" git python3
 fi

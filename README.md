@@ -22,7 +22,9 @@ media pipeline driven by a Mac worker. Deploys continuously from `master`
 ```bash
 ci/checkhost.sh                     # what this box can run (docker? ssh aliases?)
 ci/gate.sh fast                     # docs / release-note JSON only (~seconds)
-ci/gate.sh frontend|backend|agent   # one surface (+ fast); minutes
+ci/gate.sh frontend                 # frontend tests + TypeScript + production build
+ci/gate.sh backend                  # API/service tests on isolated SQLite
+ci/gate.sh agent                    # portable Mac-agent logic
 ci/gate.sh tiers -- <paths>         # which tiers your changed paths need
 ci/gate.sh                          # fast + frontend + backend + agent (no images)
 ```
