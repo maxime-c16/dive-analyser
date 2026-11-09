@@ -7,17 +7,28 @@ from typing import List, Dict, Any
 from unittest.mock import AsyncMock, MagicMock
 import json
 
-# Portable tests must never open a real Photos library. Keep native integration
-# available on macOS; on Linux expose an import boundary that fails if used.
+# Portable tests must never open a real Photos library. Where the real
+# adapter is importable (macOS with osxphotos installed) native usage stays
+# available — unless DIVE_AGENT_PORTABLE_TESTS=1 forces the portable suite's
+# read-refusing Photos boundary (docs/PHOTOS_CLEANUP_PERMISSIONS.md). On those
+# boxes the boundary only exists when the native dep is absent, so the tier
+# stays runnable on Linux runners and macOS dev machines without osxphotos
+# instead of dying at collection with ModuleNotFoundError.
 import sys
 import os
 from types import ModuleType
 
-if sys.platform != "darwin" or os.environ.get("DIVE_AGENT_PORTABLE_TESTS") == "1":
+try:
+    __import__("osxphotos")
+    _osxphotos_native = True
+except ModuleNotFoundError:
+    _osxphotos_native = False
+
+if not _osxphotos_native or os.environ.get("DIVE_AGENT_PORTABLE_TESTS") == "1":
     photos_boundary = ModuleType("osxphotos")
 
     def native_photos_unavailable(*args, **kwargs):
-        raise RuntimeError("real Photos access requires macOS; use a test reader")
+        raise RuntimeError("real Photos access requires macOS osxphotos; use a test reader")
 
     photos_boundary.PhotosDB = native_photos_unavailable
     sys.modules["osxphotos"] = photos_boundary

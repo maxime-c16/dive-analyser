@@ -8,8 +8,8 @@ Full guide: **`docs/REPO_WORKFLOW.md`**. The short version:
 
 - **GitHub (`maxime-c16/dive-analyser`, branch `master`) is the only source of truth.** `origin` = GitHub everywhere; no host-to-host pushes.
 - Work in a branch/worktree off `origin/master` → push → PR → merge.
-- **Never edit, commit or `git checkout` in the live dirs**: `deb-serv:~/dive-analyser` (detached HEAD = deployed commit) and the Mac's `/Users/Shared/services/data/diveanalyzer/code`.
-- Deploy only with `ci/ship.sh status | server | mac | all` (`--dry-run` first). Server-side SQL migrations, nginx and `ops/tailscale` changes are **not** auto-applied — `ship.sh` warns; follow the table in the guide.
+- **Never edit or commit in the live dirs**: `deb-serv:~/dive-analyser` (deployed commit on a detached HEAD — no manual `git checkout`, only `ci/ship.sh` moves it) and the Mac's `/Users/Shared/services/data/diveanalyzer/code` (not a git repo; only `ci/ship.sh mac` writes it).
+- Deploy only with `ci/ship.sh status | server | mac | all | proxy` (`--dry-run` first; `ci/checkhost.sh` reports what the invoking box can run). Server-side SQL migrations, nginx and `ops/tailscale` changes are **not** auto-applied — `ship.sh` warns; follow the table in the guide. Merges to `master` also deploy **automatically**: the release workflow tags them and the `ops/auto-deploy.sh` cron on deb-serv pulls tagged commits (`docs/CD.md`).
 - Never commit data (media, `runs/`, weights, `.env`). Never use bare `git stash` (shared across worktrees).
 
 ## User-visible release notes
@@ -21,6 +21,26 @@ edit/delete a published note or include secrets. For an internal-only PR,
 state `Release notes: none — <reason>` in the PR description. `ci/ship.sh`
 previews the catalog on `--dry-run` and publishes it after successful checks;
 no separate release-writing step is needed at deploy time.
+
+## Loop (run, test, verify)
+
+Cheapest correct check first; full matrix in `ci/README.md`, quick table in
+`README.md`:
+
+- `ci/checkhost.sh` → one glance at what this box can run (tools, ssh aliases,
+  Docker daemon). Then laptop-local tiers: `ci/gate.sh fast` (docs/release
+  notes only); `ci/gate.sh frontend`, `ci/gate.sh backend` and
+  `ci/gate.sh agent` for one surface; `ci/gate.sh tiers -- <paths>` to pick
+  tiers from changed paths.
+- Frontend iteration: `cd frontend && npm run --silent test:ci` — **never
+  plain `npm test`** (vitest watch mode hangs the session). Backend iteration:
+  `(cd backend && DATABASE_URL=sqlite:///:memory: AUTO_IMPORT=false DB_TEST=0
+  PYTHONPATH="$(pwd):$(pwd)/.." python3 -m pytest tests/ -m "not performance"
+  --asyncio-mode=auto -q)`.
+- Image builds and proxy checks are server-side (deb-serv or hosted CI); a
+  laptop with the Docker daemon off is normal, not an error to fix.
+- PR flow: push → `gh pr create --fill` → babysit reviews and CI → merge →
+  deploy-verify (rules: `docs/REPO_WORKFLOW.md`, automation: `docs/CD.md`).
 
 ## First Run
 
@@ -214,6 +234,24 @@ Project skills (versioned in this repository):
 
 - [review-findings-to-fix](.agents/skills/review-findings-to-fix/SKILL.md): use when asked to analyse, resolve or challenge PR review findings.
 - [bounded-db-change](.agents/skills/bounded-db-change/SKILL.md): use for N+1/unbounded-query fixes and database work with growing volumes.
+
+## Delegating work (recurrent provider failures)
+
+Pre-flight a provider before fanning out or babysitting with it (one cheap
+no-tool question). Failures carry the real cause in their text; classify
+before re-issuing — the status (`failed`, `interrupted`) alone is no taxonomy:
+
+| Error text | Correct move |
+|---|---|
+| `Usage limit reached` | wait ~1 h and/or switch model; never re-issue within minutes |
+| `API key has expired` / `Insufficient account funds` | stop and surface to Maxime; the account needs a human fix |
+| `open in another Codex client` (single-writer lock) | retry the same thread later; never spawn a duplicate |
+| Interrupted by a user | do not auto-respawn; ask what changed |
+| a seat fell mid-council | replacement thread's first line references the killed thread (link) + failure class |
+
+Documented because of audit 2026-11-09: the same quota error killed a thread
+twice in 3 minutes, and fallback seats re-paid full audit costs with no
+supersede reference.
 
 ## Product and implementation decisions
 
