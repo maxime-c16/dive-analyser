@@ -1,6 +1,6 @@
 """Private technique history, deliberately independent of caption modifiers.
 
-Not registered/exposed until the complete API and migration are integrated.
+Annotations are private to the current diver owner.
 """
 from datetime import datetime
 from sqlalchemy import (Column, Integer, String, DateTime, ForeignKey, Boolean,
@@ -86,3 +86,20 @@ class TechniqueRevision(Base):
     before = Column(JSON, nullable=False)
     after = Column(JSON, nullable=False)
     __table_args__ = (UniqueConstraint('track_id', 'revision'),)
+
+
+class TechniqueSessionState(Base):
+    __tablename__ = 'technique_session_states'
+    id = Column(Integer, primary_key=True)
+    track_id = Column(Integer, ForeignKey('technique_tracks.id'), nullable=False)
+    session_id = Column(Integer, ForeignKey('sessions.id', ondelete='CASCADE'), nullable=False)
+    code = Column(String(10), nullable=False)
+    apparatus = Column(String(20), nullable=False)
+    height = Column(String(5), nullable=False)
+    position = Column(String(1), nullable=False)
+    sync = Column(Boolean, nullable=False)
+    state = Column(String(12), nullable=False)
+    __table_args__ = (
+        UniqueConstraint('track_id', 'session_id', 'code', 'apparatus', 'height', 'position', 'sync'),
+        CheckConstraint("state IN ('mixed', 'unknown')", name='ck_technique_session_state'),
+    )

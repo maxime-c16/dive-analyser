@@ -158,3 +158,5 @@ from app.models.dive_series import DiveSeries
 from app.models.judge_room import JudgeRoomResult, JudgeRoomRating, JudgeShadowPreference
 
 from app.models.session_video import SessionVideo, SessionVideoShare, SessionVideoGuestAccess, SessionVideoPlaybackIssue
+
+from app.models.technique_history import TechniqueTrack, Technique, TechniqueEpisode, TechniqueAssignment, TechniqueRevision, TechniqueSessionState
