@@ -534,9 +534,14 @@ export SHIP_FROM
 # Host preflight before any target-host work: cheap, readable, and advisory by
 # default so the deb-serv auto-deploy cron can never be blocked by it. Enforce
 # FAILs explicitly with DIVE_CHECKHOST_STRICT=1. --dry-run changes nothing and
-# is allowed regardless.
+# is allowed regardless. --target checks only the hosts this command touches.
 if [ "$cmd" != status ]; then
-    if ! bash "$SCRIPT_DIR/checkhost.sh" --scope ship --brief; then
+    case "$cmd" in
+        proxy|server) pk_target="server" ;;
+        mac)          pk_target="mac" ;;
+        all)          pk_target="all" ;;
+    esac
+    if ! bash "$SCRIPT_DIR/checkhost.sh" --scope ship --target "$pk_target" --brief; then
         if [ "$DRY_RUN" = 0 ] && [ "${DIVE_CHECKHOST_STRICT:-0}" = 1 ]; then
             ci_die "host preflight failed — fix the FAIL lines above, or run from deb-serv"
         fi
