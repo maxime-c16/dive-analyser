@@ -1,89 +1,167 @@
-# Technique History implementation status
+# Technique History implementation
 
-Status: incomplete foundation; **not the approved MVP**. Do not deploy or announce
-this branch as Technique History. The approved proposal is preserved alongside
-this document without product-scope amendments.
+The runtime now includes private technique history on Scores. The approved
+[proposal](TECHNIQUE_HISTORY_PROPOSAL.md) remains the product contract. This
+implementation has only been exercised locally; no production schema, checkout,
+service or data was changed.
 
-Implemented so far:
+## Delivered behavior
 
-- A pure attribution resolver with exact-code precedence, explicit supported
-  families, context constraints, blocking gaps, approximate boundaries,
-  half-open immutable timestamp/ID ordering, ambiguity rejection, independent
-  tracks, and explicit attempt over session over inferred precedence.
-- Exact-context comparison validation and recorded comparison membership over
-  the union of two episode intervals. Conflicting recorded assignments stay on
-  their recorded identity side; gaps and subsequent recurrence are excluded.
-  Same-identity pairs require a separate recorded-by-episode implementation.
-- Draft SQLAlchemy storage models for tracks, identities, episodes, attempt
-  assignments and revisions. They are deliberately not imported by the runtime
-  model registry. These models are not a finished schema contract.
+Scores obtains its context inventory with a complete ownership-filtered SQL
+aggregation, independently of the existing attempt-list cap. Select one diver,
+exact code, apparatus, height, position and sync context, then one technique
+track. General is the initial track; additional tracks are private to that diver.
 
-Not implemented: production schema/migration, immutable attempt key producers,
-SQL attribution/aggregates, session flag persistence, ownership-safe APIs,
-shared writer locks and previews, copy/edit/delete/undo mutations, Scores UI,
-localization, segmented charts, pagination, modifier-set selectors, coverage
-headers, accessibility interactions, ownership-change fencing and release note.
-No frontend change or user-visible behavior is delivered. There is no product
-contract conflict; these are outstanding implementation tasks.
+A change records intended/usual technique, independently of caption modifiers
+and explicitly recorded attempt use. Changes can start at an immutable attempt
+key, a retrospective date in a saved account timezone, or an approximate range.
+Position/sync constraints and notes are optional. Supported family scopes are
+1/2/3/4 and 51/52/53/54. Armstand uses exact catalog codes. Copies into selected
+code/family, apparatus and height scopes are independent episodes with a source
+reference. Previews disclose target scopes, affected context counts, preserved
+explicit use and upcoming boundaries. Inserting a boundary preserves the next
+existing change. Ambiguous equally specific position/sync overlaps and duplicate
+boundaries are rejected.
 
-## Resource contract to implement
+Explicit attempt state wins over a context-specific mixed/unknown session flag,
+then exact-code episode/gap, family episode/gap, then unrecorded context. Gaps
+block fallback; an explicit end permits family fallback after preview. Approximate
+boundary ranges remain unknown context. Assignments carry their original diver,
+code, apparatus, height, position and sync fence. Caption resync cannot replace
+these tables. Boundary edits preserve assignments; deleted episode provenance
+remains visible on explicitly tagged attempts.
 
-These are design targets, not measured guarantees of an implemented API:
+Attempt and episode lists are paginated and keyboard-operable. Attempt selection
+includes thumbnails, date/session filters, individual checks, a page selection
+and the range between checked attempts. Bulk actions record technique, mixed or
+unknown. A session can be marked without logging each attempt. Identity reuse
+keeps A/B/A as three chronological episodes; renaming an identity changes its
+label and retains revision history.
 
-- Episode and attempt detail: keyset pages of at most 50 records plus one
-  continuation sentinel; deterministic timestamp/ID cursors. Response <= 256 KiB.
-- Mutation: at most 100 attempts or 16 copied scopes per transaction. Reject
-  oversized requests before loading records; larger operations use explicit
-  batches. Notes <= 2,000 characters, identity labels <= 120 characters.
-- Preview and commit: lock the diver ownership row followed by the track row,
-  re-read permissions and shared revision, then validate every affected scope.
-  Family and exact-code writers use the same lock and revision. Reject stale
-  previews with a conflict; never silently rebase a mutation.
-- Read endpoints: target <= 12 SQL statements independent of attempts/history
-  volume, <= 512 materialized rows, <= 2 MiB retained detail data. SQL execution
-  may scan the complete indexed eligible history. No rating aggregate may be
-  derived from a capped detail list.
-- Comparison: complete SQL aggregates with continuous percentile median/IQR;
-  equal-session mode first aggregates context-specific session subsets. Return
-  at most two summary sides and bounded exact modifier sets with explicit
-  pagination if the set inventory grows. Coverage precedes numerical ratings.
-- No frontend cache until viewer/context/track/revision keys and request
-  generation guards are integrated.
+Technique chart mode leaves the ordinary all-history chart available when off.
+It displays one selected track, splits session points by episode/recorded-state
+subset, and computes rolling curves in SQL within resolved contiguous segments.
+Mixed/unknown gaps have no rolling summaries. Continuation pages retain their
+preceding segment context. Score colors are preserved. Selection highlights the
+resolved episode; boundaries are marked, approximate ranges hatched, and
+coincident boundaries grouped into cycling count controls. The episode list
+provides a separate large target for every episode. Recorded comparisons use the
+summary table rather than a curve through interleaved variants.
 
-The pure resolver currently accepts a caller-provided list. It is suitable for
-bounded preview rules and tests; loading all history to feed it in a production
-endpoint would violate the approved resource contract. SQL resolution must be
-implemented before API integration.
+Periods and Recorded use have distinct SQL membership. Both require the same
+exact comparison context and modifier set. The modifier inventory exposes each
+set's eligible/scored counts on both sides, including empty sides. Coverage is
+shown for both sides before ratings. Recorded use includes explicit assignments
+from the union of the two selected resolved periods, preserves conflicts on their
+recorded identity, reports out-of-intended-period use and exclusions, and handles
+same-identity recurrence by episode. It does not include intervening gaps or later
+recurrences. Attempt and equal-session weighting use continuous-percentile
+median/IQR, with no spread for a singleton and no zero for a missing rating.
+Ratings use the existing app mapping, including its 45/55 phase weighting;
+no official judging, DD weighting, winner or causal improvement is inferred.
+Other-track changes appear as textual selection controls.
 
-## Validation evidence
+## Concurrency and audit
 
-On 2026-11-09, the cached backend CI virtual environment ran:
+Every annotation writer locks the diver ownership row, revalidates ownership,
+then locks the selected track and checks its shared revision. Family and exact
+scope writers use that same revision. Reads share-lock the revision while
+materializing their result. A stale preview receives 409. Copies and selections
+are atomic within their declared batch. UI requests have generation/cleanup
+fences and no private history cache.
 
-`python -m pytest backend/tests/test_technique_history_rules.py -q`
+Revisions record author, operation, time and before/after state. Undo applies to
+the latest create, boundary edit/end, delete, copy or rename; it refuses an
+intervening revision. Bulk attempt/session state and order corrections retain
+audit records but are not undo actions. An order correction previews affected
+attempts, requires every diver-track revision, increments those revisions and
+preserves existing anchor boundary keys. Moving an anchored boundary remains an
+explicit episode edit. The ordinary ORM/SQL update paths cannot rewrite keys.
 
-Result: **8 passed**, 10 existing Pydantic deprecation warnings. The system
-Python attempt failed during conftest import because SQLAlchemy was absent;
-using the cached CI environment resolved that environment issue.
+## Request budgets
 
-These tests prove the pure rules only. They do not validate PostgreSQL locks,
-SQL statistics, access enforcement, migration, frontend rendering, accessibility,
-caption resync or the complete feature. No complete CI tier has been claimed.
+| Path | Selection / materialization | SQL / response contract |
+| --- | --- | --- |
+| Contexts, tracks, episodes, attempts, modifiers, chart, revision metadata | At most 50 items plus one sentinel; stable context/history cursors | Read target <=12 statements including normal auth; <=512 materialized rows; <=256 KiB detail response |
+| Preview | Immediate neighbors, one aggregate row; no attempt list | <=16 statements, complete SQL affected counts |
+| Bulk assignment | <=100 IDs; <=100 narrow dive rows and existing assignments | <=256 statements including bounded ORM writes; atomic |
+| Copy | <=16 target scopes; immediate neighbors and one aggregate per target | <=256 statements including bounded ORM writes; atomic |
+| Order correction | One attempt, <=16 tracks | Refuses larger fan-out before mutation; requires all track revisions |
+| Comparison | Two episodes, two summary sides, bounded other-track indicators | Full SQL counts/percentiles; never computed from detail pages |
+
+Labels are limited to 120 characters, track names to 80, notes to 2,000.
+Dive mutations load only required identity/order columns, not unbounded captions
+or notes. Complete eligible-history and session-bin scans occur inside PostgreSQL;
+constant query count does not mean constant database work. Chart windows may
+scan preceding segment bins. Python detail retention target is 2 MiB.
+
+Measured PostgreSQL detail proof: 75 episodes with maximum-length notes produced
+50 + 25 item pages, five SQL statements across the two direct service calls
+(excluding authentication), a 123,279-byte first response, and <0.5 MiB peak
+traced Python memory. Comparison statistics remain complete beyond the first
+50 attempts; tests use 121 eligible ratings. These are isolated representative
+checks, not production latency/load benchmarks.
 
 ## Migration and backout
 
-There is no migration ready to apply. Do not create production tables from the
-draft models. The eventual additive SQL migration must run manually **before**
-the dependent backend/frontend deploy; ship.sh does not apply SQL migrations.
-It must backfill immutable occurrence keys once, establish creation defaults for
-all ingest writers, and preserve keys across display-date edits and anchor
-removal. All existing writer paths need regression coverage first.
+Apply `backend/migrations/add_technique_history.sql` manually **before** deploying
+both backend and frontend. `ship.sh` does not apply SQL. The migration is additive
+and transactional, creates the private history/preference tables and indexes,
+backfills `dives.history_occurred_at` once from the existing occurrence date,
+and installs an INSERT/UPDATE trigger. ORM creation also captures the key; the
+trigger covers raw SQL and older ingest clients. Display-date edits leave the
+key unchanged. Deleted anchors retain their boundary timestamp/ID.
 
-A later application rollback should retain additive history tables and keys.
-Never drop history as part of rollback. Stop dependent application writers before
-any schema backout; preserve an independent backup and audit revisions. The
-unintegrated foundation here requires no deployment or database action.
+Before rollout, take the normal database backup and schedule the backfill/index
+work according to production volume. Verify zero NULL history keys and the new
+tables/trigger, then deploy the backend and frontend together through the normal
+repository workflow. No Mac worker upgrade, nginx change or automatic migration
+is required. The immutable `technique-history` release note names both services.
+
+For application backout, restore the previous backend/frontend images and retain
+all additive tables, history keys, trigger and revision records. Older insert
+writers remain compatible with the trigger. Do not drop history or restore old
+dates over the immutable keys as part of rollback. Any later schema removal
+requires stopped dependent writers and an independently verified export/backup;
+there is deliberately no destructive down migration.
+
+## Verification
+
+- Full isolated backend run: **1,908 passed, 129 skipped, 28 performance tests
+  deselected**. Skips are environment-specific PostgreSQL/live tests; the new
+  production-dialect tests are run separately against a disposable database.
+- Frontend gate: **984 tests across 120 files**, TypeScript and production bundle passed. Latest
+  focused checks include mobile segmented SVG rendering, keyboard selection,
+  preview-before-save, immutable anchors, stale-diver responses, CodeAnalysis
+  behavior and locale parity.
+- **19 dedicated PostgreSQL checks** apply the migration twice and exercise immutable
+  SQL/ORM key producers, full-scope statistics, phase weighting, session weighting,
+  recorded conflicts, context fences/ownership, shared locks/stale revisions,
+  insertion/splitting, copy independence, boundary undo, order correction,
+  deleted provenance, complete context inventory, A/B/A session partitioning,
+  chart continuation and response/query/memory budgets.
+
+Reproduction uses `TECHNIQUE_TEST_DATABASE_URL` pointing to a disposable
+`calendar_test_*` database and `pytest backend/tests/test_technique_history_postgres.py`.
+The test refuses other database names. The local frontend Node version requires
+`NODE_OPTIONS=--no-experimental-webstorage ci/gate.sh frontend`; without that flag,
+Node's experimental global storage shadows jsdom storage in unrelated suites.
+The cached Python environment runs the backend suite directly; its missing pip
+launcher prevented the first gate wrapper attempt, not pytest execution.
+
+## Operational limits
+
+No deployment, production migration, browser E2E or production load measurement
+has been performed. Boundary/identity undo is one latest action. Larger copy or
+assignment selections require explicit bounded batches/pages; order correction
+refuses more than 16 tracks rather than partially changing history. Other-track
+comparison indicators return the first 50 plus an explicit more flag; the full
+track/episode inventories remain paginated. Live media playback retains its
+existing authorization and transport workflow.
 
 ## Local commits
 
-Foundation commit: `acd958e4` (approved proposal, resolver, draft models and
-focused tests). This documentation follow-up records that immutable commit ID.
+- `acd958e4`: approved proposal and original pure-rule foundation.
+- `1f248784`: original foundation status.
+- `03baef9d`: first runtime schema/API/SQL milestone.
+- `eec9b8d4`: integrated Scores UI, complete context inventory, segmented SQL chart, exact-context comparisons, mutations/provenance, release note and dedicated PostgreSQL/frontend verification.

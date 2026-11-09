@@ -1,6 +1,6 @@
 # Technique history on dive Scores
 
-Status: council-reviewed product proposal, with the final explicit comparison guard applied; not implemented.
+Status: approved product contract, with the final explicit comparison guard applied. Runtime delivery and verification are documented in [the implementation record](TECHNIQUE_HISTORY_IMPLEMENTATION.md).
 
 ## Purpose
 
