@@ -35,6 +35,10 @@ python-dateutil==2.8.2
 requests==2.31.0
 aiofiles==23.2.1
 pytz==2023.3
+# YAML feature specs (app.services.metric_registry). Was previously
+# undeclared: prod and CI carried it through environment luck. Pinned to the
+# same version the running images already use.
+PyYAML==6.0.3
 
 # Logging and monitoring
 python-json-logger==2.0.7
