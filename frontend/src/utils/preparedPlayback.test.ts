@@ -1,7 +1,10 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { acquirePlaybackVideo, releasePlaybackVideo, preparePlaybackWindow, resetPreparedPlayback } from './preparedPlayback'
+import { WARMUP_HOLD_MS, acquirePlaybackVideo, holdWarmup, releasePlaybackVideo, releaseWarmup, preparePlaybackWindow, resetPreparedPlayback } from './preparedPlayback'
 import { getPreviewForPlayback } from './mediaPreview'
-vi.mock('./mediaPreview', () => ({ getPreviewForPlayback: vi.fn() }))
+vi.mock('./mediaPreview', () => ({
+  getPreviewForPlayback: vi.fn(),
+  getPreview: vi.fn(async () => ({ playbackUrl: null, posterUrl: null, videoThumbUrl: null, ready: true, startRole: null })),
+}))
 beforeEach(() => {
   vi.useFakeTimers()
   vi.mocked(getPreviewForPlayback).mockImplementation(async uuid => ({
@@ -37,7 +40,8 @@ it('bounds speculative elements and aborts obsolete native transfers', async () 
   const create = vi.spyOn(document, 'createElement')
   preparePlaybackWindow(['a', 'b', 'c', 'd', 'e'])
   await flush()
-  expect(create.mock.calls.filter(([tag]) => tag === 'video')).toHaveLength(3)
+  // Two speculative decoders: next and previous beside the active clip.
+  expect(create.mock.calls.filter(([tag]) => tag === 'video')).toHaveLength(2)
   const a = acquirePlaybackVideo('a')
   releasePlaybackVideo('a', a)
   preparePlaybackWindow(['z'])
@@ -48,6 +52,7 @@ it('ignores late status responses after sign-out or a changed window', async () 
   let resolve!: (value: Awaited<ReturnType<typeof getPreviewForPlayback>>) => void
   vi.mocked(getPreviewForPlayback).mockImplementation(() => new Promise(done => { resolve = done }))
   preparePlaybackWindow(['late'])
+  await flush() // the tile lookup settles; the playback status is in flight
   resetPreparedPlayback()
   const create = vi.spyOn(document, 'createElement')
   resolve({ playbackUrl: '/private.mp4', posterUrl: null, videoThumbUrl: null, ready: true })
@@ -112,4 +117,50 @@ it('does not warm an unresolved local original after playback status fails', asy
   preparePlaybackWindow(['unresolved'])
   await flush()
   expect(create.mock.calls.filter(([tag]) => tag === 'video')).toHaveLength(0)
+})
+
+it('holds neighbor warming until the visible clip starts, bounded in time', async () => {
+  const create = vi.spyOn(document, 'createElement')
+  const release = holdWarmup()
+  preparePlaybackWindow(['here', 'next'])
+  await flush()
+  expect(getPreviewForPlayback).not.toHaveBeenCalled()
+  expect(create.mock.calls.filter(([tag]) => tag === 'video')).toHaveLength(0)
+  release()
+  await flush()
+  expect(create.mock.calls.filter(([tag]) => tag === 'video')).toHaveLength(2)
+  // A clip that never presents cannot block warming forever.
+  resetPreparedPlayback()
+  holdWarmup()
+  preparePlaybackWindow(['other'])
+  await flush()
+  expect(getPreviewForPlayback).not.toHaveBeenCalledWith('other')
+  await vi.advanceTimersByTimeAsync(WARMUP_HOLD_MS)
+  expect(getPreviewForPlayback).toHaveBeenCalledWith('other')
+})
+
+it('a previous clip releasing late never ends the next clip hold', async () => {
+  const releasePrevious = holdWarmup()
+  const releaseNext = holdWarmup() // the next clip mounts before the old one cleans up
+  preparePlaybackWindow(['next', 'after'])
+  releasePrevious()
+  await flush()
+  expect(getPreviewForPlayback).not.toHaveBeenCalled()
+  releaseNext()
+  await flush()
+  expect(getPreviewForPlayback).toHaveBeenCalled()
+  releaseWarmup() // reset path stays callable with no hold
+})
+
+it('warmers waiting on a clip hold keep waiting when the next clip takes it over', async () => {
+  const releaseOld = holdWarmup()
+  preparePlaybackWindow(['next', 'after'])
+  // Clip change: the old clip's cleanup releases, then the new clip holds.
+  releaseOld()
+  const releaseNew = holdWarmup()
+  await flush()
+  expect(getPreviewForPlayback).not.toHaveBeenCalled()
+  releaseNew()
+  await flush()
+  expect(getPreviewForPlayback).toHaveBeenCalled()
 })

@@ -36,7 +36,7 @@ scroll mints no grants.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any, Optional
 
 from sqlalchemy.orm import Session
@@ -68,6 +68,9 @@ class DerivativeDecision:
     # Machine reason for non-servable states (missing|preparing|stale|
     # superseded|unavailable|no-source). Never user-facing verbatim.
     reason: Optional[str] = None
+    # Transform version of the row this decision came from (cutover can
+    # serve roles from different versions).
+    transform_version: Optional[str] = None
 
 
 @dataclass(frozen=True)
@@ -111,6 +114,16 @@ def _current_transform_version(explicit: Optional[str] = None) -> str:
     if explicit:
         return explicit
     return get_settings().media_derivative_transform_version
+
+
+def _served_transform_versions(explicit: Optional[str] = None) -> list[str]:
+    """Versions the read path may serve, newest first (explicit = only that)."""
+    if explicit:
+        return [explicit]
+    settings = get_settings()
+    configured = [item.strip() for item in settings.media_derivative_served_transform_versions.split(",") if item.strip()]
+    versions = configured or [settings.media_derivative_transform_version]
+    return list(dict.fromkeys(versions))
 
 
 def _verified_prod_location(db: Session, derivative_sha: str, environment: str):
@@ -161,6 +174,77 @@ def _short_side(blob) -> Optional[int]:
     return min(width, height)
 
 
+def _role_decision(
+    db: Session,
+    video_uuid: str,
+    role: str,
+    source_sha: str,
+    source_revision_id: int,
+    version: str,
+    environment: str,
+) -> "DerivativeDecision":
+    """One role's decision for one transform version of the current source."""
+    from app.models.media_backbone import MediaDerivative
+
+    row = (
+        db.query(MediaDerivative)
+        .filter(
+            MediaDerivative.video_uuid == video_uuid,
+            MediaDerivative.source_blob_sha256 == source_sha,
+            MediaDerivative.role == role,
+            MediaDerivative.transform_version == version,
+        )
+        .order_by(MediaDerivative.id.desc())
+        .first()
+    )
+    if row is None:
+        return DerivativeDecision(
+            role=role,
+            state="missing",
+            source_revision_id=source_revision_id,
+            reason="no_derivative_row",
+        )
+    if row.status != "ready":
+        state = {
+            "verifying": "preparing",
+            "stale": "stale",
+            "superseded": "superseded",
+        }.get(row.status, "unavailable")
+        return DerivativeDecision(
+            role=role,
+            state=state,
+            derivative_id=row.id,
+            source_revision_id=source_revision_id,
+            reason=f"ledger_{row.status}",
+        )
+    revision = _derived_revision(db, video_uuid, row.derivative_blob_sha256, role)
+    if revision is None:
+        return DerivativeDecision(
+            role=role,
+            state="unavailable",
+            derivative_id=row.id,
+            source_revision_id=source_revision_id,
+            reason="ledger_ready_without_backbone_revision",
+        )
+    _location, deny = _verified_prod_location(db, row.derivative_blob_sha256, environment)
+    if deny is not None:
+        return DerivativeDecision(
+            role=role,
+            state="unavailable",
+            derivative_id=row.id,
+            source_revision_id=source_revision_id,
+            reason=deny,
+        )
+    return DerivativeDecision(
+        role=role,
+        state="ready",
+        revision_id=int(revision.id),
+        playback_url=f"/api/v1/media/revisions/{int(revision.id)}/play",
+        derivative_id=row.id,
+        source_revision_id=source_revision_id,
+    )
+
+
 def resolve_clip_derivatives(
     db: Session,
     video_uuid: str,
@@ -172,7 +256,8 @@ def resolve_clip_derivatives(
     from app.models.media_backbone import MediaDerivative
     from app.services.derivative_publisher import MissingSourceError, resolve_canonical_source_revision
 
-    version = _current_transform_version(transform_version)
+    versions = _served_transform_versions(transform_version)
+    version = versions[0]
     try:
         source_revision, source_blob, _source_location = resolve_canonical_source_revision(db, video_uuid)
     except MissingSourceError:
@@ -206,66 +291,25 @@ def resolve_clip_derivatives(
 
     decisions: dict[str, DerivativeDecision] = {}
     for role in DERIVATIVE_ROLES:
-        row = (
-            db.query(MediaDerivative)
-            .filter(
-                MediaDerivative.video_uuid == video_uuid,
-                MediaDerivative.source_blob_sha256 == source_sha,
-                MediaDerivative.role == role,
-                MediaDerivative.transform_version == version,
-            )
-            .order_by(MediaDerivative.id.desc())
-            .first()
-        )
-        if row is None:
-            decisions[role] = DerivativeDecision(
-                role=role,
-                state="missing",
-                source_revision_id=source_revision_id,
-                reason="no_derivative_row",
-            )
-            continue
-        if row.status != "ready":
-            state = {
-                "verifying": "preparing",
-                "stale": "stale",
-                "superseded": "superseded",
-            }.get(row.status, "unavailable")
-            decisions[role] = DerivativeDecision(
-                role=role,
-                state=state,
-                derivative_id=row.id,
-                source_revision_id=source_revision_id,
-                reason=f"ledger_{row.status}",
-            )
-            continue
-        revision = _derived_revision(db, video_uuid, row.derivative_blob_sha256, role)
-        if revision is None:
-            decisions[role] = DerivativeDecision(
-                role=role,
-                state="unavailable",
-                derivative_id=row.id,
-                source_revision_id=source_revision_id,
-                reason="ledger_ready_without_backbone_revision",
-            )
-            continue
-        _location, deny = _verified_prod_location(db, row.derivative_blob_sha256, environment)
-        if deny is not None:
-            decisions[role] = DerivativeDecision(
-                role=role,
-                state="unavailable",
-                derivative_id=row.id,
-                source_revision_id=source_revision_id,
-                reason=deny,
-            )
-            continue
-        decisions[role] = DerivativeDecision(
+        # Newest servable version wins; an older ready version keeps serving
+        # while a newer one is missing or still verifying (cutover). Every
+        # candidate must belong to the CURRENT canonical source.
+        chosen: Optional[DerivativeDecision] = None
+        first_seen: Optional[DerivativeDecision] = None
+        for candidate_version in versions:
+            decision = _role_decision(db, video_uuid, role, source_sha, source_revision_id, candidate_version, environment)
+            if decision.reason != "no_derivative_row":
+                decision = replace(decision, transform_version=candidate_version)
+            if decision.state == "ready":
+                chosen = decision
+                break
+            if first_seen is None and decision.reason != "no_derivative_row":
+                first_seen = decision
+        decisions[role] = chosen or first_seen or DerivativeDecision(
             role=role,
-            state="ready",
-            revision_id=int(revision.id),
-            playback_url=f"/api/v1/media/revisions/{int(revision.id)}/play",
-            derivative_id=row.id,
+            state="missing",
             source_revision_id=source_revision_id,
+            reason="no_derivative_row",
         )
 
     # Small-source HQ alias: ONLY when the producer never recorded a
@@ -301,11 +345,14 @@ def resolve_clip_derivatives(
     else:
         start, recommended = "original", "original"
 
+    # Report the version actually serving Light (players size their network
+    # estimate from it); the produced version otherwise.
+    served_version = decisions["light"].transform_version if light_ready else None
     return ClipDerivatives(
         video_uuid=video_uuid,
         source_revision_id=source_revision_id,
         source_sha256=source_sha,
-        transform_version=version,
+        transform_version=served_version or version,
         roles=decisions,
         start=start,
         recommended=recommended,

@@ -392,7 +392,7 @@ def fake_presign(monkeypatch):
     behavior = {"fail": False}
     calls = []
 
-    def _fake(bucket, object_key, ttl_seconds=None, storage_location_id=None):
+    def _fake(bucket, object_key, ttl_seconds=None, storage_location_id=None, **_extra):
         from app.services.b2_presign import PresignResult, PresignUnavailable, clamp_ttl
 
         calls.append({"bucket": bucket, "object_key": object_key, "storage_location_id": storage_location_id})
@@ -697,7 +697,7 @@ def test_owner_derivative_play_redirects_with_grant(client, db):
     assert r.headers.get("Referrer-Policy") == "no-referrer"
     grants = db.query(MediaPlaybackGrant).filter_by(outcome="ALLOWED").all()
     assert len(grants) == 1
-    assert grants[0].ttl_seconds == 120
+    assert grants[0].ttl_seconds == 300  # playback grant TTL, capped at 300
 
 
 @pytest.mark.parametrize("role", ["light", "original"])
@@ -1200,3 +1200,171 @@ def test_local_player_cover_avoids_durable_poster_grant(client, db):
     body = _status(client, UUID_FULL)
     assert body['poster_url'] == f'/api/v1/media/cache/{poster.id}/play'
     assert body['poster_url'] != body['derivatives']['poster']['playback_url']
+
+
+# ---- Grant cost, URL reuse, role route and served-version cutover ----
+
+
+def _light_url(client):
+    return _status(client, UUID_FULL)["derivatives"]["light"]["playback_url"]
+
+
+def test_same_viewer_reuses_signed_url_and_still_records_each_grant(client, db, fake_presign):
+    url = _light_url(client)
+    first = client.get(url, follow_redirects=False)
+    second = client.get(url, follow_redirects=False)
+    assert first.status_code == second.status_code == 302
+    assert first.headers["location"] == second.headers["location"]
+    assert len(fake_presign[1]) == 1
+    assert "sign;desc=new" in first.headers["server-timing"]
+    assert "sign;desc=reused" in second.headers["server-timing"]
+    assert PRESIGN_MARKER not in first.headers["server-timing"]
+    assert db.query(MediaPlaybackGrant).filter_by(outcome="ALLOWED").count() == 2
+
+
+def test_reused_url_is_never_returned_after_access_is_revoked(client, db, fake_presign):
+    url = _light_url(client)
+    assert client.get(url, follow_redirects=False).status_code == 302
+    user = db.query(AppUser).filter_by(email="user-a@example.test").one()
+    db.query(UserDiverAccess).filter_by(user_id=user.id).delete()
+    db.commit()
+    again = client.get(url, follow_redirects=False)
+    assert again.status_code == 404
+    assert "location" not in again.headers
+    assert db.query(MediaPlaybackGrant).filter_by(outcome="ALLOWED").count() == 1
+
+
+def test_reuse_is_scoped_by_viewer_storage_and_renews_at_half_life(monkeypatch, flags):
+    from app.services import b2_presign
+
+    calls = []
+
+    def _sign(bucket, object_key, ttl_seconds=None, storage_location_id=None, **extra):
+        calls.append(extra.get("response_cache_control"))
+        return b2_presign.PresignResult(url=f"https://b2.example/{object_key}?sig={len(calls)}", ttl_seconds=ttl_seconds)
+
+    clock = {"now": 1000.0}
+    monkeypatch.setattr(b2_presign, "presign_get", _sign)
+    monkeypatch.setattr(b2_presign, "monotonic", lambda: clock["now"])
+    args = dict(revision_id=7, storage_identity=("sha", "loc"), bucket="b", object_key="k")
+    first, reused = b2_presign.presign_playback(viewer_id=1, **args)
+    assert not reused and calls == ["private, max-age=300"]
+    assert b2_presign.presign_playback(viewer_id=1, **args)[0].url == first.url
+    # Another viewer never receives the first viewer's URL.
+    assert b2_presign.presign_playback(viewer_id=2, **args)[0].url != first.url
+    # Changed storage identity misses.
+    assert b2_presign.presign_playback(viewer_id=1, **{**args, "storage_identity": ("sha", "other")})[1] is False
+    # Under half of the life left: renewed instead of handed out.
+    clock["now"] += 151
+    renewed, reused = b2_presign.presign_playback(viewer_id=1, **args)
+    assert not reused and renewed.url != first.url
+
+
+def test_head_cache_hit_skips_provider_io_and_second_authority_pass(client, db, fake_presign, monkeypatch):
+    import app.api.v1.media_playback as playback_module
+
+    def _no_io(*_a, **_k):
+        raise AssertionError("no provider HEAD or refresh on a proven object")
+
+    monkeypatch.setattr(playback_module.b2_presign, "head_is_cached", lambda bucket, object_key: True)
+    monkeypatch.setattr(playback_module.b2_presign, "head_object", _no_io)
+    monkeypatch.setattr(playback_module, "_refresh_after_provider", _no_io)
+    response = client.get(_light_url(client), follow_redirects=False)
+    assert response.status_code == 302, response.text
+    timing = response.headers["server-timing"]
+    assert "head;desc=hit" in timing and "refresh" not in timing
+
+
+def test_role_route_plays_the_current_light_without_a_status_call(client, db, fake_presign):
+    by_revision = client.get(_light_url(client), follow_redirects=False)
+    by_role = client.get(f"/api/v1/media/{UUID_FULL}/play/light", follow_redirects=False)
+    assert by_role.status_code == 302, by_role.text
+    assert by_role.headers["location"] == by_revision.headers["location"]
+    assert by_role.headers["cache-control"] == "private, no-store"
+    assert "resolve;" in by_role.headers["server-timing"]
+
+
+@pytest.mark.parametrize("path", [f"/api/v1/media/{UUID_FULL}/play/poster", f"/api/v1/media/{UUID_FULL}/play/original", f"/api/v1/media/{UUID_STALE}/play/light", f"/api/v1/media/{UUID_NOSRC}/play/light"])
+def test_role_route_unservable_role_is_uniform_404(client, db, fake_presign, path):
+    response = client.get(path, follow_redirects=False)
+    assert response.status_code == 404
+    assert fake_presign[1] == []
+
+
+def test_role_route_stranger_gets_uniform_404(db, flags, fake_presign, client):
+    client.post("/api/v1/auth/logout")
+    client.post("/api/v1/auth/login", json={"email": "user-b@example.test", "password": "correct-horse-battery"})
+    response = client.get(f"/api/v1/media/{UUID_FULL}/play/light", follow_redirects=False)
+    assert response.status_code == 404
+    assert fake_presign[1] == []
+    assert db.query(MediaPlaybackGrant).filter_by(outcome="ALLOWED").count() == 0
+
+
+def test_served_versions_keep_the_older_package_until_the_new_one_is_ready(client, db, fake_presign, monkeypatch):
+    settings = get_settings()
+    monkeypatch.setattr(settings, "media_derivative_served_transform_versions", "ffmpeg-h264-web-v1,ffmpeg-h264-web-v0")
+    old_status = _status(client, UUID_OLDVERSION)["derivatives"]
+    old_light = old_status["light"]
+    assert old_light["state"] == "ready"
+    # The payload names the version actually serving Light (player bitrate).
+    assert old_status["transform_version"] == "ffmpeg-h264-web-v0"
+    src = db.query(MediaDerivative).filter_by(video_uuid=UUID_OLDVERSION, role="light").one().source_blob_sha256
+    # Backfill in progress: the new version is still verifying.
+    new_sha = _sha("d5-oldversion-light-v1")
+    pending = _derivative(db, UUID_OLDVERSION, src, "light", new_sha, status="verifying")
+    db.commit()
+    assert _status(client, UUID_OLDVERSION)["derivatives"]["light"]["playback_url"] == old_light["playback_url"]
+    assert client.get(old_light["playback_url"], follow_redirects=False).status_code == 302
+    # The new package is verified durable: it takes over, the old one stops serving.
+    pending.status = "ready"
+    pending.verified_at = datetime.utcnow()
+    _rev(db, UUID_OLDVERSION, new_sha, "derived_light")
+    _loc(db, new_sha, "prod", PROD_BUCKET, f"blobs/sha256/derived/light-{new_sha[:8]}.bin")
+    db.commit()
+    new_status = _status(client, UUID_OLDVERSION)["derivatives"]
+    new_light = new_status["light"]
+    assert new_light["state"] == "ready" and new_light["playback_url"] != old_light["playback_url"]
+    assert new_status["transform_version"] == "ffmpeg-h264-web-v1"
+    assert client.get(old_light["playback_url"], follow_redirects=False).status_code == 404
+    assert client.get(f"/api/v1/media/{UUID_OLDVERSION}/play/light", follow_redirects=False).status_code == 302
+
+
+def test_batch_hints_a_ready_light_start_without_exposing_urls(client, fake_presign):
+    response = client.post("/api/v1/media/status/batch", json={"video_uuids": [UUID_FULL, UUID_STALE, UUID_OLDVERSION]})
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body[UUID_FULL]["start_role"] == "light"
+    assert body[UUID_FULL]["start_light_version"] == get_settings().media_derivative_transform_version
+    assert "start_role" not in body[UUID_STALE]
+    assert "start_role" not in body[UUID_OLDVERSION]  # not a served version
+    assert "/revisions/" not in response.text  # tiles still mint nothing
+    assert fake_presign[1] == []
+
+
+def test_role_route_authorizes_before_resolving_anything(db, flags, fake_presign, client, monkeypatch):
+    import app.services.derivative_read as derivative_read
+
+    def _must_not_resolve(*_a, **_k):
+        raise AssertionError("a stranger must not reach derivative resolution")
+
+    monkeypatch.setattr(derivative_read, "safe_resolve_clip_derivatives", _must_not_resolve)
+    client.post("/api/v1/auth/logout")
+    client.post("/api/v1/auth/login", json={"email": "user-b@example.test", "password": "correct-horse-battery"})
+    response = client.get(f"/api/v1/media/{UUID_FULL}/play/light", follow_redirects=False)
+    assert response.status_code == 404
+    assert fake_presign[1] == []
+
+
+def test_batch_hint_names_the_uncapped_light_when_versions_coexist(client, db, monkeypatch):
+    settings = get_settings()
+    monkeypatch.setattr(settings, "media_derivative_served_transform_versions", "ffmpeg-h264-web-v2,ffmpeg-h264-web-v1")
+    src = db.query(MediaDerivative).filter_by(video_uuid=UUID_FULL, role="light").first().source_blob_sha256
+    _derivative(db, UUID_FULL, src, "light", _sha("d5-full-light-v2"), transform="ffmpeg-h264-web-v2")
+    db.commit()
+    # v1 (uncapped) and v2 rows both ready: a cautious start assumes v1.
+    body = client.post("/api/v1/media/status/batch", json={"video_uuids": [UUID_FULL]}).json()
+    assert body[UUID_FULL]["start_light_version"] == "ffmpeg-h264-web-v1"
+    db.query(MediaDerivative).filter_by(video_uuid=UUID_FULL, role="light", transform_version="ffmpeg-h264-web-v1").delete()
+    db.commit()
+    body = client.post("/api/v1/media/status/batch", json={"video_uuids": [UUID_FULL]}).json()
+    assert body[UUID_FULL]["start_light_version"] == "ffmpeg-h264-web-v2"

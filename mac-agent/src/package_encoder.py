@@ -93,6 +93,26 @@ LIGHT_SHORT_SIDE = 720
 PACKAGE_CRF = 23
 HQ_MAXRATE = "12M"
 HQ_BUFSIZE = "24M"
+
+#: Rate caps per transform version (``(maxrate, bufsize)`` or ``None`` for
+#: CRF only). A transform version names an exact recipe: the server leases
+#: the version and this agent must produce exactly those bytes, so a v1 job
+#: during a v2 rollout still gets v1 output. Unknown versions fail closed.
+#: v2 caps Light at 2.5 Mbps (VMAF 76 vs 84 uncapped, 2.7 vs 6.4 Mbps on a
+#: 60 fps HLG pool clip) so it starts and plays on weak mobile networks; HQ
+#: is unchanged until reviewers compare paused entry frames.
+TRANSFORM_RATE_PROFILES: dict[str, dict[str, tuple[str, str] | None]] = {
+    "ffmpeg-h264-web-v1": {"hq": (HQ_MAXRATE, HQ_BUFSIZE), "light": None},
+    "ffmpeg-h264-web-v2": {"hq": (HQ_MAXRATE, HQ_BUFSIZE), "light": ("2500k", "5000k")},
+}
+
+
+def rate_profile(transform_version: str) -> dict[str, tuple[str, str] | None]:
+    """Rate caps for one transform version, or ValueError (fail closed)."""
+    try:
+        return TRANSFORM_RATE_PROFILES[transform_version]
+    except KeyError:
+        raise ValueError(f"no encode recipe for transform_version {transform_version!r}") from None
 PACKAGE_PRESET = "medium"
 PACKAGE_PROFILE = "high"
 AUDIO_BITRATE = "128k"
@@ -593,13 +613,14 @@ def _scale_branch(w: int, h: int) -> str:
 ZSCALE_GAMUT_TO_BT709 = "zscale=p=bt709:m=bt709:r=tv"
 
 
-def _x264_args(gop: int, threads: int, hq: bool) -> list[str]:
+def _x264_args(gop: int, threads: int, hq: bool, transform_version: str = DERIVATIVE_TRANSFORM_VERSION_DEFAULT) -> list[str]:
     args = [
         "-c:v", "libx264", "-threads", str(threads), "-preset", PACKAGE_PRESET,
         "-profile:v", PACKAGE_PROFILE, "-crf", str(PACKAGE_CRF),
     ]
-    if hq:
-        args += ["-maxrate", HQ_MAXRATE, "-bufsize", HQ_BUFSIZE]
+    cap = rate_profile(transform_version)["hq" if hq else "light"]
+    if cap is not None:
+        args += ["-maxrate", cap[0], "-bufsize", cap[1]]
     args += [
         "-pix_fmt", "yuv420p", "-g", str(gop), "-keyint_min", str(gop),
         "-color_range", "tv", "-colorspace", "bt709",
@@ -618,6 +639,7 @@ def build_package_cmd(
     *,
     ffmpeg_path: str = "ffmpeg",
     threads_per_variant: int = 2,
+    transform_version: str = DERIVATIVE_TRANSFORM_VERSION_DEFAULT,
 ) -> list[str]:
     """Single ffmpeg command: one decode, one tone-map, split to outputs."""
     if threads_per_variant < 1:
@@ -665,10 +687,10 @@ def build_package_cmd(
     if plan.hq_applicable:
         assert hq_out is not None
         cmd += ["-map", "[hq]", *audio, "-sn", "-dn", "-map_metadata", "-1",
-                "-fps_mode", "passthrough", *_x264_args(plan.gop, threads_per_variant, hq=True),
+                "-fps_mode", "passthrough", *_x264_args(plan.gop, threads_per_variant, hq=True, transform_version=transform_version),
                 str(hq_out)]
     cmd += ["-map", "[lt]", *audio, "-sn", "-dn", "-map_metadata", "-1",
-            "-fps_mode", "passthrough", *_x264_args(plan.gop, threads_per_variant, hq=False),
+            "-fps_mode", "passthrough", *_x264_args(plan.gop, threads_per_variant, hq=False, transform_version=transform_version),
             str(light_out)]
     cmd += ["-map", "[po]", "-an", "-sn", "-dn", "-map_metadata", "-1",
             "-frames:v", "1", "-q:v", str(POSTER_QUALITY), str(poster_out)]
@@ -1157,6 +1179,9 @@ async def build_package(
     # hash, ffmpeg, or any output — the old late ValueError wasted a
     # full encode and left outputs behind.
     _early_identity_check(video_uuid, version, source_sha256)
+    # A version without a recipe would publish mislabeled bytes: refuse it
+    # before probing or encoding anything.
+    rate_profile(version)
     probe_bin = ffprobe_path or _ffprobe_path(ffmpeg_path)
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -1268,6 +1293,7 @@ async def build_package(
         cmd = build_package_cmd(
             src_resolved, hq_tmp, light_tmp, poster_tmp, plan,
             ffmpeg_path=ffmpeg_path, threads_per_variant=threads_per_variant,
+            transform_version=version,
         )
 
         started = _time.monotonic()

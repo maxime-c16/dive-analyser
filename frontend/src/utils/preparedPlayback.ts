@@ -1,10 +1,13 @@
 import { canPrefetch } from '../hooks/useNavigationIntent'
-import { getPreviewForPlayback } from './mediaPreview'
+import { getPreview, getPreviewForPlayback } from './mediaPreview'
+import { autoStartUrl } from './playbackPolicy'
 
 // Keep the actual media element, not a fetch of its bytes. A revision URL
 // redirects with no-store and the bucket has no CORS: fetch warming cannot
 // prepare it, and a second element would need another playback grant.
-const MAX_IDLE = 3
+// Two speculative neighbors (next/previous) beside the active clip: each one
+// is a hardware decoder on phones, and the active clip may add an HQ one.
+const MAX_IDLE = 2
 const IDLE_TTL_MS = 30_000
 interface Entry {
   uuid: string
@@ -69,6 +72,29 @@ export function acquirePlaybackVideo(uuid: string): HTMLVideoElement {
   entry.video.preload = 'auto'
   return entry.video
 }
+/**
+ * The active clip handed its slot to a prepared element (background quality
+ * swap): the new element becomes the clip's pooled video and the replaced
+ * one is fully released (no second decoder kept parked).
+ */
+export function adoptPlaybackVideo(uuid: string, previous: HTMLVideoElement, next: HTMLVideoElement) {
+  const entry = entries.get(uuid)
+  if (!entry || entry.video !== previous) {
+    releaseDetached(previous)
+    return
+  }
+  releaseDetached(previous)
+  entry.video = next
+  entry.active = true
+}
+
+/** Stop a media element and abort its transfer (presigned or not). */
+export function releaseDetached(video: HTMLVideoElement) {
+  video.pause()
+  video.removeAttribute('src')
+  video.load()
+}
+
 export function releasePlaybackVideo(uuid: string, video: HTMLVideoElement) {
   const entry = entries.get(uuid)
   if (!entry || entry.video !== video) return
@@ -76,16 +102,69 @@ export function releasePlaybackVideo(uuid: string, video: HTMLVideoElement) {
   else dispose(entry)
 }
 
+// Speculative work waits for the clip on screen: the single backend worker
+// answers in arrival order, so neighbor status/grant lookups queued ahead of
+// the visible clip's own requests delayed its first frame by seconds.
+export const WARMUP_HOLD_MS = 2500
+type WarmupHold = { promise: Promise<void>; resolve: () => void; owner: symbol; timer: ReturnType<typeof setTimeout> | undefined }
+let warmupHold: WarmupHold | null = null
+
+function endHold(hold: WarmupHold) {
+  clearTimeout(hold.timer)
+  if (warmupHold === hold) warmupHold = null
+  hold.resolve()
+}
+
+/**
+ * The visible clip is starting: hold neighbor warming (bounded). Returns a
+ * release bound to THIS caller: a newer clip takes ownership of the hold, so
+ * the previous clip's late cleanup can never release the newer clip's hold.
+ */
+export function holdWarmup(): () => void {
+  const owner = Symbol('warmup')
+  if (!warmupHold) {
+    let resolve!: () => void
+    const promise = new Promise<void>(done => { resolve = done })
+    warmupHold = { promise, resolve, owner, timer: undefined }
+  }
+  const hold = warmupHold
+  clearTimeout(hold.timer)
+  hold.owner = owner
+  hold.timer = setTimeout(() => endHold(hold), WARMUP_HOLD_MS)
+  return () => {
+    if (warmupHold === hold && hold.owner === owner) endHold(hold)
+  }
+}
+
+/**
+ * Resolve once no clip holds warming. A hold can end and a new one start in
+ * the same commit (clip change): waiting warmers re-check before going on.
+ */
+async function waitForWarmup() {
+  while (warmupHold) await warmupHold.promise
+}
+
+/** Sign-out/reset: end any hold regardless of owner. */
+export function releaseWarmup() {
+  if (warmupHold) endHold(warmupHold)
+}
+
 export function warmPlaybackVideo(uuid: string) {
   if (!uuid || !canPrefetch()) return
   const epoch = generation
-  void getPreviewForPlayback(uuid).then(preview => {
+  // A neighbor that can start on its durable Light by role needs no status
+  // lookup at all: warm exactly the URL the player will start on.
+  void waitForWarmup().then(() => getPreview(uuid)).then(async tile => {
+    const start = autoStartUrl(uuid, tile.startRole, tile.startLightVersion)
+    if (start) return { ...tile, playbackUrl: start, previewPlaybackUrl: null, playbackResolved: true }
+    return getPreviewForPlayback(uuid)
+  }).then(preview => {
     if (epoch !== generation || !desired.has(uuid) || !preview.playbackUrl || !preview.playbackResolved) return
     const entry = entries.get(uuid) ?? create(uuid)
     if (entry.active) return
     // Ready previews are small; anticipate bytes as well as metadata.
     // Originals retain conservative metadata-only preloading.
-    entry.video.preload = preview.previewPlaybackUrl === preview.playbackUrl ? 'auto' : 'metadata'
+    entry.video.preload = preview.previewPlaybackUrl === preview.playbackUrl || preview.playbackUrl.includes('/play/light') ? 'auto' : 'metadata'
     if (entry.video.getAttribute('src') !== preview.playbackUrl) {
       entry.video.src = preview.playbackUrl
     }
@@ -110,6 +189,7 @@ export function preparePlaybackWindow(uuids: string[]) {
 }
 export function resetPreparedPlayback() {
   generation++
+  releaseWarmup()
   for (const listener of [...resetListeners]) listener()
   desired.clear()
   for (const entry of [...entries.values()]) dispose(entry)

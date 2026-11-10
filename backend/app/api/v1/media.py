@@ -1179,7 +1179,58 @@ def get_media_status_batch(
         asset_id = next((aid for aid, uid in uuid_by_asset.items() if uid == video_uuid), None)
         entries = entries_by_asset.get(asset_id, []) if asset_id else []
         result[video_uuid] = _thumbnail_status_for_entries(db, video_uuid, entries, None)
+    _add_start_role_hints(db, result, seen)
     return result
+
+
+# Transform versions whose Light is rate-capped (2.5 Mbps); others are not.
+CAPPED_LIGHT_VERSIONS = frozenset({"ffmpeg-h264-web-v2"})
+
+
+def _add_start_role_hints(db: Session, result: dict, video_uuids: list[str]) -> None:
+    """Mark clips whose durable Light is ledger-ready: ``start_role: light``
+    plus ``start_light_version`` (its transform version).
+
+    One bounded query over the already-authorized uuids. A hint only: the
+    role play route still runs the full current-source/storage proof and the
+    player falls back to its status-driven source when that proof fails. No
+    revision id or URL is exposed here, so the tile path still mints nothing.
+    """
+    if not video_uuids:
+        return
+    try:
+        from app.models.media_backbone import MediaDerivative
+        from app.services.derivative_read import _served_transform_versions
+
+        served = _served_transform_versions()
+        rows = db.execute(
+            select(MediaDerivative.video_uuid, MediaDerivative.transform_version).where(
+                MediaDerivative.video_uuid.in_(video_uuids),
+                MediaDerivative.role == "light",
+                MediaDerivative.status == "ready",
+                MediaDerivative.transform_version.in_(served),
+            ).distinct()
+        ).all()
+    except Exception as exc:  # pre-ledger schema: no hints, tiles unchanged
+        from app.services.derivative_read import _is_missing_ledger_table
+
+        if not _is_missing_ledger_table(exc):
+            raise
+        db.rollback()
+        return
+    # Players size the start from the Light's bitrate. This bounded query
+    # does not prove which row the read path will serve (current source,
+    # verified storage), so when a clip has ready Light rows in several
+    # versions, name an uncapped one: the player may overestimate the
+    # bitrate (a cautious start), never underestimate it.
+    best: dict[str, str] = {}
+    for video_uuid, version in rows:
+        if video_uuid not in best or (best[video_uuid] in CAPPED_LIGHT_VERSIONS and version not in CAPPED_LIGHT_VERSIONS):
+            best[video_uuid] = version
+    for video_uuid, version in best.items():
+        if video_uuid in result:
+            result[video_uuid]["start_role"] = "light"
+            result[video_uuid]["start_light_version"] = version
 
 
 @router.post("/{video_uuid}/request")

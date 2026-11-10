@@ -1081,6 +1081,7 @@ const en = {
     retryPrepare: 'Retry prepare',
     usePreview: 'Play a lower-quality preview',
     changeQuality: 'Change video quality',
+    autoQuality: 'Auto',
     quality: 'Quality',
     originalQuality: 'Original',
     previewLabel: 'Preview',

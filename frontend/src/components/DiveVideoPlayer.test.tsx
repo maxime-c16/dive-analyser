@@ -11,6 +11,7 @@ import DiveVideoPlayer, {
 } from './DiveVideoPlayer'
 import { getMediaStatus, requestMedia, type MediaStatus } from '../services/mediaApi'
 import { getPreview, getPreviewForPlayback, resetMediaPreviews } from '../utils/mediaPreview'
+import { getQualityPreference, recordThroughput, resetPlaybackPolicy, throughputEstimate } from '../utils/playbackPolicy'
 
 vi.mock('../services/mediaApi', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../services/mediaApi')>()
@@ -271,7 +272,7 @@ it('non-immersive clips never attempt autoplay', async () => {
     playSpy.mockRestore()
   }
 })
-beforeEach(() => { vi.mocked(getMediaStatus).mockResolvedValue(missing); vi.mocked(requestMedia).mockResolvedValue({ ...missing, status: 'queued', created_job: true }) })
+beforeEach(() => { resetPlaybackPolicy(); vi.mocked(getMediaStatus).mockResolvedValue(missing); vi.mocked(requestMedia).mockResolvedValue({ ...missing, status: 'queued', created_job: true }) })
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals() })
 
 it('checks status passively without creating a job', async () => { render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="uuid" />); expect(await screen.findByRole('button', { name: /Prepare clip/ })).toBeInTheDocument(); expect(getMediaStatus).toHaveBeenCalledOnce(); expect(requestMedia).not.toHaveBeenCalled() })
@@ -1617,9 +1618,10 @@ it('the quality menu closes on Escape without reaching the viewer', async () => 
   const trigger = await screen.findByRole('button', { name: 'Change video quality' })
   fireEvent.click(trigger)
   const menu = screen.getByRole('menu')
-  expect(screen.getByRole('menuitemradio', { name: 'Light' })).toHaveFocus()
+  // The viewer defaults to Auto, which names the rendition it is playing.
+  expect(screen.getByRole('menuitemradio', { name: 'Auto · Light' })).toHaveFocus()
   fireEvent.keyDown(menu, { key: 'ArrowDown' })
-  expect(screen.getByRole('menuitemradio', { name: 'HQ' })).toHaveFocus()
+  expect(screen.getByRole('menuitemradio', { name: 'Light' })).toHaveFocus()
   fireEvent.keyDown(menu, { key: 'Escape' })
   expect(screen.queryByRole('menu')).not.toBeInTheDocument()
   expect(trigger).toHaveFocus()
@@ -1654,4 +1656,292 @@ it('a quality switch whose request drops recovers to the moment before the switc
     load.mockRestore()
     pause.mockRestore()
   }
+})
+
+// ---- Auto quality: role start, remembered choice, background HQ, stalls ----
+
+/** Library tile says the durable Light is ready (batch `start_role`). */
+async function seedLightHint(uuid: string, version = 'ffmpeg-h264-web-v2') {
+  resetMediaPreviews()
+  vi.stubGlobal('fetch', vi.fn().mockImplementation(async () => ({
+    ok: true,
+    json: async () => ({ [uuid]: { status: 'ready', poster_url: '/seeded.jpg', playback_url: '/proxy.mp4', start_role: 'light', start_light_version: version } }),
+  })))
+  await act(async () => { await getPreview(uuid) })
+}
+
+it('starts on the durable Light by role, without waiting for status, and keeps it', async () => {
+  await seedLightHint('role-start')
+  let finish!: (status: MediaStatus) => void
+  vi.mocked(getMediaStatus).mockReturnValue(new Promise(done => { finish = done }))
+  render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="role-start" immersive />)
+  const video = screen.getByLabelText('103B 1m dive video')
+  expect(video).toHaveAttribute('src', '/api/v1/media/role-start/play/light')
+  await act(async () => { finish({ ...durableChoices('role-start'), preview_url: '/proxy.mp4' }) })
+  // Same bytes as the status Light URL: never reloaded under another URL.
+  expect(video).toHaveAttribute('src', '/api/v1/media/role-start/play/light')
+  fireEvent.click(screen.getByRole('button', { name: 'Change video quality' }))
+  expect(screen.getByRole('menuitemradio', { name: 'Auto · Light' })).toHaveAttribute('aria-checked', 'true')
+})
+
+it('a stale Light hint falls back to the status source without an error card', async () => {
+  await seedLightHint('stale-hint')
+  vi.mocked(getMediaStatus).mockResolvedValue({ ...ready, video_uuid: 'stale-hint', playback_url: '/proxy.mp4', preview_url: '/proxy.mp4' })
+  render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="stale-hint" immersive />)
+  const video = screen.getByLabelText('103B 1m dive video') as HTMLVideoElement
+  expect(video).toHaveAttribute('src', '/api/v1/media/stale-hint/play/light')
+  setMediaState(video, { error: 4 })
+  fireEvent.error(video)
+  setMediaState(video, { error: null })
+  await waitFor(() => expect(video).toHaveAttribute('src', '/proxy.mp4'))
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+})
+
+it('a weak network starts on the small proxy instead of Light', async () => {
+  recordThroughput(1.5)
+  await seedLightHint('weak-net')
+  vi.mocked(getMediaStatus).mockResolvedValue({ ...durableChoices('weak-net'), preview_url: '/proxy.mp4' })
+  render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="weak-net" immersive />)
+  const video = screen.getByLabelText('103B 1m dive video')
+  expect(video).not.toHaveAttribute('src', '/api/v1/media/weak-net/play/light')
+  await waitFor(() => expect(video).toHaveAttribute('src', '/proxy.mp4'))
+})
+
+it('a manual quality sticks to the next dive; Auto hands control back', async () => {
+  vi.mocked(getMediaStatus).mockImplementation(async uuid => durableChoices(uuid))
+  const { rerender } = render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="pick-a" immersive />)
+  const first = await screen.findByLabelText('103B 1m dive video')
+  await waitFor(() => expect(first).toHaveAttribute('src', '/api/v1/media/revisions/3/play'))
+  chooseQuality('HQ')
+  await waitFor(() => expect(first).toHaveAttribute('src', '/api/v1/media/revisions/2/play'))
+  rerender(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="pick-b" immersive />)
+  const second = await screen.findByLabelText('103B 1m dive video')
+  await waitFor(() => expect(second).toHaveAttribute('src', '/api/v1/media/revisions/2/play'))
+  chooseQuality('Auto · HQ')
+  expect(getQualityPreference()).toBe('auto')
+})
+
+/** The off-screen HQ element the player prepared, if any. */
+function backgroundVideo(create: { mock: { results: Array<{ value: unknown }> } }, src: string) {
+  return create.mock.results.map(result => result.value).find(
+    (element): element is HTMLVideoElement => element instanceof HTMLVideoElement && element.getAttribute('src') === src,
+  )
+}
+
+it('prepares HQ off-screen with headroom and swaps it in on pause at the same frame', async () => {
+  recordThroughput(40)
+  vi.mocked(getMediaStatus).mockResolvedValue(durableChoices('bg-pause'))
+  const create = vi.spyOn(document, 'createElement')
+  const pause = vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {})
+  const play = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined)
+  try {
+    render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="bg-pause" immersive />)
+    const active = await screen.findByLabelText('103B 1m dive video') as HTMLVideoElement
+    await waitFor(() => expect(active).toHaveAttribute('src', '/api/v1/media/revisions/3/play'))
+    await presentFirstFrame(active)
+    const next = await waitFor(() => {
+      const element = backgroundVideo(create, '/api/v1/media/revisions/2/play')
+      expect(element).toBeDefined()
+      return element!
+    })
+    expect(next.isConnected).toBe(false)
+    expect(next.muted).toBe(true)
+    // The viewer is still playing Light: nothing swaps mid-motion.
+    setMediaState(active, { time: 4.5, paused: false, readyState: 4 })
+    setMediaState(next, { time: 0, readyState: 4, duration: 12.5 })
+    fireEvent(next, new Event('canplaythrough'))
+    expect(active.isConnected).toBe(true)
+    // Pausing hands the frame to the buffered HQ element.
+    setMediaState(active, { paused: true })
+    fireEvent.pause(active)
+    // The prepared element seeks to the paused frame first.
+    expect(next.currentTime).toBe(4.5)
+    expect(next.isConnected).toBe(false)
+    fireEvent(next, new Event('seeked'))
+    await waitFor(() => expect(next.isConnected).toBe(true))
+    expect(active.isConnected).toBe(false)
+    expect(next.currentTime).toBe(4.5)
+    expect(next.getAttribute('aria-label')).toBe('103B 1m dive video')
+    expect(active.hasAttribute('src')).toBe(false) // the Light decoder is released
+    expect(document.querySelector('[data-testid="clip-cover"]')).toBeNull()
+    // The viewer paused: the adopted HQ element must stay paused.
+    fireEvent.canPlay(next)
+    expect(play.mock.instances).not.toContain(next)
+    fireEvent.click(screen.getByRole('button', { name: 'Change video quality' }))
+    expect(screen.getByRole('menuitemradio', { name: 'Auto · HQ' })).toHaveAttribute('aria-checked', 'true')
+  } finally {
+    create.mockRestore()
+    pause.mockRestore()
+    play.mockRestore()
+  }
+})
+
+it('swaps prepared HQ in on the loop restart, or keeps Light when play is refused', async () => {
+  recordThroughput(40)
+  vi.mocked(getMediaStatus).mockResolvedValue(durableChoices('bg-loop'))
+  const create = vi.spyOn(document, 'createElement')
+  const play = vi.spyOn(HTMLMediaElement.prototype, 'play').mockRejectedValue(new DOMException('blocked', 'NotAllowedError'))
+  try {
+    render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="bg-loop" immersive />)
+    const active = await screen.findByLabelText('103B 1m dive video') as HTMLVideoElement
+    await waitFor(() => expect(active).toHaveAttribute('src', '/api/v1/media/revisions/3/play'))
+    await presentFirstFrame(active)
+    const next = await waitFor(() => backgroundVideo(create, '/api/v1/media/revisions/2/play')!)
+    setMediaState(active, { time: 12.4, paused: false, readyState: 4 })
+    setMediaState(next, { time: 0, readyState: 4, duration: 12.5 })
+    fireEvent(next, new Event('canplaythrough'))
+    expect(active.isConnected).toBe(true) // playing: wait for a boundary
+    fireEvent.timeUpdate(active)
+    setMediaState(active, { time: 0.05 })
+    fireEvent.timeUpdate(active)
+    await act(async () => {})
+    // Autoplay refused for the new element: Light keeps playing, HQ released.
+    expect(active.isConnected).toBe(true)
+    expect(next.hasAttribute('src')).toBe(false)
+  } finally {
+    create.mockRestore()
+    play.mockRestore()
+  }
+})
+
+it('no background HQ without measured headroom', async () => {
+  vi.mocked(getMediaStatus).mockResolvedValue(durableChoices('bg-none'))
+  const create = vi.spyOn(document, 'createElement')
+  try {
+    render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="bg-none" immersive />)
+    const active = await screen.findByLabelText('103B 1m dive video') as HTMLVideoElement
+    await waitFor(() => expect(active).toHaveAttribute('src', '/api/v1/media/revisions/3/play'))
+    await presentFirstFrame(active)
+    await act(async () => {})
+    expect(backgroundVideo(create, '/api/v1/media/revisions/2/play')).toBeUndefined()
+  } finally {
+    create.mockRestore()
+  }
+})
+
+it('repeated stalls step Auto down one rendition at the same moment', async () => {
+  // A capped (v2) Light: a safe blind start, so the clip begins on Light.
+  vi.mocked(getMediaStatus).mockResolvedValue({ ...durableChoices('stalls'), preview_url: '/proxy.mp4', cache_entries: [{ id: 1, rendition: 'proxy_720p', playback_url: '/proxy.mp4' }], derivatives: { ...durableChoices('stalls').derivatives!, transform_version: 'ffmpeg-h264-web-v2' } })
+  render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="stalls" immersive />)
+  const video = await screen.findByLabelText('103B 1m dive video') as HTMLVideoElement
+  await waitFor(() => expect(video).toHaveAttribute('src', '/api/v1/media/revisions/3/play'))
+  await presentFirstFrame(video)
+  // readyState 0: assigning the lower source empties the element (as in browsers).
+  setMediaState(video, { time: 3, paused: false, readyState: 0 })
+  for (let stall = 0; stall < 2; stall += 1) {
+    fireEvent.waiting(video)
+    fireEvent.playing(video)
+  }
+  await waitFor(() => expect(video).toHaveAttribute('src', '/proxy.mp4'))
+  setMediaState(video, { time: 0, duration: 12.5, readyState: 1 })
+  fireEvent.loadedMetadata(video)
+  expect(video.currentTime).toBe(3)
+  expect(throughputEstimate()).not.toBeNull()
+})
+
+it('swaps prepared HQ in from its first frame when the loop restarts', async () => {
+  recordThroughput(40)
+  vi.mocked(getMediaStatus).mockResolvedValue(durableChoices('bg-loop-ok'))
+  const create = vi.spyOn(document, 'createElement')
+  const play = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined)
+  try {
+    render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="bg-loop-ok" immersive />)
+    const active = await screen.findByLabelText('103B 1m dive video') as HTMLVideoElement
+    await waitFor(() => expect(active).toHaveAttribute('src', '/api/v1/media/revisions/3/play'))
+    await presentFirstFrame(active)
+    const next = await waitFor(() => backgroundVideo(create, '/api/v1/media/revisions/2/play')!)
+    setMediaState(active, { time: 12.4, paused: false, readyState: 4 })
+    setMediaState(next, { time: 0, readyState: 4, duration: 12.5 })
+    fireEvent(next, new Event('canplaythrough'))
+    fireEvent.timeUpdate(active)
+    setMediaState(active, { time: 0.05 })
+    fireEvent.timeUpdate(active)
+    await waitFor(() => expect(next.isConnected).toBe(true))
+    expect(play.mock.instances).toContain(next)
+    expect(active.isConnected).toBe(false)
+  } finally {
+    create.mockRestore()
+    play.mockRestore()
+  }
+})
+
+it('climbs from the proxy to Light when the network sustains Light but not HQ', async () => {
+  recordThroughput(1)
+  vi.mocked(getMediaStatus).mockResolvedValue({ ...durableChoices('climb'), preview_url: '/proxy.mp4', cache_entries: [{ id: 1, rendition: 'proxy_720p', playback_url: '/proxy.mp4' }] })
+  const create = vi.spyOn(document, 'createElement')
+  try {
+    const { rerender } = render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="climb" immersive />)
+    const active = await screen.findByLabelText('103B 1m dive video') as HTMLVideoElement
+    await waitFor(() => expect(active).toHaveAttribute('src', '/proxy.mp4'))
+    await presentFirstFrame(active)
+    recordThroughput(20)
+    recordThroughput(20) // ~13 Mbps: Light yes (≥4), HQ no (<19.4)
+    rerender(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="climb" immersive />)
+    await waitFor(() => expect(backgroundVideo(create, '/api/v1/media/revisions/3/play')).toBeDefined())
+    expect(backgroundVideo(create, '/api/v1/media/revisions/2/play')).toBeUndefined()
+  } finally {
+    create.mockRestore()
+  }
+})
+
+it('from the proxy, Auto climbs to Light first even with HQ headroom', async () => {
+  recordThroughput(1)
+  vi.mocked(getMediaStatus).mockResolvedValue({ ...durableChoices('one-step'), preview_url: '/proxy.mp4', cache_entries: [{ id: 1, rendition: 'proxy_720p', playback_url: '/proxy.mp4' }] })
+  const create = vi.spyOn(document, 'createElement')
+  try {
+    const { rerender } = render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="one-step" immersive />)
+    const active = await screen.findByLabelText('103B 1m dive video') as HTMLVideoElement
+    await waitFor(() => expect(active).toHaveAttribute('src', '/proxy.mp4'))
+    await presentFirstFrame(active)
+    for (let sample = 0; sample < 6; sample += 1) recordThroughput(80)
+    rerender(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="one-step" immersive />)
+    await waitFor(() => expect(backgroundVideo(create, '/api/v1/media/revisions/3/play')).toBeDefined())
+    expect(backgroundVideo(create, '/api/v1/media/revisions/2/play')).toBeUndefined()
+  } finally {
+    create.mockRestore()
+  }
+})
+
+it('a legacy 360p proxy is measured at its own bitrate, not the 720p one', async () => {
+  vi.mocked(getMediaStatus).mockResolvedValue({ ...ready, video_uuid: 'p360', playback_url: '/p360.mp4', preview_url: '/p360.mp4', cache_entries: [{ id: 1, rendition: 'proxy_360p', playback_url: '/p360.mp4' }] })
+  const now = vi.spyOn(performance, 'now').mockReturnValue(0)
+  try {
+    render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="p360" immersive />)
+    const video = await screen.findByLabelText('103B 1m dive video') as HTMLVideoElement
+    await waitFor(() => expect(video).toHaveAttribute('src', '/p360.mp4'))
+    await presentFirstFrame(video)
+    setMediaState(video, { duration: 10 })
+    Object.defineProperty(video, 'buffered', { configurable: true, value: { length: 1, end: () => 10, start: () => 0 } })
+    now.mockReturnValue(1000) // 10 s of media buffered in 1 s
+    fireEvent(video, new Event('progress'))
+    expect(throughputEstimate()).toBeCloseTo(10 * 0.25)
+  } finally {
+    now.mockRestore()
+  }
+})
+
+it('an uncapped v1 Light never starts blind: the proxy starts until the network is known', async () => {
+  await seedLightHint('v1-blind', 'ffmpeg-h264-web-v1')
+  const v1 = { ...durableChoices('v1-blind'), preview_url: '/proxy.mp4', derivatives: { ...durableChoices('v1-blind').derivatives!, transform_version: 'ffmpeg-h264-web-v1' } }
+  vi.mocked(getMediaStatus).mockResolvedValue(v1)
+  render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="v1-blind" immersive />)
+  const video = screen.getByLabelText('103B 1m dive video')
+  expect(video).not.toHaveAttribute('src', '/api/v1/media/v1-blind/play/light')
+  await waitFor(() => expect(video).toHaveAttribute('src', '/proxy.mp4'))
+})
+
+it('a measured network with headroom for the v1 Light starts on it', async () => {
+  recordThroughput(12) // ≥ 1.5 × 6.4 Mbps
+  await seedLightHint('v1-fast', 'ffmpeg-h264-web-v1')
+  vi.mocked(getMediaStatus).mockReturnValue(new Promise(() => {}))
+  render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="v1-fast" immersive />)
+  expect(screen.getByLabelText('103B 1m dive video')).toHaveAttribute('src', '/api/v1/media/v1-fast/play/light')
+})
+
+it('a 3–6 Mbps network starts the v1 Light clip on the proxy (no stall-prone start)', async () => {
+  recordThroughput(5)
+  await seedLightHint('v1-mid', 'ffmpeg-h264-web-v1')
+  vi.mocked(getMediaStatus).mockReturnValue(new Promise(() => {}))
+  render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="v1-mid" immersive />)
+  expect(screen.getByLabelText('103B 1m dive video')).not.toHaveAttribute('src', '/api/v1/media/v1-mid/play/light')
 })

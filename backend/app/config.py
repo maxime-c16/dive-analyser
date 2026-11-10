@@ -53,6 +53,13 @@ class Settings(BaseSettings):
     media_derivative_transform_version: str = os.getenv(
         "MEDIA_DERIVATIVE_TRANSFORM_VERSION", "ffmpeg-h264-web-v1"
     )
+    # Ordered transform versions the read path may SERVE (newest first). Empty
+    # means "only media_derivative_transform_version" (the produced one). A
+    # cutover lists the new version first and keeps the old one as fallback
+    # until the backfill covers every clip.
+    media_derivative_served_transform_versions: str = os.getenv(
+        "MEDIA_DERIVATIVE_SERVED_TRANSFORM_VERSIONS", ""
+    )
     media_cache_max_bytes: int = int(os.getenv("MEDIA_CACHE_MAX_BYTES", str(50 * 1024 * 1024 * 1024)))
     primary_diver_name: str = os.getenv("PRIMARY_DIVER_NAME", "Maxime")
     dive_analysis_cache_ttl_seconds: int = int(os.getenv("DIVE_ANALYSIS_CACHE_TTL_SECONDS", "60"))
@@ -142,6 +149,10 @@ class Settings(BaseSettings):
     # B2 playback presign (runtime credential only — never in Git; the
     # playback key is least-privilege readFiles on the PROD bucket).
     media_playback_presign_ttl_seconds: int = int(os.getenv("MEDIA_PLAYBACK_PRESIGN_TTL_SECONDS", "120"))
+    # Revision playback grants only (downloads/shares/jobs keep the shorter
+    # default). Bounded by b2_presign.MAX_TTL_SECONDS; a viewer's grant is
+    # reused while at least half of this life remains.
+    media_playback_grant_ttl_seconds: int = int(os.getenv("MEDIA_PLAYBACK_GRANT_TTL_SECONDS", "300"))
     # A successful provider HEAD (credential can read the object) is reused
     # for this long per object and credential; 0 re-checks on every play.
     media_playback_head_cache_seconds: int = int(os.getenv("MEDIA_PLAYBACK_HEAD_CACHE_SECONDS", "300"))

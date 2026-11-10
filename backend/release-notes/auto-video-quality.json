@@ -1,0 +1,8 @@
+{
+  "id": "auto-video-quality",
+  "date": "2026-11-10",
+  "title": "Sharper dives that keep playing smoothly",
+  "body": "Videos now start in better quality and switch to HQ when you pause or the dive loops, if your connection allows. On a slow connection they step down instead of freezing. Pick a quality yourself and it stays for the next dives; choose Auto to go back.",
+  "audience": "all",
+  "components": ["frontend", "backend"]
+}

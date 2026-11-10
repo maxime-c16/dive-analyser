@@ -182,7 +182,7 @@ def fake_presign(monkeypatch):
     import app.api.v1.media_playback as playback_module
     from app.services.b2_presign import PresignResult, clamp_ttl
 
-    def _fake(bucket, object_key, ttl_seconds=None, storage_location_id=None):
+    def _fake(bucket, object_key, ttl_seconds=None, storage_location_id=None, **_extra):
         effective = clamp_ttl(ttl_seconds)
         return PresignResult(
             url=f"https://s3.eu-central-003.backblazeb2.com/{bucket}/{object_key}"
