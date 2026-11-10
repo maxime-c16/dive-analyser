@@ -110,7 +110,7 @@ def attempts(diver: int, track: int, body: ReadInput, request: Request, db: Sess
     if sum(bool(value) for value in (body.after, body.before, body.around, body.seek_at)) > 1:
         raise HTTPException(422, 'Choose one navigation cursor')
     source = RESOLVED + ", browse_context AS (SELECT resolved.*, row_number() OVER (PARTITION BY session_id ORDER BY history_occurred_at,id) session_index, count(*) OVER (PARTITION BY session_id) session_total FROM resolved) "
-    query = """ SELECT id,session_id,session_index,session_total,video_uuid,dive_code,dive_datetime,history_occurred_at,performance,late_import,intended_start_at,intended_start_id,episode_id,recorded_episode_id,recorded_episode_deleted,intended_id,state,use_id,
+    query = """ SELECT id,session_id,session_index,session_total,video_uuid,dive_code,dive_datetime,history_occurred_at,performance,late_import,intended_scope,intended_start_at,intended_start_id,episode_id,recorded_episode_id,recorded_episode_deleted,intended_id,state,use_id,
     (SELECT label FROM techniques WHERE techniques.id=resolved.use_id AND techniques.track_id=:track) use_label,(SELECT label FROM techniques WHERE techniques.id=resolved.intended_id AND techniques.track_id=:track) intended_label,source FROM browse_context AS resolved
     WHERE (CAST(:session_id AS integer) IS NULL OR session_id=:session_id)
     AND (CAST(:from_date AS timestamp) IS NULL OR history_occurred_at>=:from_date)
@@ -145,6 +145,15 @@ def episodes(diver: int, track: int, request: Request, after: int = 0, db: Sessi
     continuation=tuple_(TechniqueEpisode.start_at,TechniqueEpisode.start_id,TechniqueEpisode.id)>(cursor.start_at,cursor.start_id,cursor.id) if cursor else True
     rows=db.execute(select(TechniqueEpisode, Technique.label, Dive.id.label('available_anchor')).outerjoin(Technique, Technique.id==TechniqueEpisode.technique_id).outerjoin(Dive,(Dive.id==TechniqueEpisode.anchor_id)&(Dive.diver_id==diver)).where(TechniqueEpisode.track_id==track, TechniqueEpisode.deleted.is_(False), continuation).order_by(TechniqueEpisode.start_at,TechniqueEpisode.start_id,TechniqueEpisode.id).limit(51)).all()
     return {'revision':row.revision,'items':[dict(snapshot(e),label=label,anchor_unavailable=e.precision=='attempt' and available is None) for e,label,available in rows[:50]],'next':rows[49][0].id if len(rows)>50 else None}
+
+
+@router.get('/{diver}/{track}/episodes/{episode_id}')
+def episode_detail(diver:int,track:int,episode_id:int,request:Request,db:Session=Depends(get_db)):
+    owner(request,db,diver);row=track_for(db,diver,track)
+    episode=db.scalar(select(TechniqueEpisode).where(TechniqueEpisode.track_id==track,TechniqueEpisode.id==episode_id,TechniqueEpisode.deleted.is_(False)))
+    if episode is None:raise HTTPException(404,'Episode unavailable')
+    label=db.scalar(select(Technique.label).where(Technique.id==episode.technique_id,Technique.track_id==track))
+    return {'revision':row.revision,'episode':dict(snapshot(episode),label=label)}
 
 
 def snapshot(row):
@@ -272,13 +281,18 @@ def setup_preview(diver:int, track:int, body:SetupPreview, request:Request, db:S
             return db.scalar(select(Technique.label).where(Technique.id==episode.technique_id,Technique.track_id==track)) if episode and episode.technique_id else None
         items.append({'anchor_id':change_body.anchor_id,'start_at':change_body.start_at,'end_at':stop[0],'end_id':stop[1],
                       'counts':preview_counts(db,row,change_body,upcoming,stop_override=stop),
-                      'replaces':label_for(previous) if previous and (previous.end_at is None or (previous.end_at,previous.end_id)>(change_body.start_at,change_body.start_id)) else None,
+                      'replaces':label_for(previous) if previous and previous.technique_id!=change_body.technique_id and label_for(previous)!=change_body.label and (previous.end_at is None or (previous.end_at,previous.end_id)>(change_body.start_at,change_body.start_id)) else None,
                       'following':{'id':following_existing.id,'label':label_for(following_existing),'start_at':following_existing.start_at} if following_existing else None})
     return {'revision':row.revision,'items':items}
 
 
 @router.post('/{diver}/{track}/changes')
 def change(diver:int,track:int,body:Change,request:Request,db:Session=Depends(get_db)):
+    result=_apply_change(diver,track,body,request,db)
+    return {'revision':result['revision'],'episode':result['episode']}
+
+
+def _apply_change(diver,track,body,request,db,commit=True):
     user=owner(request,db,diver,True); row=track_for(db,diver,track,body.revision)
     previous,upcoming=plan(db,row,body)
     editing = None
@@ -313,8 +327,49 @@ def change(diver:int,track:int,body:Change,request:Request,db:Session=Depends(ge
     else: db.add(episode)
     db.flush(); row.revision+=1
     db.add(TechniqueRevision(track_id=track,revision=row.revision,author_id=user.id,operation='edit' if editing else 'create',before=before,after=snapshot(episode)))
-    db.commit()
-    return {'revision':row.revision,'episode':snapshot(episode)}
+    if commit:db.commit()
+    else:db.flush()
+    return {'revision':row.revision,'episode':snapshot(episode),'before':before}
+
+
+class SetupChange(Change):
+    draft_identity:str = Field(min_length=1,max_length=80)
+
+
+class SetupSave(BaseModel):
+    changes:list[SetupChange] = Field(min_length=1,max_length=16)
+
+
+@router.post('/{diver}/{track}/setup-save')
+def setup_save(diver:int,track:int,body:SetupSave,request:Request,db:Session=Depends(get_db)):
+    # One shared track lock and one transaction: no prefix of a draft can escape.
+    try:
+        setup_preview(diver,track,SetupPreview(changes=body.changes),request,db)
+        revision=body.changes[0].revision
+        identities={};results=[]
+        for index,item in enumerate(body.changes):
+            change_body=item.model_copy(deep=True)
+            change_body.revision=revision
+            known=identities.get(item.draft_identity)
+            if known is not None:
+                if item.technique_id is not None and item.technique_id!=known:
+                    raise HTTPException(422,'Inconsistent draft identity')
+                change_body.technique_id=known
+            try:result=_apply_change(diver,track,change_body,request,db,commit=False)
+            except HTTPException as failure:
+                raise HTTPException(failure.status_code,{'marker_index':index,'reason':failure.detail}) from None
+            identities[item.draft_identity]=result['episode']['technique_id']
+            results.append(result);revision=result['revision']
+        # The final journal entry describes the complete user action, including undo.
+        journal=db.scalar(select(TechniqueRevision).where(TechniqueRevision.track_id==track,TechniqueRevision.revision==revision))
+        journal.operation='setup'
+        journal.before={'changes':[{'before':r['before'],'episode':r['episode']} for r in results]}
+        journal.after={'episodes':[r['episode'] for r in results]}
+        db.commit()
+        return {'revision':revision,'episodes':[r['episode'] for r in results]}
+    except Exception:
+        db.rollback()
+        raise
 
 
 class Compare(ContextInput):
@@ -352,7 +407,7 @@ def compare(diver:int,track:int,body:Compare,request:Request,db:Session=Depends(
         overlaps.append(and_(*interval))
     others=db.execute(select(TechniqueEpisode.id,TechniqueTrack.id.label('track_id'),TechniqueTrack.name).join(TechniqueTrack,TechniqueTrack.id==TechniqueEpisode.track_id).where(TechniqueTrack.diver_id==diver,TechniqueTrack.id!=track,TechniqueEpisode.deleted.is_(False),TechniqueEpisode.scope.in_([body.code,family(body.code)]),TechniqueEpisode.apparatus==body.apparatus,TechniqueEpisode.height==body.height,or_(TechniqueEpisode.position.is_(None),TechniqueEpisode.position==body.position),or_(TechniqueEpisode.sync.is_(None),TechniqueEpisode.sync==body.sync),or_(*overlaps)).order_by(TechniqueEpisode.id).limit(51)).mappings().all()
     same=params['left_identity']==params['right_identity']
-    return {'revision':row.revision,'kind':'recorded-by-episode' if body.mode=='recorded' and same else body.mode,'excluded':excluded,'recorded_eligible':recorded_eligible,'other_tracks':[dict(o) for o in others[:50]],'more_other_tracks':len(others)>50,'sides':[dict(s,label=labels.get(by_id[body.left if s['side']==0 else body.right].technique_id)) for s in sides]}
+    return {'revision':row.revision,'kind':'recorded-by-episode' if body.mode=='recorded' and same else body.mode,'excluded':excluded,'recorded_eligible':recorded_eligible,'other_tracks':[dict(o) for o in others[:50]],'more_other_tracks':len(others)>50,'labels':[labels.get(by_id[id].technique_id) for id in (body.left,body.right)],'sides':[dict(s,label=labels.get(by_id[body.left if s['side']==0 else body.right].technique_id)) for s in sides]}
 
 class Bulk(ContextInput):
     revision: int
@@ -412,8 +467,20 @@ def delete_episode(diver:int,track:int,episode:int,body:DeleteInput,request:Requ
 def undo(diver:int,track:int,body:RevisionInput,request:Request,db:Session=Depends(get_db)):
     user=owner(request,db,diver,True);row=track_for(db,diver,track,body.revision)
     rev=db.scalar(select(TechniqueRevision).where(TechniqueRevision.track_id==track,TechniqueRevision.revision==row.revision))
-    if rev is None or rev.operation not in ('create','delete','edit','copy','rename'):raise HTTPException(422,'Latest operation cannot be undone')
-    if rev.operation=='copy':
+    if rev is None or rev.operation not in ('create','delete','edit','copy','rename','setup'):raise HTTPException(422,'Latest operation cannot be undone')
+    if rev.operation=='setup':
+        for item in reversed(rev.before['changes']):
+            old=item['before'].get('episode')
+            e=db.get(TechniqueEpisode,item['episode']['id'])
+            if old:
+                for key,value in old.items():
+                    if key in ('start_at','end_at','uncertain_until','created_at','updated_at') and value is not None:value=datetime.fromisoformat(value)
+                    setattr(e,key,value)
+            else:e.deleted=True
+            previous=item['before'].get('previous')
+            if previous:
+                p=db.get(TechniqueEpisode,previous['id']);p.end_at=datetime.fromisoformat(previous['end_at']) if previous['end_at'] else None;p.end_id=previous['end_id']
+    elif rev.operation=='copy':
         copies=db.scalars(select(TechniqueEpisode).where(TechniqueEpisode.track_id==track,TechniqueEpisode.id.in_(rev.after['ids']))).all()
         for copied in copies:copied.deleted=True
         for target in rev.before['targets']:

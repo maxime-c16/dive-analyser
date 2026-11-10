@@ -138,3 +138,21 @@ Validation: 1,002 frontend tests (123 files), 22 disposable PostgreSQL tests plu
 | Orphan technique names / synthetic history oddities | Demo provenance, not grounds to delete user annotations or identities retained by audit history. | Preserve test annotations; disclose repeated real media and synthetic dates/ratings to reviewers. |
 
 Validation: 1,006 frontend tests across123 files, 24 PostgreSQL tests plus8 pure rules, TypeScript and production build passed. Browser smoke used real H.264 clips in the shared player; no media or private manifests committed, no history saved. Test environment holds10 distinct real5132D clips repeated across108 synthetic attempts. Physical touch/Safari/VoiceOver remain unverified. Full release-note catalog check retains the pre-existing origin/master divergence documented above.
+
+## Final UI council at 402b8c43 — corrections and stop (2026-11-10)
+
+Maxime requested corrections after Opus, then explicitly stopped further council rounds. Both independent reviewers scored this reviewed head7.2/10. Those scores predate the fixes below; no new score or approval is inferred.
+
+| Finding | Disposition | Correction and evidence |
+| --- | --- | --- |
+| Implicit individual/sync propagation (Sol P1) | Confirmed. New setup inherited nullable context constraints. | New periods default to viewed position and sync condition in both entry paths; existing adjustments preserve saved constraints. Scope visible in browsing/review. Frontend regression checks new-period flags. |
+| Partial multi-marker save (Opus) | Confirmed; sequential commits were previously disclosed but could leave an unintended interim period. | setup-save validates at most16 markers under the same revision/track lock, applies the existing writer without intermediate commits and commits once. All exceptions roll back. Draft identities preserve A→B→A; the complete action can be undone. PostgreSQL tests prove second-write failure leaves zero episodes/identities/journal and unchanged revision; success and whole-action undo verified. |
+| Boundary collision and irrelevant refresh recovery (Opus) | Confirmed. | Existing exact-code boundary offers Adjust immediately. An owned, revision-checked episode read preserves metadata. Only stale revision or uncertain transport recovery offers refresh; marker validation errors retain edit/move actions. Frontend tests exercise boundary action and absence of refresh on validation rejection. |
+| Recurrence says Replaces itself | Confirmed redundant claim. | Suppress replaces when identity or label already matches. Existing following boundary remains explicit. |
+| Review footer and comparison truncation (both) | Confirmed. | Review list scrolls independently with a stationary footer; comparison selectors stack below420px. Browser at320×640: footer y498–574, panel ends590, list scrolls above it; no horizontal overflow. |
+| Pluralization / inconsistent French | Confirmed. | Independent plural forms for affected dives, kept tags and session counts, unified French attribution and plongeon wording. Locale tests cover1/2 independently in EN/FR. |
+| Singleton and empty-side comparison (Opus) | Confirmed presentation defects. | Singleton is shown as one rating; API supplies both period labels even if one side has no rows. Frontend regressions verify both. |
+| Hidden clip score | Confirmed CSS override. | Restore standard player score outside naming/saving; retain normal HUD behavior. |
+| One-off close / fast repeated Next / background wheel | Unresolved isolated observations, not established regressions. | Retain existing shared overlay/animation guards; no speculative player rewrite. No claim of physical Safari, tactile or VoiceOver validation. |
+
+Validation: 1,012 frontend tests/124 files, 26 PostgreSQL tests plus8 attribution rules; production TypeScript/build passed. Real-media browser smoke: immediate existing-boundary action, visible scoped draft/review, interval pluralization and stationary footer at320px; drafts discarded, history unchanged. Full release catalog still has the pre-existing origin/master missing-note divergence already documented. No push, PR or production deployment, no additional council delegates.

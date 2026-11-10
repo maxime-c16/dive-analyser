@@ -8,7 +8,7 @@ vi.mock('../clip-viewer/ClipViewer', () => ({ default: ({ attempt, attempts, onM
 const context = { code: '5132D', apparatus: 'springboard', height: '1m', position: 'D', sync: false }
 const props = { base: '/api/v1/technique-history/1/7', context, revision: 2, constrainPosition: true, constrainSync: false, onClose: vi.fn(), onDone: vi.fn() }
 const rows = [1,2,3].map(id => ({ id, session_id: 1, dive_code: '5132D', dive_datetime: `2026-08-0${id}T10:00:00`, history_occurred_at: `2026-07-0${id}T10:00:00`, performance: 'G' }))
-beforeEach(() => { post.mockReset(); get.mockReset(); get.mockResolvedValue({ data: { items: [], next: null } }); props.onDone.mockClear(); post.mockImplementation((url: string, body: any) => Promise.resolve({ data: url.endsWith('/attempts') ? { items: rows, revision: 2, next: null } : url.endsWith('/setup-preview') ? { items: body.changes.map((change: any) => ({ anchor_id: change.anchor_id, end_at: null, counts: { affected: 3, explicit_preserved: 0 } })) } : url.endsWith('/preview') ? { change: body, counts: { affected: 3 } } : { revision: body.revision + 1 } })) })
+beforeEach(() => { post.mockReset(); get.mockReset(); get.mockResolvedValue({ data: { items: [], next: null } }); props.onDone.mockClear(); post.mockImplementation((url: string, body: any) => Promise.resolve({ data: url.endsWith('/attempts') ? { items: rows, revision: 2, next: null } : url.endsWith('/setup-preview') ? { items: body.changes.map((change: any) => ({ anchor_id: change.anchor_id, end_at: null, counts: { affected: 3, explicit_preserved: 0 } })) } : url.endsWith('/preview') ? { change: body, counts: { affected: 3 } } : { revision: (body.changes?.[0]?.revision ?? body.revision) + (body.changes?.length ?? 1) } })) })
 async function mark(label: string) {
   fireEvent.click(screen.getByRole('button', { name: 'New technique starts here' }))
   fireEvent.change(screen.getByLabelText('What changed?'), { target: { value: label } })
@@ -26,12 +26,13 @@ it('uses the viewed clip immutable anchor, preserves multiple draft markers, and
   await waitFor(() => expect(post).toHaveBeenCalledWith(`${props.base}/setup-preview`, { changes: expect.arrayContaining([expect.objectContaining({ anchor_id: 2, start_at: rows[1].history_occurred_at, constrain_position: true })]) }))
   fireEvent.click(await screen.findByRole('button', { name: 'Save changes' }))
   await waitFor(() => expect(props.onDone).toHaveBeenCalledOnce())
-  const writes = post.mock.calls.filter(([url]) => url.endsWith('/changes'))
-  expect(writes.map(([, body]) => [body.anchor_id, body.revision])).toEqual([[1, 2], [2, 3]])
+  const writes = post.mock.calls.filter(([url]) => url.endsWith('/setup-save'))
+  expect(writes).toHaveLength(1)
+  expect(writes[0][1].changes.map((body: any) => [body.anchor_id,body.revision])).toEqual([[1,2],[2,2]])
 })
-it('keeps saved and unsaved markers distinct when a later boundary fails', async () => {
+it('retains the complete draft after a failed atomic save', async () => {
   const impl = post.getMockImplementation()!
-  post.mockImplementation((url: string, body: any) => url.endsWith('/changes') && body.anchor_id === 2 ? Promise.reject(new Error('network')) : impl(url, body))
+  post.mockImplementation((url: string, body: any) => url.endsWith('/setup-save') ? Promise.reject(new Error('network')) : impl(url, body))
   render(<TechniqueSetup {...props} />)
   await screen.findByText('Viewing clip 1'); await mark('First cue')
   fireEvent.click(screen.getByRole('button', { name: 'Scroll to next clip' })); await mark('Second cue')
@@ -39,12 +40,9 @@ it('keeps saved and unsaved markers distinct when a later boundary fails', async
   fireEvent.click(await screen.findByRole('button', { name: 'Save changes' }))
   await screen.findByRole('alert')
   expect(props.onDone).not.toHaveBeenCalled()
-  expect(screen.getByText('Saved changes: 1')).toBeInTheDocument()
+  expect(screen.getByText('First cue')).toBeInTheDocument()
   expect(screen.getByText('Second cue')).toBeInTheDocument()
-  fireEvent.click(screen.getByRole('button', { name: 'Review change' }))
-  fireEvent.click(await screen.findByRole('button', { name: 'Save changes' }))
-  await waitFor(() => expect(post.mock.calls.filter(([url]) => url.endsWith('/changes'))).toHaveLength(3))
-  expect(post.mock.calls.filter(([url, body]) => url.endsWith('/changes') && body.anchor_id === 1)).toHaveLength(1)
+  expect(post.mock.calls.filter(([url]) => url.endsWith('/setup-save'))).toHaveLength(1)
 })
 it('drops a late page response after the flow is closed', async () => {
   let resolve: (v: unknown) => void = () => {}
@@ -118,8 +116,6 @@ it('protects the first unsaved name when leaving the setup', async () => {
   confirm.mockRestore()
 })
 it('keeps A → B → A as three episodes sharing the first technique identity', async () => {
-  const impl = post.getMockImplementation()!
-  post.mockImplementation((url: string, body: any) => url.endsWith('/changes') ? Promise.resolve({ data: { revision: body.revision + 1, episode: { technique_id: body.technique_id ?? (body.anchor_id === 1 ? 41 : 42) } } }) : impl(url, body))
   render(<TechniqueSetup {...props} />)
   await screen.findByText('Viewing clip 1'); await mark('Cue A')
   fireEvent.click(screen.getByRole('button', { name: 'Scroll to next clip' })); await mark('Cue B')
@@ -130,9 +126,10 @@ it('keeps A → B → A as three episodes sharing the first technique identity',
   fireEvent.click(screen.getByRole('button', { name: 'Review markers (3)' }))
   fireEvent.click(await screen.findByRole('button', { name: 'Save changes' }))
   await waitFor(() => expect(props.onDone).toHaveBeenCalledOnce())
-  const writes = post.mock.calls.filter(([url]) => url.endsWith('/changes'))
-  expect(writes.map(([, body]) => body.anchor_id)).toEqual([1,2,3])
-  expect(writes[2][1].technique_id).toBe(41)
+  const writes = post.mock.calls.filter(([url]) => url.endsWith('/setup-save'))
+  expect(writes).toHaveLength(1)
+  expect(writes[0][1].changes.map((body: any) => body.anchor_id)).toEqual([1,2,3])
+  expect(writes[0][1].changes[0].draft_identity).toBe(writes[0][1].changes[2].draft_identity)
 })
 it('uses a date as a seek anchor, keeps earlier clips and focuses the matching attempt', async () => {
   const impl = post.getMockImplementation()!
@@ -150,14 +147,14 @@ it('uses a date as a seek anchor, keeps earlier clips and focuses the matching a
 it('adjusts a saved episode around its anchor and preserves identity and scope on save', async () => {
   const impl=post.getMockImplementation()!
   post.mockImplementation((url: string,body:any)=>url.endsWith('/attempts')?Promise.resolve({data:{items:rows,revision:2,next:null,focus_id:2}}):impl(url,body))
-  render(<TechniqueSetup {...props} initialEpisode={{id:99,anchor_id:2,label:'Existing cue',technique_id:42,scope:context.code,position:'D',sync:false,notes:'Keep my note'}} />)
+  render(<TechniqueSetup {...props} constrainSync={true} initialEpisode={{id:99,anchor_id:2,label:'Existing cue',technique_id:42,scope:context.code,position:'D',sync:false,notes:'Keep my note'}} />)
   await screen.findByText('Viewing clip 2')
   fireEvent.click(screen.getByRole('button',{name:'Scroll to next clip'}))
   fireEvent.click(screen.getByRole('button',{name:'Start this period on this dive'}))
   fireEvent.click(screen.getByRole('button',{name:'Review markers (1)'}))
   fireEvent.click(await screen.findByRole('button',{name:'Save changes'}))
   await waitFor(()=>expect(props.onDone).toHaveBeenCalledOnce())
-  expect(post.mock.calls.find(([url])=>url.endsWith('/changes'))?.[1]).toEqual(expect.objectContaining({episode_id:99,technique_id:42,anchor_id:3,notes:'Keep my note'}))
+  expect(post.mock.calls.find(([url])=>url.endsWith('/setup-save'))?.[1].changes[0]).toEqual(expect.objectContaining({episode_id:99,technique_id:42,anchor_id:3,notes:'Keep my note',constrain_sync:true}))
 })
 it('shows the effective interval, affected attempts and the existing boundary kept by the server', async () => {
   const impl=post.getMockImplementation()!
@@ -166,4 +163,20 @@ it('shows the effective interval, affected attempts and the existing boundary ke
   fireEvent.click(screen.getByRole('button',{name:'Review markers (1)'}))
   expect(await screen.findByText(/Existing change kept: Saved cue/)).toBeInTheDocument()
   expect(screen.getByText(/Replaces “Old cue”/)).toBeInTheDocument()
+})
+it('offers adjustment immediately on an existing boundary instead of creating a colliding marker', async () => {
+  const episode={id:19,anchor_id:1,scope:context.code,technique_id:42,label:'Saved cue'}
+  post.mockResolvedValue({data:{items:[{...rows[0],episode_id:19,intended_scope:context.code,intended_start_id:1}],revision:2,next:null}})
+  get.mockImplementation((url:string)=>Promise.resolve({data:url.endsWith('/episodes/19')?{episode,revision:2}:{items:[],next:null}}))
+  const onAdjust=vi.fn();render(<TechniqueSetup {...props} onAdjust={onAdjust}/>);await screen.findByText('Viewing clip 1')
+  expect(screen.queryByRole('button',{name:'New technique starts here'})).not.toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button',{name:'A change already starts here · Adjust it'}))
+  await waitFor(()=>expect(onAdjust).toHaveBeenCalledWith(episode))
+})
+it('does not offer refresh as recovery for a boundary validation error', async () => {
+  const impl=post.getMockImplementation()!
+  post.mockImplementation((url:string,body:any)=>url.endsWith('/setup-preview')?Promise.reject({response:{data:{detail:{marker_index:0,reason:'Boundary already exists'}}}}):impl(url,body))
+  render(<TechniqueSetup {...props}/>);await screen.findByText('Viewing clip 1');await mark('My cue')
+  fireEvent.click(screen.getByRole('button',{name:'Review markers (1)'}));await screen.findByRole('alert')
+  expect(screen.queryByRole('button',{name:'Refresh and check again'})).not.toBeInTheDocument()
 })

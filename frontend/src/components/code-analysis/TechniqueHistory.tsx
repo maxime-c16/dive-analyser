@@ -1,3 +1,4 @@
+import { techniqueImpact } from './techniqueText'
 import './techniqueHistory.css'
 import { createPortal } from 'react-dom'
 import TechniqueSetup, { type SetupEpisode } from './TechniqueSetup'
@@ -111,7 +112,7 @@ export default function TechniqueHistory({ diver, context, onSelected }: { diver
   }
   async function newChange() {
     setError(''); setNotice(''); setEdit(null); setLabel(''); setIdentity(null); setGap(false); setFamily(false); setNotes(''); setAnchor(null)
-    setDateStart(techniqueInputDate(new Date(), timezone)); setUncertainUntil(''); setNarrowPosition(currentEpisode?.scope === context.code && currentEpisode.position != null); setNarrowSync(currentEpisode?.scope === context.code && currentEpisode.sync != null); setPreview(null)
+    setDateStart(techniqueInputDate(new Date(), timezone)); setUncertainUntil(''); setNarrowPosition(true); setNarrowSync(true); setPreview(null)
     if (!tracks.length) {
       const g = generation.current; setBusy(true)
       try { const { data } = await api.post(`${base}/tracks`, { name: 'General' }); if (g !== generation.current) return; setTracks([data]); setTrack(data.id) }
@@ -129,7 +130,7 @@ export default function TechniqueHistory({ diver, context, onSelected }: { diver
     const g = generation.current
     try {
       const { data } = await api.post(`${base}/${track}/episodes/${e.id}/delete`, { revision })
-      if (g === generation.current && window.confirm(`${t('technique.deletePreview')}\n${t('technique.previewCounts', { affected: data.preview.eligible, explicit: data.preview.explicit_preserved })}`)) void mutate(`episodes/${e.id}/delete`, { revision, commit: true })
+      if (g === generation.current && window.confirm(`${t('technique.deletePreview')}\n${techniqueImpact(t, data.preview.eligible, data.preview.explicit_preserved)}`)) void mutate(`episodes/${e.id}/delete`, { revision, commit: true })
     } catch { if (g === generation.current) setError(t('technique.conflict')) }
   }
   return <section className="ca-panel th-history" aria-label={t('technique.title')}>
@@ -146,7 +147,7 @@ export default function TechniqueHistory({ diver, context, onSelected }: { diver
     </div>}
     {!!visibleEpisodes.length && !comparing && chartActive && <TechniqueTrackChart base={`${base}/${track}`} context={context} revision={revision} selected={pair[0]} onSelect={id => setPair([id])} />}
     {comparing ? <div className="th-comparing">
-      <div className="th-compare-pickers">{[0, 1].map(index => <label className="th-field" key={index}>{t(index ? 'technique.after' : 'technique.before')}<select value={pair[index] ?? ''} onChange={e => setPair(p => { const n = [...p]; n[index] = Number(e.target.value); return chronologicalPair(n) })}>{compatible.filter(e => e.id !== pair[1 - index]).map(e => <option key={e.id} value={e.id}>{e.label} — {date(e.start_at)}</option>)}</select></label>)}</div>
+      <div className="th-compare-pickers">{[0, 1].map(index => <label className="th-field" key={index}>{t(index ? 'technique.after' : 'technique.before')}<select value={pair[index] ?? ''} onChange={e => setPair(p => { const n = [...p]; n[index] = Number(e.target.value); return chronologicalPair(n) })}>{compatible.filter(e => e.id !== pair[1 - index]).map(e => <option key={e.id} value={e.id}>{e.label} — {visibleEpisodes.some(other => other.id !== e.id && other.start_at.slice(0,10) === e.start_at.slice(0,10)) ? techniqueDateTime(e.start_at,i18n.language) : date(e.start_at)}</option>)}</select></label>)}</div>
       <TechniqueComparison onTrack={(id, name) => { setTracks(p => p.some(t => t.id === id) ? p : [...p, { id, name: name ?? t('technique.general'), revision: 0 }]); setTrack(id); setPair([]); setComparing(false); setAfter(0); setEpisodeAfter(0) }} base={`${base}/${track}`} context={context} pair={pair} revision={revision} />
     </div> : <>
       {!visibleEpisodes.length && <div className="th-empty"><span className="th-empty-line" aria-hidden="true"><i /><i /><i /></span><h3>{t('technique.emptyTitle')}</h3></div>}
@@ -160,14 +161,14 @@ export default function TechniqueHistory({ diver, context, onSelected }: { diver
     </>}
     {(episodeAfter > 0 || episodeNext != null) && <div className="th-pagination">{episodeAfter > 0 && <button onClick={() => setEpisodeAfter(0)}>{t('common.back')}</button>}{episodeNext != null && <button onClick={() => setEpisodeAfter(episodeNext!)}>{t('technique.nextPeriods')}</button>}</div>}
 
-    {setup && track != null && createPortal(<TechniqueSetup key={`${base}/${track}/${contextKey}`} base={`${base}/${track}`} context={context} revision={revision} timezone={timezone} initialEpisode={setupEpisode} constrainPosition={setupEpisode ? setupEpisode.position != null : currentEpisode?.scope === context.code && currentEpisode.position != null} constrainSync={setupEpisode ? setupEpisode.sync != null : currentEpisode?.scope === context.code && currentEpisode.sync != null} onClose={() => setSetup(false)} onDone={() => { setSetup(false); setReload(n => n + 1); setNotice(t('technique.saved')) }} />, document.body)}
+    {setup && track != null && createPortal(<TechniqueSetup key={`${base}/${track}/${contextKey}/${setupEpisode?.id ?? 'new'}`} onAdjust={episode => setSetupEpisode(episode)} base={`${base}/${track}`} context={context} revision={revision} timezone={timezone} initialEpisode={setupEpisode} constrainPosition={setupEpisode ? setupEpisode.position != null : true} constrainSync={setupEpisode ? setupEpisode.sync != null : true} onClose={() => setSetup(false)} onDone={() => { setSetup(false); setReload(n => n + 1); setNotice(t('technique.saved')) }} />, document.body)}
 
     {panel === 'change' && <TechniqueDialog title={t(preview ? 'technique.reviewChange' : edit ? 'technique.editChange' : 'technique.enable')} onClose={requestClosePanel}>
       {error && <p className="th-error" role="alert">{error}</p>}
       {preview ? <div className="th-review">
         <h3>{label || uniqueTechniques.find(e => e.technique_id === identity)?.label || t('technique.unknown')}</h3>
         <dl><div><dt>{t('technique.from')}</dt><dd>{date(String(preview.start_at))}</dd></div><div><dt>{t('technique.appliesTo')}</dt><dd>{String(preview.scope)} · {context.height}</dd></div></dl>
-        <p>{t('technique.previewCounts', { affected: planSummary?.counts?.affected ?? 0, explicit: planSummary?.counts?.explicit_preserved ?? 0 })}</p>
+        <p>{techniqueImpact(t, planSummary?.counts?.affected ?? 0, planSummary?.counts?.explicit_preserved ?? 0)}</p>
         {planSummary?.upcoming && <p>{t('technique.nextChange', { date: date(planSummary.upcoming.start_at) })}</p>}
         <div className="th-dialog-actions"><button className="th-secondary" onClick={() => setPreview(null)}>{t('technique.backToEdit')}</button><button className="th-primary" disabled={busy} onClick={() => void mutate('changes', preview)}>{t('technique.saveChange')}</button></div>
       </div> : <form className="th-form" onSubmit={e => { e.preventDefault(); const a = attempts.find(a => a.id === anchor); if (a || dateStart) void mutate('preview', { ...context, revision, label, notes, timezone, constrain_position: narrowPosition, constrain_sync: narrowSync, technique_id: identity, episode_id: edit, gap, scope: family ? familyCode : context.code, start_at: a?.history_occurred_at ?? dateStart, anchor_id: a?.id, uncertain_until: uncertainUntil || null, precision: uncertainUntil ? 'approximate' : a ? 'attempt' : 'date' }) }}>
@@ -226,7 +227,7 @@ export default function TechniqueHistory({ diver, context, onSelected }: { diver
         <div className="th-field-pair"><label className="th-field">{t('technique.apparatus')}<select value={copyApparatus} onChange={e => { setCopyApparatus(e.target.value); setCopyPreview(null) }}><option value="springboard">{t('technique.springboard')}</option><option value="platform">{t('technique.platform')}</option></select></label><label className="th-field">{t('attemptDetail.height')}<input required maxLength={5} value={copyHeight} onChange={e => { setCopyHeight(e.target.value); setCopyPreview(null) }} /></label></div>
         <button className="th-secondary" disabled={busy}>{t('technique.reviewChange')}</button>
       </form>
-      {copyPreview && <div className="th-review"><ul>{copyDetails.map(d => <li key={d.scope.scope}><strong>{d.scope.scope}</strong><p>{t('technique.previewCounts', { affected: d.counts?.affected ?? 0, explicit: d.counts?.explicit_preserved ?? 0 })}</p>{d.upcoming && <p>{t('technique.nextChange', { date: date(d.upcoming.start_at) })}</p>}</li>)}</ul><button className="th-primary" disabled={busy} onClick={() => { void mutate('copy', { ...copyPreview, commit: true }); setCopyPreview(null) }}>{t('technique.copyChange')}</button></div>}
+      {copyPreview && <div className="th-review"><ul>{copyDetails.map(d => <li key={d.scope.scope}><strong>{d.scope.scope}</strong><p>{techniqueImpact(t, d.counts?.affected ?? 0, d.counts?.explicit_preserved ?? 0)}</p>{d.upcoming && <p>{t('technique.nextChange', { date: date(d.upcoming.start_at) })}</p>}</li>)}</ul><button className="th-primary" disabled={busy} onClick={() => { void mutate('copy', { ...copyPreview, commit: true }); setCopyPreview(null) }}>{t('technique.copyChange')}</button></div>}
     </TechniqueDialog>}
   </section>
 }

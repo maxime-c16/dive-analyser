@@ -4,6 +4,8 @@ import TechniqueHistory from './TechniqueHistory'
 import '../../i18n'
 const get = vi.fn(), post = vi.fn()
 vi.mock('../../services/api', () => ({ api: { get: (...args: unknown[]) => get(...args), post: (...args: unknown[]) => post(...args) } }))
+const setupProps=vi.fn()
+vi.mock('./TechniqueSetup',()=>({default:(props:any)=>{setupProps(props);return <div>Setup open</div>}}))
 vi.mock('./TechniqueTrackChart', () => ({ default: () => <div>Technique score chart</div> }))
 vi.mock('./TechniqueComparison', () => ({ default: ({ pair }: { pair: number[] }) => <div>Comparing {pair.join(' and ')}</div> }))
 const context = { code: '5132D', apparatus: 'springboard', height: '1m', position: 'D', sync: false }
@@ -83,4 +85,10 @@ it('preserves the saved identity until a different technique is explicitly selec
   expect(within(dialog).getByLabelText('What changed?')).toHaveAttribute('readonly')
   fireEvent.click(within(dialog).getByRole('button',{name:'Use a different technique'}))
   expect(within(dialog).getByLabelText('What changed?')).not.toHaveAttribute('readonly')
+})
+
+it('defaults a newly recorded context to the viewed position and individual/synchronized condition',async()=>{
+ setupProps.mockClear();render(<TechniqueHistory diver={1} context={context}/>);await screen.findByText('Later initiation')
+ fireEvent.click(screen.getByRole('button',{name:'Find my technique changes'}));await screen.findByText('Setup open')
+ expect(setupProps).toHaveBeenLastCalledWith(expect.objectContaining({constrainPosition:true,constrainSync:true,context:expect.objectContaining({sync:false,position:'D'})}))
 })

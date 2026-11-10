@@ -883,7 +883,7 @@ export default function ClipViewer({
         aria-modal="true"
         aria-labelledby="clip-viewer-title"
         data-testid="clip-viewer"
-        className={`clip-viewer${workflow ? " is-workflow" : ""}${studio ? " is-studio" : ""}${cleanView ? " is-clean" : ""}${pinching ? " is-pinching" : ""}${hudVisible ? "" : " is-hud-hidden"}`}
+        className={`clip-viewer${workflow ? ` is-workflow${workflow.navigationDisabled ? " is-workflow-editing" : ""}` : ""}${studio ? " is-studio" : ""}${cleanView ? " is-clean" : ""}${pinching ? " is-pinching" : ""}${hudVisible ? "" : " is-hud-hidden"}`}
       >
         <header className="clip-header">
           <button

@@ -6,6 +6,18 @@
  */
 const en = {
   technique: {
+    allPositions: "All positions",
+    adjustExisting: "A change already starts here · Adjust it",
+    individualAndSync: "Individual and synchronized",
+    affectedDives_one: "{{count}} dive in this interval",
+    affectedDives_other: "{{count}} dives in this interval",
+    preservedTags_one: "{{count}} existing tag kept",
+    preservedTags_other: "{{count}} existing tags kept",
+    sessionsCount_one: "{{count}} session",
+    sessionsCount_other: "{{count}} sessions",
+    singleRating: "1 rating: {{score}}",
+    scored: "scored",
+
     adjustInPlayer: "Adjust in the player",
     useDifferentTechnique: "Use a different technique",
     replacesPeriod: "Replaces “{{name}}” over this interval",
@@ -66,7 +78,7 @@ const en = {
     saveChanges: "Save changes",
     setupSaving: "Saving…",
     setupSavedCount: "Saved changes: {{count}}",
-    setupSaveError: "Some changes could not be saved. Saved markers are shown; the others are still here. Review again to retry.",
+    setupSaveError: "Saving could not be confirmed. Your draft is kept. Refresh the history before trying again.",
     setupDiscard: "Leave without saving the remaining markers?",
     removeMarker: "Remove marker",
     noClips: "No dives found for this date. Try an earlier date.",

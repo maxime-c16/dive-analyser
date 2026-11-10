@@ -6,6 +6,18 @@
  */
 const fr = {
   technique: {
+    allPositions: "Toutes les positions",
+    adjustExisting: "Un changement commence ici · Ajuster",
+    individualAndSync: "Individuel et synchronisé",
+    affectedDives_one: "{{count}} plongeon dans cet intervalle",
+    affectedDives_other: "{{count}} plongeons dans cet intervalle",
+    preservedTags_one: "{{count}} identification conservée",
+    preservedTags_other: "{{count}} identifications conservées",
+    sessionsCount_one: "{{count}} séance",
+    sessionsCount_other: "{{count}} séances",
+    singleRating: "1 note : {{score}}",
+    scored: "notés",
+
     adjustInPlayer: "Ajuster dans le lecteur",
     useDifferentTechnique: "Choisir une autre technique",
     replacesPeriod: "Remplace « {{name}} » sur cet intervalle",
@@ -66,7 +78,7 @@ const fr = {
     saveChanges: "Enregistrer les changements",
     setupSaving: "Enregistrement…",
     setupSavedCount: "Changements enregistrés : {{count}}",
-    setupSaveError: "Certains changements n’ont pas été enregistrés. Les repères enregistrés sont indiqués ; les autres sont conservés. Vérifiez à nouveau pour réessayer.",
+    setupSaveError: "L’enregistrement n’a pas pu être confirmé. Votre brouillon est conservé. Actualisez l’historique avant de réessayer.",
     setupDiscard: "Quitter sans enregistrer les repères restants ?",
     removeMarker: "Retirer le repère",
     noClips: "Aucun plongeon trouvé à cette date. Essayez une date antérieure.",
@@ -127,8 +139,8 @@ const fr = {
     eachSession: "Chaque séance à égalité",
     usualScores: "50 % des notes centrales",
     otherChanges: "Autres changements sur ces périodes",
-    attributionBrief: "{{recorded}} concordants · {{conflicting}} différents · {{inferred}} supposés · {{unknown}} inconnus",
-deletedPeriod:"Période supprimée",anchorUnavailable:"Essai source indisponible",lateImport:"Importé après l’enregistrement de l’historique",moreTracks:"Autres axes","previewCounts":"{{affected}} plongeons dans cet intervalle · {{explicit}} identifications conservées","historyOrder":"Ordre historique","apparatus":"Appareil","filters":"Filtrer les essais","fromUtc":"Depuis","toUtc":"Jusqu’au","selectPage":"Sélectionner la page","selectRange":"Sélectionner entre les essais cochés","correctOrder":"Corriger l’ordre historique de l’essai ; les frontières ancrées sont conservées","endUtc":"Date de fin","end":"Terminer cette période","rename":"Nom de la technique","options":"Options","timezone":"Fuseau horaire","notes":"Notes","excluded":"Exclus","recordedByEpisode":"Usage enregistré de la même technique, par période","outsideIntended":"Enregistrés hors de la période prévue : {{count}}","exclusion":{"uncertain": "Frontière incertaine", "other_modifiers": "Autres modificateurs", "not_recorded": "Non enregistrés explicitement", "other_techniques": "Autres techniques"},context:"Contexte",alsoApply:"Appliquer aussi à d’autres plongeons",nextPeriods:"P\u00e9riodes suivantes","date":"Date de début","approximate":"Approximatif jusqu’au","reuse":"Réutiliser une technique","edit":"Modifier","delete":"Supprimer","deletePreview":"Supprimer cette période ? Les usages enregistrés sont conservés. Le contexte familial peut devenir applicable.","ratingsDuring":"Notes pendant ces périodes","modifiers":"Modificateurs","noModifiers":"Sans modificateur","compare":"Comparer","periods":"Périodes","weighting":"Pondération","attempt":"Essai","coverage":"{{scored}} / {{eligible}} notés · {{sessions}} séances","attribution":"Enregistrés concordants {{matching}} · divergents {{conflicting}} · déduits {{inferred}} · mixtes/inconnus {{unknown}}","noComparable":"Aucun essai noté comparable","title": "Changements de technique", "unavailable": "Historique indisponible", "conflict": "Historique modifié. Actualisez et prévisualisez à nouveau.", "enable": "Noter un changement technique", "track": "Point technique", "label": "Technique", "start": "Premier essai", "family": "Appliquer à la famille {{family}}", "preview": "Prévisualiser", "recorded": "Usage enregistré", "next": "Essais suivants", "mixed": "Mixte", "unknown": "Inconnu", "undo": "Annuler", "inferred": "Contexte déduit", "session": "État de séance", "unrecorded": "Non renseigné", "technique": "Technique"},
+    attributionBrief: "{{recorded}} concordants · {{conflicting}} divergents · {{inferred}} déduits · {{unknown}} mixtes/inconnus",
+deletedPeriod:"Période supprimée",anchorUnavailable:"Plongeon source indisponible",lateImport:"Importé après l’enregistrement de l’historique",moreTracks:"Autres axes","previewCounts":"{{affected}} plongeons dans cet intervalle · {{explicit}} identifications conservées","historyOrder":"Ordre historique","apparatus":"Appareil","filters":"Filtrer les plongeons","fromUtc":"Depuis","toUtc":"Jusqu’au","selectPage":"Sélectionner la page","selectRange":"Sélectionner entre les plongeons cochés","correctOrder":"Corriger l’ordre historique du plongeon ; les frontières ancrées sont conservées","endUtc":"Date de fin","end":"Terminer cette période","rename":"Nom de la technique","options":"Options","timezone":"Fuseau horaire","notes":"Notes","excluded":"Exclus","recordedByEpisode":"Usage enregistré de la même technique, par période","outsideIntended":"Enregistrés hors de la période prévue : {{count}}","exclusion":{"uncertain": "Frontière incertaine", "other_modifiers": "Autres modificateurs", "not_recorded": "Non enregistrés explicitement", "other_techniques": "Autres techniques"},context:"Contexte",alsoApply:"Appliquer aussi à d’autres plongeons",nextPeriods:"P\u00e9riodes suivantes","date":"Date de début","approximate":"Approximatif jusqu’au","reuse":"Réutiliser une technique","edit":"Modifier","delete":"Supprimer","deletePreview":"Supprimer cette période ? Les usages enregistrés sont conservés. Le contexte familial peut devenir applicable.","ratingsDuring":"Notes pendant ces périodes","modifiers":"Modificateurs","noModifiers":"Sans modificateur","compare":"Comparer","periods":"Périodes","weighting":"Pondération","attempt":"Essai","coverage":"{{scored}} / {{eligible}} notés · {{sessions}} séances","attribution":"Enregistrés concordants {{matching}} · divergents {{conflicting}} · déduits {{inferred}} · mixtes/inconnus {{unknown}}","noComparable":"Aucun plongeon noté comparable","title": "Changements de technique", "unavailable": "Historique indisponible", "conflict": "Historique modifié. Actualisez et prévisualisez à nouveau.", "enable": "Noter un changement technique", "track": "Point technique", "label": "Technique", "start": "Premier plongeon", "family": "Appliquer à la famille {{family}}", "preview": "Prévisualiser", "recorded": "Usage enregistré", "next": "Plongeons suivants", "mixed": "Mixte", "unknown": "Inconnu", "undo": "Annuler", "inferred": "Contexte déduit", "session": "État de séance", "unrecorded": "Non renseigné", "technique": "Technique"},
   // Library UX fixes (périmètre A, bloc dédié) : clés introduites par la PR
   // de corrections Library (état, recherche par nom, pagination, période).
   libraryUX: {
@@ -214,7 +226,7 @@ deletedPeriod:"Période supprimée",anchorUnavailable:"Essai source indisponible
   },
   milestones: {
     labels: {
-      first_attempt: 'Premier essai',
+      first_attempt: 'Premier plongeon',
       first_success: 'Première réussite',
       first_good: 'Premier « bon »',
       first_perfect: 'Premier parfait',

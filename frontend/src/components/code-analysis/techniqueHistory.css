@@ -108,7 +108,7 @@
 .th-setup-entry .th-text-button { justify-self: center; font-size: 12px; }
 .clip-workflow-title { min-width: 0; margin: 0; color: var(--app-text); font-size: 16px; font-weight: 600; }
 .clip-workflow { width: 360px; flex: none; display: flex; flex-direction: column; gap: 16px; padding: 22px; overflow-y: auto; overscroll-behavior: contain; border-left: 1px solid var(--app-border); background: var(--app-panel); }
-.clip-viewer.is-workflow .clip-actions, .clip-viewer.is-workflow .clip-description, .clip-viewer.is-workflow .clip-caption-score { display: none; }
+.clip-viewer.is-workflow .clip-actions, .clip-viewer.is-workflow .clip-description { display: none; }
 .clip-viewer.is-workflow .clip-header { position: relative; inset: auto; height: auto; min-height: 62px; padding: max(10px, env(safe-area-inset-top)) 18px 10px; background: var(--app-panel); border-bottom: 1px solid var(--app-border); opacity: 1 !important; transform: none !important; visibility: visible !important; }
 .clip-viewer.is-workflow .clip-layout { min-height: 0; height: auto; }
 .clip-viewer.is-workflow .clip-back { font-size: 12px; }
@@ -149,3 +149,11 @@
 
 .th-score.is-conflicted { font-size: 22px; color: var(--app-muted); }
 .th-setup-impact { display: grid; gap: 5px; grid-column: 1 / -1; color: var(--app-muted); }
+
+.clip-viewer.is-workflow-editing .clip-caption-score { display:none; }
+.clip-workflow:has(.th-setup-review-body) { overflow:hidden; }
+.th-setup-review-body { display:flex; flex-direction:column; min-height:0; flex:1; }
+.th-setup-review-body > :not(.th-setup-review-list) { flex-shrink:0; }
+.th-setup-review-list { overflow-y:auto; min-height:0; padding-bottom:12px; overscroll-behavior:contain; }
+.th-setup-footer { padding-top:12px; margin-top:0; border-top:1px solid var(--app-border); background:var(--app-panel); }
+@media (max-width:420px) { .th-compare-pickers { grid-template-columns:minmax(0,1fr); } }

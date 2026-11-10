@@ -448,3 +448,37 @@ def test_joint_setup_preview_preserves_existing_boundaries_and_counts_final_inte
         assert result['items'][1]['following']['label']=='Saved B'
         assert db.scalar(text('SELECT count(*) FROM technique_episodes'))==2
         assert db.scalar(text('SELECT revision FROM technique_tracks WHERE id=1'))==2
+
+
+def test_setup_save_is_atomic_preserves_a_b_a_and_undo_reverts_the_whole_action(pg,monkeypatch):
+    from sqlalchemy.orm import Session
+    from types import SimpleNamespace
+    from app.api.v1 import technique_history as api
+    monkeypatch.setattr(api,'owner',lambda *args,**kwargs:SimpleNamespace(id=1))
+    with pg.begin() as c:
+        c.execute(text("INSERT INTO app_users VALUES(1); INSERT INTO technique_tracks(id,diver_id,name,revision) VALUES(1,1,'General',0)"))
+    changes=[api.SetupChange(code='103',scope='103',apparatus='springboard',height='3',position='B',sync=False,constrain_position=True,constrain_sync=True,revision=0,start_at=f'2026-01-{day:02d}T00:00:00',draft_identity=key,label=key) for day,key in [(1,'A'),(2,'B'),(3,'A')]]
+    with Session(pg) as db:
+        result=api.setup_save(1,1,api.SetupSave(changes=changes),None,db)
+        assert result['revision']==3
+        a,b,again=result['episodes']
+        assert a['technique_id']==again['technique_id']!=b['technique_id']
+        assert all(e['sync'] is False for e in result['episodes'])
+        assert db.scalar(text('SELECT count(*) FROM techniques'))==2
+        api.undo(1,1,api.RevisionInput(revision=3),None,db)
+        assert db.scalar(text('SELECT count(*) FROM technique_episodes WHERE NOT deleted'))==0
+
+
+def test_setup_save_rolls_back_first_boundary_identity_and_audit_when_later_write_fails(pg,monkeypatch):
+    from sqlalchemy.orm import Session
+    from types import SimpleNamespace
+    from fastapi import HTTPException
+    from app.api.v1 import technique_history as api
+    monkeypatch.setattr(api,'owner',lambda *args,**kwargs:SimpleNamespace(id=1))
+    with pg.begin() as c:c.execute(text("INSERT INTO app_users VALUES(1); INSERT INTO technique_tracks(id,diver_id,name,revision) VALUES(1,1,'General',0)"))
+    changes=[api.SetupChange(code='103',scope='103',apparatus='springboard',height='3',position='B',revision=0,start_at=f'2026-01-{day:02d}T00:00:00',label=key,draft_identity=key,technique_id=bad) for day,key,bad in [(1,'A',None),(2,'B',999)]]
+    with Session(pg) as db:
+        with pytest.raises(HTTPException):api.setup_save(1,1,api.SetupSave(changes=changes),None,db)
+        assert db.scalar(text('SELECT revision FROM technique_tracks WHERE id=1'))==0
+        for table in ('technique_episodes','techniques','technique_revisions'):
+            assert db.scalar(text(f'SELECT count(*) FROM {table}'))==0
