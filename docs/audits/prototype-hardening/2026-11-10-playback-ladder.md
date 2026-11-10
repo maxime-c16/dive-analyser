@@ -158,22 +158,34 @@ Throttled Chrome playback of the same clip:
 
 ## Rollout order (each step needs explicit approval)
 
-No SQL migration. `docker-compose.yml` makes new jobs v2 and serves v2 then
-v1, so the Mac agent must know v2 before the server ships.
+No SQL migration. This change keeps production on v1: `docker-compose.yml`
+still produces `ffmpeg-h264-web-v1` and serves v2 first, then v1 (no v2
+packages exist yet). Shipping it in any order is therefore safe, including
+through the merge-triggered auto-deploy.
 
-1. **Mac agent first.** Run `ci/ship.sh mac`. The agent learns v2 and still
-   encodes v1 leases byte-identically, so it is safe before the server.
-2. **Server.** Run `ci/ship.sh server` (`--dry-run` first). New packages
-   become v2; existing clips keep serving v1. Verify `Server-Timing` on a
-   grant, the role route and `start_role` in the batch.
-3. **Backfill.** Cancel any open v1 migration run
+1. **Server.** Run `ci/ship.sh server` (`--dry-run` first). It recreates the
+   backend and frontend and reloads both nginx front doors (LAN
+   `dive-analyser-nginx-1` and the Funnel proxy), as `docs/REPO_WORKFLOW.md`
+   requires after a `docker-compose.yml` change. The new
+   `/api/v1/media/{uuid}/play/{role}` route sits under the existing
+   authenticated `location /api/`, so no nginx or `ops/tailscale` config
+   changes. Verify `Server-Timing` on a grant, the role route and
+   `start_role` in the batch.
+2. **Mac agent.** Run `ci/ship.sh mac`. The agent learns v2 and still
+   encodes v1 leases byte-identically. Confirm the deployed agent reports the
+   v2 recipe before going on.
+3. **Switch production to v2.** A separate server change sets the
+   `MEDIA_DERIVATIVE_TRANSFORM_VERSION` default to `ffmpeg-h264-web-v2`; ship
+   it with `ci/ship.sh server`. New packages become v2; existing clips keep
+   serving v1.
+4. **Backfill.** Cancel any open v1 migration run
    (`scripts/media_migration.py status`, then `cancel`), then start a v2 run
    with the existing controller (`start --budget-gib N`). It is bounded by
    budget, queue depth and the infra breaker, behind new uploads
    (priority 70). Expect about 45 s of Mac time per clip, plus about 29 MB of
    B2 download and about 25 MB of upload per clip.
-4. **Retire v1.** After full coverage, remove v1 from
+5. **Retire v1.** After full coverage, remove v1 from
    `MEDIA_DERIVATIVE_SERVED_TRANSFORM_VERSIONS`. Delete v1 objects only after
    a grace period.
-5. **Announce.** Once the Mac upgrade is confirmed, announce the lighter
+6. **Announce.** Once the Mac upgrade is confirmed, announce the lighter
    Light in a server PR.
