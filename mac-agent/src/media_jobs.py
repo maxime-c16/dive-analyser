@@ -41,7 +41,7 @@ PACKAGE_MIN_SCRATCH_FREE_BYTES = 8 * 1024**3
 
 
 def package_resource_facts(temp_dir: str) -> dict:
-    """Measured package gate: scratch free bytes + vm.memory_pressure.
+    """Measured package gate: scratch free bytes + kernel pressure level.
 
     Used before every lease and reported in the heartbeat so the server's
     migration status can name the Mac-side pause. Unknown facts are
@@ -62,10 +62,14 @@ def package_resource_facts(temp_dir: str) -> dict:
         pass
     try:
         pressure = subprocess.run(
-            ["/usr/sbin/sysctl", "-n", "vm.memory_pressure"],
+            ["/usr/sbin/sysctl", "-n", "kern.memorystatus_vm_pressure_level"],
             capture_output=True, text=True, timeout=2, check=True,
         )
-        facts["memory_pressure"] = pressure.stdout.strip()[:16]
+        # Preserve the heartbeat contract: "0" means safe. Kernel levels
+        # are 1=normal, 2=warning, 4=critical; unknown values fail closed.
+        facts["memory_pressure"] = {"1": "0", "2": "warning", "4": "critical"}.get(
+            pressure.stdout.strip(), "unknown"
+        )
     except (OSError, subprocess.SubprocessError):
         pass
     facts["available"] = (
