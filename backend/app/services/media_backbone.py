@@ -485,6 +485,16 @@ def trusted_prod_location(db: Session, blob_sha256: str, bucket: str, environmen
         .limit(TRUSTED_REPLICA_PROBE + 1)
         .all()
     )
+    return evaluate_trusted_replicas(locations, bucket)
+
+
+def evaluate_trusted_replicas(locations, bucket: str):
+    """The trust rule of ``trusted_prod_location`` over already-loaded replicas.
+
+    ``locations`` are one blob's verified replicas in id order, at most
+    ``TRUSTED_REPLICA_PROBE + 1`` of them. Shared by the per-blob lookup and
+    the batched clip resolution so the two can never disagree.
+    """
     if not locations:
         return None, "not_found"
     if len(locations) > TRUSTED_REPLICA_PROBE:
