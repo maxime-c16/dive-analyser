@@ -270,3 +270,37 @@ to 0.50–0.59 s.
 3. **Deferred status for role starts.** A clip that starts on Light by role
    fetches `/status` after its first frame, or after at most 2.5 s, so the
    lookup no longer competes with the grant on the single worker.
+
+### Encode recipe v3 and the tone-map floor (2026-11-10)
+
+Measured on mac-media-01 with the Mac's ffmpeg 8.1, same HLG clip, while the
+live backfill was also encoding.
+
+**Stages:**
+- Software decode: 3.2 s.
+- VideoToolbox decode: 8.8 s, slower on this Mac.
+- HLG→SDR tone-map + scale: 16–22 s. Scale only: 6.7 s. More filter threads
+  change nothing.
+
+**Encoders** (ffmpeg time per package; VMAF Light mean / worst 1 % / worst
+frame, HQ mean):
+
+| Encoder | Time | Light | HQ |
+|---|---|---|---|
+| x264 medium | 55 s | 76.3 / 72.9 / 71.7 | 92.6 |
+| x264 fast | 44 s | 76.1 / 72.1 / 70.0 | 92.4 |
+| x264 faster | 32 s | 75.4 / 70.8 / 67.9 | 92.1 |
+| h264_videotoolbox | 21 s | 55.6 / 44.2 / 22.6 | 85.4 |
+
+VideoToolbox is rejected: on pool water at Light's bitrate it is barely
+better than the old proxy.
+
+**HLG→SDR as a 3D LUT (haldclut, 64³)** was slower (13.2 s vs 9.6 s) and did
+not match the current rendering (VMAF 57), so it was not pursued. Skipping
+the tone-map entirely (relying on HLG's SDR compatibility) would save about
+10 s per clip, but it changes the look of every clip; that needs an owner
+visual review.
+
+**Decision:** v3 is v2's caps with preset "faster", under a new transform
+version so each version still names one exact recipe. Production produces v3
+and serves v3, then v2, then v1.

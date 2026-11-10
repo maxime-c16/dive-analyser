@@ -101,10 +101,16 @@ HQ_BUFSIZE = "24M"
 #: v2 caps Light at 2.5 Mbps (VMAF 76 vs 84 uncapped, 2.7 vs 6.4 Mbps on a
 #: 60 fps HLG pool clip) so it starts and plays on weak mobile networks; HQ
 #: is unchanged until reviewers compare paused entry frames.
+#: v3 keeps v2's caps with x264 preset "faster": measured on mac-media-01,
+#: ffmpeg time 55 s -> 32 s per package; VMAF Light 76.3 -> 75.4 mean
+#: (worst 1% 72.9 -> 70.8), HQ 92.6 -> 92.1, same bitrates.
 TRANSFORM_RATE_PROFILES: dict[str, dict[str, tuple[str, str] | None]] = {
     "ffmpeg-h264-web-v1": {"hq": (HQ_MAXRATE, HQ_BUFSIZE), "light": None},
     "ffmpeg-h264-web-v2": {"hq": (HQ_MAXRATE, HQ_BUFSIZE), "light": ("2500k", "5000k")},
+    "ffmpeg-h264-web-v3": {"hq": (HQ_MAXRATE, HQ_BUFSIZE), "light": ("2500k", "5000k")},
 }
+#: x264 preset per transform version (absent = PACKAGE_PRESET, "medium").
+TRANSFORM_PRESETS: dict[str, str] = {"ffmpeg-h264-web-v3": "faster"}
 
 
 def rate_profile(transform_version: str) -> dict[str, tuple[str, str] | None]:
@@ -615,7 +621,7 @@ ZSCALE_GAMUT_TO_BT709 = "zscale=p=bt709:m=bt709:r=tv"
 
 def _x264_args(gop: int, threads: int, hq: bool, transform_version: str = DERIVATIVE_TRANSFORM_VERSION_DEFAULT) -> list[str]:
     args = [
-        "-c:v", "libx264", "-threads", str(threads), "-preset", PACKAGE_PRESET,
+        "-c:v", "libx264", "-threads", str(threads), "-preset", TRANSFORM_PRESETS.get(transform_version, PACKAGE_PRESET),
         "-profile:v", PACKAGE_PROFILE, "-crf", str(PACKAGE_CRF),
     ]
     cap = rate_profile(transform_version)["hq" if hq else "light"]
