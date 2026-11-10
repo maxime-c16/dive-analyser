@@ -164,3 +164,41 @@ resource samples and the read-only repair inventory. Two slots are enabled;
 production throughput improvement is not established. Historical repair is
 paused under the 30 GiB projected-free rule. The inventory and windowed snapshot
 tools do not enqueue jobs or change readiness.
+
+
+### Additional package workers: HTTP authentication and memory admission
+
+Registered media-agent keys must be accepted by both the browser mutation guard
+and the worker route dependency. They remain scoped to worker endpoints; do not
+add these keys to the shared configured machine keys. Each worker handler still
+checks the claimed agent identity and (where applicable) the fenced lease.
+Deactivating the agent revokes the registered key on the next request. No schema
+migration or new environment setting is needed; deploy the backend before
+starting a newly registered worker. No nginx change is required.
+
+The Mac package gate reads `kern.memorystatus_vm_pressure_level`: 1 is normal,
+2 warning, 4 critical. It preserves the existing heartbeat contract by reporting
+normal as `memory_pressure="0"`; warning, critical and unknown values block new
+package leases. Deploy the Mac agent to change the probe. The old
+`vm.memory_pressure` counter is not a discrete pressure level. Source:
+https://github.com/apple-oss-distributions/xnu/blob/main/bsd/kern/kern_memorystatus_notify.c
+No Photos permissions or storage thresholds should be relaxed to bypass a pause.
+
+2026-11-10 continuation: the M2 configuration and dedicated LaunchAgent were
+prepared, but its first startup returned HTTP 401 and the resource gate was
+unavailable. The LaunchAgent was stopped. The v2 run remains paused and no v4
+run was started. HTTP scope/revocation and pressure-level regression tests cover
+the local repairs; production verification must follow the backend and worker
+upgrade before claiming two-worker throughput.
+
+
+Local validation for this continuation: 69 targeted backend tests (registration,
+HTTP guards, fencing and migration), 39 existing authentication/access tests,
+10 Mac resource tests, and `ci/gate.sh fast` pass. The full Mac suite reports
+493 passed, 2 skipped, 9 failures. The same nine failures reproduce on an archive
+of unchanged commit `711d14e7` (HDR pixel assertions and ffmpeg fixture generation,
+including removed `-vsync` support); these do not validate live package encoding.
+Release notes: none — internal worker authentication/admission repair.
+
+The full backend suite also passes: 1,930 passed, 113 skipped, 28 deselected
+(`not performance`, SQLite; PostgreSQL-specific coverage remains unverified).

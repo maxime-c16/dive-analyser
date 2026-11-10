@@ -50,7 +50,7 @@ from app.schemas.media import (
     CatalogPopulationRolloverRequest,
     ResolutionUpgradeStartRequest,
 )
-from app.security import verify_api_key
+from app.security import verify_api_key, verify_media_worker_key
 from app.services.legacy_gate import require_legacy_media_user
 from app.services.user_access import can_user_access_cache_entry
 from app.services.media_cache import (
@@ -738,7 +738,7 @@ def _advance_background_media_work(db: Session) -> None:
 async def media_agent_heartbeat(
     request: MediaAgentHeartbeatRequest,
     db: Session = Depends(get_db),
-    api_key: dict = Depends(verify_api_key),
+    api_key: dict = Depends(verify_media_worker_key),
 ):
     # Heartbeat bookkeeping, background advancement and the commit form one
     # cancellation-safe unit: cancelling the response mid-advancement must
@@ -760,7 +760,7 @@ async def media_agent_heartbeat(
 def report_media_source(
     request: RecalledSourceReportRequest,
     db: Session = Depends(get_db),
-    api_key: dict = Depends(verify_api_key),
+    api_key: dict = Depends(verify_media_worker_key),
 ):
     try:
         source = report_recalled_source(db, request, api_key["key"])
@@ -887,7 +887,7 @@ def catalog_run_status(run_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/catalog/runs/lease")
-def catalog_run_lease(request: CatalogRunLeaseRequest, api_key: dict = Depends(verify_api_key), db: Session = Depends(get_db)):
+def catalog_run_lease(request: CatalogRunLeaseRequest, api_key: dict = Depends(verify_media_worker_key), db: Session = Depends(get_db)):
     _agent_auth(db, request.agent_id, api_key)
     run = lease_catalog_run(db, request.agent_id)
     db.commit()
@@ -895,7 +895,7 @@ def catalog_run_lease(request: CatalogRunLeaseRequest, api_key: dict = Depends(v
 
 
 @router.post("/catalog/runs/{run_id}/chunks")
-def catalog_run_chunk(run_id: int, request: CatalogChunkRequest, api_key: dict = Depends(verify_api_key), db: Session = Depends(get_db)):
+def catalog_run_chunk(run_id: int, request: CatalogChunkRequest, api_key: dict = Depends(verify_media_worker_key), db: Session = Depends(get_db)):
     _agent_auth(db, request.agent_id, api_key)
     run = db.get(MediaCatalogRun, run_id)
     if not run or run.agent_id != request.agent_id:
@@ -909,7 +909,7 @@ def catalog_run_chunk(run_id: int, request: CatalogChunkRequest, api_key: dict =
 
 
 @router.post("/catalog/runs/{run_id}/complete")
-def catalog_run_complete(run_id: int, request: CatalogCompleteRequest, api_key: dict = Depends(verify_api_key), db: Session = Depends(get_db)):
+def catalog_run_complete(run_id: int, request: CatalogCompleteRequest, api_key: dict = Depends(verify_media_worker_key), db: Session = Depends(get_db)):
     _agent_auth(db, request.agent_id, api_key)
     run = db.get(MediaCatalogRun, run_id)
     if not run or run.agent_id != request.agent_id:
@@ -924,7 +924,7 @@ def catalog_run_complete(run_id: int, request: CatalogCompleteRequest, api_key: 
 
 
 @router.post("/catalog/runs/{run_id}/fail")
-def catalog_run_fail(run_id: int, request: CatalogFailRequest, api_key: dict = Depends(verify_api_key), db: Session = Depends(get_db)):
+def catalog_run_fail(run_id: int, request: CatalogFailRequest, api_key: dict = Depends(verify_media_worker_key), db: Session = Depends(get_db)):
     _agent_auth(db, request.agent_id, api_key)
     run = db.get(MediaCatalogRun, run_id)
     if not run or run.agent_id != request.agent_id:
@@ -1349,7 +1349,7 @@ def mark_media_viewed(
 def lease_jobs(
     request: MediaJobLeaseRequest,
     db: Session = Depends(get_db),
-    api_key: dict = Depends(verify_api_key),
+    api_key: dict = Depends(verify_media_worker_key),
 ) -> MediaJobLeaseResponse:
     """Lease queued media jobs for a Mac agent."""
     agent = _agent_auth(db, request.agent_id, api_key, leasing=True)
@@ -1375,7 +1375,7 @@ def heartbeat_job(
     job_id: int,
     request: MediaJobHeartbeatRequest,
     db: Session = Depends(get_db),
-    api_key: dict = Depends(verify_api_key),
+    api_key: dict = Depends(verify_media_worker_key),
 ):
     """Update progress for a leased media job."""
     try:
@@ -1395,7 +1395,7 @@ def fail_job(
     job_id: int,
     request: MediaJobFailRequest,
     db: Session = Depends(get_db),
-    api_key: dict = Depends(verify_api_key),
+    api_key: dict = Depends(verify_media_worker_key),
 ):
     """Mark a leased media job failed or unavailable."""
     try:
@@ -1419,7 +1419,7 @@ async def upload_job_artifact(
     file: UploadFile = File(...),
     lease_token: str | None = Form(None),
     db: Session = Depends(get_db),
-    api_key: dict = Depends(verify_api_key),
+    api_key: dict = Depends(verify_media_worker_key),
 ) -> MediaJobUploadResponse:
     """Upload a completed artifact for a leased media job."""
     _agent_auth(db, agent_id, api_key)
@@ -1545,7 +1545,7 @@ async def finalize_job_artifact(
     job_id: int,
     request: MediaJobFinalizeRequest,
     db: Session = Depends(get_db),
-    api_key: dict = Depends(verify_api_key),
+    api_key: dict = Depends(verify_media_worker_key),
 ) -> MediaJobFinalizeResponse:
     """Verify and promote an uploaded job artifact into the media cache."""
     # Keep the request session owned by one worker through guard, commit and
@@ -1685,7 +1685,7 @@ async def publish_package_slot(
     transform_version: str = Form(...),
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    api_key: dict = Depends(verify_api_key),
+    api_key: dict = Depends(verify_media_worker_key),
 ) -> MediaPackageSlotFinalizeResponse:
     """Publish one web_package slot (hq/light/poster) to durable storage.
 

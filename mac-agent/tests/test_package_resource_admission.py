@@ -13,12 +13,15 @@ def processor(tmp_path):
     return p
 
 
-@pytest.mark.parametrize('free,pressure,expected',[(8*1024**3,'0',True),(8*1024**3-1,'0',False),(9*1024**3,'1',False),(9*1024**3,'unknown',False)])
+@pytest.mark.parametrize('free,pressure,expected',[(8*1024**3,'1',True),(8*1024**3-1,'1',False),(9*1024**3,'2',False),(9*1024**3,'4',False),(9*1024**3,'0',False),(9*1024**3,'unknown',False)])
 def test_disk_and_memory_measurement(tmp_path,monkeypatch,free,pressure,expected):
     import src.media_jobs as m
     paths=[]
     monkeypatch.setattr(m.shutil,'disk_usage',lambda path:(paths.append(str(path)) or SimpleNamespace(free=free)))
-    monkeypatch.setattr(m.subprocess,'run',lambda *a,**k:SimpleNamespace(stdout=pressure))
+    def probe(command, **kwargs):
+        assert command == ['/usr/sbin/sysctl', '-n', 'kern.memorystatus_vm_pressure_level']
+        return SimpleNamespace(stdout=pressure)
+    monkeypatch.setattr(m.subprocess,'run',probe)
     assert processor(tmp_path)._package_resources_available()==expected
     assert paths==[str(tmp_path)]
 
@@ -41,7 +44,7 @@ def test_pressure_strips_only_packages_before_lease(tmp_path,monkeypatch):
 def test_facts_report_measurements_and_fail_closed(tmp_path,monkeypatch):
     import src.media_jobs as m
     monkeypatch.setattr(m.shutil,'disk_usage',lambda _:SimpleNamespace(free=9*1024**3))
-    monkeypatch.setattr(m.subprocess,'run',lambda *a,**k:SimpleNamespace(stdout='0\n'))
+    monkeypatch.setattr(m.subprocess,'run',lambda *a,**k:SimpleNamespace(stdout='1\n'))
     facts=m.package_resource_facts(str(tmp_path))
     assert facts['available'] and facts['scratch_free_bytes']==9*1024**3 and facts['memory_pressure']=='0'
     monkeypatch.setattr(m.shutil,'disk_usage',lambda _:(_ for _ in ()).throw(OSError()))
