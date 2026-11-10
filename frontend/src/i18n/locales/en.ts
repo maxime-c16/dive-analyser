@@ -1081,7 +1081,7 @@ const en = {
     retryPrepare: 'Retry prepare',
     usePreview: 'Play a lower-quality preview',
     changeQuality: 'Change video quality',
-    qualityCycle: '{{current}} — tap to change quality',
+    quality: 'Quality',
     originalQuality: 'Original',
     previewLabel: 'Preview',
     lightLabel: 'Light',

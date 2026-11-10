@@ -1,9 +1,10 @@
 import PreparedVideo from './PreparedVideo'
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { ChevronsUpDown, Clock, DownloadCloud, LogIn, RefreshCw, Video, WifiOff } from 'lucide-react'
+import { Clock, DownloadCloud, LogIn, RefreshCw, Video, WifiOff } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import ImmersiveControls, { type FeedDragEnd } from './clip-viewer/ImmersiveControls'
+import QualityMenu from './clip-viewer/QualityMenu'
 import { useAuth } from '../contexts/AuthContext'
 import { cachedPreview } from '../utils/mediaPreview'
 import {
@@ -42,6 +43,12 @@ export const INITIAL_STATUS_RETRY_DELAY_MS = 600
 export const MAX_POLL_FAILURES = 5
 export const MEDIA_POLL_INTERVAL_MS = 3000
 export const LONG_PREPARATION_MS = 90_000
+/** Silent reloads of an expired grant or dropped connection per clip. */
+export const MAX_AUTO_RECOVERIES = 2
+
+type QualityKey = 'preview' | 'light' | 'hq' | 'original'
+/** Where the viewer was when a source is replaced: restored on its metadata. */
+type Continuity = { time: number; playing: boolean }
 
 const ACTIVE_PREPARATION_STATES = [
   'queued',
@@ -66,6 +73,19 @@ type Phase =
 type FrameCallbackVideo = HTMLVideoElement & {
   requestVideoFrameCallback?: (callback: (now: number) => void) => number
   cancelVideoFrameCallback?: (handle: number) => void
+}
+
+const MEDIA_ERR_NETWORK = 2
+const MEDIA_ERR_SRC_NOT_SUPPORTED = 4
+
+/** Start playback where policy allows; a refusal leaves the play button. */
+function safePlay(video: HTMLVideoElement) {
+  try {
+    const attempt = video.play()
+    if (attempt && typeof attempt.catch === 'function') attempt.catch(() => {})
+  } catch {
+    /* leave the native affordance */
+  }
 }
 
 function preparationLabel(state: string) {
@@ -141,14 +161,17 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, onPlay
   const [previewSrc, setPreviewSrc] = useState<string | null>(() => initialSeed?.previewPlaybackUrl ?? null)
   const [lightSrc, setLightSrc] = useState<string | null>(null)
   const [hqSrc, setHqSrc] = useState<string | null>(null)
-  const [previewSelected, setPreviewSelected] = useState(false)
-  const previewSelectedRef = useRef(false)
-  const hqSelectedRef = useRef(false)
-  const lightSelectedRef = useRef(false)
-  const originalSelectedRef = useRef(false)
+  // The viewer's explicit rendition choice; null = the backend's start source.
+  const choiceRef = useRef<QualityKey | null>(null)
   const presentedSourceRef = useRef<{ uuid: string; src: string } | null>(null)
-  const previewChoicesRef = useRef<string[]>([])
-  const [sourceIsPreview, setSourceIsPreview] = useState(() => Boolean(initialSeed?.previewPlaybackUrl && initialSeed.previewPlaybackUrl === initialSeed.playbackUrl))
+  const uuidRef = useRef(videoUuid)
+  uuidRef.current = videoUuid
+  // Position and play intent carried across quality switches and reloads.
+  const resumeRef = useRef<Continuity | null>(null)
+  const playingIntentRef = useRef(false)
+  const recoveriesRef = useRef(0)
+  const [recovering, setRecovering] = useState(false)
+  const lookupRef = useRef<{ uuid: string; epoch: number } | null>(null)
   const [statusUnknown, setStatusUnknown] = useState(false)
   const [isRequesting, setIsRequesting] = useState(false)
   const [retryEpoch, setRetryEpoch] = useState(0)
@@ -173,11 +196,15 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, onPlay
 
   useEffect(() => {
     const seed = playbackSeed(videoUuid)
-    setPreviewSelected(false); previewSelectedRef.current = false; hqSelectedRef.current = false; lightSelectedRef.current = false; originalSelectedRef.current = false; presentedSourceRef.current = null
+    choiceRef.current = null
+    presentedSourceRef.current = null
+    resumeRef.current = null
+    playingIntentRef.current = false
+    recoveriesRef.current = 0
+    setRecovering(false)
     setPreviewSrc(seed?.previewPlaybackUrl ?? null)
     setLightSrc(null)
     setHqSrc(null)
-    setSourceIsPreview(Boolean(seed?.previewPlaybackUrl && seed.previewPlaybackUrl === seed.playbackUrl))
   }, [videoUuid])
   const failuresRef = useRef(0)
   const preparingSinceRef = useRef<number | null>(null)
@@ -211,17 +238,16 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, onPlay
     if (data.status === 'ready' && playbackUrl) {
       preparingSinceRef.current = null
       lastPreparingStateRef.current = null
-      let chosen = lightSelectedRef.current && lightUrl ? lightUrl : hqSelectedRef.current && hqUrl ? hqUrl : originalSelectedRef.current && originalUrl ? originalUrl : previewSelectedRef.current && previewUrl ? previewUrl : playbackUrl
+      const choiceUrls: Record<QualityKey, string | null> = { preview: previewUrl, light: lightUrl, hq: hqUrl, original: originalUrl }
+      let chosen = (choiceRef.current && choiceUrls[choiceRef.current]) || playbackUrl
       const presented = presentedSourceRef.current
       const previewChoices = [previewUrl, ...data.cache_entries?.filter(entry => entry.rendition.startsWith('proxy_')).map(entry => entry.playback_url) || []].filter((url): url is string => !!url)
-      previewChoicesRef.current = previewChoices
       // Revalidation never replaces an already presented, still available source.
       // D5 is an explicit quality option: no risky mid-playback automatic swap.
       if (presented?.uuid === videoUuid) {
         const preservable = [originalUrl, lightUrl, hqUrl, playbackUrl, ...previewChoices]
         if (preservable.includes(presented.src)) chosen = presented.src
       }
-      setSourceIsPreview(previewChoices.includes(chosen))
       setPhase({ kind: 'ready', src: chosen, originalSrc: originalUrl })
       return
     }
@@ -266,6 +292,15 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, onPlay
   useEffect(() => {
     let cancelled = false
     failuresRef.current = 0
+    const previous = lookupRef.current
+    lookupRef.current = { uuid: videoUuid, epoch: retryEpoch }
+    // A retry of the same clip re-checks status only: the presented source,
+    // quality choice and position stay; applyStatus keeps what still works.
+    const isRetry = previous?.uuid === videoUuid && previous.epoch !== retryEpoch
+    if (isRetry) {
+      setStatusUnknown(false)
+      setPhase((prev) => (prev.kind === 'transport-failed' ? { kind: 'checking' } : prev))
+    } else {
     hasPlayedRef.current = false
     userPausedRef.current = false
     setStale(false)
@@ -276,7 +311,6 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, onPlay
 
     const seed = playbackSeed(videoUuid)
     setPreviewSrc(seed?.previewPlaybackUrl ?? null)
-    setSourceIsPreview(Boolean(seed?.previewPlaybackUrl && seed.previewPlaybackUrl === seed.playbackUrl))
     if (seed?.posterUrl) setPosterSrc(seed.posterUrl)
     if (seed?.playbackUrl) {
       // Seeding the ready phase with a previously issued playback URL
@@ -287,6 +321,7 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, onPlay
       setPhase({ kind: 'ready', src: seed.playbackUrl, originalSrc: seed.originalPlaybackUrl })
     } else {
       setPhase({ kind: 'checking' })
+    }
     }
 
     const run = async (attempt: number) => {
@@ -465,10 +500,13 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, onPlay
     if (requestingRef.current) return
     requestingRef.current = true
     setIsRequesting(true)
+    const uuid = videoUuid
     try {
-      const data = await requestMediaRendition(videoUuid, 'proxy_720p')
-      applyStatus(data)
+      const data = await requestMediaRendition(uuid, 'proxy_720p')
+      // The viewer may have moved to another clip while the request ran.
+      if (uuidRef.current === uuid) applyStatus(data)
     } catch {
+      if (uuidRef.current !== uuid) return
       setPhase({
         kind: 'prepare-failed',
         message: null,
@@ -571,6 +609,20 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, onPlay
     if (video) {
       if (video.videoHeight) onAspectRatioChange?.(video.videoWidth / video.videoHeight)
       video.playbackRate = playbackRate
+      const resume = resumeRef.current
+      if (resume) {
+        resumeRef.current = null
+        if (resume.time > 0 && Number.isFinite(video.duration)) {
+          video.currentTime = Math.min(resume.time, Math.max(0, video.duration - 0.05))
+        }
+        if (!resume.playing) {
+          // pause() also clears the element's autoplay intent.
+          userPausedRef.current = true
+          video.pause()
+          return
+        }
+        if (!immersive) safePlay(video)
+      }
       if (immersive) {
         attemptImmersiveAutoplay(soundRef.current || video)
         if (soundRef.current && soundRef.current !== video) void video.play().catch(() => {})
@@ -579,6 +631,8 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, onPlay
   }
 
   const handleCanPlay = () => {
+    // A reloaded source is ready again, whether or not it resumes playing.
+    setRecovering(false)
     const video = videoRef.current
     // Startup-only safety net for the case where loadedmetadata fired before
     // playback was possible. Never overrides an intentional pause: once the
@@ -598,14 +652,53 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, onPlay
 
   const handlePlay = () => {
     hasPlayedRef.current = true
+    playingIntentRef.current = true
+    setRecovering(false)
   }
 
   const handlePause = () => {
     userPausedRef.current = true
+    // Failed loads and source replacements pause the element too; only a
+    // pause while the current source is healthy is the viewer's intent.
+    const video = videoRef.current
+    if (!video?.error && !resumeRef.current) playingIntentRef.current = false
+  }
+
+  /** Where the viewer is now, including a pending autoplay start. */
+  const continuity = (): Continuity | null => {
+    const video = videoRef.current
+    if (!video) return resumeRef.current
+    if (resumeRef.current && video.readyState < HTMLMediaElement.HAVE_METADATA) return resumeRef.current
+    const starting = immersive && !hasPlayedRef.current && !userPausedRef.current
+    return {
+      time: video.currentTime || 0,
+      playing: video.error ? playingIntentRef.current : !video.paused || starting,
+    }
   }
 
   const handleDecodeError = () => {
-    if (phase.kind === 'ready') setDecodeError(true)
+    if (phase.kind !== 'ready') return
+    const video = videoRef.current
+    const code = video?.error?.code
+    const presented = presentedSourceRef.current
+    const wasPresenting = presented?.uuid === videoUuid && presented.src === phase.src
+    // Playback routes redirect to short-lived grants: a dropped connection,
+    // or a source that played and now refuses, usually needs a fresh grant.
+    // Reload it in place, at the same moment, a bounded number of times.
+    if (video && recoveriesRef.current < MAX_AUTO_RECOVERIES
+      && (code === MEDIA_ERR_NETWORK || (wasPresenting && code === MEDIA_ERR_SRC_NOT_SUPPORTED))) {
+      recoveriesRef.current += 1
+      // A source that failed before its metadata still owes the earlier
+      // moment (e.g. a quality switch): never overwrite it with 0.
+      resumeRef.current = continuity()
+      setRecovering(true)
+      video.load()
+      retryStatusCheck()
+      return
+    }
+    setRecovering(false)
+    resumeRef.current = continuity()
+    setDecodeError(true)
   }
 
   // Retry playback by re-checking status rather than reloading the same
@@ -613,12 +706,8 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, onPlay
   // grants are short-lived presigned redirects. Never creates a new media
   // job; preparation authority stays with the backend status.
   const retryPlayback = () => {
-    setPreviewSelected(false)
-    previewSelectedRef.current = false
-    hqSelectedRef.current = false
-    lightSelectedRef.current = false
-    originalSelectedRef.current = false
     presentedSourceRef.current = null
+    recoveriesRef.current = 0
     setDecodeError(false)
     // The decodeError flip reopens a fresh load generation. The src is
     // unchanged so nothing would reload on its own: flag a real element
@@ -628,34 +717,46 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, onPlay
   }
 
   // Explicit local preview → Light → HQ → Original; aliases are deduplicated.
-  const qualityOptions = (src: string | null | undefined): string[] => {
-    if (phase.kind !== 'ready' || !src) return []
-    const starter = previewSrc ?? lightSrc ?? hqSrc
-    return [...new Set([starter, lightSrc, hqSrc, phase.originalSrc].filter((url): url is string => !!url))]
+  const originalSrc = phase.kind === 'ready' ? phase.originalSrc ?? null : null
+  const qualityKeyOf = (url: string): QualityKey =>
+    url === hqSrc ? 'hq' : url === originalSrc ? 'original' : url === lightSrc ? 'light' : 'preview'
+  const qualityLabels: Record<QualityKey, string> = {
+    preview: t('videoPlayer.previewLabel'),
+    light: t('videoPlayer.lightLabel'),
+    hq: t('videoPlayer.hqLabel'),
+    original: t('videoPlayer.originalQuality'),
   }
-  const qualityLabel = (src: string): string => {
-    if (src === hqSrc && hqSrc) return t('videoPlayer.hqLabel')
-    if (phase.kind === 'ready' && src === phase.originalSrc) return t('videoPlayer.originalQuality')
-    return src === lightSrc ? t('videoPlayer.lightLabel') : t('videoPlayer.previewLabel')
-  }
-  /** The pill cycles renditions on tap — no menu. Hover and screen readers
-   * say so instead of naming only the current rendition (discovery
-   * 2026-11-01: a "changer" button whose tooltip read "Preview"). */
-  const qualityCycleHint = (): string => t('videoPlayer.qualityCycle', { current: qualityLabel(phase.kind === 'ready' ? phase.src : '') })
-  const cycleQuality = () => {
-    if (phase.kind !== 'ready') return
-    const options = qualityOptions(phase.src)
-    if (options.length < 2) return
-    const next = options[(options.indexOf(phase.src) + 1) % options.length]
-    previewSelectedRef.current = next === previewSrc
-    lightSelectedRef.current = next === lightSrc
-    hqSelectedRef.current = next === hqSrc
-    originalSelectedRef.current = next === phase.originalSrc
-    setPreviewSelected(next === previewSrc)
-    setSourceIsPreview(previewChoicesRef.current.includes(next))
+  const qualityOptions = phase.kind === 'ready'
+    ? [...new Set([previewSrc, lightSrc, hqSrc, originalSrc].filter((url): url is string => !!url))]
+        .map(url => ({ key: qualityKeyOf(url), url, label: qualityLabels[qualityKeyOf(url)] }))
+    : []
+  const currentQuality = phase.kind === 'ready' ? qualityKeyOf(phase.src) : 'preview'
+  const reducedQuality = phase.kind === 'ready' && phase.src !== originalSrc && phase.src !== hqSrc
+  const lighterOption = phase.kind === 'ready' && qualityOptions[0]?.url !== phase.src ? qualityOptions[0] : undefined
+
+  /** Switch rendition where the viewer is: same moment, same play state. */
+  const selectQuality = (key: string) => {
+    const option = qualityOptions.find(item => item.key === key)
+    if (phase.kind !== 'ready' || !option) return
+    choiceRef.current = option.key
+    resumeRef.current = continuity()
     presentedSourceRef.current = null
-    setPhase({ ...phase, src: next })
+    setDecodeError(false)
+    if (option.url === phase.src) {
+      needsRestartRef.current = true
+      setVideoEpoch(epoch => epoch + 1)
+    } else {
+      setPhase({ ...phase, src: option.url })
+    }
   }
+
+  const canPrepareProxy = Boolean(originalSrc && canRequest && (!previewSrc || previewSrc === originalSrc))
+  const qualityControl = phase.kind === 'ready' && !decodeError && (qualityOptions.length > 1 || reducedQuality || canPrepareProxy)
+    ? <div className={immersive ? 'clip-player-chip clip-quality' : 'clip-player-chip clip-quality is-embedded'}>
+        {canPrepareProxy && <button type="button" className="clip-quality-pill" onClick={requestMedia} disabled={isRequesting}>{isRequesting ? t('videoPlayer.requesting') : t('videoPlayer.prepareClip')}</button>}
+        <QualityMenu options={qualityOptions} current={currentQuality} reduced={reducedQuality} onSelect={selectQuality} />
+      </div>
+    : null
 
   const stateLabel = (state: string) =>
     PREPARATION_STATE_KEYS.includes(state)
@@ -790,7 +891,7 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, onPlay
 
       {/* Immersive viewer: one calm loading layer, from the status lookup until
           the first frame, shown only if loading is not instant. */}
-      {immersive && !decodeError && (phase.kind === 'checking' || (phase.kind === 'ready' && !framePresented)) && (
+      {immersive && !decodeError && (phase.kind === 'checking' || (phase.kind === 'ready' && (!framePresented || recovering))) && (
         <div className="clip-loading" role="status">
           <span className="clip-loading-ring" aria-hidden="true" />
           <p>{t('videoPlayer.loadingVideo')}</p>
@@ -865,15 +966,7 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, onPlay
             {phase.kind === 'transport-failed' && <button type="button" className="clip-state-action" onClick={retryStatusCheck}><RefreshCw size={16} aria-hidden="true" />{t('videoPlayer.retry')}</button>}
             {phase.kind === 'prepare-failed' && canRequest && <button type="button" className="clip-state-action" onClick={requestMedia} disabled={isRequesting}><DownloadCloud size={16} aria-hidden="true" />{isRequesting ? t('videoPlayer.requesting') : t('videoPlayer.prepareAgain')}</button>}
             {phase.kind === 'ready' && decodeError && <button type="button" className="clip-state-action" onClick={retryPlayback}><RefreshCw size={16} aria-hidden="true" />{t('videoPlayer.retry')}</button>}
-            {phase.kind === 'ready' && decodeError && previewSrc && previewSrc !== phase.src && <button type="button" className="clip-state-action is-quiet" onClick={() => {
-              setPreviewSelected(true)
-              lightSelectedRef.current = false
-              previewSelectedRef.current = true
-              originalSelectedRef.current = false
-              presentedSourceRef.current = null
-              setDecodeError(false)
-              setPhase({ ...phase, src: previewSrc })
-            }}>{t('videoPlayer.usePreview')}</button>}
+            {phase.kind === 'ready' && decodeError && lighterOption && <button type="button" className="clip-state-action is-quiet" onClick={() => selectQuality(lighterOption.key)}>{t('videoPlayer.usePreview')}</button>}
           </div>
         </div>
       )}
@@ -925,38 +1018,7 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, onPlay
         </div>
       )}
 
-      {/* Immersive viewer: one quality pill (dot = reduced quality), cycling on tap. */}
-      {immersive && phase.kind === 'ready' && !decodeError && (() => {
-        const options = qualityOptions(phase.src)
-        const reduced = phase.src !== phase.originalSrc && phase.src !== hqSrc
-        const label = qualityLabel(phase.src)
-        if (options.length < 2 && !reduced && !(phase.originalSrc && canRequest && (!previewSrc || previewSrc === phase.originalSrc))) return null
-        return <div className="clip-player-chip clip-quality">
-          {phase.originalSrc && canRequest && (!previewSrc || previewSrc === phase.originalSrc) && <button type="button" className="clip-quality-pill" onClick={requestMedia} disabled={isRequesting}>{isRequesting ? t('videoPlayer.requesting') : t('videoPlayer.prepareClip')}</button>}
-          {options.length > 1
-            ? <button type="button" className="clip-quality-pill" aria-label={t('videoPlayer.changeQuality')} title={qualityCycleHint()} onClick={cycleQuality}>{reduced && <span className="clip-quality-dot" aria-hidden="true" />}{label}<ChevronsUpDown size={14} aria-hidden="true" /></button>
-            : <span className="clip-quality-pill" role="status">{reduced && <span className="clip-quality-dot" aria-hidden="true" />}{label}</span>}
-        </div>
-      })()}
-      {!immersive && (previewSelected || sourceIsPreview) && phase.kind === 'ready' && !decodeError && <div className="clip-player-chip absolute top-2 max-[599px]:top-[calc(72px+env(safe-area-inset-top))] left-2 z-30 rounded bg-black/70 px-2 py-1 text-xs text-white" role="status">{t('videoPlayer.previewQuality')}</div>}
-      {!immersive && phase.kind === 'ready' && !decodeError && phase.originalSrc && (!previewSrc || previewSrc === phase.originalSrc) && (
-        <div className="clip-player-chip absolute top-2 max-[599px]:top-[calc(72px+env(safe-area-inset-top))] left-2 z-30 flex items-center gap-2">
-          <span className="rounded bg-black/70 px-2 py-1 text-xs text-white">{t('videoPlayer.originalQuality')}</span>
-          {canRequest && (
-            <button
-              type="button"
-              onClick={requestMedia}
-              disabled={isRequesting}
-              className="rounded-full border border-white/30 bg-black/70 px-3 py-1 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isRequesting ? t('videoPlayer.requesting') : t('videoPlayer.prepareClip')}
-            </button>
-          )}
-        </div>
-      )}
-      {!immersive && phase.kind === 'ready' && !decodeError && qualityOptions(phase.src).length > 1 && (
-        <button type="button" className="clip-player-chip absolute right-3 top-3 max-[599px]:top-[calc(72px+env(safe-area-inset-top))] z-30 rounded-full border border-white/30 bg-black/70 px-3 py-2 text-xs font-semibold text-white" aria-label={t('videoPlayer.changeQuality')} onClick={cycleQuality}>{qualityLabel(phase.src)}</button>
-      )}
+      {qualityControl}
       {/* Video decode/load failure of an otherwise ready clip. */}
       {!immersive && phase.kind === 'ready' && decodeError && (
         <div
@@ -975,16 +1037,8 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, onPlay
               <RefreshCw className="h-4 w-4" />
               {t('videoPlayer.tryAgain')}
             </button>
-            {previewSrc && previewSrc !== phase.src && <button type="button" className="touch-target mt-3 block w-full rounded-lg border border-app px-4 py-2 text-app-text" onClick={() => {
-              setPreviewSelected(true)
-              lightSelectedRef.current = false
-              previewSelectedRef.current = true
-              originalSelectedRef.current = false
-              presentedSourceRef.current = null
-              setDecodeError(false)
-              setPhase({ ...phase, src: previewSrc })
-            }}>{t('videoPlayer.usePreview')}</button>}
-            {(!previewSrc || previewSrc === phase.src) && canRequest && (
+            {lighterOption && <button type="button" className="touch-target mt-3 block w-full rounded-lg border border-app px-4 py-2 text-app-text" onClick={() => selectQuality(lighterOption.key)}>{t('videoPlayer.usePreview')}</button>}
+            {!lighterOption && canRequest && (
               <button
                 type="button"
                 onClick={requestMedia}

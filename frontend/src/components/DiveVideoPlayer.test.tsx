@@ -5,6 +5,7 @@ import { afterEach, beforeEach, expect, it, vi, type Mock } from 'vitest'
 import DiveVideoPlayer, {
   INITIAL_STATUS_ATTEMPTS,
   LONG_PREPARATION_MS,
+  MAX_AUTO_RECOVERIES,
   MAX_POLL_FAILURES,
   MEDIA_POLL_INTERVAL_MS,
 } from './DiveVideoPlayer'
@@ -40,6 +41,12 @@ class Pointer extends MouseEvent {
     this.isPrimary = init.isPrimary ?? true
     this.pointerId = init.pointerId ?? 1
   }
+}
+
+/** Open the quality menu and pick one rendition by its visible name. */
+function chooseQuality(name: string) {
+  fireEvent.click(screen.getByRole('button', { name: 'Change video quality' }))
+  fireEvent.click(screen.getByRole('menuitemradio', { name }))
 }
 
 it('immersive clips attempt autoplay with sound on metadata load', async () => {
@@ -1039,7 +1046,7 @@ it('starts on the preview and only loads the original after an explicit quality 
   render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="preview-first" immersive />)
   const video = await screen.findByLabelText('103B 1m dive video')
   await waitFor(() => expect(video).toHaveAttribute('src', '/sdr-720.mp4'))
-  fireEvent.click(screen.getByRole('button', { name: 'Change video quality' }))
+  chooseQuality('Original')
   expect(video).toHaveAttribute('src', '/camera-hlg.mov')
   fireEvent.error(video)
   fireEvent.click(screen.getByRole('button', { name: 'Play a lower-quality preview' }))
@@ -1085,14 +1092,14 @@ it('keeps seeded quality choices and preview recovery when status revalidation f
   expect(video).toHaveAttribute('src', '/preview.mp4')
   expect(screen.getByRole('button', { name: 'Change video quality' })).toBeInTheDocument()
   await act(async () => { await vi.advanceTimersByTimeAsync(INITIAL_STATUS_ATTEMPTS * 2000) })
-  fireEvent.click(screen.getByRole('button', { name: 'Change video quality' }))
+  chooseQuality('Original')
   expect(video).toHaveAttribute('src', '/original.mov')
   fireEvent.error(video)
   fireEvent.click(screen.getByRole('button', { name: 'Play a lower-quality preview' }))
   expect(video).toHaveAttribute('src', '/preview.mp4')
 })
 
-it('starts locally and cycles Light, HQ and Original explicitly', async () => {
+it('starts locally and offers Preview, Light, HQ and Original as explicit choices', async () => {
   const derivativeReady = {
     ...missing,
     status: 'ready',
@@ -1118,15 +1125,18 @@ it('starts locally and cycles Light, HQ and Original explicitly', async () => {
   const toggle = screen.getByRole('button', { name: 'Change video quality' })
   expect(toggle).toHaveTextContent('Preview')
   fireEvent.click(toggle)
+  expect(screen.getAllByRole('menuitemradio').map(item => item.textContent)).toEqual(['Preview', 'Light', 'HQ', 'Original'])
+  expect(screen.getByRole('menuitemradio', { name: 'Preview' })).toHaveAttribute('aria-checked', 'true')
+  fireEvent.click(screen.getByRole('menuitemradio', { name: 'Light' }))
   await waitFor(() => expect(video).toHaveAttribute('src', '/api/v1/media/revisions/3/play'))
   expect(toggle).toHaveTextContent('Light')
-  fireEvent.click(toggle)
+  chooseQuality('HQ')
   await waitFor(() => expect(video).toHaveAttribute('src', '/api/v1/media/revisions/2/play'))
   expect(toggle).toHaveTextContent('HQ')
-  fireEvent.click(toggle)
+  chooseQuality('Original')
   await waitFor(() => expect(video).toHaveAttribute('src', '/api/v1/media/revisions/9/play'))
   expect(toggle).toHaveTextContent('Original')
-  fireEvent.click(toggle)
+  chooseQuality('Preview')
   await waitFor(() => expect(video).toHaveAttribute('src', '/local.mp4'))
   // Quality switches never create preparation jobs.
   expect(requestMedia).not.toHaveBeenCalled()
@@ -1154,7 +1164,7 @@ it('a failed HQ derivative falls back to the durable light preview', async () =>
   render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="uuid" />)
   const video = await screen.findByLabelText('103B 1m dive video') as HTMLVideoElement
   await waitFor(() => expect(video).toHaveAttribute('src', '/api/v1/media/revisions/3/play'))
-  fireEvent.click(screen.getByRole('button', { name: 'Change video quality' }))
+  chooseQuality('HQ')
   await waitFor(() => expect(video).toHaveAttribute('src', '/api/v1/media/revisions/2/play'))
   // The HQ bytes fail to decode: the player offers the durable light
   // preview (no re-request, no jump to the camera original).
@@ -1260,7 +1270,7 @@ it('keeps an explicit HQ choice and never auto-upgrades light to HQ', async () =
   rerender(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="explicit-hq" immersive />)
   const immersiveVideo = await screen.findByLabelText('103B 1m dive video') as HTMLVideoElement
   await waitFor(() => expect(immersiveVideo).toHaveAttribute('src', '/api/v1/media/revisions/3/play'))
-  fireEvent.click(screen.getByRole('button', { name: 'Change video quality' }))
+  chooseQuality('HQ')
   await waitFor(() => expect(immersiveVideo).toHaveAttribute('src', '/api/v1/media/revisions/2/play'))
   await presentFirstFrame(immersiveVideo)
   vi.mocked(getMediaStatus).mockResolvedValue({ ...durable })
@@ -1293,7 +1303,7 @@ it('keeps HQ decode fallback on durable light across revalidation', async () => 
   const { rerender } = render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="hq-fallback" />)
   const video = await screen.findByLabelText('103B 1m dive video') as HTMLVideoElement
   await waitFor(() => expect(video).toHaveAttribute('src', '/api/v1/media/revisions/3/play'))
-  fireEvent.click(screen.getByRole('button', { name: 'Change video quality' }))
+  chooseQuality('HQ')
   await waitFor(() => expect(video).toHaveAttribute('src', '/api/v1/media/revisions/2/play'))
   fireEvent.error(video)
   fireEvent.click(await screen.findByRole('button', { name: 'Play a lower-quality preview' }))
@@ -1431,4 +1441,217 @@ it('leaves a genuine legacy-only presented preview unchanged', async () => {
   await act(async () => { resolve(legacyOnly) })
   await waitFor(() => expect(video).toHaveAttribute('src', '/sdr-360.mp4'))
   expect(requestMedia).not.toHaveBeenCalled()
+})
+
+// ---- Playback continuity: quality switches, recovery and late responses ----
+
+const durableChoices = (uuid: string): MediaStatus => ({
+  ...missing,
+  video_uuid: uuid,
+  status: 'ready',
+  playback_url: '/api/v1/media/revisions/9/play',
+  preview_url: '/api/v1/media/revisions/3/play',
+  full_quality_url: '/api/v1/media/revisions/9/play',
+  poster_url: null,
+  derivatives: {
+    source_revision_id: 1,
+    transform_version: 'ffmpeg-h264-web-v1',
+    start: 'light',
+    recommended: 'hq',
+    hq: { state: 'ready', playback_url: '/api/v1/media/revisions/2/play', revision_id: 2, aliased_to: null },
+    light: { state: 'ready', playback_url: '/api/v1/media/revisions/3/play', revision_id: 3, aliased_to: null },
+    poster: { state: 'missing', playback_url: null, revision_id: null, aliased_to: null },
+  },
+})
+
+/** jsdom media elements have no clock: give one a position and state. */
+function setMediaState(video: HTMLVideoElement, state: { time?: number; paused?: boolean; duration?: number; error?: number | null; readyState?: number }) {
+  if (state.time !== undefined) {
+    let time = state.time
+    Object.defineProperty(video, 'currentTime', { configurable: true, get: () => time, set: value => { time = value } })
+  }
+  if (state.paused !== undefined) Object.defineProperty(video, 'paused', { configurable: true, value: state.paused })
+  if (state.duration !== undefined) Object.defineProperty(video, 'duration', { configurable: true, value: state.duration })
+  if (state.error !== undefined) Object.defineProperty(video, 'error', { configurable: true, value: state.error === null ? null : { code: state.error } })
+  if (state.readyState !== undefined) Object.defineProperty(video, 'readyState', { configurable: true, value: state.readyState })
+}
+
+it('switching quality keeps the paused moment instead of restarting the clip', async () => {
+  vi.mocked(getMediaStatus).mockResolvedValue(durableChoices('keep-paused'))
+  const play = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined)
+  const pause = vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {})
+  try {
+    render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="keep-paused" immersive />)
+    const video = await screen.findByLabelText('103B 1m dive video') as HTMLVideoElement
+    await waitFor(() => expect(video).toHaveAttribute('src', '/api/v1/media/revisions/3/play'))
+    await presentFirstFrame(video)
+    fireEvent.play(video)
+    setMediaState(video, { time: 6.3, paused: true, readyState: 4 })
+    fireEvent.pause(video)
+    play.mockClear()
+    // Assigning a new src empties the element (HAVE_NOTHING) synchronously.
+    setMediaState(video, { readyState: 0 })
+    chooseQuality('HQ')
+    await waitFor(() => expect(video).toHaveAttribute('src', '/api/v1/media/revisions/2/play'))
+    setMediaState(video, { time: 0, duration: 12.5, readyState: 1 })
+    fireEvent.loadedMetadata(video)
+    expect(video.currentTime).toBe(6.3)
+    expect(pause).toHaveBeenCalled()
+    expect(play).not.toHaveBeenCalled()
+    // A later canplay (seek, buffer) must not resume what the viewer paused.
+    fireEvent.canPlay(video)
+    expect(play).not.toHaveBeenCalled()
+  } finally {
+    play.mockRestore()
+    pause.mockRestore()
+  }
+})
+
+it('switching quality while playing resumes at the same moment', async () => {
+  vi.mocked(getMediaStatus).mockResolvedValue(durableChoices('keep-playing'))
+  const play = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined)
+  try {
+    render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="keep-playing" />)
+    const video = await screen.findByLabelText('103B 1m dive video') as HTMLVideoElement
+    await waitFor(() => expect(video).toHaveAttribute('src', '/api/v1/media/revisions/3/play'))
+    fireEvent.play(video)
+    setMediaState(video, { time: 4.2, paused: false, readyState: 4 })
+    chooseQuality('Original')
+    await waitFor(() => expect(video).toHaveAttribute('src', '/api/v1/media/revisions/9/play'))
+    play.mockClear()
+    setMediaState(video, { time: 0, duration: 12.5, readyState: 1 })
+    fireEvent.loadedMetadata(video)
+    expect(video.currentTime).toBe(4.2)
+    expect(play).toHaveBeenCalledTimes(1)
+  } finally {
+    play.mockRestore()
+  }
+})
+
+it('reloads an expired or dropped source in place, then admits the failure', async () => {
+  vi.mocked(getMediaStatus).mockResolvedValue(durableChoices('grant-expiry'))
+  const load = vi.spyOn(HTMLMediaElement.prototype, 'load').mockImplementation(() => {})
+  try {
+    render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="grant-expiry" immersive />)
+    const video = await screen.findByLabelText('103B 1m dive video') as HTMLVideoElement
+    await waitFor(() => expect(video).toHaveAttribute('src', '/api/v1/media/revisions/3/play'))
+    await presentFirstFrame(video)
+    fireEvent.play(video)
+    load.mockClear()
+    for (let attempt = 1; attempt <= MAX_AUTO_RECOVERIES; attempt += 1) {
+      setMediaState(video, { time: 8, paused: true, error: 2 })
+      fireEvent.error(video)
+      expect(load).toHaveBeenCalledTimes(attempt)
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+      // The reloaded source lands on the same moment.
+      setMediaState(video, { time: 0, duration: 12.5, error: null, readyState: 1 })
+      fireEvent.loadedMetadata(video)
+      expect(video.currentTime).toBe(8)
+      expect(screen.getByText('Loading video')).toBeInTheDocument()
+      // Ready again while paused: no play event, yet the loading layer clears.
+      fireEvent.canPlay(video)
+      expect(screen.queryByText('Loading video')).not.toBeInTheDocument()
+    }
+    setMediaState(video, { time: 8, paused: true, error: 2 })
+    fireEvent.error(video)
+    expect(load).toHaveBeenCalledTimes(MAX_AUTO_RECOVERIES)
+    expect(await screen.findByRole('alert')).toHaveTextContent('Video unavailable')
+  } finally {
+    load.mockRestore()
+  }
+})
+
+it('a source that never decoded reports unsupported media at once', async () => {
+  vi.mocked(getMediaStatus).mockResolvedValue(durableChoices('never-decoded'))
+  const load = vi.spyOn(HTMLMediaElement.prototype, 'load').mockImplementation(() => {})
+  try {
+    render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="never-decoded" immersive />)
+    const video = await screen.findByLabelText('103B 1m dive video') as HTMLVideoElement
+    await waitFor(() => expect(video).toHaveAttribute('src', '/api/v1/media/revisions/3/play'))
+    load.mockClear()
+    setMediaState(video, { error: 4 })
+    fireEvent.error(video)
+    expect(load).not.toHaveBeenCalled()
+    expect(await screen.findByRole('alert')).toBeInTheDocument()
+  } finally {
+    load.mockRestore()
+  }
+})
+
+it('manual retry keeps the chosen quality and position', async () => {
+  vi.mocked(getMediaStatus).mockResolvedValue(durableChoices('retry-keeps'))
+  render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="retry-keeps" />)
+  const video = await screen.findByLabelText('103B 1m dive video') as HTMLVideoElement
+  await waitFor(() => expect(video).toHaveAttribute('src', '/api/v1/media/revisions/3/play'))
+  chooseQuality('HQ')
+  await waitFor(() => expect(video).toHaveAttribute('src', '/api/v1/media/revisions/2/play'))
+  setMediaState(video, { duration: 12.5, readyState: 1 })
+  fireEvent.loadedMetadata(video)
+  setMediaState(video, { time: 5, paused: true, error: 3 })
+  fireEvent.error(video)
+  fireEvent.click(await screen.findByRole('button', { name: 'Try again' }))
+  await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument())
+  expect(video).toHaveAttribute('src', '/api/v1/media/revisions/2/play')
+  setMediaState(video, { time: 0, duration: 12.5, error: null, readyState: 1 })
+  fireEvent.loadedMetadata(video)
+  expect(video.currentTime).toBe(5)
+})
+
+it('a preparation request that resolves after the viewer moved on is ignored', async () => {
+  vi.mocked(getMediaStatus).mockImplementation(async uuid => (uuid === 'clip-a' ? { ...missing, video_uuid: 'clip-a' } : { ...ready, video_uuid: 'clip-b', playback_url: '/clip-b.mp4' }))
+  let finish!: (status: MediaStatus) => void
+  vi.mocked(requestMedia).mockReturnValue(new Promise(resolve => { finish = resolve }) as ReturnType<typeof requestMedia>)
+  const { rerender } = render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="clip-a" />)
+  fireEvent.click(await screen.findByRole('button', { name: /Prepare clip/ }))
+  rerender(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="clip-b" />)
+  const video = await screen.findByLabelText('103B 1m dive video')
+  await waitFor(() => expect(video).toHaveAttribute('src', '/clip-b.mp4'))
+  await act(async () => { finish({ ...ready, video_uuid: 'clip-a', playback_url: '/clip-a.mp4' }) })
+  expect(video).toHaveAttribute('src', '/clip-b.mp4')
+})
+
+it('the quality menu closes on Escape without reaching the viewer', async () => {
+  vi.mocked(getMediaStatus).mockResolvedValue(durableChoices('menu-escape'))
+  const viewerKeys = vi.fn()
+  render(<div onKeyDown={event => viewerKeys(event.key)}><DiveVideoPlayer diveCode="103B" height="1m" videoUuid="menu-escape" immersive /></div>)
+  const trigger = await screen.findByRole('button', { name: 'Change video quality' })
+  fireEvent.click(trigger)
+  const menu = screen.getByRole('menu')
+  expect(screen.getByRole('menuitemradio', { name: 'Light' })).toHaveFocus()
+  fireEvent.keyDown(menu, { key: 'ArrowDown' })
+  expect(screen.getByRole('menuitemradio', { name: 'HQ' })).toHaveFocus()
+  fireEvent.keyDown(menu, { key: 'Escape' })
+  expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+  expect(trigger).toHaveFocus()
+  expect(viewerKeys).not.toHaveBeenCalled()
+})
+
+it('a quality switch whose request drops recovers to the moment before the switch', async () => {
+  vi.mocked(getMediaStatus).mockResolvedValue(durableChoices('switch-drop'))
+  const load = vi.spyOn(HTMLMediaElement.prototype, 'load').mockImplementation(() => {})
+  const pause = vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {})
+  try {
+    render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="switch-drop" immersive />)
+    const video = await screen.findByLabelText('103B 1m dive video') as HTMLVideoElement
+    await waitFor(() => expect(video).toHaveAttribute('src', '/api/v1/media/revisions/3/play'))
+    await presentFirstFrame(video)
+    fireEvent.play(video)
+    setMediaState(video, { time: 7.1, paused: true, readyState: 4 })
+    fireEvent.pause(video)
+    setMediaState(video, { readyState: 0 })
+    chooseQuality('HQ')
+    await waitFor(() => expect(video).toHaveAttribute('src', '/api/v1/media/revisions/2/play'))
+    // The new source's request fails before metadata; the emptied element
+    // reads 0 but the viewer was at 7.1.
+    setMediaState(video, { time: 0, error: 2 })
+    fireEvent.error(video)
+    expect(load).toHaveBeenCalled()
+    setMediaState(video, { duration: 12.5, error: null, readyState: 1 })
+    fireEvent.loadedMetadata(video)
+    expect(video.currentTime).toBe(7.1)
+    expect(pause).toHaveBeenCalled()
+  } finally {
+    load.mockRestore()
+    pause.mockRestore()
+  }
 })
