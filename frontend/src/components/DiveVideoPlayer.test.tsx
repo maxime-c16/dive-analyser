@@ -1945,3 +1945,21 @@ it('a 3–6 Mbps network starts the v1 Light clip on the proxy (no stall-prone s
   render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="v1-mid" immersive />)
   expect(screen.getByLabelText('103B 1m dive video')).not.toHaveAttribute('src', '/api/v1/media/v1-mid/play/light')
 })
+
+it('a speed sample from elsewhere (neighbor or proxy download) re-evaluates Auto without a re-render', async () => {
+  recordThroughput(1)
+  vi.mocked(getMediaStatus).mockResolvedValue({ ...durableChoices('notify'), preview_url: '/proxy.mp4', cache_entries: [{ id: 1, rendition: 'proxy_720p', playback_url: '/proxy.mp4' }] })
+  const create = vi.spyOn(document, 'createElement')
+  try {
+    render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="notify" immersive />)
+    const active = await screen.findByLabelText('103B 1m dive video') as HTMLVideoElement
+    await waitFor(() => expect(active).toHaveAttribute('src', '/proxy.mp4'))
+    await presentFirstFrame(active)
+    expect(backgroundVideo(create, '/api/v1/media/revisions/3/play')).toBeUndefined()
+    // No rerender: only the shared estimate changes, as a neighbor's download would.
+    act(() => { for (let sample = 0; sample < 4; sample += 1) recordThroughput(20) })
+    await waitFor(() => expect(backgroundVideo(create, '/api/v1/media/revisions/3/play')).toBeDefined())
+  } finally {
+    create.mockRestore()
+  }
+})

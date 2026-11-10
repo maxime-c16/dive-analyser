@@ -17,6 +17,7 @@ import {
   lightMbpsForVersion,
   observeMediaTransfers,
   sampleBuffering,
+  subscribeThroughput,
   getQualityPreference,
   recordThroughput,
   roleOfUrl,
@@ -864,11 +865,14 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, onPlay
     if (!immersive || !gateKey || !video) return
     const key = qualityKeyOf(gateKey)
     const mbps = key === 'light' ? lightMbpsRef.current : key === 'preview' ? previewMbpsRef.current : NOMINAL_MBPS[key]
-    return sampleBuffering(video, mbps, bumpPolicy)
-  }, [immersive, gateKey, videoEpoch, bumpPolicy])
-  // Same-origin media downloads (proxies) are measured exactly as they finish.
+    return sampleBuffering(video, mbps)
+  }, [immersive, gateKey, videoEpoch])
+  // Same-origin media downloads (proxies) are measured exactly as they
+  // finish; any new sample, from any source, re-evaluates this clip's Auto.
   useEffect(() => {
-    if (immersive) observeMediaTransfers(bumpPolicy)
+    if (!immersive) return
+    observeMediaTransfers()
+    return subscribeThroughput(bumpPolicy)
   }, [immersive, bumpPolicy])
 
   // Background upgrade (Auto only, with measured headroom): a second element

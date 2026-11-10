@@ -24,6 +24,17 @@ export const WEAK_NETWORK_MBPS = 3
 
 let preference: QualityPreference = 'auto'
 let estimateMbps: number | null = null
+const estimateListeners = new Set<() => void>()
+
+/**
+ * Re-evaluate on every new speed sample, whatever measured it (the visible
+ * clip, a neighbor's background download, a proxy transfer). Returns an
+ * unsubscribe.
+ */
+export function subscribeThroughput(listener: () => void): () => void {
+  estimateListeners.add(listener)
+  return () => { estimateListeners.delete(listener) }
+}
 
 export function getQualityPreference(): QualityPreference {
   return preference
@@ -58,6 +69,7 @@ export function recordThroughput(mbps: number) {
   if (!Number.isFinite(mbps) || mbps <= 0) return
   const sample = Math.min(mbps, 100)
   estimateMbps = estimateMbps === null ? sample : estimateMbps * 0.6 + sample * 0.4
+  for (const listener of [...estimateListeners]) listener()
 }
 
 export function throughputEstimate(): number | null {
@@ -76,7 +88,7 @@ function downlinkHint(): number | null {
  * buffered or after 4 s. Fills faster than 0.3 s are cache hits, not network.
  * Returns a cleanup.
  */
-export function sampleBuffering(video: HTMLVideoElement, mbps: number, onSample?: () => void): () => void {
+export function sampleBuffering(video: HTMLVideoElement, mbps: number): () => void {
   let started = performance.now()
   let sampled = false
   const onLoadStart = () => { started = performance.now(); sampled = false }
@@ -88,7 +100,6 @@ export function sampleBuffering(video: HTMLVideoElement, mbps: number, onSample?
     sampled = true
     if (wall < 0.3) return
     recordThroughput((end / wall) * mbps)
-    onSample?.()
   }
   video.addEventListener('loadstart', onLoadStart)
   video.addEventListener('progress', onProgress)
@@ -113,13 +124,11 @@ export function recordResourceTiming(entry: Pick<PerformanceResourceTiming, 'nam
 
 let resourceObserver: PerformanceObserver | null = null
 /** Feed same-origin media downloads into the estimate (once per page). */
-export function observeMediaTransfers(onSample?: () => void) {
+export function observeMediaTransfers() {
   if (resourceObserver || typeof PerformanceObserver === 'undefined') return
   try {
     resourceObserver = new PerformanceObserver(list => {
-      let sampled = false
-      for (const entry of list.getEntries() as PerformanceResourceTiming[]) sampled = recordResourceTiming(entry) || sampled
-      if (sampled) onSample?.()
+      for (const entry of list.getEntries() as PerformanceResourceTiming[]) recordResourceTiming(entry)
     })
     resourceObserver.observe({ type: 'resource', buffered: true })
   } catch {
@@ -191,4 +200,5 @@ export function autoStartUrl(
 export function resetPlaybackPolicy() {
   preference = 'auto'
   estimateMbps = null
+  estimateListeners.clear()
 }
