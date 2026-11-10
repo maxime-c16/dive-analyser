@@ -148,7 +148,7 @@ def _preload_clip_rows(db: Session, video_uuid: str, source_sha: str, versions: 
     - each derivative blob's first ``TRUSTED_REPLICA_PROBE + 1`` verified
       replicas, judged by the same rule as ``trusted_prod_location``.
     """
-    from sqlalchemy import func, select
+    from sqlalchemy import select, union_all
     from app.models.media_backbone import MediaBlobLocation, MediaDerivative, MediaRevision
     from app.services.media_backbone import DERIVATIVE_ROLE_TO_SEMANTICS, TRUSTED_REPLICA_PROBE, evaluate_trusted_replicas
 
@@ -183,25 +183,26 @@ def _preload_clip_rows(db: Session, video_uuid: str, source_sha: str, versions: 
         .all()
     ):
         revisions.setdefault((revision.blob_sha256, revision.rendition_semantics), revision)
-    ranked = (
-        select(
-            MediaBlobLocation.id,
-            func.row_number().over(
-                partition_by=MediaBlobLocation.blob_sha256, order_by=MediaBlobLocation.id.asc(),
-            ).label("rank"),
-        )
+    # Per-blob bounded lookups (the same ORDER BY id LIMIT probe+1 as
+    # trusted_prod_location), sent as ONE statement: database work stays
+    # bounded per blob however long a blob's replica history grows.
+    per_blob = [
+        select(MediaBlobLocation.id)
         .where(
-            MediaBlobLocation.blob_sha256.in_(ready_shas),
+            MediaBlobLocation.blob_sha256 == sha,
             MediaBlobLocation.environment == environment,
             MediaBlobLocation.verified.is_(True),
         )
+        .order_by(MediaBlobLocation.id.asc())
+        .limit(TRUSTED_REPLICA_PROBE + 1)
         .subquery()
-    )
+        for sha in sorted(ready_shas)
+    ]
+    bounded_ids = union_all(*(select(sub.c.id) for sub in per_blob)).subquery()
     by_sha: dict = {}
     for location in (
         db.query(MediaBlobLocation)
-        .join(ranked, MediaBlobLocation.id == ranked.c.id)
-        .filter(ranked.c.rank <= TRUSTED_REPLICA_PROBE + 1)
+        .filter(MediaBlobLocation.id.in_(select(bounded_ids.c.id)))
         .order_by(MediaBlobLocation.id.asc())
         .all()
     ):

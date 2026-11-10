@@ -1493,3 +1493,22 @@ def test_clip_resolution_uses_a_fixed_small_number_of_queries(db, monkeypatch, f
     assert clip.roles["light"].state == "ready" and clip.roles["hq"].state == "ready"
     # Was 18 with one query set per role and version; now a fixed six.
     assert len(statements) <= 6, len(statements)
+
+
+@pytest.mark.parametrize("extra_replicas", [0, 7, 12])
+def test_batched_replica_check_matches_the_per_blob_rule(db, flags, extra_replicas):
+    """Bounded per-blob lookups decide exactly like trusted_prod_location."""
+    from app.services.derivative_read import resolve_clip_derivatives
+    from app.services.media_backbone import trusted_prod_location
+
+    light = db.query(MediaDerivative).filter_by(video_uuid=UUID_FULL, role="light").one()
+    sha = light.derivative_blob_sha256
+    for index in range(extra_replicas):
+        _loc(db, sha, "prod", PROD_BUCKET, f"blobs/sha256/derived/light-copy-{index}.bin")
+    db.commit()
+    expected_location, expected_deny = trusted_prod_location(db, sha, PROD_BUCKET)
+    decision = resolve_clip_derivatives(db, UUID_FULL).roles["light"]
+    if expected_deny is None:
+        assert decision.state == "ready"
+    else:
+        assert decision.state == "unavailable" and decision.reason == "ambiguous_location"
