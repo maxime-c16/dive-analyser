@@ -27,9 +27,117 @@ jobs:
 
       # Pinned to the commit `latest` pointed at on 2026-10-05: same code,
       # but immune to upstream moves of the tag.
-      - uses: anomalyco/opencode/github@77fc88c8ade8e5a620ebbe1197f3a572d29ae91a
+      # The primary key often hits "Token rate limit exceeded"; that step is
+      # allowed to fail and the same review reruns once with the fallback key.
+      # The job fails only when both attempts fail.
+      - id: primary
+        continue-on-error: true
+        uses: anomalyco/opencode/github@77fc88c8ade8e5a620ebbe1197f3a572d29ae91a
         env:
           OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          model: opencode-go/gpt-6-luna
+          use_github_token: true
+          prompt: |
+            You are reviewing a pull request for dive-analyser: FastAPI (backend/, single uvicorn
+            worker) + Postgres + React/TS/Vite (frontend/) + nginx (6090/6443) + mac-agent
+            (Photos ingest worker). CI gate is ci/gate.sh tiers fast/frontend/backend/agent/images;
+            deploys only via ci/ship.sh from origin/master; SQL migrations under
+            backend/migrations/*.sql are applied by hand (no runner).
+
+            Rules of engagement: read-only. Do not edit files or create commits. Complete the
+            review in one pass. Do not ask clarifying questions. Do not output a plan.
+            Non-interactive: never wait on permission prompts. Rely on the existing CI
+            checks results plus targeted read-only commands inside the workspace. Do not
+            run ci/gate.sh (or ci/postgres.sh) with the default cache outside the workspace;
+            if a gate run is unavoidable, run only
+            DIVE_CI_CACHE=$GITHUB_WORKSPACE/.cache/dive-ci ci/gate.sh fast.
+            Precedence: the PR diff first, then repo contracts (docs/REPO_WORKFLOW.md,
+            ci/README.md, docs/AGENT_ENGINEERING.md, backend/app/api/v1/auth.py header, backend/app/config.py defaults)
+            over generic best practices. If a repo contract conflicts with a generic rule,
+            cite the repo file and follow the repo contract.
+
+            Identify the exact current head with `git rev-parse HEAD`. If prior review comments
+            are available, group repeated findings by invariant and recheck them against this
+            head. Repetition is not evidence; do not restate a resolved finding without showing
+            the remaining failure. Do not infer historical resolution from a later APPROVE.
+            Distinguish current executable contracts from historical design documents.
+
+            Review only what this PR changes plus its direct callers. Check the diff for:
+            1. Auth/access: uniform login failures (no user-existence oracle), dummy Argon2
+               verify kept on unknown/inactive user, two-tier brute-force counters
+               (per-identifier + per-IP, failures-only, rolling window, success clears),
+               fail-closed flags (USER_AUTH_ENABLED, B2_PLAYBACK_CANARY_ENABLED,
+               FRIEND_REGISTRATION_ENABLED all default false), invite codes compared with
+               hmac.compare_digest on UTF-8 bytes, never logged, 404 when closed, Origin
+               check on state-changing auth POSTs, session cookie HttpOnly + SameSite=Strict
+               + Path=/ + Secure (only AUTH_COOKIE_SECURE=false on plain-HTTP local test),
+               DB stores SHA-256 hashes, never raw tokens. X-Forwarded-For first element only
+               for rate-limit bucketing, never for authorization, ownership/diver scoping
+               enforced (no IDOR). Role model (do not over-read "read-only"): the
+               diver/friend role has no admin/operational capability, but dive writes
+               are ownership-scoped and role-independent — a diver-role account with an
+               OWNER binding to a diver manages that diver's dives and nothing else.
+               Pinned: auth.py register() creates every self-registered diver as
+               friend-role + OWNER-bound; test_friend_access.py asserts friend POST
+               /api/v1/dives → 201 yet POST /api/v1/sessions → 403; and
+               test_member_dive_visibility.py asserts friend PUT own dive → 200 vs
+               another's → 403. Never flag an OWNER grant to a diver-role account,
+               a role change that preserves bindings (same as manage_user cmd_set_role),
+               or a bound diver writing their own dives.
+            2. Single-worker and DB discipline: no process-local state assumed shared
+               (websocket manager, playback metrics, in-memory counters are per-worker),
+               no BaseHTTPMiddleware reintroduced (use the pure-ASGI slow-request logger),
+               get_db rollback-before-close kept, pool limits respected
+               (DATABASE_POOL_SIZE=5, MAX_OVERFLOW=2), advisory lock kept for auto-import,
+               bound materialized rows, query count, retained memory and response size
+               separately. A response LIMIT, time window or yield_per does not prove bounded
+               work. Check lazy loads, downstream helpers and retry branches; deduplicate
+               logical entity IDs in SQL before limiting joined aliases. Preserve full-scope
+               aggregates and explicit pagination; do not prescribe silent truncation.
+            3. Domain correctness: formula DD vs execution score kept separate, diver/session
+               scoping and training-period/personal-value TTLs intact, competition lifecycle
+               persisted (no in-memory standings), media content-addressing + queue/retry +
+               source-vault safety + capacity/migration guards intact.
+            4. Deploy/migration awareness: backend/migrations/*.sql change notes the manual
+               apply step; docker-compose.yml or nginx/ change notes the proxy reload;
+               ops/tailscale/ change notes the funnel recreate; mac-agent/ change notes
+               ci/ship.sh mac. Never flag the live dirs (deb-serv:~/dive-analyser,
+               /Users/Shared/services/data/diveanalyzer/code) as editable.
+            5. Secrets hygiene: no .env, nginx/ssl/*, B2 keys/secrets, invite codes, or API
+               keys in the diff (frontend/.env with VITE_* build constants is the one
+               allowlisted exception). No secret or raw session token in logs.
+            6. Tests matched to ci/README matrix: auth/playback/ownership, ingestion
+               idempotency/retry, analytics DD scoping, competition exports, media safety,
+               UI routing/player/build. Backend suite allows zero failures; new tests must
+               pass under the same isolated settings (sqlite memory, AUTO_IMPORT=false,
+               DB_TEST=0). Do not demand tests for docs-only or reversible low-impact
+               changes. Flag only a missing test whose absence lets a real regression
+               through.
+
+            Output style: plain verbs, concise. State the verdict first. No filler, no
+            "Bottom Line", "delve", "leverage", "it's worth noting", no contrastive
+            framing, no invented labels.
+            Format: start with one line `Verdict: APPROVE | COMMENT | REQUEST_CHANGES`
+            Then output `Reviewed head: <full SHA>` from the command above.
+            (REQUEST_CHANGES only for a finding that breaks 1-5 above with concrete
+            evidence in this diff). Then list findings only, each as:
+            `SEVERITY file:line — what breaks, with the offending code or behavior, and the
+            minimal fix for this repo.` Cite the applicable current contract when the finding
+            depends on product policy. If a repeated finding remains, name the alternate path
+            or failing behavior that still exists on this head. Severity is Critical (auth bypass, data loss,
+            secret leak), High (IDOR, lockout, crash, migration without manual step),
+            Medium (perf/N+1, missing boundary test, deploy-note omission), Low (nit
+            worth fixing). Skip Low when the PR already has High or Critical findings.
+            Quote file paths exactly as in the diff. If there are no actionable findings,
+            keep the verdict and reviewed-head lines, followed by one sentence stating what was checked.
+
+      - id: fallback
+        if: steps.primary.outcome == 'failure'
+        uses: anomalyco/opencode/github@77fc88c8ade8e5a620ebbe1197f3a572d29ae91a
+        env:
+          OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY_FALLBACK }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           model: opencode-go/gpt-6-luna
