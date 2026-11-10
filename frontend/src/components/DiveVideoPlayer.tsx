@@ -15,6 +15,8 @@ import {
   canAffordRate,
   canStartOn,
   lightMbpsForVersion,
+  observeMediaTransfers,
+  sampleBuffering,
   getQualityPreference,
   recordThroughput,
   roleOfUrl,
@@ -862,26 +864,12 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, onPlay
     if (!immersive || !gateKey || !video) return
     const key = qualityKeyOf(gateKey)
     const mbps = key === 'light' ? lightMbpsRef.current : key === 'preview' ? previewMbpsRef.current : NOMINAL_MBPS[key]
-    let started = performance.now()
-    let sampled = false
-    const onLoadStart = () => { started = performance.now(); sampled = false }
-    const onProgress = () => {
-      if (sampled || !Number.isFinite(video.duration) || video.duration <= 0 || !video.buffered?.length) return
-      const end = video.buffered.end(video.buffered.length - 1)
-      const wall = (performance.now() - started) / 1000
-      if (end < video.duration - 0.25 && wall < 4) return
-      sampled = true
-      if (wall < 0.3) return
-      recordThroughput((end / wall) * mbps)
-      bumpPolicy()
-    }
-    video.addEventListener('loadstart', onLoadStart)
-    video.addEventListener('progress', onProgress)
-    return () => {
-      video.removeEventListener('loadstart', onLoadStart)
-      video.removeEventListener('progress', onProgress)
-    }
+    return sampleBuffering(video, mbps, bumpPolicy)
   }, [immersive, gateKey, videoEpoch, bumpPolicy])
+  // Same-origin media downloads (proxies) are measured exactly as they finish.
+  useEffect(() => {
+    if (immersive) observeMediaTransfers(bumpPolicy)
+  }, [immersive, bumpPolicy])
 
   // Background upgrade (Auto only, with measured headroom): a second element
   // buffers the next rendition off-screen; it replaces the visible one only at a natural
