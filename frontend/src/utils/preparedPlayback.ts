@@ -1,6 +1,6 @@
 import { canPrefetch } from '../hooks/useNavigationIntent'
 import { getPreview, getPreviewForPlayback } from './mediaPreview'
-import { autoStartUrl } from './playbackPolicy'
+import { autoStartUrl, lightMbpsForVersion, sampleBuffering } from './playbackPolicy'
 
 // Keep the actual media element, not a fetch of its bytes. A revision URL
 // redirects with no-store and the bucket has no CORS: fetch warming cannot
@@ -14,6 +14,8 @@ interface Entry {
   video: HTMLVideoElement
   active: boolean
   timer: ReturnType<typeof setTimeout> | null
+  /** Stops measuring this element's background download, if measured. */
+  stopSampling?: () => void
 }
 const entries = new Map<string, Entry>()
 let desired = new Set<string>()
@@ -25,6 +27,7 @@ export function onPreparedPlaybackReset(listener: () => void) {
 }
 
 function dispose(entry: Entry) {
+  entry.stopSampling?.()
   if (entry.timer) clearTimeout(entry.timer)
   entry.video.pause()
   entry.video.removeAttribute('src')
@@ -156,7 +159,7 @@ export function warmPlaybackVideo(uuid: string) {
   // lookup at all: warm exactly the URL the player will start on.
   void waitForWarmup().then(() => getPreview(uuid)).then(async tile => {
     const start = autoStartUrl(uuid, tile.startRole, tile.startLightVersion)
-    if (start) return { ...tile, playbackUrl: start, previewPlaybackUrl: null, playbackResolved: true }
+    if (start) return { ...tile, playbackUrl: start, previewPlaybackUrl: null, playbackResolved: true, sampleMbps: lightMbpsForVersion(tile.startLightVersion) }
     return getPreviewForPlayback(uuid)
   }).then(preview => {
     if (epoch !== generation || !desired.has(uuid) || !preview.playbackUrl || !preview.playbackResolved) return
@@ -166,6 +169,12 @@ export function warmPlaybackVideo(uuid: string) {
     // Originals retain conservative metadata-only preloading.
     entry.video.preload = preview.previewPlaybackUrl === preview.playbackUrl || preview.playbackUrl.includes('/play/light') ? 'auto' : 'metadata'
     if (entry.video.getAttribute('src') !== preview.playbackUrl) {
+      // A neighbor's background download of a durable Light is the most
+      // frequent B2 transfer the viewer makes: measure it (cross-origin
+      // bytes are not readable, buffered media seconds are).
+      const mbps = (preview as { sampleMbps?: number }).sampleMbps
+      entry.stopSampling?.()
+      entry.stopSampling = mbps ? sampleBuffering(entry.video, mbps) : undefined
       entry.video.src = preview.playbackUrl
     }
     if (entry.timer) clearTimeout(entry.timer)

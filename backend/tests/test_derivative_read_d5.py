@@ -1368,3 +1368,28 @@ def test_batch_hint_names_the_uncapped_light_when_versions_coexist(client, db, m
     db.commit()
     body = client.post("/api/v1/media/status/batch", json={"video_uuids": [UUID_FULL]}).json()
     assert body[UUID_FULL]["start_light_version"] == "ffmpeg-h264-web-v2"
+
+
+def test_prewarm_builds_the_playback_client_once_and_never_raises(monkeypatch, flags):
+    from app.services import b2_presign
+
+    settings = get_settings()
+    monkeypatch.setattr(settings, "b2_playback_key_id", "key-id")
+    monkeypatch.setattr(settings, "b2_playback_key_secret", "key-secret")
+    monkeypatch.setattr(settings, "b2_playback_region", "eu-central-003")
+    monkeypatch.setattr(b2_presign, "_presign_client", None)
+    monkeypatch.setattr(b2_presign, "_presign_client_fingerprint", None)
+    builds = []
+    monkeypatch.setattr(b2_presign, "_build_b2_client", lambda fingerprint: builds.append(fingerprint) or object())
+    assert b2_presign.prewarm_client() is True
+    client = b2_presign._b2_client()  # a later grant reuses the prewarmed client
+    assert len(builds) == 1 and client is b2_presign._presign_client
+
+    def _boom(_fingerprint):
+        raise RuntimeError("provider unreachable")
+
+    monkeypatch.setattr(b2_presign, "_presign_client", None)
+    monkeypatch.setattr(b2_presign, "_build_b2_client", _boom)
+    assert b2_presign.prewarm_client() is False
+    monkeypatch.setattr(settings, "b2_playback_key_id", "")
+    assert b2_presign.prewarm_client() is False  # not configured: nothing to warm

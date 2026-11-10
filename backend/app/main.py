@@ -89,6 +89,11 @@ async def lifespan(app: FastAPI):
     session_reconciler_stop = start_reconciler()
     from app.services.xray import loop_lag
     lag_task = asyncio.create_task(loop_lag.run())
+    # The first playback grant after a deploy used to pay the 2-6 s boto3
+    # import + client build; do it now, off the event loop.
+    import threading
+    from app.services import b2_presign
+    threading.Thread(target=b2_presign.prewarm_client, name="b2-client-prewarm", daemon=True).start()
     try:
         yield
     finally:

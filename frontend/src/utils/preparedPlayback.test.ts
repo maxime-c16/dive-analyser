@@ -164,3 +164,22 @@ it('warmers waiting on a clip hold keep waiting when the next clip takes it over
   await flush()
   expect(getPreviewForPlayback).toHaveBeenCalled()
 })
+
+it('measures a hinted neighbor downloading its durable Light in the background', async () => {
+  const { getPreview } = await import('./mediaPreview')
+  const { throughputEstimate, resetPlaybackPolicy } = await import('./playbackPolicy')
+  resetPlaybackPolicy()
+  vi.mocked(getPreview).mockResolvedValueOnce({ playbackUrl: '/proxy.mp4', posterUrl: null, videoThumbUrl: null, ready: true, startRole: 'light', startLightVersion: 'ffmpeg-h264-web-v2' })
+  const create = vi.spyOn(document, 'createElement')
+  const now = vi.spyOn(performance, 'now').mockReturnValue(0)
+  preparePlaybackWindow(['neighbor'])
+  await flush()
+  const video = create.mock.results.map(result => result.value).find((element): element is HTMLVideoElement => element instanceof HTMLVideoElement)!
+  expect(video.getAttribute('src')).toBe('/api/v1/media/neighbor/play/light')
+  Object.defineProperty(video, 'duration', { configurable: true, value: 12 })
+  Object.defineProperty(video, 'buffered', { configurable: true, value: { length: 1, end: () => 12, start: () => 0 } })
+  now.mockReturnValue(2000) // the whole clip arrived in 2 s
+  video.dispatchEvent(new Event('progress'))
+  now.mockRestore()
+  expect(throughputEstimate()).not.toBeNull()
+})
