@@ -6,6 +6,7 @@
  */
 const en = {
   technique: {
+    allPeriods: "All periods",
     allPositions: "All positions",
     adjustExisting: "A change already starts here · Adjust it",
     individualAndSync: "Individual and synchronized",

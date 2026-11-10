@@ -157,3 +157,20 @@
 .th-setup-review-list { overflow-y:auto; min-height:0; padding-bottom:12px; overscroll-behavior:contain; }
 .th-setup-footer { padding-top:12px; margin-top:0; border-top:1px solid var(--app-border); background:var(--app-panel); }
 @media (max-width:420px) { .th-compare-pickers { grid-template-columns:minmax(0,1fr); } }
+
+.th-timeline li { transition: background-color 240ms ease, border-color 240ms ease; }
+.th-timeline-dot { transition: background-color 240ms ease, box-shadow 240ms ease, transform 240ms ease; }
+.th-timeline li.is-selected .th-timeline-dot { transform:scale(1.15); }
+.th-chart-selection { display:grid; gap:4px; min-height:48px; margin-bottom:8px; }
+.th-chart-selection strong { font-size:14px; }
+.th-chart-selection span { color:var(--app-muted); font-size:12px; }
+.ca-selection-band { transition: x 300ms ease, width 300ms ease, opacity 240ms ease; }
+.ca-selection-edge { transition: x1 300ms ease, x2 300ms ease; }
+.ca-score-point { transition: fill-opacity 240ms ease; }
+@media (prefers-reduced-motion:reduce) { .ca-selection-band, .ca-selection-edge, .ca-score-point { transition:none; } }
+.th-chart-selection { display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:72px; }
+.th-chart-selection > div { display:grid; gap:4px; min-width:0; }
+.th-chart-selection button { flex:none; }
+.th-episode-reveal { display:grid; grid-template-rows:0fr; transition:grid-template-rows 280ms ease; }
+.th-episode-reveal.is-open { grid-template-rows:1fr; }
+.th-episode-clip { min-height:0; overflow:hidden; }

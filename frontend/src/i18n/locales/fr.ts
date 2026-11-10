@@ -6,6 +6,7 @@
  */
 const fr = {
   technique: {
+    allPeriods: "Toutes les périodes",
     allPositions: "Toutes les positions",
     adjustExisting: "Un changement commence ici · Ajuster",
     individualAndSync: "Individuel et synchronisé",
