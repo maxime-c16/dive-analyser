@@ -43,7 +43,7 @@ export function roleOfUrl(url: string | null | undefined): PlaybackRole | null {
   return match ? (match[1] as PlaybackRole) : null
 }
 
-type NetworkInformationLike = { saveData?: boolean; effectiveType?: string }
+type NetworkInformationLike = { saveData?: boolean; effectiveType?: string; downlink?: number }
 
 function connection(): NetworkInformationLike | undefined {
   return (navigator as Navigator & { connection?: NetworkInformationLike }).connection
@@ -71,6 +71,26 @@ export function networkIsWeak(): boolean {
   return estimateMbps !== null && estimateMbps < WEAK_NETWORK_MBPS
 }
 
+/** Light bitrate of a package version: v1 was uncapped (6.4 Mbps measured). */
+export function lightMbpsForVersion(version: string | null | undefined): number {
+  return version === 'ffmpeg-h264-web-v1' || !version ? 6.4 : 2.7
+}
+
+/**
+ * Whether Auto may START on a rendition of this bitrate. With a measured
+ * (or browser-reported) speed, require 1.5× headroom. Without any, only the
+ * capped Light is a safe blind start; an uncapped v1 Light starts on the
+ * proxy until the network is known.
+ */
+export function canStartOn(mbps: number): boolean {
+  const info = connection()
+  if (info?.saveData) return false
+  if (info?.effectiveType && ['slow-2g', '2g', '3g'].includes(info.effectiveType)) return false
+  const known = estimateMbps ?? (typeof info?.downlink === 'number' && info.downlink > 0 ? info.downlink : null)
+  if (known === null) return mbps <= 3
+  return known >= mbps * 1.5
+}
+
 /** Devices where a second (HQ) decoder is not worth the memory. */
 export function constrainedDevice(): boolean {
   const memory = (navigator as Navigator & { deviceMemory?: number }).deviceMemory
@@ -92,10 +112,14 @@ export function canAffordHq(): boolean {
  * Light by role when the library hinted it is ready and nothing argues
  * against it, else null (status-driven start, usually the small proxy).
  */
-export function autoStartUrl(videoUuid: string, startRole: string | null | undefined): string | null {
+export function autoStartUrl(
+  videoUuid: string,
+  startRole: string | null | undefined,
+  lightVersion?: string | null,
+): string | null {
   if (!videoUuid || startRole !== 'light') return null
   if (preference !== 'auto' && preference !== 'light') return null
-  if (preference === 'auto' && networkIsWeak()) return null
+  if (preference === 'auto' && !canStartOn(lightMbpsForVersion(lightVersion))) return null
   return roleUrl(videoUuid, 'light')
 }
 

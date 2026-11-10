@@ -13,8 +13,9 @@ import {
   autoStartUrl,
   canAffordHq,
   canAffordRate,
+  canStartOn,
+  lightMbpsForVersion,
   getQualityPreference,
-  networkIsWeak,
   recordThroughput,
   roleOfUrl,
   roleUrl,
@@ -166,7 +167,7 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, onPlay
   const initialSeed = playbackSeed(videoUuid)
   // Auto start: the immersive viewer starts on the durable Light by role
   // (no status round-trip) when the library hinted it is ready.
-  const initialAutoStart = immersive ? autoStartUrl(videoUuid, cachedPreview(videoUuid)?.startRole) : null
+  const initialAutoStart = immersive ? autoStartUrl(videoUuid, cachedPreview(videoUuid)?.startRole, cachedPreview(videoUuid)?.startLightVersion) : null
   const autoStartRef = useRef<string | null>(initialAutoStart)
   const [phase, setPhase] = useState<Phase>(() =>
     videoUuid && initialAutoStart
@@ -293,13 +294,14 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, onPlay
       preparingSinceRef.current = null
       lastPreparingStateRef.current = null
       const choiceUrls: Record<QualityKey, string | null> = { preview: previewUrl, light: lightUrl, hq: hqUrl, original: originalUrl }
-      lightMbpsRef.current = data.derivatives?.transform_version === 'ffmpeg-h264-web-v1' ? 6.4 : 2.7
+      lightMbpsRef.current = lightMbpsForVersion(data.derivatives?.transform_version ?? 'ffmpeg-h264-web-v2')
       previewMbpsRef.current = data.cache_entries?.some(entry => entry.rendition === 'proxy_720p' && entry.playback_url === previewUrl)
         ? NOMINAL_MBPS.preview : NOMINAL_MBPS.preview360
       const autoQuality = choiceRef.current === null && getQualityPreference() === 'auto'
       // Auto starts the immersive viewer on durable Light when the network
       // allows; the small proxy remains the weak-network start.
-      const startUrl = immersive && autoQuality && lightUrl && !networkIsWeak() ? lightUrl : playbackUrl
+      // Start on Light only when the network can carry THIS Light's bitrate.
+      const startUrl = immersive && autoQuality && lightUrl && canStartOn(lightMbpsRef.current) ? lightUrl : playbackUrl
       let chosen = (choiceRef.current && choiceUrls[choiceRef.current]) || startUrl
       const autoStart = autoStartRef.current
       if (autoStart && !lightUrl) autoStartRef.current = null
@@ -378,7 +380,7 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, onPlay
     const seed = playbackSeed(videoUuid)
     setPreviewSrc(seed?.previewPlaybackUrl ?? null)
     if (seed?.posterUrl) setPosterSrc(seed.posterUrl)
-    const autoStart = immersive ? autoStartUrl(videoUuid, cachedPreview(videoUuid)?.startRole) : null
+    const autoStart = immersive ? autoStartUrl(videoUuid, cachedPreview(videoUuid)?.startRole, cachedPreview(videoUuid)?.startLightVersion) : null
     autoStartRef.current = autoStart
     if (autoStart) {
       preparingSinceRef.current = null

@@ -1334,6 +1334,7 @@ def test_batch_hints_a_ready_light_start_without_exposing_urls(client, fake_pres
     assert response.status_code == 200, response.text
     body = response.json()
     assert body[UUID_FULL]["start_role"] == "light"
+    assert body[UUID_FULL]["start_light_version"] == get_settings().media_derivative_transform_version
     assert "start_role" not in body[UUID_STALE]
     assert "start_role" not in body[UUID_OLDVERSION]  # not a served version
     assert "/revisions/" not in response.text  # tiles still mint nothing

@@ -1661,11 +1661,11 @@ it('a quality switch whose request drops recovers to the moment before the switc
 // ---- Auto quality: role start, remembered choice, background HQ, stalls ----
 
 /** Library tile says the durable Light is ready (batch `start_role`). */
-async function seedLightHint(uuid: string) {
+async function seedLightHint(uuid: string, version = 'ffmpeg-h264-web-v2') {
   resetMediaPreviews()
   vi.stubGlobal('fetch', vi.fn().mockImplementation(async () => ({
     ok: true,
-    json: async () => ({ [uuid]: { status: 'ready', poster_url: '/seeded.jpg', playback_url: '/proxy.mp4', start_role: 'light' } }),
+    json: async () => ({ [uuid]: { status: 'ready', poster_url: '/seeded.jpg', playback_url: '/proxy.mp4', start_role: 'light', start_light_version: version } }),
   })))
   await act(async () => { await getPreview(uuid) })
 }
@@ -1820,7 +1820,8 @@ it('no background HQ without measured headroom', async () => {
 })
 
 it('repeated stalls step Auto down one rendition at the same moment', async () => {
-  vi.mocked(getMediaStatus).mockResolvedValue({ ...durableChoices('stalls'), preview_url: '/proxy.mp4', cache_entries: [{ id: 1, rendition: 'proxy_720p', playback_url: '/proxy.mp4' }] })
+  // A capped (v2) Light: a safe blind start, so the clip begins on Light.
+  vi.mocked(getMediaStatus).mockResolvedValue({ ...durableChoices('stalls'), preview_url: '/proxy.mp4', cache_entries: [{ id: 1, rendition: 'proxy_720p', playback_url: '/proxy.mp4' }], derivatives: { ...durableChoices('stalls').derivatives!, transform_version: 'ffmpeg-h264-web-v2' } })
   render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="stalls" immersive />)
   const video = await screen.findByLabelText('103B 1m dive video') as HTMLVideoElement
   await waitFor(() => expect(video).toHaveAttribute('src', '/api/v1/media/revisions/3/play'))
@@ -1917,4 +1918,30 @@ it('a legacy 360p proxy is measured at its own bitrate, not the 720p one', async
   } finally {
     now.mockRestore()
   }
+})
+
+it('an uncapped v1 Light never starts blind: the proxy starts until the network is known', async () => {
+  await seedLightHint('v1-blind', 'ffmpeg-h264-web-v1')
+  const v1 = { ...durableChoices('v1-blind'), preview_url: '/proxy.mp4', derivatives: { ...durableChoices('v1-blind').derivatives!, transform_version: 'ffmpeg-h264-web-v1' } }
+  vi.mocked(getMediaStatus).mockResolvedValue(v1)
+  render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="v1-blind" immersive />)
+  const video = screen.getByLabelText('103B 1m dive video')
+  expect(video).not.toHaveAttribute('src', '/api/v1/media/v1-blind/play/light')
+  await waitFor(() => expect(video).toHaveAttribute('src', '/proxy.mp4'))
+})
+
+it('a measured network with headroom for the v1 Light starts on it', async () => {
+  recordThroughput(12) // ≥ 1.5 × 6.4 Mbps
+  await seedLightHint('v1-fast', 'ffmpeg-h264-web-v1')
+  vi.mocked(getMediaStatus).mockReturnValue(new Promise(() => {}))
+  render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="v1-fast" immersive />)
+  expect(screen.getByLabelText('103B 1m dive video')).toHaveAttribute('src', '/api/v1/media/v1-fast/play/light')
+})
+
+it('a 3–6 Mbps network starts the v1 Light clip on the proxy (no stall-prone start)', async () => {
+  recordThroughput(5)
+  await seedLightHint('v1-mid', 'ffmpeg-h264-web-v1')
+  vi.mocked(getMediaStatus).mockReturnValue(new Promise(() => {}))
+  render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="v1-mid" immersive />)
+  expect(screen.getByLabelText('103B 1m dive video')).not.toHaveAttribute('src', '/api/v1/media/v1-mid/play/light')
 })

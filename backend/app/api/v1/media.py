@@ -1184,7 +1184,8 @@ def get_media_status_batch(
 
 
 def _add_start_role_hints(db: Session, result: dict, video_uuids: list[str]) -> None:
-    """Mark clips whose durable Light is ledger-ready: ``start_role: light``.
+    """Mark clips whose durable Light is ledger-ready: ``start_role: light``
+    plus ``start_light_version`` (its transform version).
 
     One bounded query over the already-authorized uuids. A hint only: the
     role play route still runs the full current-source/storage proof and the
@@ -1197,14 +1198,15 @@ def _add_start_role_hints(db: Session, result: dict, video_uuids: list[str]) -> 
         from app.models.media_backbone import MediaDerivative
         from app.services.derivative_read import _served_transform_versions
 
-        ready = set(db.execute(
-            select(MediaDerivative.video_uuid).where(
+        served = _served_transform_versions()
+        rows = db.execute(
+            select(MediaDerivative.video_uuid, MediaDerivative.transform_version).where(
                 MediaDerivative.video_uuid.in_(video_uuids),
                 MediaDerivative.role == "light",
                 MediaDerivative.status == "ready",
-                MediaDerivative.transform_version.in_(_served_transform_versions()),
+                MediaDerivative.transform_version.in_(served),
             ).distinct()
-        ).scalars())
+        ).all()
     except Exception as exc:  # pre-ledger schema: no hints, tiles unchanged
         from app.services.derivative_read import _is_missing_ledger_table
 
@@ -1212,9 +1214,17 @@ def _add_start_role_hints(db: Session, result: dict, video_uuids: list[str]) -> 
             raise
         db.rollback()
         return
-    for video_uuid in ready:
+    # Players size the start from the Light's bitrate: name its version
+    # (newest served first, matching the read path's preference).
+    rank = {version: index for index, version in enumerate(served)}
+    best: dict[str, str] = {}
+    for video_uuid, version in rows:
+        if video_uuid not in best or rank[version] < rank[best[video_uuid]]:
+            best[video_uuid] = version
+    for video_uuid, version in best.items():
         if video_uuid in result:
             result[video_uuid]["start_role"] = "light"
+            result[video_uuid]["start_light_version"] = version
 
 
 @router.post("/{video_uuid}/request")

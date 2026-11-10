@@ -147,7 +147,7 @@ export function warmPlaybackVideo(uuid: string) {
   // A neighbor that can start on its durable Light by role needs no status
   // lookup at all: warm exactly the URL the player will start on.
   void (warmupHold?.promise ?? Promise.resolve()).then(() => getPreview(uuid)).then(async tile => {
-    const start = autoStartUrl(uuid, tile.startRole)
+    const start = autoStartUrl(uuid, tile.startRole, tile.startLightVersion)
     if (start) return { ...tile, playbackUrl: start, previewPlaybackUrl: null, playbackResolved: true }
     return getPreviewForPlayback(uuid)
   }).then(preview => {
