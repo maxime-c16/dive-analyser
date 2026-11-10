@@ -356,9 +356,17 @@ Both the agent's and the server's validators already accept the layout
 **Rollout order:**
 1. `ci/ship.sh mac`.
 2. `ci/ship.sh server`.
-3. Register and start the M2 agent.
-4. Cancel run 2.
-5. Start a v4 run.
+3. **Proxy step after the server deploy** (`docs/REPO_WORKFLOW.md`, "Not
+   automatic"). `ci/ship.sh server` already reloads both nginx front doors.
+   This change's `docker-compose.yml` diff only adds backend `environment`
+   values, with no nginx service, mount or `nginx/` change, so no recreate is
+   needed. Verify with
+   `git diff <live>..<new> -- docker-compose.yml nginx ops/tailscale`. If that
+   diff ever touches nginx, run `docker-compose up -d --force-recreate nginx`
+   on deb-serv.
+4. Register and start the M2 agent.
+5. Cancel run 2.
+6. Start a v4 run.
 
 The HLS playlists and the player come in the next PRs; the v4 files already
 work as progressive MP4 meanwhile.
