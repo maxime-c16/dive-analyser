@@ -370,3 +370,114 @@ Both the agent's and the server's validators already accept the layout
 
 The HLS playlists and the player come in the next PRs; the v4 files already
 work as progressive MP4 meanwhile.
+
+### HLS playback over v4 packages (2026-11-10)
+
+Local branch `feat/hls-playback`; not deployed.
+
+**Server**
+- `GET /api/v1/media/{uuid}/hls.m3u8`: the master playlist, listing Light
+  then HQ, or HQ first with `?start=hq`.
+  - Each variant links to its revision's media playlist; the master carries
+    no signed URL.
+  - Authorization comes first; a stranger gets a uniform 404 with no
+    provider I/O.
+  - A clip without a ready fragmented Light gets a 404, and the player falls
+    back to the files.
+- `GET /api/v1/media/revisions/{id}/hls.m3u8`: the byte-range VOD playlist
+  for one package.
+  - It goes through the existing grant path (authorization, current
+    derivative proof, verified storage, presign, grant ledger), with the
+    signed URL in the body instead of a redirect.
+  - Responses are `private, no-store`.
+  - Source revisions are denied before any storage work.
+- **Index.** The first 64 KB of each package (`ftyp`, `moov`, the per-track
+  global `sidx`) is read once from B2 with a ranged GET, parsed (segments,
+  `avc1`/`mp4a` codecs, resolution, peak and average bandwidth) and cached
+  in-process by blob SHA-256. Bytes are content-addressed, so the cache
+  never goes stale. Classic MP4s cache as "not fragmented".
+- **Hints.**
+  - The status sends `derivatives.hls`: `apple`, `all` or null.
+  - Each Light and HQ entry gets an `hls_url`: that rendition alone.
+  - The batch sends `start_hls`.
+  - `MEDIA_HLS_TRANSFORM_VERSIONS` (default `ffmpeg-h264-web-v4`; empty
+    turns HLS off).
+  - `MEDIA_HLS_CORS_READY` (default off) switches `apple` to `all`.
+
+**Measured in real browsers on production v4 packages** (read-only:
+E2E account, existing grants, playlists rendered locally):
+
+| Engine | Source | Playing after |
+|---|---|---|
+| WebKit | progressive v4 Light | 3.5–6.4 s (reads fragment by fragment) |
+| WebKit | HLS | **0.8–1.0 s** |
+| Chrome 157 | progressive v4 Light | 0.8 s |
+| Chrome 157 | native HLS, segments on B2 | fails: `MEDIA_ERR_SRC_NOT_SUPPORTED` |
+| Chrome | hls.js, segments on B2 | blocked by CORS |
+
+- **v4 is slow progressively on Safari.** Production is already serving v4
+  Lights as progressive files, so Safari and iPhone viewers of v4 clips
+  start slowly today.
+- **Only Apple's player works without CORS.** Chrome 157 reports native HLS
+  support (`canPlayType` → `maybe`). It plays the same playlists same-origin
+  or with a CORS-enabled origin, but it refuses cross-origin segments
+  without CORS.
+- So the player treats only Apple's player (vendor `Apple`: Safari and
+  every iOS browser) as CORS-free.
+
+**Player**
+- **Auto.** It plays the master: Apple's native player, or hls.js / native
+  where the server says `all`.
+  - The background swap and the stall step-down stand aside, because the
+    stream switches itself.
+  - The menu reads "Auto · Light/HQ" from the frame size.
+- **Manual choice on Apple.** It plays that rendition's own playlist. HQ
+  reached 1080×1920 in 1.7 s at the same moment.
+- **Other browsers** keep the progressive files.
+- **Failures.**
+  - A playlist source that fails before its first frame moves the clip to
+    its progressive files: same choice, same moment, no error card.
+  - A stream that loses its connection mid-play reloads in place (fresh
+    playlists, fresh grants), up to the existing recovery limit.
+  - An hls.js failure before any segment turns hls.js off for the tab.
+- **hls.js** (1.7.3) is loaded lazily, only where used. It keeps the whole
+  clip buffered, so loops never refetch. Segment downloads feed the shared
+  network estimate.
+- **Weak networks** (estimate < 3 Mbps, Save-Data, 3G) still start on the
+  small proxy.
+
+**Verification**
+- **Backend:** 15 new tests.
+  - Parser on synthetic v4-recipe and faststart headers.
+  - Playlist format.
+  - Authorization before provider I/O.
+  - Grant ledger.
+  - 404/503 paths.
+  - Kill switch.
+  - Hints and the aliased HQ.
+- **Frontend:**
+  - 9 engine tests with a fake hls.js;
+  - 9 player tests (Apple start from the hint and from status; manual pin
+    and return to Auto; fallback before the first frame; pinned-playlist
+    fallback; in-place reload; Chrome without CORS; weak network). The
+    fallback test was mutation-checked.
+- **Real WebKit** on a local build against production data, with only the
+  undeployed endpoints and hint fields stubbed: Auto streamed Light
+  (720×1280), manual HQ came through its playlist, Auto returned to the
+  stream, and loops played (one ~0.3 s hitch on the first restart).
+- **Real Chrome:** no HLS requests; progressive files as before.
+- **Not verified:**
+  - real iPhone, iPad and Android;
+  - hls.js against B2 (needs the CORS rule);
+  - Safari's ABR switching under a real network drop (WebKit in Playwright
+    cannot be throttled);
+  - expired-grant recovery after 5 minutes on one clip.
+
+**Rollout**
+1. Merge; the merge deploys the server (no migration, no compose, nginx or
+   `ops/tailscale` change). Apple devices then stream every v4 clip.
+2. **B2 CORS (production bucket setting, owner approval).** Allow `GET` and
+   `HEAD` from the app origin with the `Range` header, exposing
+   `Content-Range`, `Content-Length` and `Accept-Ranges`. Then set
+   `MEDIA_HLS_CORS_READY=true` and ship the server so Chrome, Android and
+   desktop stream too.

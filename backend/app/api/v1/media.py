@@ -1227,10 +1227,18 @@ def _add_start_role_hints(db: Session, result: dict, video_uuids: list[str]) -> 
     for video_uuid, version in rows:
         if video_uuid not in best or (best[video_uuid] in CAPPED_LIGHT_VERSIONS and version not in CAPPED_LIGHT_VERSIONS):
             best[video_uuid] = version
+    from app.services.derivative_read import hls_transform_versions
+
+    hls_versions = hls_transform_versions()
+    hls_start_mode = "all" if get_settings().media_hls_cors_ready else "apple"
     for video_uuid, version in best.items():
         if video_uuid in result:
             result[video_uuid]["start_role"] = "light"
             result[video_uuid]["start_light_version"] = version
+            # Adaptive start: the master playlist route still proves the
+            # current source and storage, and 404s back to progressive.
+            if version in hls_versions:
+                result[video_uuid]["start_hls"] = hls_start_mode
 
 
 @router.post("/{video_uuid}/request")

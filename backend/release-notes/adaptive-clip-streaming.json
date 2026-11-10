@@ -1,0 +1,8 @@
+{
+  "id": "adaptive-clip-streaming",
+  "date": "2026-11-10",
+  "title": "Clips start faster on iPhone and adapt to your connection",
+  "body": "On iPhone, iPad and Safari, Auto quality now streams clips and switches between Light and HQ while they play, without pausing. Clips start in under a second instead of several.",
+  "audience": "all",
+  "components": ["frontend", "backend"]
+}

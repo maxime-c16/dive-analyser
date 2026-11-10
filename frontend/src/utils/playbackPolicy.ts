@@ -6,6 +6,8 @@
  * Light 2.7 Mbps (v2 recipe; 6.4 Mbps for v1 packages), HQ ~12.9 Mbps.
  */
 
+import { canPlayHls, hlsUrl, type HlsMode } from './hlsPlayback'
+
 export type QualityPreference = 'auto' | 'preview' | 'light' | 'hq' | 'original'
 export type PlaybackRole = 'light' | 'hq'
 
@@ -181,19 +183,32 @@ export function canAffordHq(): boolean {
 }
 
 /**
- * The source a clip should start on before its status is known: the durable
- * Light by role when the library hinted it is ready and nothing argues
- * against it, else null (status-driven start, usually the small proxy).
+ * Auto's adaptive source: the clip's HLS master when this browser can play
+ * it and the network can carry its Light, listing HQ first when the network
+ * already carries HQ. Null otherwise (progressive files).
+ */
+export function autoHlsUrl(videoUuid: string, mode: HlsMode | null | undefined): string | null {
+  if (!videoUuid || preference !== 'auto' || !canPlayHls(mode)) return null
+  if (!canStartOn(lightMbpsForVersion('ffmpeg-h264-web-v4'))) return null
+  return hlsUrl(videoUuid, canStartOn(NOMINAL_MBPS.hq))
+}
+
+/**
+ * The source a clip should start on before its status is known: its
+ * adaptive HLS or durable Light by role when the library hinted it is ready
+ * and nothing argues against it, else null (status-driven start, usually
+ * the small proxy).
  */
 export function autoStartUrl(
   videoUuid: string,
   startRole: string | null | undefined,
   lightVersion?: string | null,
+  startHls?: HlsMode | null,
 ): string | null {
   if (!videoUuid || startRole !== 'light') return null
   if (preference !== 'auto' && preference !== 'light') return null
   if (preference === 'auto' && !canStartOn(lightMbpsForVersion(lightVersion))) return null
-  return roleUrl(videoUuid, 'light')
+  return autoHlsUrl(videoUuid, startHls) ?? roleUrl(videoUuid, 'light')
 }
 
 /** Tests only. */

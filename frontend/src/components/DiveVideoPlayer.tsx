@@ -8,8 +8,10 @@ import QualityMenu from './clip-viewer/QualityMenu'
 import { useAuth } from '../contexts/AuthContext'
 import { cachedPreview } from '../utils/mediaPreview'
 import { releaseDetached } from '../utils/preparedPlayback'
+import { appleHls, hlsEngineFailed, isHlsUrl, isPlaylistUrl, reloadMediaSource, type HlsMode } from '../utils/hlsPlayback'
 import {
   NOMINAL_MBPS,
+  autoHlsUrl,
   autoStartUrl,
   canAffordHq,
   canAffordRate,
@@ -25,6 +27,7 @@ import {
   setQualityPreference,
 } from '../utils/playbackPolicy'
 import {
+  derivativeHlsUrls,
   getDerivativePlaybackUrl,
   getMediaStatus,
   getPlaybackUrlFromStatus,
@@ -172,7 +175,7 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, onPlay
   const initialSeed = playbackSeed(videoUuid)
   // Auto start: the immersive viewer starts on the durable Light by role
   // (no status round-trip) when the library hinted it is ready.
-  const initialAutoStart = immersive ? autoStartUrl(videoUuid, cachedPreview(videoUuid)?.startRole, cachedPreview(videoUuid)?.startLightVersion) : null
+  const initialAutoStart = immersive ? autoStartUrl(videoUuid, cachedPreview(videoUuid)?.startRole, cachedPreview(videoUuid)?.startLightVersion, cachedPreview(videoUuid)?.startHls) : null
   const autoStartRef = useRef<string | null>(initialAutoStart)
   const [phase, setPhase] = useState<Phase>(() =>
     videoUuid && initialAutoStart
@@ -193,6 +196,12 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, onPlay
   const [previewSrc, setPreviewSrc] = useState<string | null>(() => initialSeed?.previewPlaybackUrl ?? null)
   const [lightSrc, setLightSrc] = useState<string | null>(null)
   const [hqSrc, setHqSrc] = useState<string | null>(null)
+  // Adaptive HLS for this clip: the server's mode (null = none), and whether
+  // it already failed here (the clip then stays on its progressive files).
+  const hlsModeRef = useRef<HlsMode | null>(null)
+  const hlsFailedRef = useRef<string | null>(null)
+  // Rendition the adaptive stream currently shows (from the frame size).
+  const [hlsLevel, setHlsLevel] = useState<'light' | 'hq'>('light')
   // The viewer's explicit rendition choice; null = the backend's start source.
   const choiceRef = useRef<QualityKey | null>(null)
   const presentedSourceRef = useRef<{ uuid: string; src: string } | null>(null)
@@ -267,6 +276,9 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, onPlay
     const preference = getQualityPreference()
     choiceRef.current = preference === 'auto' ? null : preference
     presentedSourceRef.current = null
+    hlsModeRef.current = seed?.startHls ?? null
+    hlsFailedRef.current = null
+    setHlsLevel('light')
     cancelBackground()
     resumeRef.current = null
     playingIntentRef.current = false
@@ -296,16 +308,19 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, onPlay
   const applyStatus = useCallback((data: MediaStatus) => {
     setStatusUnknown(false)
     setCanRequest(Boolean(data.can_request))
-    const previewUrl = getPreviewPlaybackUrl(data)
-    const hqUrl = getDerivativePlaybackUrl(data, 'hq')
-    const lightUrl = getDerivativePlaybackUrl(data, 'light')
+    // Apple's player: each durable rendition through its own playlist.
+    const appleUrls = appleHls() && hlsFailedRef.current !== videoUuid ? derivativeHlsUrls(data) : new Map<string, string>()
+    const forPlayer = (url: string | null) => (url && appleUrls.get(url)) || url
+    const previewUrl = forPlayer(getPreviewPlaybackUrl(data))
+    const hqUrl = forPlayer(getDerivativePlaybackUrl(data, 'hq'))
+    const lightUrl = forPlayer(getDerivativePlaybackUrl(data, 'light'))
     const originalUrl = getOriginalPlaybackUrl(data)
     setPreviewSrc(previewUrl)
     setLightSrc(lightUrl)
     setHqSrc(hqUrl)
     setPosterSrc(getPosterUrlFromStatus(data))
 
-    const playbackUrl = getPlaybackUrlFromStatus(data, immersive)
+    const playbackUrl = forPlayer(getPlaybackUrlFromStatus(data, immersive))
     if (data.status === 'ready' && playbackUrl) {
       preparingSinceRef.current = null
       lastPreparingStateRef.current = null
@@ -314,13 +329,18 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, onPlay
       previewMbpsRef.current = data.cache_entries?.some(entry => entry.rendition === 'proxy_720p' && entry.playback_url === previewUrl)
         ? NOMINAL_MBPS.preview : NOMINAL_MBPS.preview360
       const autoQuality = choiceRef.current === null && getQualityPreference() === 'auto'
-      // Auto starts the immersive viewer on durable Light when the network
-      // allows; the small proxy remains the weak-network start.
-      // Start on Light only when the network can carry THIS Light's bitrate.
-      const startUrl = immersive && autoQuality && lightUrl && canStartOn(lightMbpsRef.current) ? lightUrl : playbackUrl
+      hlsModeRef.current = data.derivatives?.hls ?? null
+      // Auto prefers the adaptive stream (the browser switches Light/HQ
+      // mid-play); otherwise it starts on durable Light when the network can
+      // carry THIS Light's bitrate. The small proxy stays the weak-network start.
+      const hlsStart = immersive && autoQuality && lightUrl && hlsFailedRef.current !== videoUuid
+        ? autoHlsUrl(videoUuid, hlsModeRef.current) : null
+      const startUrl = hlsStart ?? (immersive && autoQuality && lightUrl && canStartOn(lightMbpsRef.current) ? lightUrl : playbackUrl)
       let chosen = (choiceRef.current && choiceUrls[choiceRef.current]) || startUrl
       const autoStart = autoStartRef.current
       if (autoStart && !lightUrl) autoStartRef.current = null
+      // The adaptive stream already loading stays (whichever variant it listed first).
+      else if (autoStart && isHlsUrl(autoStart) && hlsStart) chosen = autoStart
       // The role URL already loading IS the durable Light: never reload it.
       else if (autoStart && roleOfUrl(autoStart) === 'light' && (autoQuality || choiceRef.current === 'light')) chosen = autoStart
       const presented = presentedSourceRef.current
@@ -330,7 +350,7 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, onPlay
       if (presented?.uuid === videoUuid) {
         const preservable = [originalUrl, lightUrl, hqUrl, playbackUrl, ...previewChoices,
           lightUrl ? roleUrl(videoUuid, 'light') : null, hqUrl ? roleUrl(videoUuid, 'hq') : null]
-        if (preservable.includes(presented.src)) chosen = presented.src
+        if (preservable.includes(presented.src) || (hlsStart && isHlsUrl(presented.src))) chosen = presented.src
       }
       setPhase({ kind: 'ready', src: chosen, originalSrc: originalUrl })
       return
@@ -396,7 +416,7 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, onPlay
     const seed = playbackSeed(videoUuid)
     setPreviewSrc(seed?.previewPlaybackUrl ?? null)
     if (seed?.posterUrl) setPosterSrc(seed.posterUrl)
-    const autoStart = immersive ? autoStartUrl(videoUuid, cachedPreview(videoUuid)?.startRole, cachedPreview(videoUuid)?.startLightVersion) : null
+    const autoStart = immersive ? autoStartUrl(videoUuid, cachedPreview(videoUuid)?.startRole, cachedPreview(videoUuid)?.startLightVersion, cachedPreview(videoUuid)?.startHls) : null
     autoStartRef.current = autoStart
     if (autoStart) {
       preparingSinceRef.current = null
@@ -518,7 +538,7 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, onPlay
     if (!video) return
     if (needsRestartRef.current) {
       needsRestartRef.current = false
-      video.load()
+      reloadMediaSource(video)
     }
     let cancelled = false
     let raf = 0
@@ -784,6 +804,28 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, onPlay
     const code = video?.error?.code
     const presented = presentedSourceRef.current
     const wasPresenting = presented?.uuid === videoUuid && presented.src === phase.src
+    if (isPlaylistUrl(phase.src)) {
+      // A playing stream that lost its connection (or whose grants expired)
+      // reloads in place with fresh playlists, a bounded number of times.
+      if (video && wasPresenting && recoveriesRef.current < MAX_AUTO_RECOVERIES
+        && (code === MEDIA_ERR_NETWORK || hlsEngineFailed(video))) {
+        recoveriesRef.current += 1
+        resumeRef.current = continuity()
+        setRecovering(true)
+        reloadMediaSource(video)
+        return
+      }
+      // Otherwise playlists do not work here: continue on the clip's
+      // progressive files (same choice, same moment), without an error card.
+      hlsFailedRef.current = videoUuid
+      if (autoStartRef.current === phase.src) autoStartRef.current = null
+      releaseStatusGate()
+      resumeRef.current = continuity()
+      setRecovering(false)
+      setPhase({ kind: 'checking' })
+      retryStatusCheck()
+      return
+    }
     // The library hint was stale (the role route found no current Light):
     // fall back to the status-driven start silently, never an error card.
     if (!wasPresenting && phase.src === autoStartRef.current) {
@@ -804,7 +846,7 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, onPlay
       // moment (e.g. a quality switch): never overwrite it with 0.
       resumeRef.current = continuity()
       setRecovering(true)
-      video.load()
+      reloadMediaSource(video)
       retryStatusCheck()
       return
     }
@@ -831,7 +873,7 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, onPlay
   // Explicit local preview → Light → HQ → Original; aliases are deduplicated.
   const originalSrc = phase.kind === 'ready' ? phase.originalSrc ?? null : null
   const qualityKeyOf = (url: string): QualityKey =>
-    roleOfUrl(url) ?? (url === hqSrc ? 'hq' : url === originalSrc ? 'original' : url === lightSrc ? 'light' : 'preview')
+    isHlsUrl(url) ? hlsLevel : roleOfUrl(url) ?? (url === hqSrc ? 'hq' : url === originalSrc ? 'original' : url === lightSrc ? 'light' : 'preview')
   const qualityLabels: Record<QualityKey, string> = {
     preview: t('videoPlayer.previewLabel'),
     light: t('videoPlayer.lightLabel'),
@@ -857,6 +899,17 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, onPlay
       choiceRef.current = null
       setQualityPreference('auto')
       bumpPolicy()
+      // Back to the adaptive stream where the clip has one.
+      const adaptive = immersive && phase.kind === 'ready' && lightSrc && hlsFailedRef.current !== videoUuid
+        ? autoHlsUrl(videoUuid, hlsModeRef.current) : null
+      if (phase.kind === 'ready' && adaptive && !isHlsUrl(phase.src)) {
+        cancelBackground()
+        autoStartRef.current = null
+        resumeRef.current = continuity()
+        presentedSourceRef.current = null
+        setDecodeError(false)
+        setPhase({ ...phase, src: adaptive })
+      }
       return
     }
     const option = qualityOptions.find(item => item.key === key)
@@ -884,11 +937,28 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, onPlay
   // an element warmed before it was shown) are not network samples.
   useEffect(() => {
     const video = videoRef.current
-    if (!immersive || !gateKey || !video) return
+    // The adaptive stream measures its own segments (hls.js) or none (native).
+    if (!immersive || !gateKey || !video || isHlsUrl(gateKey)) return
     const key = qualityKeyOf(gateKey)
     const mbps = key === 'light' ? lightMbpsRef.current : key === 'preview' ? previewMbpsRef.current : NOMINAL_MBPS[key]
     return sampleBuffering(video, mbps)
   }, [immersive, gateKey, videoEpoch])
+  // Which rendition the adaptive stream is showing: Light is 720 px on its
+  // short side, HQ 1080 px. The quality menu reads "Auto · <rendition>".
+  useEffect(() => {
+    const video = videoRef.current
+    if (!gateKey || !video || !isHlsUrl(gateKey)) return
+    const onSize = () => {
+      if (video.videoWidth && video.videoHeight) setHlsLevel(Math.min(video.videoWidth, video.videoHeight) >= 900 ? 'hq' : 'light')
+    }
+    onSize()
+    video.addEventListener('resize', onSize)
+    video.addEventListener('loadedmetadata', onSize)
+    return () => {
+      video.removeEventListener('resize', onSize)
+      video.removeEventListener('loadedmetadata', onSize)
+    }
+  }, [gateKey, videoEpoch])
   // Same-origin media downloads (proxies) are measured exactly as they
   // finish; any new sample, from any source, re-evaluates this clip's Auto.
   useEffect(() => {
@@ -905,6 +975,8 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, onPlay
   // Climb one step the network can sustain: proxy → Light, Light/proxy → HQ.
   const upgradeTarget = (() => {
     if (!(immersive && autoQuality && phase.kind === 'ready' && framePresented && !decodeError && !recovering)) return null
+    // The adaptive stream switches renditions itself.
+    if (isHlsUrl(phase.src)) return null
     const distinctHq = hqSrc && hqSrc !== lightSrc ? hqSrc : null
     if (currentQuality === 'light') return distinctHq && canAffordHq() ? distinctHq : null
     if (currentQuality !== 'preview') return null
@@ -1021,7 +1093,7 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, onPlay
   // does not climb straight back.
   const stepDownRef = useRef<() => void>(() => {})
   stepDownRef.current = () => {
-    if (!autoQuality || phase.kind !== 'ready') return
+    if (!autoQuality || phase.kind !== 'ready' || isHlsUrl(phase.src)) return
     const lower = currentQuality === 'hq' || currentQuality === 'original'
       ? lightSrc ?? previewSrc
       : currentQuality === 'light' ? previewSrc : null

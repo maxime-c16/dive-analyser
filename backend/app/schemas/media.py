@@ -44,6 +44,8 @@ class DerivativeRoleStatus(BaseModel):
     playback_url: Optional[str] = None
     revision_id: Optional[int] = None
     aliased_to: Optional[str] = None
+    # This rendition alone as a byte-range HLS playlist (fragmented packages).
+    hls_url: Optional[str] = None
 
 
 class DerivativeStatusBlock(BaseModel):
@@ -53,6 +55,9 @@ class DerivativeStatusBlock(BaseModel):
     transform_version: Optional[str] = None
     start: Optional[str] = None
     recommended: Optional[str] = None
+    # Adaptive HLS master at /api/v1/media/{uuid}/hls.m3u8 (a hint): "apple"
+    # (Apple's native player only: the bucket has no CORS) or "all".
+    hls: Optional[str] = None
     hq: DerivativeRoleStatus = Field(default_factory=DerivativeRoleStatus)
     light: DerivativeRoleStatus = Field(default_factory=DerivativeRoleStatus)
     poster: DerivativeRoleStatus = Field(default_factory=DerivativeRoleStatus)

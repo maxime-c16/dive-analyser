@@ -60,6 +60,15 @@ class Settings(BaseSettings):
     media_derivative_served_transform_versions: str = os.getenv(
         "MEDIA_DERIVATIVE_SERVED_TRANSFORM_VERSIONS", ""
     )
+    # Transform versions packaged as fragmented MP4: their Light/HQ are also
+    # served as byte-range HLS (adaptive). Empty turns HLS off.
+    media_hls_transform_versions: str = os.getenv(
+        "MEDIA_HLS_TRANSFORM_VERSIONS", "ffmpeg-h264-web-v4"
+    )
+    # Only Apple's native HLS player (Safari, every iOS browser) reads B2
+    # segments without CORS; Chrome's native player and hls.js need the PROD
+    # bucket to answer CORS for the app origin. Enable once it does.
+    media_hls_cors_ready: bool = os.getenv("MEDIA_HLS_CORS_READY", "false").lower() == "true"
     media_cache_max_bytes: int = int(os.getenv("MEDIA_CACHE_MAX_BYTES", str(50 * 1024 * 1024 * 1024)))
     primary_diver_name: str = os.getenv("PRIMARY_DIVER_NAME", "Maxime")
     dive_analysis_cache_ttl_seconds: int = int(os.getenv("DIVE_ANALYSIS_CACHE_TTL_SECONDS", "60"))
