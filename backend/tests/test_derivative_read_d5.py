@@ -1393,3 +1393,80 @@ def test_prewarm_builds_the_playback_client_once_and_never_raises(monkeypatch, f
     assert b2_presign.prewarm_client() is False
     monkeypatch.setattr(settings, "b2_playback_key_id", "")
     assert b2_presign.prewarm_client() is False  # not configured: nothing to warm
+
+
+# ---- Background credential probe ----
+
+
+def _probe_credentials(monkeypatch):
+    settings = get_settings()
+    monkeypatch.setattr(settings, "b2_playback_key_id", "key-id")
+    monkeypatch.setattr(settings, "b2_playback_key_secret", "key-secret")
+    monkeypatch.setattr(settings, "b2_playback_region", "eu-central-003")
+    monkeypatch.setattr(settings, "media_playback_credential_probe_seconds", 60)
+
+
+def test_grant_under_a_fresh_probe_skips_the_object_head_and_refresh(client, db, fake_presign, monkeypatch):
+    import app.api.v1.media_playback as playback_module
+
+    def _no_io(*_a, **_k):
+        raise AssertionError("no per-object HEAD or refresh while the credential probe is fresh")
+
+    monkeypatch.setattr(playback_module.b2_presign, "credential_proven", lambda: True)
+    monkeypatch.setattr(playback_module.b2_presign, "head_object", _no_io)
+    monkeypatch.setattr(playback_module, "_refresh_after_provider", _no_io)
+    response = client.get(_light_url(client), follow_redirects=False)
+    assert response.status_code == 302, response.text
+    assert "head;desc=probe" in response.headers["server-timing"]
+    assert "refresh" not in response.headers["server-timing"]
+
+
+def test_probe_proof_expires_fails_closed_and_clears_object_proofs(monkeypatch, flags):
+    from app.services import b2_presign
+
+    _probe_credentials(monkeypatch)
+    clock = {"now": 1000.0}
+    monkeypatch.setattr(b2_presign, "monotonic", lambda: clock["now"])
+    calls = []
+
+    class _Client:
+        def head_object(self, Bucket, Key):
+            calls.append(Key)
+            if Key == "missing":
+                raise RuntimeError("403")
+
+    monkeypatch.setattr(b2_presign, "_b2_client", lambda: _Client())
+    assert b2_presign.credential_proven() is False
+    assert b2_presign.probe_credential("bucket", "ok-object") is True
+    assert b2_presign.credential_proven() is True
+    clock["now"] += 119
+    assert b2_presign.credential_proven() is True
+    clock["now"] += 2  # older than two intervals: stale
+    assert b2_presign.credential_proven() is False
+    # A failed probe drops the proof AND the per-object HEAD proofs.
+    assert b2_presign.probe_credential("bucket", "ok-object") is True
+    with b2_presign._head_ok_lock:
+        b2_presign._head_ok_cache[("fp", "bucket", "k")] = clock["now"] + 300
+    assert b2_presign.probe_credential("bucket", "missing") is False
+    assert b2_presign.credential_proven() is False
+    assert b2_presign._head_ok_cache == {}
+    # A rotated credential never inherits the old proof.
+    assert b2_presign.probe_credential("bucket", "ok-object") is True
+    monkeypatch.setattr(get_settings(), "b2_playback_key_id", "rotated-id")
+    assert b2_presign.credential_proven() is False
+    # Disabled: never proven.
+    monkeypatch.setattr(get_settings(), "media_playback_credential_probe_seconds", 0)
+    assert b2_presign.credential_proven() is False
+
+
+def test_probe_targets_a_verified_prod_object(db, monkeypatch, flags):
+    from sqlalchemy.orm import sessionmaker as _sessionmaker
+    from app.services import b2_presign, playback_probe
+
+    _probe_credentials(monkeypatch)
+    seen = []
+    monkeypatch.setattr(b2_presign, "probe_credential", lambda bucket, key: seen.append((bucket, key)) or True)
+    factory = _sessionmaker(bind=db.get_bind())
+    assert playback_probe.probe_once(factory) is True
+    assert seen and seen[0][0] == PROD_BUCKET
+    assert db.query(MediaBlobLocation).filter_by(bucket=PROD_BUCKET, object_key=seen[0][1], verified=True, environment="prod").count() >= 1

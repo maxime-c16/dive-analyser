@@ -94,10 +94,15 @@ async def lifespan(app: FastAPI):
     import threading
     from app.services import b2_presign
     threading.Thread(target=b2_presign.prewarm_client, name="b2-client-prewarm", daemon=True).start()
+    from app.database import SessionLocal
+    from app.services.playback_probe import start_probe
+    probe_stop = start_probe(SessionLocal)
     try:
         yield
     finally:
         upload_worker_stop.set()
+        if probe_stop is not None:
+            probe_stop.set()
         if session_reconciler_stop is not None:
             session_reconciler_stop.set()
         lag_task.cancel()

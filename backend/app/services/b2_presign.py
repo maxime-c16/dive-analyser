@@ -188,6 +188,59 @@ def prewarm_client() -> bool:
         return False
 
 
+# Credential probe: a background HEAD of one verified PROD object proves the
+# playback credential can read the bucket right now. While the proof is
+# fresh (two intervals), first grants skip their per-object HEAD; a failed or
+# stale probe drops the proof and clears the HEAD cache, so grants fall back
+# to the per-object HEAD (and its legacy-fallback / 503 policy).
+_credential_proof: dict = {"until": 0.0, "fingerprint": None}
+_credential_proof_lock = threading.Lock()
+
+
+def credential_proven() -> bool:
+    interval = get_settings().media_playback_credential_probe_seconds
+    if interval <= 0:
+        return False
+    fingerprint = _b2_client_fingerprint()
+    with _credential_proof_lock:
+        return (
+            fingerprint is not None
+            and _credential_proof["fingerprint"] == fingerprint
+            and monotonic() < _credential_proof["until"]
+        )
+
+
+def record_credential_probe(ok: bool) -> None:
+    interval = get_settings().media_playback_credential_probe_seconds
+    with _credential_proof_lock:
+        if ok and interval > 0:
+            _credential_proof["until"] = monotonic() + 2 * interval
+            _credential_proof["fingerprint"] = _b2_client_fingerprint()
+            return
+        _credential_proof["until"] = 0.0
+        _credential_proof["fingerprint"] = None
+    with _head_ok_lock:
+        _head_ok_cache.clear()
+
+
+def probe_credential(bucket: str, object_key: str) -> bool:
+    """One provider HEAD that never uses or fills the per-object cache."""
+    try:
+        _b2_client().head_object(Bucket=bucket, Key=object_key)
+    except Exception:
+        record_credential_probe(False)
+        return False
+    record_credential_probe(True)
+    return True
+
+
+def reset_credential_probe() -> None:
+    """Tests only."""
+    with _credential_proof_lock:
+        _credential_proof["until"] = 0.0
+        _credential_proof["fingerprint"] = None
+
+
 def head_is_cached(bucket: str, object_key: str) -> bool:
     """Whether a recent provider HEAD already proved this object, without I/O.
 
