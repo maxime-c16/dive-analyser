@@ -1183,6 +1183,10 @@ def get_media_status_batch(
     return result
 
 
+# Transform versions whose Light is rate-capped (2.5 Mbps); others are not.
+CAPPED_LIGHT_VERSIONS = frozenset({"ffmpeg-h264-web-v2"})
+
+
 def _add_start_role_hints(db: Session, result: dict, video_uuids: list[str]) -> None:
     """Mark clips whose durable Light is ledger-ready: ``start_role: light``
     plus ``start_light_version`` (its transform version).
@@ -1214,12 +1218,14 @@ def _add_start_role_hints(db: Session, result: dict, video_uuids: list[str]) -> 
             raise
         db.rollback()
         return
-    # Players size the start from the Light's bitrate: name its version
-    # (newest served first, matching the read path's preference).
-    rank = {version: index for index, version in enumerate(served)}
+    # Players size the start from the Light's bitrate. This bounded query
+    # does not prove which row the read path will serve (current source,
+    # verified storage), so when a clip has ready Light rows in several
+    # versions, name an uncapped one: the player may overestimate the
+    # bitrate (a cautious start), never underestimate it.
     best: dict[str, str] = {}
     for video_uuid, version in rows:
-        if video_uuid not in best or rank[version] < rank[best[video_uuid]]:
+        if video_uuid not in best or (best[video_uuid] in CAPPED_LIGHT_VERSIONS and version not in CAPPED_LIGHT_VERSIONS):
             best[video_uuid] = version
     for video_uuid, version in best.items():
         if video_uuid in result:

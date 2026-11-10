@@ -1339,3 +1339,32 @@ def test_batch_hints_a_ready_light_start_without_exposing_urls(client, fake_pres
     assert "start_role" not in body[UUID_OLDVERSION]  # not a served version
     assert "/revisions/" not in response.text  # tiles still mint nothing
     assert fake_presign[1] == []
+
+
+def test_role_route_authorizes_before_resolving_anything(db, flags, fake_presign, client, monkeypatch):
+    import app.services.derivative_read as derivative_read
+
+    def _must_not_resolve(*_a, **_k):
+        raise AssertionError("a stranger must not reach derivative resolution")
+
+    monkeypatch.setattr(derivative_read, "safe_resolve_clip_derivatives", _must_not_resolve)
+    client.post("/api/v1/auth/logout")
+    client.post("/api/v1/auth/login", json={"email": "user-b@example.test", "password": "correct-horse-battery"})
+    response = client.get(f"/api/v1/media/{UUID_FULL}/play/light", follow_redirects=False)
+    assert response.status_code == 404
+    assert fake_presign[1] == []
+
+
+def test_batch_hint_names_the_uncapped_light_when_versions_coexist(client, db, monkeypatch):
+    settings = get_settings()
+    monkeypatch.setattr(settings, "media_derivative_served_transform_versions", "ffmpeg-h264-web-v2,ffmpeg-h264-web-v1")
+    src = db.query(MediaDerivative).filter_by(video_uuid=UUID_FULL, role="light").first().source_blob_sha256
+    _derivative(db, UUID_FULL, src, "light", _sha("d5-full-light-v2"), transform="ffmpeg-h264-web-v2")
+    db.commit()
+    # v1 (uncapped) and v2 rows both ready: a cautious start assumes v1.
+    body = client.post("/api/v1/media/status/batch", json={"video_uuids": [UUID_FULL]}).json()
+    assert body[UUID_FULL]["start_light_version"] == "ffmpeg-h264-web-v1"
+    db.query(MediaDerivative).filter_by(video_uuid=UUID_FULL, role="light", transform_version="ffmpeg-h264-web-v1").delete()
+    db.commit()
+    body = client.post("/api/v1/media/status/batch", json={"video_uuids": [UUID_FULL]}).json()
+    assert body[UUID_FULL]["start_light_version"] == "ffmpeg-h264-web-v2"

@@ -136,6 +136,14 @@ export function holdWarmup(): () => void {
   }
 }
 
+/**
+ * Resolve once no clip holds warming. A hold can end and a new one start in
+ * the same commit (clip change): waiting warmers re-check before going on.
+ */
+async function waitForWarmup() {
+  while (warmupHold) await warmupHold.promise
+}
+
 /** Sign-out/reset: end any hold regardless of owner. */
 export function releaseWarmup() {
   if (warmupHold) endHold(warmupHold)
@@ -146,7 +154,7 @@ export function warmPlaybackVideo(uuid: string) {
   const epoch = generation
   // A neighbor that can start on its durable Light by role needs no status
   // lookup at all: warm exactly the URL the player will start on.
-  void (warmupHold?.promise ?? Promise.resolve()).then(() => getPreview(uuid)).then(async tile => {
+  void waitForWarmup().then(() => getPreview(uuid)).then(async tile => {
     const start = autoStartUrl(uuid, tile.startRole, tile.startLightVersion)
     if (start) return { ...tile, playbackUrl: start, previewPlaybackUrl: null, playbackResolved: true }
     return getPreviewForPlayback(uuid)

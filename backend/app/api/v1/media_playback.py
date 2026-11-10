@@ -179,7 +179,7 @@ def list_canary_revisions(
     return {"revisions": out}
 
 
-def _deny(db: Session, user_id: int, revision_id: int, reason: str):
+def _deny(db: Session, user_id: int, revision_id: int | None, reason: str):
     _record_grant(
         db,
         user_id=user_id,
@@ -538,17 +538,24 @@ def play_media_role(
         raise HTTPException(404, "Not found")
     from app.services.derivative_read import safe_resolve_clip_derivatives
     from app.services.derivative_publisher import MissingSourceError
+    from app.services.user_access import can_user_access_video
 
     timer = _StageTimer()
+    # Authorization first, as on the revision route: a viewer without access
+    # never reaches derivative or storage resolution (uniform 404).
+    decision = can_user_access_video(db, user, video_uuid)
+    if not decision.allowed:
+        _deny(db, user.id, None, decision.reason)
+    timer.lap("authz")
     try:
         clip = safe_resolve_clip_derivatives(db, video_uuid)
     except (MissingSourceError, ValueError):
         clip = None
-    decision = clip.roles.get(role) if clip is not None else None
-    if decision is None or decision.state != "ready" or decision.revision_id is None:
+    role_decision = clip.roles.get(role) if clip is not None else None
+    if role_decision is None or role_decision.state != "ready" or role_decision.revision_id is None:
         raise HTTPException(404, "Not found")
     timer.lap("resolve")
-    return _grant_revision(decision.revision_id, request, db, user, timer, proof_established=True)
+    return _grant_revision(role_decision.revision_id, request, db, user, timer, proof_established=True)
 
 
 @router.get("/playback/metrics")

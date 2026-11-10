@@ -151,3 +151,16 @@ it('a previous clip releasing late never ends the next clip hold', async () => {
   expect(getPreviewForPlayback).toHaveBeenCalled()
   releaseWarmup() // reset path stays callable with no hold
 })
+
+it('warmers waiting on a clip hold keep waiting when the next clip takes it over', async () => {
+  const releaseOld = holdWarmup()
+  preparePlaybackWindow(['next', 'after'])
+  // Clip change: the old clip's cleanup releases, then the new clip holds.
+  releaseOld()
+  const releaseNew = holdWarmup()
+  await flush()
+  expect(getPreviewForPlayback).not.toHaveBeenCalled()
+  releaseNew()
+  await flush()
+  expect(getPreviewForPlayback).toHaveBeenCalled()
+})
