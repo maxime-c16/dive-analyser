@@ -14,16 +14,18 @@ from app.services.write_guard import require_owner_for_mutation
 def test_registered_key_http_scope_and_revocation(test_db, monkeypatch):
     import app.security as security
     import app.services.write_guard as guard
+    import app.services.dive_access as access
     from types import SimpleNamespace
     settings = SimpleNamespace(user_auth_enabled=True, configured_api_keys=['legacy-key'], auth_cookie_name='session')
     monkeypatch.setattr(security, 'get_settings', lambda: settings)
     monkeypatch.setattr(guard, 'get_settings', lambda: settings)
+    monkeypatch.setattr(access, 'get_settings', lambda: settings)
     monkeypatch.setattr(guard.sessions, 'resolve_session', lambda *a: None)
     key = 'private-package-worker-key'
     agent = MediaAgent(id='worker', hostname='test', api_key_sha256=hashlib.sha256(key.encode()).hexdigest(), active=True, leasing_enabled=True, capabilities=['web_package'])
     test_db.add(agent)
     test_db.commit()
-    app = FastAPI(dependencies=[Depends(require_owner_for_mutation)])
+    app = FastAPI(dependencies=[Depends(access.member_access_context), Depends(require_owner_for_mutation)])
     app.dependency_overrides[get_db] = lambda: test_db
 
     @app.post('/api/v1/media/jobs/lease')
@@ -54,10 +56,12 @@ def test_real_heartbeat_accepts_registered_key(api_client, test_db, monkeypatch)
     from types import SimpleNamespace
     import app.security as security
     import app.services.write_guard as guard
+    import app.services.dive_access as access
     import app.api.v1.media as media
     settings = SimpleNamespace(user_auth_enabled=True, configured_api_keys=['legacy-key'], auth_cookie_name='session')
     monkeypatch.setattr(security, 'get_settings', lambda: settings)
     monkeypatch.setattr(guard, 'get_settings', lambda: settings)
+    monkeypatch.setattr(access, 'get_settings', lambda: settings)
     monkeypatch.setattr(guard.sessions, 'resolve_session', lambda *a: None)
     monkeypatch.setattr(media, '_advance_background_media_work', lambda db: db.commit())
     key = 'registered-http-worker'
