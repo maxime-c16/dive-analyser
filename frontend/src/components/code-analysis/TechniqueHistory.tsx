@@ -1,6 +1,6 @@
 import './techniqueHistory.css'
 import { createPortal } from 'react-dom'
-import TechniqueSetup from './TechniqueSetup'
+import TechniqueSetup, { type SetupEpisode } from './TechniqueSetup'
 import TechniqueDialog from './TechniqueDialog'
 import { techniqueDate, techniqueDateTime, techniqueInputDate } from './techniqueDates'
 import { Plus, SlidersHorizontal, ArrowLeftRight, ChevronRight, Check, Pencil, Share2, ListChecks } from 'lucide-react'
@@ -12,7 +12,7 @@ import { useTranslation } from 'react-i18next'
 import { api } from '../../services/api'
 
 type Track = { id: number; name: string; revision: number }
-type Episode = { notes?: string; apparatus?: string; height?: string; position?: string | null; sync?: boolean | null; anchor_unavailable?: boolean; id: number; label: string | null; start_at: string; end_at: string | null; uncertain_until: string | null; scope: string; gap: boolean; technique_id: number | null }
+type Episode = { anchor_id?: number | null; notes?: string; apparatus?: string; height?: string; position?: string | null; sync?: boolean | null; anchor_unavailable?: boolean; id: number; label: string | null; start_at: string; end_at: string | null; uncertain_until: string | null; scope: string; gap: boolean; technique_id: number | null }
 type Attempt = { session_index?: number; session_total?: number; session_id?: number; recorded_episode_deleted?: boolean; recorded_episode_id?: number; late_import?: boolean; use_label?: string; video_uuid?: string; dive_code: string; id: number; dive_datetime: string; history_occurred_at: string; state: string; source: string; episode_id: number | null }
 type Context = { code: string; apparatus: string; height: string; position: string; sync: boolean }
 
@@ -41,6 +41,7 @@ export default function TechniqueHistory({ diver, context, onSelected }: { diver
   const [comparing, setComparing] = useState(false)
   const [notice, setNotice] = useState('')
   const [setup, setSetup] = useState(false)
+  const [setupEpisode, setSetupEpisode] = useState<SetupEpisode | undefined>()
   const { i18n } = useTranslation()
   const date = (value: string) => techniqueDate(value, i18n.language)
   const periodDate = (value: string, other: string | null) => other?.slice(0,10) === value.slice(0,10) ? techniqueDateTime(value, i18n.language) : date(value)
@@ -97,7 +98,8 @@ export default function TechniqueHistory({ diver, context, onSelected }: { diver
     closePanel()
   }
   function closePanel() { setPanel(null); setPreview(null); setCopyPreview(null); setError('') }
-  async function startSetup() {
+  async function startSetup(episode?: Episode) {
+    setSetupEpisode(episode); setPanel(null)
     setError(''); setNotice('')
     if (!tracks.length) {
       const g = generation.current; setBusy(true)
@@ -137,6 +139,7 @@ export default function TechniqueHistory({ diver, context, onSelected }: { diver
     </header>
     {error && !panel && <p className="th-error" role="alert">{error}</p>}
     {notice && <p className="th-notice" role="status"><Check size={15} />{notice}</p>}
+    <div className="th-setup-entry"><button className="th-primary" disabled={busy} onClick={() => void startSetup()}><ListChecks size={17} />{t('technique.setupEntry')}</button><button className="th-text-button th-record" disabled={busy} onClick={() => void newChange()}><Plus size={15} />{t('technique.enable')}</button></div>
     {!!tracks.length && <div className="th-toolbar">
       {tracks.length > 1 ? <select className="th-track-select" aria-label={t('technique.track')} value={track ?? ''} onChange={e => { setTrack(Number(e.target.value)); setPair([]); setComparing(false); setAfter(0); setEpisodeAfter(0); setBusy(false) }}>{tracks.map(r => <option key={r.id} value={r.id}>{r.name === 'General' ? t('technique.general') : r.name}</option>)}</select> : <span className="th-track-name">{tracks[0].name === 'General' ? t('technique.general') : tracks[0].name}</span>}
       {compatible.length >= 2 && <button className="th-text-button" aria-pressed={comparing} onClick={() => { setComparing(v => !v); setPair(comparing ? [] : compatible.slice(-2).map(e => e.id)) }}><ArrowLeftRight size={15} />{comparing ? t('technique.done') : t('technique.compare')}</button>}
@@ -152,12 +155,12 @@ export default function TechniqueHistory({ diver, context, onSelected }: { diver
           <span className="th-timeline-dot" aria-hidden="true" />
           <span className="th-episode-copy"><span className="th-episode-name">{e.label ?? t('technique.unknown')}{e.id === currentEpisode?.id && <span className="th-current">{t('technique.current')}</span>}</span><span className="th-date">{periodDate(e.start_at,e.end_at)}{e.end_at ? ` – ${periodDate(e.end_at,e.start_at)}` : ` – ${t('technique.now')}`}{e.uncertain_until ? ` ≈ ${date(e.uncertain_until)}` : ''}</span></span><ChevronRight size={16} aria-hidden="true" />
         </button>
-        {pair[0] === e.id && <div className="th-episode-actions"><button onClick={() => editEpisode(e)}><Pencil size={14} />{t('technique.edit')}</button><button onClick={() => { setCopyPreview(null); setPanel('share') }}><Share2 size={14} />{t('technique.share')}</button><button onClick={() => setPanel('log')}><ListChecks size={14} />{t('technique.tagDives')}</button></div>}
+        {pair[0] === e.id && <div className="th-episode-actions">{e.anchor_id && e.scope === context.code && !e.gap && <button onClick={() => void startSetup(e)}>{t('technique.adjustInPlayer')}</button>}<button onClick={() => editEpisode(e)}><Pencil size={14} />{t('technique.edit')}</button><button onClick={() => { setCopyPreview(null); setPanel('share') }}><Share2 size={14} />{t('technique.share')}</button><button onClick={() => setPanel('log')}><ListChecks size={14} />{t('technique.tagDives')}</button></div>}
       </li>)}</ol>
     </>}
     {(episodeAfter > 0 || episodeNext != null) && <div className="th-pagination">{episodeAfter > 0 && <button onClick={() => setEpisodeAfter(0)}>{t('common.back')}</button>}{episodeNext != null && <button onClick={() => setEpisodeAfter(episodeNext!)}>{t('technique.nextPeriods')}</button>}</div>}
-    <div className="th-setup-entry"><button className="th-primary" disabled={busy} onClick={() => void startSetup()}><ListChecks size={17} />{t('technique.setupEntry')}</button><button className="th-text-button th-record" disabled={busy} onClick={() => void newChange()}><Plus size={15} />{t('technique.enable')}</button></div>
-    {setup && track != null && createPortal(<TechniqueSetup key={`${base}/${track}/${contextKey}`} base={`${base}/${track}`} context={context} revision={revision} constrainPosition={currentEpisode?.scope === context.code && currentEpisode.position != null} constrainSync={currentEpisode?.scope === context.code && currentEpisode.sync != null} onClose={() => setSetup(false)} onDone={() => { setSetup(false); setReload(n => n + 1); setNotice(t('technique.saved')) }} />, document.body)}
+
+    {setup && track != null && createPortal(<TechniqueSetup key={`${base}/${track}/${contextKey}`} base={`${base}/${track}`} context={context} revision={revision} timezone={timezone} initialEpisode={setupEpisode} constrainPosition={setupEpisode ? setupEpisode.position != null : currentEpisode?.scope === context.code && currentEpisode.position != null} constrainSync={setupEpisode ? setupEpisode.sync != null : currentEpisode?.scope === context.code && currentEpisode.sync != null} onClose={() => setSetup(false)} onDone={() => { setSetup(false); setReload(n => n + 1); setNotice(t('technique.saved')) }} />, document.body)}
 
     {panel === 'change' && <TechniqueDialog title={t(preview ? 'technique.reviewChange' : edit ? 'technique.editChange' : 'technique.enable')} onClose={requestClosePanel}>
       {error && <p className="th-error" role="alert">{error}</p>}
@@ -168,7 +171,8 @@ export default function TechniqueHistory({ diver, context, onSelected }: { diver
         {planSummary?.upcoming && <p>{t('technique.nextChange', { date: date(planSummary.upcoming.start_at) })}</p>}
         <div className="th-dialog-actions"><button className="th-secondary" onClick={() => setPreview(null)}>{t('technique.backToEdit')}</button><button className="th-primary" disabled={busy} onClick={() => void mutate('changes', preview)}>{t('technique.saveChange')}</button></div>
       </div> : <form className="th-form" onSubmit={e => { e.preventDefault(); const a = attempts.find(a => a.id === anchor); if (a || dateStart) void mutate('preview', { ...context, revision, label, notes, timezone, constrain_position: narrowPosition, constrain_sync: narrowSync, technique_id: identity, episode_id: edit, gap, scope: family ? familyCode : context.code, start_at: a?.history_occurred_at ?? dateStart, anchor_id: a?.id, uncertain_until: uncertainUntil || null, precision: uncertainUntil ? 'approximate' : a ? 'attempt' : 'date' }) }}>
-        <label className="th-field">{t('technique.whatChanged')}<input autoFocus maxLength={120} required={!gap && identity === null} value={label} placeholder={t('technique.labelExample')} onChange={e => { setLabel(e.target.value); setIdentity(null) }} /></label>
+        <label className="th-field">{t('technique.whatChanged')}<input autoFocus readOnly={Boolean(edit && identity)} maxLength={120} required={!gap && identity === null} value={label} placeholder={t('technique.labelExample')} onChange={e => { setLabel(e.target.value); setIdentity(null) }} /></label>
+        {edit && identity && <button type="button" className="th-text-button" onClick={() => setIdentity(null)}>{t('technique.useDifferentTechnique')}</button>}
         <label className="th-field">{t('technique.from')}<input type="datetime-local" required={!anchor} value={dateStart} onChange={e => { setDateStart(e.target.value); setAnchor(null) }} /></label>
         <details className="th-details"><summary>{t('technique.options')}</summary><div className="th-form">
           <label className="th-field">{t('technique.start')}<select value={anchor ?? ''} onChange={e => setAnchor(e.target.value ? Number(e.target.value) : null)}><option value="">{t('technique.useDate')}</option>{attempts.map(a => <option key={a.id} value={a.id}>{techniqueDateTime(a.dive_datetime, i18n.language)}{a.session_index && a.session_total ? ` · ${t('technique.sessionAttempt', { index: a.session_index, total: a.session_total })}` : ''}</option>)}</select></label>

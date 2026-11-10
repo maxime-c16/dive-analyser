@@ -21,7 +21,7 @@ WITH eligible AS (
  AND d.platform_type=:apparatus AND d.height=:height
  AND coalesce(d.position,'')=:position AND coalesce(d.is_sync,false)=:sync
 ), resolved AS (
- SELECT d.*, (d.created_at>e.created_at AND d.history_occurred_at<e.created_at) late_import, e.id episode_id, e.scope intended_scope, e.technique_id intended_id, a.episode_id recorded_episode_id, coalesce(recorded_e.deleted,false) recorded_episode_deleted,
+ SELECT d.*, (d.created_at>e.created_at AND d.history_occurred_at<e.created_at) late_import, e.start_at intended_start_at, e.start_id intended_start_id, e.id episode_id, e.scope intended_scope, e.technique_id intended_id, a.episode_id recorded_episode_id, coalesce(recorded_e.deleted,false) recorded_episode_deleted,
  CASE WHEN e.gap OR d.history_occurred_at < e.uncertain_until THEN true ELSE false END uncertain,
  coalesce(a.state,s.state,CASE WHEN e.id IS NULL THEN 'unrecorded'
  WHEN e.gap OR d.history_occurred_at < e.uncertain_until THEN 'unknown' ELSE 'technique' END) state,

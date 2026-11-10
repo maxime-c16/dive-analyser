@@ -6,6 +6,15 @@
  */
 const en = {
   technique: {
+    adjustInPlayer: "Adjust in the player",
+    useDifferentTechnique: "Use a different technique",
+    replacesPeriod: "Replaces “{{name}}” over this interval",
+    existingContinues: "Existing change kept: {{name}} · {{date}}",
+    setupPreviewError: "Check “{{name}}”: this boundary could not be verified. Your draft is still here.",
+    boundaryExists: "“{{name}}” starts on an existing boundary. Move the marker, or adjust that period from the timeline.",
+    globalRatingLimit: "Overall dive rating; it does not isolate the effect of this technique.",
+    noMatchingUse: "No recorded attempt matches the intended technique.",
+
     signInAgain: 'Sign in again',
     sessionAttempt: "Dive {{index}}/{{total}} of this session",
     sessionExpired: "Your session has expired. Sign in again, then retry.",
@@ -13,7 +22,7 @@ const en = {
     loadingComparison: "Loading comparison…",
     retry: "Retry",
     moreTechniques: "More techniques",
-    currentTechnique: "Current technique: {{name}}",
+    currentTechnique: "Usual technique during this period: {{name}}",
     proposedTechnique: "Draft technique: {{name}}",
     movingBoundary: "Move the start of “{{name}}”",
     moveStartHere: "Start this period on this dive",
@@ -39,7 +48,7 @@ const en = {
     recheckHistory: 'Refresh and check again',
     setupEntry: "Find my technique changes",
     setupTitle: "Technique changes",
-    setupBrowseHint: "Scroll through your clips. Mark the first dive using a different technique.",
+    setupBrowseHint: "Browse the clips. Mark where you started using a different usual technique.",
     markStart: "New technique starts here",
     editMarker: "Edit this marker",
     startsAtClip: "Starts with this dive on {{date}}.",
@@ -119,7 +128,7 @@ const en = {
     usualScores: "Middle 50% of scores",
     otherChanges: "Other changes during these periods",
     attributionBrief: "{{recorded}} matching · {{conflicting}} different · {{inferred}} assumed · {{unknown}} unknown",
-deletedPeriod:"Deleted episode",anchorUnavailable:"Source attempt unavailable",lateImport:"Imported after history was recorded",moreTracks:"More tracks","previewCounts":"{{affected}} dives from this date · {{explicit}} existing tags kept","historyOrder":"History order","apparatus":"Apparatus","filters":"Filter attempts","fromUtc":"From","toUtc":"Until","selectPage":"Select page","selectRange":"Select range between checked attempts","correctOrder":"Correct attempt history order; anchored boundaries stay unchanged","endUtc":"End date","end":"End this period","rename":"Technique name","options":"Additional options","timezone":"Timezone","notes":"Notes","excluded":"Excluded","recordedByEpisode":"Recorded use of the same technique, by episode","outsideIntended":"Recorded outside intended episode: {{count}}","exclusion":{"uncertain": "Uncertain boundary", "other_modifiers": "Other modifiers", "not_recorded": "Not explicitly recorded", "other_techniques": "Other techniques"},context:"Context",alsoApply:"Also apply to codes or families (comma separated)",nextPeriods:"Next periods","date":"Start date","approximate":"Approximate until","reuse":"Reuse technique","edit":"Edit","delete":"Delete","deletePreview":"Delete this episode? Explicit recorded use is retained. Family context may become applicable.","ratingsDuring":"Ratings during these periods","modifiers":"Modifiers","noModifiers":"No modifiers","compare":"Compare","periods":"Periods","weighting":"Weighting","attempt":"Attempt","coverage":"{{scored}} / {{eligible}} scored · {{sessions}} sessions","attribution":"Recorded matching {{matching}} · conflicting {{conflicting}} · inferred {{inferred}} · mixed/unknown {{unknown}}","noComparable":"No comparable rated attempts","title": "Technique changes", "unavailable": "History unavailable", "conflict": "History changed. Refresh and preview again.", "enable": "Record technique change", "track": "Focus", "label": "Technique", "start": "Starting attempt", "family": "Apply to family {{family}}", "preview": "Preview", "recorded": "Recorded use", "next": "Next attempts", "mixed": "Mixed", "unknown": "Unknown", "undo": "Undo", "inferred": "Inferred context", "session": "Session state", "unrecorded": "Unrecorded", "technique": "Technique"},
+deletedPeriod:"Deleted episode",anchorUnavailable:"Source attempt unavailable",lateImport:"Imported after history was recorded",moreTracks:"More tracks","previewCounts":"{{affected}} dives in this interval · {{explicit}} existing tags kept","historyOrder":"History order","apparatus":"Apparatus","filters":"Filter attempts","fromUtc":"From","toUtc":"Until","selectPage":"Select page","selectRange":"Select range between checked attempts","correctOrder":"Correct attempt history order; anchored boundaries stay unchanged","endUtc":"End date","end":"End this period","rename":"Technique name","options":"Additional options","timezone":"Timezone","notes":"Notes","excluded":"Excluded","recordedByEpisode":"Recorded use of the same technique, by episode","outsideIntended":"Recorded outside intended episode: {{count}}","exclusion":{"uncertain": "Uncertain boundary", "other_modifiers": "Other modifiers", "not_recorded": "Not explicitly recorded", "other_techniques": "Other techniques"},context:"Context",alsoApply:"Also apply to codes or families (comma separated)",nextPeriods:"Next periods","date":"Start date","approximate":"Approximate until","reuse":"Reuse technique","edit":"Edit","delete":"Delete","deletePreview":"Delete this episode? Explicit recorded use is retained. Family context may become applicable.","ratingsDuring":"Ratings during these periods","modifiers":"Modifiers","noModifiers":"No modifiers","compare":"Compare","periods":"Periods","weighting":"Weighting","attempt":"Attempt","coverage":"{{scored}} / {{eligible}} scored · {{sessions}} sessions","attribution":"Recorded matching {{matching}} · conflicting {{conflicting}} · inferred {{inferred}} · mixed/unknown {{unknown}}","noComparable":"No comparable rated attempts","title": "Technique changes", "unavailable": "History unavailable", "conflict": "History changed. Refresh and preview again.", "enable": "Record technique change", "track": "Focus", "label": "Technique", "start": "Starting attempt", "family": "Apply to family {{family}}", "preview": "Preview", "recorded": "Recorded use", "next": "Next attempts", "mixed": "Mixed", "unknown": "Unknown", "undo": "Undo", "inferred": "Inferred context", "session": "Session state", "unrecorded": "Unrecorded", "technique": "Technique"},
   // Library UX fixes (scope A, dedicated block): keys introduced by the
   // Library-state/search/paginate fixes PR.
   libraryUX: {

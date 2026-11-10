@@ -409,3 +409,42 @@ def test_history_local_dates_normalize_without_silently_changing_saved_keys():
     assert local_boundary(datetime(2026,1,1,12), 'Europe/Paris') == datetime(2026,1,1,11)
     with pytest.raises(Exception, match='Nonexistent local time'):
         local_boundary(datetime(2026,3,29,2,30), 'Europe/Paris')
+
+def test_date_seek_includes_clips_on_both_sides_without_retaining_a_date_filter(pg,monkeypatch):
+    from sqlalchemy.orm import Session
+    from types import SimpleNamespace
+    from app.api.v1 import technique_history as api
+    monkeypatch.setattr(api,'owner',lambda *args,**kwargs:SimpleNamespace(id=1))
+    with pg.begin() as c:
+        c.execute(text("INSERT INTO technique_tracks(id,diver_id,name,revision) VALUES(1,1,'General',0)"))
+        c.execute(text("""INSERT INTO dives(session_id,diver_id,dive_code,platform_type,height,position,is_sync,performance,dive_datetime)
+        SELECT 1,1,'103','springboard','3','B',false,'G','2026-01-01'::timestamp + n * interval '1 day' FROM generate_series(1,100) n"""))
+    with Session(pg) as db:
+        page=api.attempts(1,1,api.ReadInput(code='103',apparatus='springboard',height='3',position='B',seek_at='2026-02-10T00:00:00'),None,db)
+        ids=[item['id'] for item in page['items']]
+        assert ids.index(page['focus_id'])==25
+        assert page['items'][24]['history_occurred_at'] < page['items'][25]['history_occurred_at']
+        assert page['previous'] is not None
+
+
+def test_joint_setup_preview_preserves_existing_boundaries_and_counts_final_intervals(pg,monkeypatch):
+    from datetime import datetime
+    from sqlalchemy.orm import Session
+    from types import SimpleNamespace
+    from app.api.v1 import technique_history as api
+    monkeypatch.setattr(api,'owner',lambda *args,**kwargs:SimpleNamespace(id=1))
+    with pg.begin() as c:
+        c.execute(text("INSERT INTO app_users VALUES(1); INSERT INTO technique_tracks(id,diver_id,name,revision) VALUES(1,1,'General',0)"))
+        c.execute(text("""INSERT INTO dives(session_id,diver_id,dive_code,platform_type,height,position,is_sync,performance,dive_datetime)
+        SELECT 1,1,'103','springboard','3','B',false,'G','2026-01-01'::timestamp + n * interval '1 day' FROM generate_series(1,30) n"""))
+    def change(revision,day,label):return api.Change(code='103',scope='103',apparatus='springboard',height='3',position='B',revision=revision,start_at=datetime(2026,1,day),label=label)
+    with Session(pg) as db:
+        api.change(1,1,change(0,1,'Old A'),None,db)
+        existing=api.change(1,1,change(1,10,'Saved B'),None,db)
+        result=api.setup_preview(1,1,api.SetupPreview(changes=[change(2,5,'New C'),change(2,7,'New D'),change(2,15,'New E')]),None,db)
+        assert [item['end_at'] for item in result['items']]==[datetime(2026,1,7),datetime(2026,1,10),None]
+        assert [item['counts']['affected'] for item in result['items']]==[2,3,17]
+        assert result['items'][1]['following']['id']==existing['episode']['id']
+        assert result['items'][1]['following']['label']=='Saved B'
+        assert db.scalar(text('SELECT count(*) FROM technique_episodes'))==2
+        assert db.scalar(text('SELECT revision FROM technique_tracks WHERE id=1'))==2

@@ -1,0 +1,8 @@
+{
+  "id": "technique-history-boundary-review",
+  "date": "2026-11-10",
+  "title": "Review technique periods against your existing history",
+  "body": "Browse both ways after jumping to a date, adjust a saved period in the player, and see which dives and existing changes your draft affects. The technique player shows the whole video frame on mobile.",
+  "audience": "all",
+  "components": ["backend", "frontend"]
+}

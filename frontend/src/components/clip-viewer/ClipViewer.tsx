@@ -938,7 +938,7 @@ export default function ClipViewer({
             style={
               {
                 "--clip-aspect": aspectRatio,
-                "--clip-cover-scale": picture.cover,
+                "--clip-cover-scale": workflow ? 1 : picture.cover,
                 ...(picture.width
                   ? {
                       "--clip-pic-w": `${picture.width}px`,

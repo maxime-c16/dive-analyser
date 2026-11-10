@@ -6,6 +6,15 @@
  */
 const fr = {
   technique: {
+    adjustInPlayer: "Ajuster dans le lecteur",
+    useDifferentTechnique: "Choisir une autre technique",
+    replacesPeriod: "Remplace « {{name}} » sur cet intervalle",
+    existingContinues: "Changement existant conservé : {{name}} · {{date}}",
+    setupPreviewError: "Vérifiez « {{name}} » : ce début de période n’a pas pu être validé. Votre brouillon est conservé.",
+    boundaryExists: "« {{name}} » commence sur une frontière existante. Déplacez le repère ou ajustez cette période depuis la frise.",
+    globalRatingLimit: "Note globale du plongeon : elle n’isole pas l’effet de cette technique.",
+    noMatchingUse: "Aucun plongeon identifié ne correspond à la technique prévue.",
+
     signInAgain: 'Se reconnecter',
     sessionAttempt: "Plongeon {{index}}/{{total}} de la séance",
     sessionExpired: "Votre session a expiré. Reconnectez-vous, puis réessayez.",
@@ -13,13 +22,13 @@ const fr = {
     loadingComparison: "Chargement de la comparaison…",
     retry: "Réessayer",
     moreTechniques: "Autres techniques",
-    currentTechnique: "Technique actuelle : {{name}}",
+    currentTechnique: "Technique habituelle sur cette période : {{name}}",
     proposedTechnique: "Technique proposée : {{name}}",
     movingBoundary: "Déplacer le début de « {{name}} »",
     moveStartHere: "Commencer cette période sur ce plongeon",
     moveBoundary: "Déplacer le début",
     discardChanges: "Abandonner vos modifications non enregistrées ?",
-    undoConfirm: "Annuler le dernier changement enregistré ?",
+    undoConfirm: "Défaire le dernier enregistrement enregistré ?",
     chooseScope: "Choisir un plongeon ou une famille",
     otherCode: "Un autre code de plongeon",
     addCode: "Ajouter le code",
@@ -39,7 +48,7 @@ const fr = {
     recheckHistory: 'Actualiser et vérifier à nouveau',
     setupEntry: "Retrouver mes changements",
     setupTitle: "Changements de technique",
-    setupBrowseHint: "Faites défiler vos clips. Marquez le premier plongeon réalisé avec une autre technique.",
+    setupBrowseHint: "Parcourez les clips. Marquez le début d’un changement de technique habituelle.",
     markStart: "Nouvelle technique à partir d’ici",
     editMarker: "Modifier ce repère",
     startsAtClip: "À partir de ce plongeon du {{date}}.",
@@ -97,7 +106,7 @@ const fr = {
     add: "Ajouter",
     periodSettings: "Période sélectionnée",
     endConfirm: "Terminer cette période ? Une technique de famille pourra ensuite s’appliquer.",
-    undoLast: "Annuler le dernier changement",
+    undoLast: "Défaire le dernier enregistrement",
     tagDives: "Identifier les plongeons",
     selectedDives: "{{count}} plongeons sélectionnés",
     chooseTechnique: "Choisir la technique utilisée",
@@ -119,7 +128,7 @@ const fr = {
     usualScores: "50 % des notes centrales",
     otherChanges: "Autres changements sur ces périodes",
     attributionBrief: "{{recorded}} concordants · {{conflicting}} différents · {{inferred}} supposés · {{unknown}} inconnus",
-deletedPeriod:"Période supprimée",anchorUnavailable:"Essai source indisponible",lateImport:"Importé après l’enregistrement de l’historique",moreTracks:"Autres axes","previewCounts":"{{affected}} plongeons depuis cette date · {{explicit}} identifications conservées","historyOrder":"Ordre historique","apparatus":"Appareil","filters":"Filtrer les essais","fromUtc":"Depuis","toUtc":"Jusqu’au","selectPage":"Sélectionner la page","selectRange":"Sélectionner entre les essais cochés","correctOrder":"Corriger l’ordre historique de l’essai ; les frontières ancrées sont conservées","endUtc":"Date de fin","end":"Terminer cette période","rename":"Nom de la technique","options":"Options","timezone":"Fuseau horaire","notes":"Notes","excluded":"Exclus","recordedByEpisode":"Usage enregistré de la même technique, par période","outsideIntended":"Enregistrés hors de la période prévue : {{count}}","exclusion":{"uncertain": "Frontière incertaine", "other_modifiers": "Autres modificateurs", "not_recorded": "Non enregistrés explicitement", "other_techniques": "Autres techniques"},context:"Contexte",alsoApply:"Appliquer aussi à d’autres plongeons",nextPeriods:"P\u00e9riodes suivantes","date":"Date de début","approximate":"Approximatif jusqu’au","reuse":"Réutiliser une technique","edit":"Modifier","delete":"Supprimer","deletePreview":"Supprimer cette période ? Les usages enregistrés sont conservés. Le contexte familial peut devenir applicable.","ratingsDuring":"Notes pendant ces périodes","modifiers":"Modificateurs","noModifiers":"Sans modificateur","compare":"Comparer","periods":"Périodes","weighting":"Pondération","attempt":"Essai","coverage":"{{scored}} / {{eligible}} notés · {{sessions}} séances","attribution":"Enregistrés concordants {{matching}} · divergents {{conflicting}} · déduits {{inferred}} · mixtes/inconnus {{unknown}}","noComparable":"Aucun essai noté comparable","title": "Changements de technique", "unavailable": "Historique indisponible", "conflict": "Historique modifié. Actualisez et prévisualisez à nouveau.", "enable": "Noter un changement technique", "track": "Point technique", "label": "Technique", "start": "Premier essai", "family": "Appliquer à la famille {{family}}", "preview": "Prévisualiser", "recorded": "Usage enregistré", "next": "Essais suivants", "mixed": "Mixte", "unknown": "Inconnu", "undo": "Annuler", "inferred": "Contexte déduit", "session": "État de séance", "unrecorded": "Non renseigné", "technique": "Technique"},
+deletedPeriod:"Période supprimée",anchorUnavailable:"Essai source indisponible",lateImport:"Importé après l’enregistrement de l’historique",moreTracks:"Autres axes","previewCounts":"{{affected}} plongeons dans cet intervalle · {{explicit}} identifications conservées","historyOrder":"Ordre historique","apparatus":"Appareil","filters":"Filtrer les essais","fromUtc":"Depuis","toUtc":"Jusqu’au","selectPage":"Sélectionner la page","selectRange":"Sélectionner entre les essais cochés","correctOrder":"Corriger l’ordre historique de l’essai ; les frontières ancrées sont conservées","endUtc":"Date de fin","end":"Terminer cette période","rename":"Nom de la technique","options":"Options","timezone":"Fuseau horaire","notes":"Notes","excluded":"Exclus","recordedByEpisode":"Usage enregistré de la même technique, par période","outsideIntended":"Enregistrés hors de la période prévue : {{count}}","exclusion":{"uncertain": "Frontière incertaine", "other_modifiers": "Autres modificateurs", "not_recorded": "Non enregistrés explicitement", "other_techniques": "Autres techniques"},context:"Contexte",alsoApply:"Appliquer aussi à d’autres plongeons",nextPeriods:"P\u00e9riodes suivantes","date":"Date de début","approximate":"Approximatif jusqu’au","reuse":"Réutiliser une technique","edit":"Modifier","delete":"Supprimer","deletePreview":"Supprimer cette période ? Les usages enregistrés sont conservés. Le contexte familial peut devenir applicable.","ratingsDuring":"Notes pendant ces périodes","modifiers":"Modificateurs","noModifiers":"Sans modificateur","compare":"Comparer","periods":"Périodes","weighting":"Pondération","attempt":"Essai","coverage":"{{scored}} / {{eligible}} notés · {{sessions}} séances","attribution":"Enregistrés concordants {{matching}} · divergents {{conflicting}} · déduits {{inferred}} · mixtes/inconnus {{unknown}}","noComparable":"Aucun essai noté comparable","title": "Changements de technique", "unavailable": "Historique indisponible", "conflict": "Historique modifié. Actualisez et prévisualisez à nouveau.", "enable": "Noter un changement technique", "track": "Point technique", "label": "Technique", "start": "Premier essai", "family": "Appliquer à la famille {{family}}", "preview": "Prévisualiser", "recorded": "Usage enregistré", "next": "Essais suivants", "mixed": "Mixte", "unknown": "Inconnu", "undo": "Annuler", "inferred": "Contexte déduit", "session": "État de séance", "unrecorded": "Non renseigné", "technique": "Technique"},
   // Library UX fixes (périmètre A, bloc dédié) : clés introduites par la PR
   // de corrections Library (état, recherche par nom, pagination, période).
   libraryUX: {

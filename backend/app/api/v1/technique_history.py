@@ -94,6 +94,7 @@ class ReadInput(ContextInput):
     timezone: str = Field(default='UTC', max_length=80)
     before: int = Field(default=0,ge=0)
     around: int = Field(default=0,ge=0)
+    seek_at: datetime | None = None
     session_id:int | None = None
     from_date:datetime | None = None
     to_date:datetime | None = None
@@ -104,11 +105,12 @@ def attempts(diver: int, track: int, body: ReadInput, request: Request, db: Sess
     owner(request, db, diver); row = track_for(db, diver, track)
     body.from_date = local_boundary(body.from_date, body.timezone)
     body.to_date = local_boundary(body.to_date, body.timezone)
+    body.seek_at = local_boundary(body.seek_at, body.timezone)
     params = dict(body.model_dump(), diver=diver, track=track)
-    if sum(bool(value) for value in (body.after, body.before, body.around)) > 1:
+    if sum(bool(value) for value in (body.after, body.before, body.around, body.seek_at)) > 1:
         raise HTTPException(422, 'Choose one navigation cursor')
     source = RESOLVED + ", browse_context AS (SELECT resolved.*, row_number() OVER (PARTITION BY session_id ORDER BY history_occurred_at,id) session_index, count(*) OVER (PARTITION BY session_id) session_total FROM resolved) "
-    query = """ SELECT id,session_id,session_index,session_total,video_uuid,dive_code,dive_datetime,history_occurred_at,performance,late_import,episode_id,recorded_episode_id,recorded_episode_deleted,intended_id,state,use_id,
+    query = """ SELECT id,session_id,session_index,session_total,video_uuid,dive_code,dive_datetime,history_occurred_at,performance,late_import,intended_start_at,intended_start_id,episode_id,recorded_episode_id,recorded_episode_deleted,intended_id,state,use_id,
     (SELECT label FROM techniques WHERE techniques.id=resolved.use_id AND techniques.track_id=:track) use_label,(SELECT label FROM techniques WHERE techniques.id=resolved.intended_id AND techniques.track_id=:track) intended_label,source FROM browse_context AS resolved
     WHERE (CAST(:session_id AS integer) IS NULL OR session_id=:session_id)
     AND (CAST(:from_date AS timestamp) IS NULL OR history_occurred_at>=:from_date)
@@ -116,13 +118,17 @@ def attempts(diver: int, track: int, body: ReadInput, request: Request, db: Sess
     key = '(history_occurred_at,id)'
     def cursor(name):
         return f'(SELECT history_occurred_at,id FROM eligible WHERE id=:{name})'
+    if body.seek_at:
+        anchor = db.scalar(text(source + ' SELECT id FROM browse_context WHERE history_occurred_at>=:seek_at ORDER BY history_occurred_at,id LIMIT 1'), params)
+        if anchor is None: return {'revision': row.revision, 'items': [], 'previous': None, 'next': None}
+        body.around = anchor; params['around'] = anchor
     if body.around:
         # At most 52 narrow rows materialize; the anchor is scoped through
         # eligible, including diver and exact code/apparatus/height context.
         earlier = db.execute(text(source + query + f' AND {key} < {cursor("around")} ORDER BY history_occurred_at DESC,id DESC LIMIT 26'), params).mappings().all()
         later = db.execute(text(source + query + f' AND {key} >= {cursor("around")} ORDER BY history_occurred_at,id LIMIT 26'), params).mappings().all()
         items = list(reversed(earlier[:25])) + later[:25]
-        return {'revision': row.revision, 'items': [dict(r) for r in items], 'previous': earlier[24]['id'] if len(earlier)>25 else None, 'next': later[24]['id'] if len(later)>25 else None}
+        return {'revision': row.revision, 'focus_id': body.around, 'items': [dict(r) for r in items], 'previous': earlier[24]['id'] if len(earlier)>25 else None, 'next': later[24]['id'] if len(later)>25 else None}
     if body.before:
         rows = db.execute(text(source + query + f' AND {key} < {cursor("before")} ORDER BY history_occurred_at DESC,id DESC LIMIT 51'), params).mappings().all()
         items = list(reversed(rows[:50]))
@@ -221,6 +227,54 @@ def preview(diver:int,track:int,body:Change,request:Request,db:Session=Depends(g
     if body.episode_id and original is None:raise HTTPException(404,'Episode unavailable')
     counts=preview_counts(db,row,body,upcoming)
     return {'original':snapshot(original) if original else None,'counts':dict(counts),'revision':row.revision,'previous':snapshot(previous) if previous else None,'upcoming':snapshot(upcoming) if upcoming else None,'change':body.model_dump()}
+
+
+class SetupPreview(BaseModel):
+    changes: list[Change] = Field(min_length=1, max_length=16)
+
+
+@router.post('/{diver}/{track}/setup-preview')
+def setup_preview(diver:int, track:int, body:SetupPreview, request:Request, db:Session=Depends(get_db)):
+    owner(request,db,diver,True)
+    row=track_for(db,diver,track,body.changes[0].revision)
+    plans=[]
+    context=None
+    for index,change_body in enumerate(body.changes):
+        if change_body.revision!=row.revision:raise HTTPException(409,'History changed')
+        key=(change_body.code,change_body.scope,change_body.apparatus,change_body.height,change_body.position,change_body.sync,change_body.constrain_position,change_body.constrain_sync)
+        if context is not None and key!=context:raise HTTPException(422,'Choose one setup context')
+        context=key
+        try:
+            previous,upcoming=plan(db,row,change_body)
+        except HTTPException as failure:
+            raise HTTPException(failure.status_code,{'marker_index':index,'reason':failure.detail}) from None
+        # Editing uses the same crossing guard as the writer; no preview of an impossible move.
+        if change_body.episode_id:
+            original=db.scalar(select(TechniqueEpisode).where(TechniqueEpisode.id==change_body.episode_id,TechniqueEpisode.track_id==track,TechniqueEpisode.deleted.is_(False)))
+            if original is None:raise HTTPException(404,'Episode unavailable')
+            from sqlalchemy import tuple_
+            lower=db.scalar(select(TechniqueEpisode).where(TechniqueEpisode.track_id==track,TechniqueEpisode.scope==original.scope,TechniqueEpisode.apparatus==original.apparatus,TechniqueEpisode.height==original.height,TechniqueEpisode.position.is_not_distinct_from(original.position),TechniqueEpisode.sync.is_not_distinct_from(original.sync),TechniqueEpisode.deleted.is_(False),tuple_(TechniqueEpisode.start_at,TechniqueEpisode.start_id)<(original.start_at,original.start_id)).order_by(TechniqueEpisode.start_at.desc(),TechniqueEpisode.start_id.desc()).limit(1))
+            upper=db.scalar(select(TechniqueEpisode).where(TechniqueEpisode.track_id==track,TechniqueEpisode.scope==original.scope,TechniqueEpisode.apparatus==original.apparatus,TechniqueEpisode.height==original.height,TechniqueEpisode.position.is_not_distinct_from(original.position),TechniqueEpisode.sync.is_not_distinct_from(original.sync),TechniqueEpisode.deleted.is_(False),tuple_(TechniqueEpisode.start_at,TechniqueEpisode.start_id)>(original.start_at,original.start_id)).order_by(TechniqueEpisode.start_at,TechniqueEpisode.start_id).limit(1))
+            if (lower and (change_body.start_at,change_body.start_id)<=(lower.start_at,lower.start_id)) or (upper and (change_body.start_at,change_body.start_id)>=(upper.start_at,upper.start_id)):
+                raise HTTPException(409,{'marker_index':index,'reason':'Edit crosses boundary'})
+        plans.append((change_body,previous,upcoming))
+    keys=[(change_body.start_at,change_body.start_id) for change_body,_,_ in plans]
+    if keys!=sorted(set(keys)):raise HTTPException(422,'Choose distinct ordered boundaries')
+    items=[]
+    for index,(change_body,previous,upcoming) in enumerate(plans):
+        stop=(upcoming.start_at,upcoming.start_id) if upcoming else (None,None)
+        following_existing=upcoming
+        if index+1<len(plans):
+            next_body=plans[index+1][0]
+            if stop[0] is None or (next_body.start_at,next_body.start_id)<stop:
+                stop=(next_body.start_at,next_body.start_id);following_existing=None
+        def label_for(episode):
+            return db.scalar(select(Technique.label).where(Technique.id==episode.technique_id,Technique.track_id==track)) if episode and episode.technique_id else None
+        items.append({'anchor_id':change_body.anchor_id,'start_at':change_body.start_at,'end_at':stop[0],'end_id':stop[1],
+                      'counts':preview_counts(db,row,change_body,upcoming,stop_override=stop),
+                      'replaces':label_for(previous) if previous and (previous.end_at is None or (previous.end_at,previous.end_id)>(change_body.start_at,change_body.start_id)) else None,
+                      'following':{'id':following_existing.id,'label':label_for(following_existing),'start_at':following_existing.start_at} if following_existing else None})
+    return {'revision':row.revision,'items':items}
 
 
 @router.post('/{diver}/{track}/changes')

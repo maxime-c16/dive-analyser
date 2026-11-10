@@ -146,3 +146,6 @@
 .th-scope-chips button { min-height:36px; padding:6px 10px; font-size:12px; }
 .clip-viewer.is-workflow .clip-nav-fraction { font-size:12px; white-space:normal; text-align:center; }
 .th-setup-review-list li > div:last-child { display:flex; flex-wrap:wrap; gap:4px; }
+
+.th-score.is-conflicted { font-size: 22px; color: var(--app-muted); }
+.th-setup-impact { display: grid; gap: 5px; grid-column: 1 / -1; color: var(--app-muted); }
