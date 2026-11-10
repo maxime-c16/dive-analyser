@@ -1184,7 +1184,7 @@ def get_media_status_batch(
 
 
 # Transform versions whose Light is rate-capped (2.5 Mbps); others are not.
-CAPPED_LIGHT_VERSIONS = frozenset({"ffmpeg-h264-web-v2", "ffmpeg-h264-web-v3"})
+CAPPED_LIGHT_VERSIONS = frozenset({"ffmpeg-h264-web-v2", "ffmpeg-h264-web-v3", "ffmpeg-h264-web-v4"})
 
 
 def _add_start_role_hints(db: Session, result: dict, video_uuids: list[str]) -> None:

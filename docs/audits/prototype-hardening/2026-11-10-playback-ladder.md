@@ -323,3 +323,42 @@ rule is one shared function (`evaluate_trusted_replicas`), used by both
 change. A precomputed playback table was not built: it needs a production
 migration and an invalidation path in every writer, while this removes most
 of the cost without either.
+
+### v4: fragmented MP4 for HLS, and a second encoder (2026-11-10)
+
+Owner decision: pause the v2/v3 backfill (45 clips done) and backfill once in
+v4. v4 is v3's encode (`faster`, Light capped 2.5M, HQ 12M) written as
+fragmented MP4 (`+frag_keyframe+empty_moov+default_base_moof+global_sidx`).
+
+Proof of concept on the real clip:
+- **Layout:** `ftyp`, `moov` (init, about 800 B), a 196 B global `sidx`, then
+  1 s `moof`/`mdat` fragments. Sizes match v3.
+- **Progressive playback:** Chrome plays the file as a normal MP4, first frame
+  in 86–107 ms, so older clients still work.
+- **Playlists:** a byte-range HLS media playlist can be built from the first
+  ~1 KB alone.
+- **Adaptive switching:** hls.js started on HQ at 20 Mbps and stepped down to
+  Light when the network dropped to 4 Mbps at 2.5 s, with 0.77 s of total
+  stall over three laps. Progressive HQ at 6 Mbps stalls 15 s.
+- **To tune in the player PR:** ABR settings, because hls.js climbs back to
+  HQ after each loop.
+
+Both the agent's and the server's validators already accept the layout
+(`moov` precedes the first `mdat`).
+
+**Second encoder:**
+- `MEDIA_MAX_ACTIVE_PACKAGES` (compose default 2) caps packages fleet-wide,
+  and an agent never holds two packages at once.
+- `scripts/register_media_agent.py add` registers a package-only Mac with its
+  own key. Only the hash is stored; the key goes to a 0600 file and is never
+  printed.
+
+**Rollout order:**
+1. `ci/ship.sh mac`.
+2. `ci/ship.sh server`.
+3. Register and start the M2 agent.
+4. Cancel run 2.
+5. Start a v4 run.
+
+The HLS playlists and the player come in the next PRs; the v4 files already
+work as progressive MP4 meanwhile.
