@@ -7,7 +7,7 @@ import ImmersiveControls, { type FeedDragEnd } from './clip-viewer/ImmersiveCont
 import QualityMenu from './clip-viewer/QualityMenu'
 import { useAuth } from '../contexts/AuthContext'
 import { cachedPreview } from '../utils/mediaPreview'
-import { releaseDetached, releaseWarmup } from '../utils/preparedPlayback'
+import { releaseDetached } from '../utils/preparedPlayback'
 import {
   NOMINAL_MBPS,
   autoStartUrl,
@@ -218,6 +218,9 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, onPlay
   }, [])
   // Light bitrate of this clip's package (v1 uncapped vs v2 capped).
   const lightMbpsRef = useRef(2.7)
+  // Proxy bitrate: 720p ~1.1 Mbps, legacy 360p ~0.25 Mbps. Unknown counts as
+  // the low one so the network estimate can only err on the safe side.
+  const previewMbpsRef = useRef(NOMINAL_MBPS.preview360)
 
   // Load identity of the first-frame gate: the ready source itself. Any
   // identity change — source switch, leaving or re-entering ready, A→B→A —
@@ -236,15 +239,10 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, onPlay
   useEffect(() => {
     if (phase.kind === 'ready' && framePresented) presentedSourceRef.current = { uuid: videoUuid, src: phase.src }
   }, [videoUuid, phase, framePresented])
-  // The viewer's clip goes first (PreparedVideo holds warming on mount):
-  // neighbors warm after its first frame, a failure, or leaving the clip.
-  useEffect(() => {
-    if (!immersive) return
-    return releaseWarmup
-  }, [immersive, videoUuid])
-  useEffect(() => {
-    if (immersive && (framePresented || decodeError || phase.kind === 'transport-failed' || phase.kind === 'prepare-failed' || phase.kind === 'not-cached')) releaseWarmup()
-  }, [immersive, framePresented, decodeError, phase.kind])
+  // The viewer's clip goes first: PreparedVideo holds neighbor warming from
+  // mount until this clip presents, fails, or unmounts (owner-scoped).
+  const warmupDone = framePresented || decodeError || phase.kind === 'transport-failed'
+    || phase.kind === 'prepare-failed' || phase.kind === 'not-cached'
 
   useEffect(() => {
     const seed = playbackSeed(videoUuid)
@@ -296,6 +294,8 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, onPlay
       lastPreparingStateRef.current = null
       const choiceUrls: Record<QualityKey, string | null> = { preview: previewUrl, light: lightUrl, hq: hqUrl, original: originalUrl }
       lightMbpsRef.current = data.derivatives?.transform_version === 'ffmpeg-h264-web-v1' ? 6.4 : 2.7
+      previewMbpsRef.current = data.cache_entries?.some(entry => entry.rendition === 'proxy_720p' && entry.playback_url === previewUrl)
+        ? NOMINAL_MBPS.preview : NOMINAL_MBPS.preview360
       const autoQuality = choiceRef.current === null && getQualityPreference() === 'auto'
       // Auto starts the immersive viewer on durable Light when the network
       // allows; the small proxy remains the weak-network start.
@@ -859,7 +859,7 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, onPlay
     const video = videoRef.current
     if (!immersive || !gateKey || !video) return
     const key = qualityKeyOf(gateKey)
-    const mbps = key === 'light' ? lightMbpsRef.current : NOMINAL_MBPS[key]
+    const mbps = key === 'light' ? lightMbpsRef.current : key === 'preview' ? previewMbpsRef.current : NOMINAL_MBPS[key]
     let started = performance.now()
     let sampled = false
     const onLoadStart = () => { started = performance.now(); sampled = false }
@@ -889,9 +889,12 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, onPlay
   // Climb one step the network can sustain: proxy → Light, Light/proxy → HQ.
   const upgradeTarget = (() => {
     if (!(immersive && autoQuality && phase.kind === 'ready' && framePresented && !decodeError && !recovering)) return null
-    if ((currentQuality === 'light' || currentQuality === 'preview') && hqSrc && hqSrc !== lightSrc && canAffordHq()) return hqSrc
-    if (currentQuality === 'preview' && lightSrc && lightSrc !== phase.src && canAffordRate(lightMbpsRef.current)) return lightSrc
-    return null
+    const distinctHq = hqSrc && hqSrc !== lightSrc ? hqSrc : null
+    if (currentQuality === 'light') return distinctHq && canAffordHq() ? distinctHq : null
+    if (currentQuality !== 'preview') return null
+    // From the proxy, Light comes first; HQ only when there is no Light.
+    if (lightSrc && lightSrc !== phase.src) return canAffordRate(lightMbpsRef.current) ? lightSrc : null
+    return distinctHq && canAffordHq() ? distinctHq : null
   })()
   useEffect(() => {
     const active = videoRef.current
@@ -1007,7 +1010,7 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, onPlay
       ? lightSrc ?? previewSrc
       : currentQuality === 'light' ? previewSrc : null
     if (!lower || lower === phase.src) return
-    recordThroughput((currentQuality === 'light' ? lightMbpsRef.current : NOMINAL_MBPS[currentQuality]) * 0.5)
+    recordThroughput((currentQuality === 'light' ? lightMbpsRef.current : currentQuality === 'preview' ? previewMbpsRef.current : NOMINAL_MBPS[currentQuality]) * 0.5)
     cancelBackground()
     autoStartRef.current = null
     resumeRef.current = continuity()
@@ -1100,6 +1103,7 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, onPlay
         originalSrc={phase.kind === 'ready' ? phase.originalSrc || undefined : undefined}
         onVideoChange={handleVideoChange}
         swapRef={swapRef}
+        warmupDone={warmupDone}
         videoRef={videoRef}
         soundRef={soundRef}
         className="block h-full w-full bg-black clip-video"

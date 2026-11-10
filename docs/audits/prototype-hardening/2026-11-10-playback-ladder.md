@@ -158,23 +158,22 @@ Throttled Chrome playback of the same clip:
 
 ## Rollout order (each step needs explicit approval)
 
-1. **Server.** Ship backend and frontend: `ci/ship.sh server --dry-run` first.
-   No migration and no env change are required. Verify `Server-Timing` on a
-   grant, the role route and `start_role` in the batch.
-2. **Mac agent.** Run `ci/ship.sh mac`; the agent now knows v2 and still
-   produces v1 for v1 leases.
-3. **Cutover.** On the server env, set:
-   - `MEDIA_DERIVATIVE_TRANSFORM_VERSION=ffmpeg-h264-web-v2`
-   - `MEDIA_DERIVATIVE_SERVED_TRANSFORM_VERSIONS=ffmpeg-h264-web-v2,ffmpeg-h264-web-v1`
+No SQL migration. `docker-compose.yml` makes new jobs v2 and serves v2 then
+v1, so the Mac agent must know v2 before the server ships.
 
-   New packages become v2; existing clips keep serving v1.
-4. **Backfill.** Check that no migration run is active
-   (`scripts/media_migration.py status`), then start a v2 run with the
-   existing controller (`start --budget-gib N`). It is bounded by budget,
-   queue depth and the infra breaker, behind new uploads (priority 70).
-   Expect about 45 s of Mac time per clip, plus about 29 MB of B2 download and
-   about 25 MB of upload per clip.
-5. **Retire v1.** After full coverage, remove v1 from the served list. Delete
-   v1 objects only after a grace period.
-6. **Announce.** Once the Mac upgrade is confirmed, announce the lighter Light
-   in a server PR.
+1. **Mac agent first.** Run `ci/ship.sh mac`. The agent learns v2 and still
+   encodes v1 leases byte-identically, so it is safe before the server.
+2. **Server.** Run `ci/ship.sh server` (`--dry-run` first). New packages
+   become v2; existing clips keep serving v1. Verify `Server-Timing` on a
+   grant, the role route and `start_role` in the batch.
+3. **Backfill.** Cancel any open v1 migration run
+   (`scripts/media_migration.py status`, then `cancel`), then start a v2 run
+   with the existing controller (`start --budget-gib N`). It is bounded by
+   budget, queue depth and the infra breaker, behind new uploads
+   (priority 70). Expect about 45 s of Mac time per clip, plus about 29 MB of
+   B2 download and about 25 MB of upload per clip.
+4. **Retire v1.** After full coverage, remove v1 from
+   `MEDIA_DERIVATIVE_SERVED_TRANSFORM_VERSIONS`. Delete v1 objects only after
+   a grace period.
+5. **Announce.** Once the Mac upgrade is confirmed, announce the lighter
+   Light in a server PR.

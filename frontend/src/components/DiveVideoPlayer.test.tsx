@@ -1882,3 +1882,39 @@ it('climbs from the proxy to Light when the network sustains Light but not HQ', 
     create.mockRestore()
   }
 })
+
+it('from the proxy, Auto climbs to Light first even with HQ headroom', async () => {
+  recordThroughput(1)
+  vi.mocked(getMediaStatus).mockResolvedValue({ ...durableChoices('one-step'), preview_url: '/proxy.mp4', cache_entries: [{ id: 1, rendition: 'proxy_720p', playback_url: '/proxy.mp4' }] })
+  const create = vi.spyOn(document, 'createElement')
+  try {
+    const { rerender } = render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="one-step" immersive />)
+    const active = await screen.findByLabelText('103B 1m dive video') as HTMLVideoElement
+    await waitFor(() => expect(active).toHaveAttribute('src', '/proxy.mp4'))
+    await presentFirstFrame(active)
+    for (let sample = 0; sample < 6; sample += 1) recordThroughput(80)
+    rerender(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="one-step" immersive />)
+    await waitFor(() => expect(backgroundVideo(create, '/api/v1/media/revisions/3/play')).toBeDefined())
+    expect(backgroundVideo(create, '/api/v1/media/revisions/2/play')).toBeUndefined()
+  } finally {
+    create.mockRestore()
+  }
+})
+
+it('a legacy 360p proxy is measured at its own bitrate, not the 720p one', async () => {
+  vi.mocked(getMediaStatus).mockResolvedValue({ ...ready, video_uuid: 'p360', playback_url: '/p360.mp4', preview_url: '/p360.mp4', cache_entries: [{ id: 1, rendition: 'proxy_360p', playback_url: '/p360.mp4' }] })
+  const now = vi.spyOn(performance, 'now').mockReturnValue(0)
+  try {
+    render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="p360" immersive />)
+    const video = await screen.findByLabelText('103B 1m dive video') as HTMLVideoElement
+    await waitFor(() => expect(video).toHaveAttribute('src', '/p360.mp4'))
+    await presentFirstFrame(video)
+    setMediaState(video, { duration: 10 })
+    Object.defineProperty(video, 'buffered', { configurable: true, value: { length: 1, end: () => 10, start: () => 0 } })
+    now.mockReturnValue(1000) // 10 s of media buffered in 1 s
+    fireEvent(video, new Event('progress'))
+    expect(throughputEstimate()).toBeCloseTo(10 * 0.25)
+  } finally {
+    now.mockRestore()
+  }
+})

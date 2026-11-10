@@ -121,12 +121,12 @@ it('does not warm an unresolved local original after playback status fails', asy
 
 it('holds neighbor warming until the visible clip starts, bounded in time', async () => {
   const create = vi.spyOn(document, 'createElement')
-  holdWarmup()
+  const release = holdWarmup()
   preparePlaybackWindow(['here', 'next'])
   await flush()
   expect(getPreviewForPlayback).not.toHaveBeenCalled()
   expect(create.mock.calls.filter(([tag]) => tag === 'video')).toHaveLength(0)
-  releaseWarmup()
+  release()
   await flush()
   expect(create.mock.calls.filter(([tag]) => tag === 'video')).toHaveLength(2)
   // A clip that never presents cannot block warming forever.
@@ -137,4 +137,17 @@ it('holds neighbor warming until the visible clip starts, bounded in time', asyn
   expect(getPreviewForPlayback).not.toHaveBeenCalledWith('other')
   await vi.advanceTimersByTimeAsync(WARMUP_HOLD_MS)
   expect(getPreviewForPlayback).toHaveBeenCalledWith('other')
+})
+
+it('a previous clip releasing late never ends the next clip hold', async () => {
+  const releasePrevious = holdWarmup()
+  const releaseNext = holdWarmup() // the next clip mounts before the old one cleans up
+  preparePlaybackWindow(['next', 'after'])
+  releasePrevious()
+  await flush()
+  expect(getPreviewForPlayback).not.toHaveBeenCalled()
+  releaseNext()
+  await flush()
+  expect(getPreviewForPlayback).toHaveBeenCalled()
+  releaseWarmup() // reset path stays callable with no hold
 })

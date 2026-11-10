@@ -106,25 +106,39 @@ export function releasePlaybackVideo(uuid: string, video: HTMLVideoElement) {
 // answers in arrival order, so neighbor status/grant lookups queued ahead of
 // the visible clip's own requests delayed its first frame by seconds.
 export const WARMUP_HOLD_MS = 2500
-let warmupHold: { promise: Promise<void>; release: () => void } | null = null
+type WarmupHold = { promise: Promise<void>; resolve: () => void; owner: symbol; timer: ReturnType<typeof setTimeout> | undefined }
+let warmupHold: WarmupHold | null = null
 
-/** The visible clip is starting: hold neighbor warming (bounded). */
-export function holdWarmup() {
-  if (warmupHold) return
-  let resolve!: () => void
-  const promise = new Promise<void>(done => { resolve = done })
-  const release = () => {
-    clearTimeout(timer)
-    if (warmupHold?.promise === promise) warmupHold = null
-    resolve()
-  }
-  const timer = setTimeout(release, WARMUP_HOLD_MS)
-  warmupHold = { promise, release }
+function endHold(hold: WarmupHold) {
+  clearTimeout(hold.timer)
+  if (warmupHold === hold) warmupHold = null
+  hold.resolve()
 }
 
-/** The visible clip presented (or failed, or left): warm the neighbors. */
+/**
+ * The visible clip is starting: hold neighbor warming (bounded). Returns a
+ * release bound to THIS caller: a newer clip takes ownership of the hold, so
+ * the previous clip's late cleanup can never release the newer clip's hold.
+ */
+export function holdWarmup(): () => void {
+  const owner = Symbol('warmup')
+  if (!warmupHold) {
+    let resolve!: () => void
+    const promise = new Promise<void>(done => { resolve = done })
+    warmupHold = { promise, resolve, owner, timer: undefined }
+  }
+  const hold = warmupHold
+  clearTimeout(hold.timer)
+  hold.owner = owner
+  hold.timer = setTimeout(() => endHold(hold), WARMUP_HOLD_MS)
+  return () => {
+    if (warmupHold === hold && hold.owner === owner) endHold(hold)
+  }
+}
+
+/** Sign-out/reset: end any hold regardless of owner. */
 export function releaseWarmup() {
-  warmupHold?.release()
+  if (warmupHold) endHold(warmupHold)
 }
 
 export function warmPlaybackVideo(uuid: string) {

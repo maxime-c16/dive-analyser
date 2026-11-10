@@ -21,6 +21,8 @@ interface Props {
   onError: () => void
   /** Filled with a swap function while mounted (background quality swap). */
   swapRef?: MutableRefObject<SwapVideo | null>
+  /** The clip presented, failed or gave up: neighbors may warm now. */
+  warmupDone?: boolean
 }
 
 // Reuse one native element and stream the chosen full-quality source. The
@@ -32,6 +34,7 @@ export default function PreparedVideo(props: Props) {
   const hostRef = useRef<HTMLDivElement>(null)
   const primaryRef = useRef<HTMLVideoElement | null>(null)
   const unlistenRef = useRef<(() => void) | null>(null)
+  const releaseHoldRef = useRef<(() => void) | null>(null)
   const latest = useRef(props)
   latest.current = props
   const setVideo = (video: HTMLVideoElement | null) => {
@@ -63,7 +66,8 @@ export default function PreparedVideo(props: Props) {
   useLayoutEffect(() => {
     // Layout effects run before any passive effect: the visible clip claims
     // the network before thumbnails or neighbors start warming.
-    holdWarmup()
+    const releaseHold = holdWarmup()
+    releaseHoldRef.current = releaseHold
     const video = acquirePlaybackVideo(props.videoUuid)
     primaryRef.current = video
     setVideo(video)
@@ -83,8 +87,12 @@ export default function PreparedVideo(props: Props) {
       hosted.removeAttribute('aria-hidden')
       hosted.removeAttribute('style')
       releasePlaybackVideo(props.videoUuid, hosted)
+      releaseHold()
     }
   }, [props.videoUuid, props.videoRef])
+  useLayoutEffect(() => {
+    if (props.warmupDone) releaseHoldRef.current?.()
+  }, [props.warmupDone, props.videoUuid])
   useLayoutEffect(() => {
     const video = primaryRef.current
     if (!video) return

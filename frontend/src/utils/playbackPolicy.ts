@@ -10,8 +10,9 @@ export type QualityPreference = 'auto' | 'preview' | 'light' | 'hq' | 'original'
 export type PlaybackRole = 'light' | 'hq'
 
 /** Nominal bitrates (Mbps) used to turn buffering speed into throughput. */
-export const NOMINAL_MBPS: Record<'preview' | 'light' | 'hq' | 'original', number> = {
+export const NOMINAL_MBPS: Record<'preview' | 'preview360' | 'light' | 'hq' | 'original', number> = {
   preview: 1.1,
+  preview360: 0.25,
   light: 4.5,
   hq: 12.9,
   original: 18,
