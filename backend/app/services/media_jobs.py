@@ -742,7 +742,8 @@ def _export_options(rendition: str) -> dict:
         # the canonical B2 original pinned at lease (source_sha256 in the
         # leased payload, never browser_playback) and runs package_encoder
         # once with threads=1 per variant. Small sources alias hq->light.
-        return {"kind": "package", "slots": list(PACKAGE_SLOTS), "threads_per_variant": 1}
+        # Descriptive only: the worker applies its own media.package_threads_per_variant.
+        return {"kind": "package", "slots": list(PACKAGE_SLOTS), "threads_per_variant": 2}
     return {"kind": rendition}
 
 

@@ -6,6 +6,7 @@ import DiveVideoPlayer, {
   INITIAL_STATUS_ATTEMPTS,
   LONG_PREPARATION_MS,
   MAX_AUTO_RECOVERIES,
+  STATUS_DEFER_MS,
   MAX_POLL_FAILURES,
   MEDIA_POLL_INTERVAL_MS,
 } from './DiveVideoPlayer'
@@ -1675,8 +1676,10 @@ it('starts on the durable Light by role, without waiting for status, and keeps i
   let finish!: (status: MediaStatus) => void
   vi.mocked(getMediaStatus).mockReturnValue(new Promise(done => { finish = done }))
   render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="role-start" immersive />)
-  const video = screen.getByLabelText('103B 1m dive video')
+  const video = screen.getByLabelText('103B 1m dive video') as HTMLVideoElement
   expect(video).toHaveAttribute('src', '/api/v1/media/role-start/play/light')
+  await presentFirstFrame(video) // the status lookup waits for the first frame
+  await waitFor(() => expect(getMediaStatus).toHaveBeenCalled())
   await act(async () => { finish({ ...durableChoices('role-start'), preview_url: '/proxy.mp4' }) })
   // Same bytes as the status Light URL: never reloaded under another URL.
   expect(video).toHaveAttribute('src', '/api/v1/media/role-start/play/light')
@@ -1962,4 +1965,28 @@ it('a speed sample from elsewhere (neighbor or proxy download) re-evaluates Auto
   } finally {
     create.mockRestore()
   }
+})
+
+it('a clip started by role asks for its status only after the first frame', async () => {
+  await seedLightHint('defer-status')
+  vi.mocked(getMediaStatus).mockResolvedValue({ ...durableChoices('defer-status'), preview_url: '/proxy.mp4' })
+  render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="defer-status" immersive />)
+  const video = screen.getByLabelText('103B 1m dive video') as HTMLVideoElement
+  expect(video).toHaveAttribute('src', '/api/v1/media/defer-status/play/light')
+  await act(async () => {})
+  expect(getMediaStatus).not.toHaveBeenCalled()
+  await presentFirstFrame(video)
+  await waitFor(() => expect(getMediaStatus).toHaveBeenCalledWith('defer-status'))
+  expect(video).toHaveAttribute('src', '/api/v1/media/defer-status/play/light')
+})
+
+it('a role-started clip that never presents still gets its status after a bounded wait', async () => {
+  await seedLightHint('defer-timeout')
+  vi.useFakeTimers()
+  vi.mocked(getMediaStatus).mockResolvedValue({ ...durableChoices('defer-timeout'), preview_url: '/proxy.mp4' })
+  render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="defer-timeout" immersive />)
+  await act(async () => { await vi.advanceTimersByTimeAsync(STATUS_DEFER_MS - 100) })
+  expect(getMediaStatus).not.toHaveBeenCalled()
+  await act(async () => { await vi.advanceTimersByTimeAsync(200) })
+  expect(getMediaStatus).toHaveBeenCalledWith('defer-timeout')
 })

@@ -67,6 +67,8 @@ export const BACKGROUND_UPGRADE_TIMEOUT_MS = 20_000
 /** Auto steps down after two stalls in this window, or one long stall. */
 export const STALL_WINDOW_MS = 20_000
 export const LONG_STALL_MS = 2_000
+/** A role-started clip fetches status after its first frame, or after this. */
+export const STATUS_DEFER_MS = 2_500
 
 type QualityKey = 'preview' | 'light' | 'hq' | 'original'
 /** Where the viewer was when a source is replaced: restored on its metadata. */
@@ -202,6 +204,14 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, onPlay
   const recoveriesRef = useRef(0)
   const [recovering, setRecovering] = useState(false)
   const lookupRef = useRef<{ uuid: string; epoch: number } | null>(null)
+  // A clip started by role needs no status before its first frame: the
+  // lookup waits (bounded) so it does not compete with the grant and bytes
+  // on the single-worker backend. The quality menu fills in when it lands.
+  const statusGateRef = useRef<{ promise: Promise<void>; release: () => void } | null>(null)
+  const releaseStatusGate = useCallback(() => {
+    statusGateRef.current?.release()
+    statusGateRef.current = null
+  }, [])
   const [statusUnknown, setStatusUnknown] = useState(false)
   const [isRequesting, setIsRequesting] = useState(false)
   const [retryEpoch, setRetryEpoch] = useState(0)
@@ -247,6 +257,9 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, onPlay
   // mount until this clip presents, fails, or unmounts (owner-scoped).
   const warmupDone = framePresented || decodeError || phase.kind === 'transport-failed'
     || phase.kind === 'prepare-failed' || phase.kind === 'not-cached'
+  useEffect(() => {
+    if (warmupDone) releaseStatusGate()
+  }, [warmupDone, releaseStatusGate])
 
   useEffect(() => {
     const seed = playbackSeed(videoUuid)
@@ -389,6 +402,10 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, onPlay
       preparingSinceRef.current = null
       lastPreparingStateRef.current = null
       setPhase({ kind: 'ready', src: autoStart, originalSrc: seed?.originalPlaybackUrl })
+      let release!: () => void
+      const promise = new Promise<void>(done => { release = done })
+      const timer = window.setTimeout(release, STATUS_DEFER_MS)
+      statusGateRef.current = { promise, release: () => { window.clearTimeout(timer); release() } }
     } else if (seed?.playbackUrl) {
       // Seeding the ready phase with a previously issued playback URL
       // never creates preparation work and never overrides backend state:
@@ -403,6 +420,9 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, onPlay
 
     const run = async (attempt: number) => {
       try {
+        const gate = attempt === 1 ? statusGateRef.current : null
+        if (gate) await gate.promise
+        if (cancelled) return
         const data = await getMediaStatus(videoUuid)
         if (cancelled) return
         applyStatus(data)
@@ -425,8 +445,9 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, onPlay
     run(1)
     return () => {
       cancelled = true
+      releaseStatusGate()
     }
-  }, [videoUuid, retryEpoch, applyStatus])
+  }, [videoUuid, retryEpoch, applyStatus, releaseStatusGate])
 
   // Status polling while the backend reports a legitimate active
   // preparation state. Transport failures and backend lifecycle state are
@@ -767,6 +788,7 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, onPlay
     // fall back to the status-driven start silently, never an error card.
     if (!wasPresenting && phase.src === autoStartRef.current) {
       autoStartRef.current = null
+      releaseStatusGate()
       resumeRef.current = continuity()
       setPhase({ kind: 'checking' })
       retryStatusCheck()

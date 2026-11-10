@@ -153,6 +153,9 @@ class Settings(BaseSettings):
     # default). Bounded by b2_presign.MAX_TTL_SECONDS; a viewer's grant is
     # reused while at least half of this life remains.
     media_playback_grant_ttl_seconds: int = int(os.getenv("MEDIA_PLAYBACK_GRANT_TTL_SECONDS", "300"))
+    # Background proof that the playback credential can read PROD media,
+    # every N seconds (0 = off: every first grant HEADs its own object).
+    media_playback_credential_probe_seconds: int = int(os.getenv("MEDIA_PLAYBACK_CREDENTIAL_PROBE_SECONDS", "60"))
     # A successful provider HEAD (credential can read the object) is reused
     # for this long per object and credential; 0 re-checks on every play.
     media_playback_head_cache_seconds: int = int(os.getenv("MEDIA_PLAYBACK_HEAD_CACHE_SECONDS", "300"))

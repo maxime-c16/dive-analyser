@@ -232,3 +232,41 @@ The same resolve takes 26–70 ms (15 queries) in an idle process. The
 difference is host CPU starvation: deb-serv has 2 cores, CPU pressure stays
 at 42–52 %, and Navidrome alone averages 34 % CPU over 23 days. The
 re-check is kept (council blocker); host capacity is the lever.
+
+### Next optimizations (2026-11-10, after the server CPU fix)
+
+deb-serv: Navidrome had spun at 1.5–1.85 cores for 23 days with no requests,
+about 1.5 M empty `read()` calls per second. It was restarted and capped at
+1 core, with a daily scan; the matchmaking preview was stopped. CPU pressure
+fell from 42–52 % to about 8–15 %. First-time grants went from 0.61–1.29 s
+to 0.50–0.59 s.
+
+1. **Re-encode throughput.** The agent encoded each package output on
+   1 x264 thread (`threads_per_variant=1`). Measured on mac-media-01
+   (i5-8257U, 8 GiB), same clip, while the live run was also encoding:
+
+   | Threads | Wall time | Peak RSS |
+   |---|---|---|
+   | 1 | 105 s | 729 MB |
+   | 2 | 76 s | 782 MB |
+   | 3 | 76 s | 821 MB |
+
+   Beyond 2 threads the single decode / tone-map thread is the bottleneck.
+   New setting `media.package_threads_per_variant`, default 2, bounded 1–3.
+   The fleet-wide one-active-package cap is unchanged.
+2. **Credential probe.** Owner decision: replace the per-object first-grant
+   HEAD with a background probe.
+   - Every `MEDIA_PLAYBACK_CREDENTIAL_PROBE_SECONDS` (default 60), a probe
+     HEADs the newest verified PROD replica.
+   - While that proof is under two intervals old, for the same credential
+     fingerprint, grants skip the per-object HEAD and the post-network
+     authority refresh.
+   - A failed or stale probe drops the proof and clears the per-object HEAD
+     cache, so grants return to the per-object HEAD with its legacy-fallback
+     and 503 policy.
+   - A deleted or corrupt object now surfaces as a playback error, which the
+     player recovers from or reports.
+   - Setting the interval to 0 restores the previous behaviour.
+3. **Deferred status for role starts.** A clip that starts on Light by role
+   fetches `/status` after its first frame, or after at most 2.5 s, so the
+   lookup no longer competes with the grant on the single worker.

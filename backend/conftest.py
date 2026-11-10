@@ -361,6 +361,8 @@ def _reset_playback_reuse():
     from app.api.v1 import media_playback
 
     b2_presign.reset_playback_reuse()
+    b2_presign.reset_credential_probe()
     media_playback._granted_pairs.clear()
     yield
     b2_presign.reset_playback_reuse()
+    b2_presign.reset_credential_probe()

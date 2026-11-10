@@ -424,6 +424,12 @@ def _grant_revision(
         # happens now: the authority read above is still the current one,
         # so the post-network refresh below has nothing to re-validate.
         timer.lap("head", "hit")
+    elif b2_presign.credential_proven():
+        # The background probe proved within two intervals that the playback
+        # credential reads PROD media; the object's verified location comes
+        # from the ledger above. No provider I/O, so no refresh either. A
+        # missing object surfaces to the player as a playback error.
+        timer.lap("head", "probe")
     else:
         # Never hold a read transaction/connection over provider I/O.
         # Production kills idle transactions after 30s; a slow HEAD otherwise
