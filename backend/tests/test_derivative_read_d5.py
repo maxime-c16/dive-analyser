@@ -1303,8 +1303,11 @@ def test_role_route_stranger_gets_uniform_404(db, flags, fake_presign, client):
 def test_served_versions_keep_the_older_package_until_the_new_one_is_ready(client, db, fake_presign, monkeypatch):
     settings = get_settings()
     monkeypatch.setattr(settings, "media_derivative_served_transform_versions", "ffmpeg-h264-web-v1,ffmpeg-h264-web-v0")
-    old_light = _status(client, UUID_OLDVERSION)["derivatives"]["light"]
+    old_status = _status(client, UUID_OLDVERSION)["derivatives"]
+    old_light = old_status["light"]
     assert old_light["state"] == "ready"
+    # The payload names the version actually serving Light (player bitrate).
+    assert old_status["transform_version"] == "ffmpeg-h264-web-v0"
     src = db.query(MediaDerivative).filter_by(video_uuid=UUID_OLDVERSION, role="light").one().source_blob_sha256
     # Backfill in progress: the new version is still verifying.
     new_sha = _sha("d5-oldversion-light-v1")
@@ -1318,8 +1321,10 @@ def test_served_versions_keep_the_older_package_until_the_new_one_is_ready(clien
     _rev(db, UUID_OLDVERSION, new_sha, "derived_light")
     _loc(db, new_sha, "prod", PROD_BUCKET, f"blobs/sha256/derived/light-{new_sha[:8]}.bin")
     db.commit()
-    new_light = _status(client, UUID_OLDVERSION)["derivatives"]["light"]
+    new_status = _status(client, UUID_OLDVERSION)["derivatives"]
+    new_light = new_status["light"]
     assert new_light["state"] == "ready" and new_light["playback_url"] != old_light["playback_url"]
+    assert new_status["transform_version"] == "ffmpeg-h264-web-v1"
     assert client.get(old_light["playback_url"], follow_redirects=False).status_code == 404
     assert client.get(f"/api/v1/media/{UUID_OLDVERSION}/play/light", follow_redirects=False).status_code == 302
 

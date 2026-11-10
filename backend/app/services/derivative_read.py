@@ -36,7 +36,7 @@ scroll mints no grants.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any, Optional
 
 from sqlalchemy.orm import Session
@@ -68,6 +68,9 @@ class DerivativeDecision:
     # Machine reason for non-servable states (missing|preparing|stale|
     # superseded|unavailable|no-source). Never user-facing verbatim.
     reason: Optional[str] = None
+    # Transform version of the row this decision came from (cutover can
+    # serve roles from different versions).
+    transform_version: Optional[str] = None
 
 
 @dataclass(frozen=True)
@@ -295,6 +298,8 @@ def resolve_clip_derivatives(
         first_seen: Optional[DerivativeDecision] = None
         for candidate_version in versions:
             decision = _role_decision(db, video_uuid, role, source_sha, source_revision_id, candidate_version, environment)
+            if decision.reason != "no_derivative_row":
+                decision = replace(decision, transform_version=candidate_version)
             if decision.state == "ready":
                 chosen = decision
                 break
@@ -340,11 +345,14 @@ def resolve_clip_derivatives(
     else:
         start, recommended = "original", "original"
 
+    # Report the version actually serving Light (players size their network
+    # estimate from it); the produced version otherwise.
+    served_version = decisions["light"].transform_version if light_ready else None
     return ClipDerivatives(
         video_uuid=video_uuid,
         source_revision_id=source_revision_id,
         source_sha256=source_sha,
-        transform_version=version,
+        transform_version=served_version or version,
         roles=decisions,
         start=start,
         recommended=recommended,
