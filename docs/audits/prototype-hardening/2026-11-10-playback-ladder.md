@@ -304,3 +304,22 @@ visual review.
 **Decision:** v3 is v2's caps with preset "faster", under a new transform
 version so each version still names one exact recipe. Production produces v3
 and serves v3, then v2, then v1.
+### Batched clip resolution (2026-11-10)
+
+Serving several transform versions multiplied the per-clip lookup: one
+ledger, revision and location query set per role and per version. That came
+to 18 queries for one clip with three served versions, run on every first
+grant and every status call.
+
+The resolver now preloads in a fixed set of queries:
+- every ledger row for the current source (all roles and served versions);
+- their backbone revisions;
+- each blob's first `TRUSTED_REPLICA_PROBE + 1` verified replicas, through a
+  window function.
+
+Total: 6 queries including the canonical-source lookup. The replica trust
+rule is one shared function (`evaluate_trusted_replicas`), used by both
+`trusted_prod_location` and the batch, so they cannot diverge. No schema
+change. A precomputed playback table was not built: it needs a production
+migration and an invalidation path in every writer, while this removes most
+of the cost without either.

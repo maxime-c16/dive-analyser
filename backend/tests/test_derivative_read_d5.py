@@ -1470,3 +1470,26 @@ def test_probe_targets_a_verified_prod_object(db, monkeypatch, flags):
     assert playback_probe.probe_once(factory) is True
     assert seen and seen[0][0] == PROD_BUCKET
     assert db.query(MediaBlobLocation).filter_by(bucket=PROD_BUCKET, object_key=seen[0][1], verified=True, environment="prod").count() >= 1
+
+
+def test_clip_resolution_uses_a_fixed_small_number_of_queries(db, monkeypatch, flags):
+    """Serving several transform versions must not multiply the queries."""
+    from sqlalchemy import event
+    from app.services.derivative_read import resolve_clip_derivatives
+
+    settings = get_settings()
+    monkeypatch.setattr(settings, "media_derivative_served_transform_versions", "ffmpeg-h264-web-v3,ffmpeg-h264-web-v2,ffmpeg-h264-web-v1")
+    statements = []
+    engine = db.get_bind()
+
+    def _count(conn, cursor, statement, params, context, executemany):
+        statements.append(statement)
+
+    event.listen(engine, "before_cursor_execute", _count)
+    try:
+        clip = resolve_clip_derivatives(db, UUID_FULL)
+    finally:
+        event.remove(engine, "before_cursor_execute", _count)
+    assert clip.roles["light"].state == "ready" and clip.roles["hq"].state == "ready"
+    # Was 18 with one query set per role and version; now a fixed six.
+    assert len(statements) <= 6, len(statements)
