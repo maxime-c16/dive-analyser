@@ -108,9 +108,16 @@ TRANSFORM_RATE_PROFILES: dict[str, dict[str, tuple[str, str] | None]] = {
     "ffmpeg-h264-web-v1": {"hq": (HQ_MAXRATE, HQ_BUFSIZE), "light": None},
     "ffmpeg-h264-web-v2": {"hq": (HQ_MAXRATE, HQ_BUFSIZE), "light": ("2500k", "5000k")},
     "ffmpeg-h264-web-v3": {"hq": (HQ_MAXRATE, HQ_BUFSIZE), "light": ("2500k", "5000k")},
+    "ffmpeg-h264-web-v4": {"hq": (HQ_MAXRATE, HQ_BUFSIZE), "light": ("2500k", "5000k")},
 }
 #: x264 preset per transform version (absent = PACKAGE_PRESET, "medium").
-TRANSFORM_PRESETS: dict[str, str] = {"ffmpeg-h264-web-v3": "faster"}
+TRANSFORM_PRESETS: dict[str, str] = {"ffmpeg-h264-web-v3": "faster", "ffmpeg-h264-web-v4": "faster"}
+#: MP4 layout per transform version. v4 = v3's encode written as fragmented
+#: MP4 (moov + global sidx up front, one fragment per 1 s GOP): it still
+#: plays progressively everywhere, and the server can build byte-range HLS
+#: playlists from the first few KB.
+FRAGMENTED_MOVFLAGS = "+frag_keyframe+empty_moov+default_base_moof+global_sidx"
+TRANSFORM_MOVFLAGS: dict[str, str] = {"ffmpeg-h264-web-v4": FRAGMENTED_MOVFLAGS}
 
 
 def rate_profile(transform_version: str) -> dict[str, tuple[str, str] | None]:
@@ -631,7 +638,7 @@ def _x264_args(gop: int, threads: int, hq: bool, transform_version: str = DERIVA
         "-pix_fmt", "yuv420p", "-g", str(gop), "-keyint_min", str(gop),
         "-color_range", "tv", "-colorspace", "bt709",
         "-color_primaries", "bt709", "-color_trc", "bt709",
-        "-tag:v", "avc1", "-movflags", "+faststart",
+        "-tag:v", "avc1", "-movflags", TRANSFORM_MOVFLAGS.get(transform_version, "+faststart"),
     ]
     return args
 

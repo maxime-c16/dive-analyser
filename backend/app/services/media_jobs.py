@@ -198,18 +198,22 @@ def lease_media_jobs(db: Session, request: MediaJobLeaseRequest) -> list[MediaLe
             return []
     _package_active = False
     if WEB_PACKAGE_RENDITION in _requested and _packages_enabled:
-        _package_active = (
+        fleet_cap = max(1, int(_lease_settings().media_max_active_packages))
+        active_holders = list(
             db.execute(
-                select(MediaJob.id).where(
+                select(MediaJob.claimed_by).where(
                     MediaJob.rendition == WEB_PACKAGE_RENDITION,
                     MediaJob.status.in_(LEASED_JOB_STATUSES),
-                ).limit(1)
-            ).scalar_one_or_none()
-            is not None
+                ).limit(fleet_cap + 1)
+            ).scalars()
         )
+        # Fleet cap (MEDIA_MAX_ACTIVE_PACKAGES, default 1) and one package per
+        # agent: a worker runs packages one at a time, so a second lease to
+        # the same agent would only sit idle while another Mac starves.
+        _package_active = len(active_holders) >= fleet_cap or request.agent_id in active_holders
         if _package_active:
-            # Global one-package cap: a leased package anywhere blocks any
-            # new package lease (legacy renditions still lease normally).
+            # Package cap reached: no new package lease (legacy renditions
+            # still lease normally).
             _requested = set(r for r in _requested if r != WEB_PACKAGE_RENDITION)
             if not _requested:
                 db.flush()

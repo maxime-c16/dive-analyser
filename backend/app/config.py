@@ -153,6 +153,9 @@ class Settings(BaseSettings):
     # default). Bounded by b2_presign.MAX_TTL_SECONDS; a viewer's grant is
     # reused while at least half of this life remains.
     media_playback_grant_ttl_seconds: int = int(os.getenv("MEDIA_PLAYBACK_GRANT_TTL_SECONDS", "300"))
+    # Web packages leased at once across the whole fleet (each agent still
+    # holds at most one). 2 lets a second Mac help with a backfill.
+    media_max_active_packages: int = int(os.getenv("MEDIA_MAX_ACTIVE_PACKAGES", "1"))
     # Background proof that the playback credential can read PROD media,
     # every N seconds (0 = off: every first grant HEADs its own object).
     media_playback_credential_probe_seconds: int = int(os.getenv("MEDIA_PLAYBACK_CREDENTIAL_PROBE_SECONDS", "60"))

@@ -96,12 +96,15 @@ services:
       MEDIA_PLAYBACK_HEAD_CACHE_SECONDS: "${MEDIA_PLAYBACK_HEAD_CACHE_SECONDS:-300}"
       # Revision playback grants only (capped at 300 s in b2_presign).
       MEDIA_PLAYBACK_GRANT_TTL_SECONDS: "${MEDIA_PLAYBACK_GRANT_TTL_SECONDS:-300}"
-      # Durable web packages: new jobs produce v3 (v2's capped Light, x264
-      # preset "faster": ~40 % less Mac time, <1 VMAF point). Ship the Mac
-      # agent that knows v3 BEFORE this server change. The read path serves
-      # v3, then v2, then v1; drop older versions after backfill coverage.
-      MEDIA_DERIVATIVE_TRANSFORM_VERSION: "${MEDIA_DERIVATIVE_TRANSFORM_VERSION:-ffmpeg-h264-web-v3}"
-      MEDIA_DERIVATIVE_SERVED_TRANSFORM_VERSIONS: "${MEDIA_DERIVATIVE_SERVED_TRANSFORM_VERSIONS:-ffmpeg-h264-web-v3,ffmpeg-h264-web-v2,ffmpeg-h264-web-v1}"
+      # Durable web packages: new jobs produce v4 (v3's encode as fragmented
+      # MP4 with a front index, ready for byte-range HLS). Ship the Mac agent
+      # that knows v4 BEFORE this server change. The read path serves v4,
+      # v3, v2, then v1; drop older versions after backfill coverage.
+      MEDIA_DERIVATIVE_TRANSFORM_VERSION: "${MEDIA_DERIVATIVE_TRANSFORM_VERSION:-ffmpeg-h264-web-v4}"
+      MEDIA_DERIVATIVE_SERVED_TRANSFORM_VERSIONS: "${MEDIA_DERIVATIVE_SERVED_TRANSFORM_VERSIONS:-ffmpeg-h264-web-v4,ffmpeg-h264-web-v3,ffmpeg-h264-web-v2,ffmpeg-h264-web-v1}"
+      # Packages leased at once fleet-wide (one per agent). 2 = mac-media-01
+      # plus a second Mac during a backfill.
+      MEDIA_MAX_ACTIVE_PACKAGES: "${MEDIA_MAX_ACTIVE_PACKAGES:-2}"
       MEDIA_JOBS_B2_SOURCE_ENABLED: "${MEDIA_JOBS_B2_SOURCE_ENABLED:-true}"
       # D2 lease fencing sunset switch (default off = bounded drain). Runtime
       # value comes from ~/.config/diveanalyzer/media-jobs.env on deb-serv

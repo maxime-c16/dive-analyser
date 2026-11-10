@@ -20,6 +20,7 @@ from pathlib import Path
 import pytest
 
 from src.package_encoder import (
+    _x264_args,
     AUDIO_BITRATE,
     DERIVATIVE_TRANSFORM_VERSION_DEFAULT,
     POSTER_SHORT_SIDE,
@@ -1474,3 +1475,24 @@ def test_v3_recipe_is_v2_with_the_faster_preset():
     v3 = build_package_cmd(Path("s.mov"), Path("hq.mp4"), Path("lt.mp4"), Path("p.jpg"), plan, transform_version="ffmpeg-h264-web-v3")
     assert v2.count("medium") == 2 and v3.count("faster") == 2 and "medium" not in v3
     assert [("medium" if part == "faster" else part) for part in v3] == v2
+
+
+def test_v4_recipe_is_v3_written_as_fragmented_mp4():
+    plan = _plan_for_cmd(transfer="arib-std-b67")
+    v3 = build_package_cmd(Path("s.mov"), Path("hq.mp4"), Path("lt.mp4"), Path("p.jpg"), plan, transform_version="ffmpeg-h264-web-v3")
+    v4 = build_package_cmd(Path("s.mov"), Path("hq.mp4"), Path("lt.mp4"), Path("p.jpg"), plan, transform_version="ffmpeg-h264-web-v4")
+    frag = "+frag_keyframe+empty_moov+default_base_moof+global_sidx"
+    assert v4.count(frag) == 2 and "+faststart" not in v4
+    assert [("+faststart" if part == frag else part) for part in v4] == v3
+
+
+@pytest.mark.skipif(shutil.which("ffmpeg") is None, reason="needs ffmpeg")
+def test_v4_output_has_moov_and_sidx_before_media(tmp_path):
+    src = tmp_path / "src.mp4"
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "testsrc2=s=320x240:r=30:d=3",
+                    "-c:v", "libx264", "-pix_fmt", "yuv420p", str(src)], check=True)
+    out = tmp_path / "frag.mp4"
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(src), *(_x264_args(30, 1, False, "ffmpeg-h264-web-v4")), str(out)], check=True)
+    from src.package_encoder import _atom_order
+    atoms = _atom_order(out)
+    assert atoms[:3] == ["ftyp", "moov", "sidx"] and "moof" in atoms
