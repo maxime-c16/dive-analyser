@@ -171,6 +171,23 @@ def head_object(bucket: str, object_key: str) -> bool:
     return True
 
 
+def prewarm_client() -> bool:
+    """Build the playback client before any viewer needs it.
+
+    Importing boto3 and building the S3 client costs 2-6 s on deb-serv; done
+    lazily it lands on the first playback grant after every deploy. Runs on
+    a background thread at startup. A grant arriving mid-build waits on the
+    same lock instead of building a second client. Never raises.
+    """
+    if _b2_client_fingerprint() is None:
+        return False
+    try:
+        _b2_client()
+        return True
+    except Exception:
+        return False
+
+
 def head_is_cached(bucket: str, object_key: str) -> bool:
     """Whether a recent provider HEAD already proved this object, without I/O.
 

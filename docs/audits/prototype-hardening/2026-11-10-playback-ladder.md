@@ -213,3 +213,22 @@ through the merge-triggered auto-deploy.
   - **Still to do:**
     - the v2 backfill (cancel run 1, start a v2 run);
     - taking the 2.2 s first-grant B2 HEAD off the request path.
+
+### First-grant cost after a deploy (measured 2026-11-10)
+
+The 2.2 s "HEAD miss" on the first production grant was not B2:
+- **B2 HEAD:** 18–80 ms from the warm backend.
+- **DNS:** 4–13 ms in the container.
+- **Actual cost:** building the boto3 client, 6.3 s in a fresh process. It
+  landed on the first viewer after every restart. The backend now builds the
+  client on a background thread at startup, under the same lock a grant would
+  take.
+
+Remaining first-time grant cost (0.6–1.3 s):
+- **Rendition resolve:** 0.19–0.49 s.
+- **Post-HEAD re-check:** 0.29–0.48 s, a second full resolve.
+
+The same resolve takes 26–70 ms (15 queries) in an idle process. The
+difference is host CPU starvation: deb-serv has 2 cores, CPU pressure stays
+at 42–52 %, and Navidrome alone averages 34 % CPU over 23 days. The
+re-check is kept (council blocker); host capacity is the lever.
