@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, type RefObject } from "react";
 import { useTranslation } from "react-i18next";
-import { Heart, Pause, Play, Volume2, VolumeX } from "lucide-react";
+import { Heart, Maximize, Pause, Play, Volume2, VolumeX } from "lucide-react";
 
 import { PLAYBACK_RATES } from "./ClipViewerNavigation";
 
@@ -89,6 +89,7 @@ export default function ImmersiveControls({
   const [duration, setDuration] = useState(0);
   const [holding, setHolding] = useState(false);
   const [heart, setHeart] = useState(false);
+  const controlsRef = useRef<HTMLButtonElement>(null);
   const holdTimer = useRef<ReturnType<typeof setTimeout>>();
   const tapTimer = useRef<ReturnType<typeof setTimeout>>();
   const heartTimer = useRef<ReturnType<typeof setTimeout>>();
@@ -128,6 +129,34 @@ export default function ImmersiveControls({
   // transitions, and still releasable from the unmount cleanup below.
   const hudPressed = useRef(false);
 
+  const toggleFullscreen = () => {
+    const video = videoRef.current;
+    if (!video) return;
+    if (document.fullscreenElement) {
+      void document.exitFullscreen?.().catch(() => {});
+    } else if (controlsRef.current?.parentElement?.requestFullscreen) {
+      void controlsRef.current!.parentElement!.requestFullscreen().catch(() => {});
+    } else {
+      (video as HTMLVideoElement & { webkitEnterFullscreen?: () => void }).webkitEnterFullscreen?.();
+    }
+  };
+  const handleKeyboard = (event: React.KeyboardEvent<HTMLButtonElement>) => {
+    if (event.altKey || event.ctrlKey || event.metaKey) return;
+    const video = videoRef.current;
+    if (!video) return;
+    if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+      if (!Number.isFinite(video.duration) || video.duration <= 0) return;
+      event.preventDefault(); event.stopPropagation();
+      const direction = event.key === 'ArrowLeft' ? -1 : 1;
+      video.currentTime = Math.max(0, Math.min(video.duration, video.currentTime + direction * 5));
+    } else if (event.key.toLowerCase() === 'm') {
+      event.preventDefault(); event.stopPropagation();
+      const sound = soundRef?.current || video;
+      sound.muted = !sound.muted;
+    } else if (event.key.toLowerCase() === 'f') {
+      event.preventDefault(); event.stopPropagation(); toggleFullscreen();
+    }
+  };
   const toggle = () => {
     const video = videoRef.current;
     if (!video) return;
@@ -233,6 +262,9 @@ export default function ImmersiveControls({
       "volumechange",
       "timeupdate",
       "loadedmetadata",
+      "durationchange",
+      "ended",
+      "emptied",
     ];
     events.forEach((event) => video.addEventListener(event, sync));
     const sound = soundRef?.current;
@@ -256,8 +288,10 @@ export default function ImmersiveControls({
     <>
       <button
         type="button"
+        ref={controlsRef}
         className="clip-gesture"
         aria-label={paused ? t('clipViewer.play') : t('clipViewer.pause')}
+        onKeyDown={handleKeyboard}
         onContextMenu={(event) => event.preventDefault()}
         onPointerDown={(event) => {
           if (event.button !== 0) return;
@@ -442,6 +476,7 @@ export default function ImmersiveControls({
               </select>
             </label>
           )}
+          {(document.fullscreenEnabled || Boolean((videoRef.current as (HTMLVideoElement & { webkitEnterFullscreen?: () => void }) | null)?.webkitEnterFullscreen)) && <button type="button" className="clip-hud-button" aria-label={t('clipViewer.fullscreen')} onClick={toggleFullscreen}><Maximize size={18} /></button>}
           <button
             type="button"
             className="clip-hud-button"

@@ -1,0 +1,8 @@
+{
+  "id": "session-playback-recovery",
+  "date": "2026-11-09",
+  "title": "Smoother video playback recovery",
+  "body": "Session videos resume at the same position and speed after a connection error. Player controls reflect when a video finishes.",
+  "audience": "all",
+  "components": ["frontend"]
+}
