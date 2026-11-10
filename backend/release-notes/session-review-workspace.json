@@ -1,0 +1,8 @@
+{
+  "id": "session-review-workspace",
+  "date": "2026-11-09",
+  "title": "A clearer workspace for reviewing recordings",
+  "body": "Browse session recordings in a responsive grid, move between videos from the player, and stop a bulk download. Session actions now follow your language and deletion asks for confirmation. Video controls support fullscreen, arrow-key seeking and M to mute when the video surface has focus.",
+  "audience": "all",
+  "components": ["frontend"]
+}
