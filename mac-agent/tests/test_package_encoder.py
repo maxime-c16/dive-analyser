@@ -1466,3 +1466,11 @@ def test_build_package_refuses_unknown_version_before_any_work(tmp_path):
             ffmpeg_path="/nonexistent/ffmpeg", ffprobe_path="/nonexistent/ffprobe",
         ))
     assert not (tmp_path / "out").exists() or not any((tmp_path / "out").iterdir())
+
+
+def test_v3_recipe_is_v2_with_the_faster_preset():
+    plan = _plan_for_cmd(transfer="arib-std-b67")
+    v2 = build_package_cmd(Path("s.mov"), Path("hq.mp4"), Path("lt.mp4"), Path("p.jpg"), plan, transform_version="ffmpeg-h264-web-v2")
+    v3 = build_package_cmd(Path("s.mov"), Path("hq.mp4"), Path("lt.mp4"), Path("p.jpg"), plan, transform_version="ffmpeg-h264-web-v3")
+    assert v2.count("medium") == 2 and v3.count("faster") == 2 and "medium" not in v3
+    assert [("medium" if part == "faster" else part) for part in v3] == v2
