@@ -171,12 +171,83 @@ def head_object(bucket: str, object_key: str) -> bool:
     return True
 
 
+def head_is_cached(bucket: str, object_key: str) -> bool:
+    """Whether a recent provider HEAD already proved this object, without I/O.
+
+    Lets the grant route skip the post-network authority refresh when no
+    network call happens at all; a miss still runs the full HEAD path.
+    """
+    ttl = get_settings().media_playback_head_cache_seconds
+    if ttl <= 0 or _presign_client_fingerprint is None:
+        return False
+    with _head_ok_lock:
+        expiry = _head_ok_cache.get((_presign_client_fingerprint, bucket, object_key))
+    return expiry is not None and monotonic() < expiry
+
+
+# Per-viewer playback URL reuse: the same viewer reopening the same revision
+# gets the same signed URL while at least half of its life remains, so the
+# browser can reuse bytes it already holds. Entries are keyed by viewer,
+# revision, exact storage identity and credential fingerprint; they are
+# process-local, bounded, never persisted or logged. Authorization still runs
+# on every request before an entry is returned.
+_PLAYBACK_REUSE_MAX_ENTRIES = 4096
+_playback_reuse: dict = {}
+_playback_reuse_lock = threading.Lock()
+
+
+def presign_playback(
+    *,
+    viewer_id: int,
+    revision_id: int,
+    storage_identity: tuple,
+    bucket: str,
+    object_key: str,
+    storage_location_id: Optional[int] = None,
+) -> tuple[PresignResult, bool]:
+    """Presign one revision for one viewer, reusing a still-fresh URL.
+
+    Returns (result, reused). Raises PresignUnavailable like presign_get.
+    """
+    ttl = clamp_ttl(get_settings().media_playback_grant_ttl_seconds)
+    # Current credential identity: a rotated key never reuses an old URL.
+    key = (viewer_id, revision_id, storage_identity, _b2_client_fingerprint())
+    now = monotonic()
+    with _playback_reuse_lock:
+        entry = _playback_reuse.get(key)
+    if entry is not None and entry[1] - now >= ttl / 2:
+        return PresignResult(url=entry[0], ttl_seconds=max(1, int(entry[1] - now)), storage_location_id=storage_location_id), True
+    signed = presign_get(
+        bucket=bucket,
+        object_key=object_key,
+        ttl_seconds=ttl,
+        storage_location_id=storage_location_id,
+        # Lets the browser reuse fetched bytes for this exact URL; the URL
+        # itself stops working at expiry, so the window is the grant's.
+        response_cache_control=f"private, max-age={ttl}",
+    )
+    url, ttl = signed.url, signed.ttl_seconds
+    with _playback_reuse_lock:
+        _playback_reuse[key] = (url, now + ttl)
+        if len(_playback_reuse) > _PLAYBACK_REUSE_MAX_ENTRIES:
+            for stale in sorted(_playback_reuse, key=lambda k: _playback_reuse[k][1])[: len(_playback_reuse) - _PLAYBACK_REUSE_MAX_ENTRIES]:
+                del _playback_reuse[stale]
+    return PresignResult(url=url, ttl_seconds=ttl, storage_location_id=storage_location_id), False
+
+
+def reset_playback_reuse() -> None:
+    """Drop every reusable playback URL (tests, credential rotation)."""
+    with _playback_reuse_lock:
+        _playback_reuse.clear()
+
+
 def presign_get(
     bucket: str,
     object_key: str,
     ttl_seconds: Optional[int] = None,
     storage_location_id: Optional[int] = None,
     download_filename: Optional[str] = None,
+    response_cache_control: Optional[str] = None,
 ) -> PresignResult:
     """Presign a GET for one object. Returns (url, ttl) — url is transient.
 
@@ -190,6 +261,8 @@ def presign_get(
     if download_filename:
         # Callers supply an ASCII filename, never a raw user-provided name.
         params["ResponseContentDisposition"] = f'attachment; filename="{download_filename}"'
+    if response_cache_control:
+        params["ResponseCacheControl"] = response_cache_control
     url = client.generate_presigned_url(
         "get_object",
         Params=params,

@@ -1,0 +1,105 @@
+/**
+ * Shared clip-playback policy: which rendition starts, when HQ is worth
+ * fetching, and the viewer's quality preference for this tab.
+ *
+ * Renditions (measured on a 60 fps pool clip): proxy ~1.1 Mbps, durable
+ * Light 2.7 Mbps (v2 recipe; 6.4 Mbps for v1 packages), HQ ~12.9 Mbps.
+ */
+
+export type QualityPreference = 'auto' | 'preview' | 'light' | 'hq' | 'original'
+export type PlaybackRole = 'light' | 'hq'
+
+/** Nominal bitrates (Mbps) used to turn buffering speed into throughput. */
+export const NOMINAL_MBPS: Record<'preview' | 'light' | 'hq' | 'original', number> = {
+  preview: 1.1,
+  light: 4.5,
+  hq: 12.9,
+  original: 18,
+}
+/** HQ is fetched only with this much headroom over its bitrate. */
+export const HQ_REQUIRED_MBPS = NOMINAL_MBPS.hq * 1.5
+/** Below this, playback starts on the small proxy instead of Light. */
+export const WEAK_NETWORK_MBPS = 3
+
+let preference: QualityPreference = 'auto'
+let estimateMbps: number | null = null
+
+export function getQualityPreference(): QualityPreference {
+  return preference
+}
+
+/** A manual choice sticks for the rest of the tab; 'auto' hands control back. */
+export function setQualityPreference(next: QualityPreference) {
+  preference = next
+}
+
+export function roleUrl(videoUuid: string, role: PlaybackRole): string {
+  return `/api/v1/media/${encodeURIComponent(videoUuid)}/play/${role}`
+}
+
+export function roleOfUrl(url: string | null | undefined): PlaybackRole | null {
+  const match = url ? /\/api\/v1\/media\/[^/]+\/play\/(light|hq)$/.exec(url) : null
+  return match ? (match[1] as PlaybackRole) : null
+}
+
+type NetworkInformationLike = { saveData?: boolean; effectiveType?: string }
+
+function connection(): NetworkInformationLike | undefined {
+  return (navigator as Navigator & { connection?: NetworkInformationLike }).connection
+}
+
+/**
+ * One throughput sample in Mbps. Transfers that finish implausibly fast
+ * (cache hits) are discarded by the caller; samples are capped so one burst
+ * cannot unlock HQ on its own.
+ */
+export function recordThroughput(mbps: number) {
+  if (!Number.isFinite(mbps) || mbps <= 0) return
+  const sample = Math.min(mbps, 100)
+  estimateMbps = estimateMbps === null ? sample : estimateMbps * 0.6 + sample * 0.4
+}
+
+export function throughputEstimate(): number | null {
+  return estimateMbps
+}
+
+export function networkIsWeak(): boolean {
+  const info = connection()
+  if (info?.saveData) return true
+  if (info?.effectiveType && ['slow-2g', '2g', '3g'].includes(info.effectiveType)) return true
+  return estimateMbps !== null && estimateMbps < WEAK_NETWORK_MBPS
+}
+
+/** Devices where a second (HQ) decoder is not worth the memory. */
+export function constrainedDevice(): boolean {
+  const memory = (navigator as Navigator & { deviceMemory?: number }).deviceMemory
+  return Boolean(connection()?.saveData) || (typeof memory === 'number' && memory <= 2)
+}
+
+/** Auto may prepare a rendition in the background only with measured headroom. */
+export function canAffordRate(mbps: number): boolean {
+  return preference === 'auto' && !networkIsWeak() && !constrainedDevice()
+    && estimateMbps !== null && estimateMbps >= mbps * 1.5
+}
+
+export function canAffordHq(): boolean {
+  return canAffordRate(NOMINAL_MBPS.hq)
+}
+
+/**
+ * The source a clip should start on before its status is known: the durable
+ * Light by role when the library hinted it is ready and nothing argues
+ * against it, else null (status-driven start, usually the small proxy).
+ */
+export function autoStartUrl(videoUuid: string, startRole: string | null | undefined): string | null {
+  if (!videoUuid || startRole !== 'light') return null
+  if (preference !== 'auto' && preference !== 'light') return null
+  if (preference === 'auto' && networkIsWeak()) return null
+  return roleUrl(videoUuid, 'light')
+}
+
+/** Tests only. */
+export function resetPlaybackPolicy() {
+  preference = 'auto'
+  estimateMbps = null
+}

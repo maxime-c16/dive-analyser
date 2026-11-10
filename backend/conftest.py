@@ -352,3 +352,15 @@ def pytest_configure(config):
     config.addinivalue_line(
         "markers", "mock: mark test as using mock server"
     )
+
+
+@pytest.fixture(autouse=True)
+def _reset_playback_reuse():
+    """Process-local playback URL reuse must never leak between tests."""
+    from app.services import b2_presign
+    from app.api.v1 import media_playback
+
+    b2_presign.reset_playback_reuse()
+    media_playback._granted_pairs.clear()
+    yield
+    b2_presign.reset_playback_reuse()

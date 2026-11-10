@@ -1082,6 +1082,7 @@ const fr = {
     retryPrepare: 'Réessayer la préparation',
     usePreview: 'Lire un aperçu de qualité réduite',
     changeQuality: 'Changer la qualité vidéo',
+    autoQuality: 'Auto',
     quality: 'Qualité',
     originalQuality: 'Originale',
     previewLabel: 'Aperçu',

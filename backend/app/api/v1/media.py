@@ -1179,7 +1179,42 @@ def get_media_status_batch(
         asset_id = next((aid for aid, uid in uuid_by_asset.items() if uid == video_uuid), None)
         entries = entries_by_asset.get(asset_id, []) if asset_id else []
         result[video_uuid] = _thumbnail_status_for_entries(db, video_uuid, entries, None)
+    _add_start_role_hints(db, result, seen)
     return result
+
+
+def _add_start_role_hints(db: Session, result: dict, video_uuids: list[str]) -> None:
+    """Mark clips whose durable Light is ledger-ready: ``start_role: light``.
+
+    One bounded query over the already-authorized uuids. A hint only: the
+    role play route still runs the full current-source/storage proof and the
+    player falls back to its status-driven source when that proof fails. No
+    revision id or URL is exposed here, so the tile path still mints nothing.
+    """
+    if not video_uuids:
+        return
+    try:
+        from app.models.media_backbone import MediaDerivative
+        from app.services.derivative_read import _served_transform_versions
+
+        ready = set(db.execute(
+            select(MediaDerivative.video_uuid).where(
+                MediaDerivative.video_uuid.in_(video_uuids),
+                MediaDerivative.role == "light",
+                MediaDerivative.status == "ready",
+                MediaDerivative.transform_version.in_(_served_transform_versions()),
+            ).distinct()
+        ).scalars())
+    except Exception as exc:  # pre-ledger schema: no hints, tiles unchanged
+        from app.services.derivative_read import _is_missing_ledger_table
+
+        if not _is_missing_ledger_table(exc):
+            raise
+        db.rollback()
+        return
+    for video_uuid in ready:
+        if video_uuid in result:
+            result[video_uuid]["start_role"] = "light"
 
 
 @router.post("/{video_uuid}/request")

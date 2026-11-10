@@ -11,6 +11,8 @@ export type MediaPreview = {
   originalPlaybackUrl?: string | null;
   previewPlaybackUrl?: string | null;
   playbackResolved?: boolean;
+  /** Library hint: the durable Light is ledger-ready (role route may start it). */
+  startRole?: 'light' | null;
 };
 
 const previewCache = new Map<string, MediaPreview>();
@@ -58,6 +60,7 @@ type StatusShape = {
   thumbhash?: string | null
   poster_url?: string | null
   playback_url?: string | null
+  start_role?: string | null
   status: string
 };
 
@@ -88,6 +91,7 @@ function previewFromStatus(videoUuid: string, status: StatusShape | undefined): 
     // player without waiting for its own status round-trip.
     videoThumbUrl: isGridSafeThumbUrl(playback) ? playback : null,
     playbackUrl: playback,
+    startRole: status.start_role === 'light' ? 'light' : null,
     ready: Boolean(status.animated_url || status.thumb_url || status.poster_url || (playback && isGridSafeThumbUrl(playback))),
   };
 }
