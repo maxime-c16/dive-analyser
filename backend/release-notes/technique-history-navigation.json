@@ -1,0 +1,8 @@
+{
+  "id": "technique-history-navigation",
+  "date": "2026-11-10",
+  "title": "Adjust technique changes while browsing your dives",
+  "body": "Move the start of a period to another clip, return to an earlier technique, and find your place within each session. Drafts are protected when you leave.",
+  "audience": "all",
+  "components": ["backend", "frontend"]
+}

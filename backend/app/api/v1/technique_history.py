@@ -61,6 +61,26 @@ def create_track(diver: int, body: TrackInput, request: Request, db: Session = D
     return {'id': row.id, 'name': row.name, 'revision': row.revision}
 
 
+@router.get('/{diver}/{track}/techniques')
+def technique_choices(diver: int, track: int, request: Request, after: int = Query(default=0, ge=0), db: Session = Depends(get_db)):
+    owner(request, db, diver); row = track_for(db, diver, track)
+    rows = db.execute(select(Technique.id, Technique.label).where(Technique.track_id == track, Technique.id > after).order_by(Technique.id).limit(51)).mappings().all()
+    return {'revision': row.revision, 'items': [dict(item) for item in rows[:50]], 'next': rows[49]['id'] if len(rows)>50 else None}
+
+
+def local_boundary(value: datetime | None, zone_name: str = 'UTC'):
+    if value is None: return None
+    from datetime import timezone
+    from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+    try: zone = ZoneInfo(zone_name)
+    except ZoneInfoNotFoundError: raise HTTPException(422, 'Unknown timezone')
+    if value.tzinfo is not None: return value.astimezone(timezone.utc).replace(tzinfo=None)
+    localized = value.replace(tzinfo=zone)
+    if localized.astimezone(timezone.utc).astimezone(zone).replace(tzinfo=None) != value:
+        raise HTTPException(422, 'Nonexistent local time')
+    return localized.astimezone(timezone.utc).replace(tzinfo=None)
+
+
 class ContextInput(BaseModel):
     code: str = Field(min_length=1, max_length=10)
     apparatus: str = Field(max_length=20)
@@ -71,6 +91,7 @@ class ContextInput(BaseModel):
 
 class ReadInput(ContextInput):
     after: int = Field(default=0,ge=0)
+    timezone: str = Field(default='UTC', max_length=80)
     before: int = Field(default=0,ge=0)
     around: int = Field(default=0,ge=0)
     session_id:int | None = None
@@ -81,11 +102,14 @@ class ReadInput(ContextInput):
 @router.post('/{diver}/{track}/attempts')
 def attempts(diver: int, track: int, body: ReadInput, request: Request, db: Session = Depends(get_db)):
     owner(request, db, diver); row = track_for(db, diver, track)
+    body.from_date = local_boundary(body.from_date, body.timezone)
+    body.to_date = local_boundary(body.to_date, body.timezone)
     params = dict(body.model_dump(), diver=diver, track=track)
     if sum(bool(value) for value in (body.after, body.before, body.around)) > 1:
         raise HTTPException(422, 'Choose one navigation cursor')
-    query = """ SELECT id,session_id,video_uuid,dive_code,dive_datetime,history_occurred_at,performance,late_import,episode_id,recorded_episode_id,recorded_episode_deleted,intended_id,state,use_id,
-    (SELECT label FROM techniques WHERE techniques.id=resolved.use_id AND techniques.track_id=:track) use_label,source FROM resolved
+    source = RESOLVED + ", browse_context AS (SELECT resolved.*, row_number() OVER (PARTITION BY session_id ORDER BY history_occurred_at,id) session_index, count(*) OVER (PARTITION BY session_id) session_total FROM resolved) "
+    query = """ SELECT id,session_id,session_index,session_total,video_uuid,dive_code,dive_datetime,history_occurred_at,performance,late_import,episode_id,recorded_episode_id,recorded_episode_deleted,intended_id,state,use_id,
+    (SELECT label FROM techniques WHERE techniques.id=resolved.use_id AND techniques.track_id=:track) use_label,(SELECT label FROM techniques WHERE techniques.id=resolved.intended_id AND techniques.track_id=:track) intended_label,source FROM browse_context AS resolved
     WHERE (CAST(:session_id AS integer) IS NULL OR session_id=:session_id)
     AND (CAST(:from_date AS timestamp) IS NULL OR history_occurred_at>=:from_date)
     AND (CAST(:to_date AS timestamp) IS NULL OR history_occurred_at<:to_date) """
@@ -95,15 +119,15 @@ def attempts(diver: int, track: int, body: ReadInput, request: Request, db: Sess
     if body.around:
         # At most 52 narrow rows materialize; the anchor is scoped through
         # eligible, including diver and exact code/apparatus/height context.
-        earlier = db.execute(text(RESOLVED + query + f' AND {key} < {cursor("around")} ORDER BY history_occurred_at DESC,id DESC LIMIT 26'), params).mappings().all()
-        later = db.execute(text(RESOLVED + query + f' AND {key} >= {cursor("around")} ORDER BY history_occurred_at,id LIMIT 26'), params).mappings().all()
+        earlier = db.execute(text(source + query + f' AND {key} < {cursor("around")} ORDER BY history_occurred_at DESC,id DESC LIMIT 26'), params).mappings().all()
+        later = db.execute(text(source + query + f' AND {key} >= {cursor("around")} ORDER BY history_occurred_at,id LIMIT 26'), params).mappings().all()
         items = list(reversed(earlier[:25])) + later[:25]
         return {'revision': row.revision, 'items': [dict(r) for r in items], 'previous': earlier[24]['id'] if len(earlier)>25 else None, 'next': later[24]['id'] if len(later)>25 else None}
     if body.before:
-        rows = db.execute(text(RESOLVED + query + f' AND {key} < {cursor("before")} ORDER BY history_occurred_at DESC,id DESC LIMIT 51'), params).mappings().all()
+        rows = db.execute(text(source + query + f' AND {key} < {cursor("before")} ORDER BY history_occurred_at DESC,id DESC LIMIT 51'), params).mappings().all()
         items = list(reversed(rows[:50]))
         return {'revision': row.revision, 'items': [dict(r) for r in items], 'previous': rows[49]['id'] if len(rows)>50 else None, 'next': items[-1]['id'] if items else None}
-    rows = db.execute(text(RESOLVED + query + f' AND (:after=0 OR {key}>{cursor("after")}) ORDER BY history_occurred_at,id LIMIT 51'), params).mappings().all()
+    rows = db.execute(text(source + query + f' AND (:after=0 OR {key}>{cursor("after")}) ORDER BY history_occurred_at,id LIMIT 51'), params).mappings().all()
     return {'revision': row.revision, 'items': [dict(r) for r in rows[:50]], 'previous': rows[0]['id'] if body.after and rows else None, 'next': rows[49]['id'] if len(rows)>50 else None}
 
 
@@ -145,17 +169,9 @@ def plan(db, track, body):
     if body.scope != body.code and body.scope not in FAMILIES:
         raise HTTPException(422,'Unsupported family; choose an exact code')
     if not body.normalized and not body.anchor_id:
-        from zoneinfo import ZoneInfo,ZoneInfoNotFoundError
-        from datetime import timezone
-        try:zone=ZoneInfo(body.timezone)
-        except ZoneInfoNotFoundError:raise HTTPException(422,'Unknown timezone')
-        def normalize(value):
-            if value is None:return None
-            if value.tzinfo is not None:return value.astimezone(timezone.utc).replace(tzinfo=None)
-            local=value.replace(tzinfo=zone)
-            if local.astimezone(timezone.utc).astimezone(zone).replace(tzinfo=None)!=value:raise HTTPException(422,'Nonexistent local time')
-            return local.astimezone(timezone.utc).replace(tzinfo=None)
-        body.start_at=normalize(body.start_at);body.uncertain_until=normalize(body.uncertain_until);body.normalized=True
+        body.start_at = local_boundary(body.start_at, body.timezone)
+        body.uncertain_until = local_boundary(body.uncertain_until, body.timezone)
+        body.normalized = True
     if body.start_at.tzinfo is not None:
         raise HTTPException(422,'Use a timezone-normalized naive UTC boundary')
     if body.uncertain_until and body.uncertain_until <= body.start_at:
@@ -497,6 +513,7 @@ def rename(diver:int,track:int,technique:int,body:RenameInput,request:Request,db
     db.commit();return {'revision':row.revision}
 
 class EndInput(RevisionInput):
+    timezone: str = Field(default='UTC', max_length=80)
     episode_id:int
     end_at:datetime
     end_id:int=0
@@ -508,6 +525,7 @@ def end_episode(diver:int,track:int,body:EndInput,request:Request,db:Session=Dep
     user=owner(request,db,diver,True);row=track_for(db,diver,track,body.revision)
     episode=db.scalar(select(TechniqueEpisode).where(TechniqueEpisode.id==body.episode_id,TechniqueEpisode.track_id==track,TechniqueEpisode.deleted.is_(False)))
     if episode is None:raise HTTPException(404,'Episode unavailable')
+    body.end_at = local_boundary(body.end_at, body.timezone)
     if body.end_at.tzinfo or (body.end_at,body.end_id)<=(episode.start_at,episode.start_id):raise HTTPException(422,'Invalid end boundary')
     if episode.end_at and (body.end_at,body.end_id)>(episode.end_at,episode.end_id):raise HTTPException(409,'Cannot cross upcoming boundary')
     preview={'before':snapshot(episode),'end_at':body.end_at,'end_id':body.end_id,'family_fallback':True}
@@ -524,6 +542,7 @@ def revisions(diver:int,track:int,request:Request,after:int=0,db:Session=Depends
     return {'revision':row.revision,'items':[dict(r) for r in rows[:50]],'next':rows[49]['revision'] if len(rows)>50 else None}
 
 class CorrectionInput(RevisionInput):
+    timezone: str = Field(default='UTC', max_length=80)
     track_revisions:dict[int,int]=Field(default_factory=dict,max_length=16)
     attempt_id:int
     occurred_at:datetime
@@ -533,6 +552,7 @@ class CorrectionInput(RevisionInput):
 @router.post('/{diver}/{track}/correct-order')
 def correct_order(diver:int,track:int,body:CorrectionInput,request:Request,db:Session=Depends(get_db)):
     user=owner(request,db,diver,True);row=track_for(db,diver,track,body.revision)
+    body.occurred_at = local_boundary(body.occurred_at, body.timezone)
     if body.occurred_at.tzinfo:raise HTTPException(422,'Expected UTC without offset')
     # A correction affects every track. Bound fan-out before materializing/writing.
     all_tracks=db.scalars(select(TechniqueTrack).where(TechniqueTrack.diver_id==diver).order_by(TechniqueTrack.id).limit(17).with_for_update()).all()

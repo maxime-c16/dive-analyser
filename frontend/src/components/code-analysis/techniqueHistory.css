@@ -142,3 +142,7 @@
 /* Workflow actions remain reachable when the playback HUD auto-hides. */
 .clip-viewer.is-workflow .clip-header,
 .clip-viewer.is-workflow .clip-navigation { pointer-events: auto !important; }
+.th-scope-chips { display:flex; flex-wrap:wrap; gap:8px; }
+.th-scope-chips button { min-height:36px; padding:6px 10px; font-size:12px; }
+.clip-viewer.is-workflow .clip-nav-fraction { font-size:12px; white-space:normal; text-align:center; }
+.th-setup-review-list li > div:last-child { display:flex; flex-wrap:wrap; gap:4px; }

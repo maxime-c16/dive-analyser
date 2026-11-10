@@ -239,3 +239,9 @@ foreign-context rejection. TypeScript and the production build pass. The LAN
 browser check exercised mobile swipe navigation and draft review without saving
 the temporary markers. Backend and frontend updates are required; no additional
 migration beyond add_technique_history.sql is introduced.
+
+### 2026-11-10 — clip journey UI corrections
+
+The retrospective journey now prevents player navigation during naming/saving, reuses existing or newly drafted technique identities, and lets users move a draft boundary while browsing clips. Each clip shows its current and proposed technique and its position within the session. Failed reads remain errors, with sign-in/retry recovery; they never become fabricated empty comparisons. Review omits provisional per-marker counts because the draft is saved as revisioned sequential boundaries, with partial progress retained.
+
+Secondary forms protect unsaved edits, use local dates, confirm undo and offer named sharing choices. Same-day boundaries retain their distinct times. Session ordinals are computed across the complete selected-code context before pagination; technique names use a bounded ID cursor. No database migration changes in this correction. Validation and dispositions are recorded in docs/reviews/REVIEW_FINDINGS.md.

@@ -382,3 +382,30 @@ def test_browse_window_can_seek_an_anchor_and_page_both_directions(pg, monkeypat
         assert hidden['items'] == []
         with pytest.raises(Exception,match='Choose one navigation cursor'):
             api.attempts(1,1,api.ReadInput(**context,around=80,before=90),None,db)
+
+
+def test_browse_session_position_and_technique_inventory_are_complete(pg, monkeypatch):
+    from sqlalchemy.orm import Session
+    from app.api.v1 import technique_history as api
+    monkeypatch.setattr(api, 'owner', lambda *args, **kwargs: None)
+    with pg.begin() as c:
+        c.execute(text("INSERT INTO technique_tracks(id,diver_id,name,revision) VALUES(1,1,'General',0)"))
+        c.execute(text("INSERT INTO techniques(track_id,label,created_at) SELECT 1,'Cue '||n,now() FROM generate_series(1,75) n"))
+        c.execute(text("INSERT INTO dives(session_id,diver_id,dive_code,platform_type,height,position,is_sync,performance,dive_datetime) SELECT 1,1,'103','springboard','3','B',false,'G',timestamp '2026-01-02'+n*interval '1 minute' FROM generate_series(1,100) n"))
+    with Session(pg) as db:
+        context = dict(code='103', apparatus='springboard', height='3', position='B', sync=False)
+        page = api.attempts(1,1,api.ReadInput(**context,after=50),None,db)
+        assert page['items'][0]['session_index'] == 51
+        assert page['items'][0]['session_total'] == 101
+        names = api.technique_choices(1,1,None,0,db)
+        assert len(names['items']) == 50 and names['next'] == 50
+        assert len(api.technique_choices(1,1,None,names['next'],db)['items']) == 25
+
+
+def test_history_local_dates_normalize_without_silently_changing_saved_keys():
+    from datetime import datetime
+    from app.api.v1.technique_history import local_boundary
+    assert local_boundary(datetime(2026,7,1,12), 'Europe/Paris') == datetime(2026,7,1,10)
+    assert local_boundary(datetime(2026,1,1,12), 'Europe/Paris') == datetime(2026,1,1,11)
+    with pytest.raises(Exception, match='Nonexistent local time'):
+        local_boundary(datetime(2026,3,29,2,30), 'Europe/Paris')

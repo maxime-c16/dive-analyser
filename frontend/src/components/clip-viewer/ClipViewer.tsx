@@ -191,9 +191,12 @@ export default function ClipViewer({
   onUpdate?: (attempt: Attempt) => void;
   onDelete?: () => void;
   onAnalyse?: (attempt: Attempt) => void;
-  workflow?: { title: string; backLabel: string; content: React.ReactNode };
+  workflow?: { title: string; backLabel: string; content: React.ReactNode; navigationDisabled?: boolean; positionLabel?: string };
 }) {
   const { t, i18n } = useTranslation();
+  const navigationBlocked = Boolean(workflow?.navigationDisabled);
+  const navigationBlockedRef = useRef(navigationBlocked);
+  navigationBlockedRef.current = navigationBlocked;
   const noMediaVideo = useRef<HTMLVideoElement>(null);
   const index = attempts.findIndex((item) => item.id === attempt.id);
   const total = attempts.length;
@@ -422,7 +425,7 @@ export default function ClipViewer({
    * 1:1 with the pointer. Direct DOM writes only — no React renders, so the
    * gesture stays at pointer-event rate even on low-end phones. */
   const applyDrag = (dy: number) => {
-    if (animatingRef.current || !pagerEnabled) return;
+    if (navigationBlockedRef.current || animatingRef.current || !pagerEnabled) return;
     if (dragHeightRef.current === null) {
       dragHeightRef.current = measureStage();
       viewportRef.current?.classList.add("is-dragging");
@@ -500,6 +503,7 @@ export default function ClipViewer({
 
   /** Snap through to the neighbor, then swap the selection once it lands. */
   const commitPush = (direction: -1 | 1, fromDy: number) => {
+    if (navigationBlockedRef.current) return;
     const target = neighborAttempt(direction);
     if (!target) return;
     const fromId = attempt.id;
@@ -557,7 +561,7 @@ export default function ClipViewer({
       setFrameTransform(nextFrameRef.current, null);
       // An external selection change (Back button, filter) wins over a
       // still-pending commit: never clobber it with a stale target.
-      if (!pending || displayedIdRef.current !== pending.fromId) return;
+      if (navigationBlockedRef.current || !pending || displayedIdRef.current !== pending.fromId) return;
       // The list itself may have changed under the commit (filter, refresh,
       // removal): only land on the neighbor if it is still the neighbor.
       const live = attemptsRef.current;
@@ -570,8 +574,21 @@ export default function ClipViewer({
     }, FEED_PUSH_DURATION_MS);
   };
 
+  useEffect(() => {
+    if (!navigationBlocked) return;
+    clearCommitTimer();
+    pendingCommitRef.current = null;
+    animatingRef.current = false;
+    cancelFrameAnimations();
+    setFrameTransform(currentRef.current, null);
+    setFrameTransform(prevFrameRef.current, null);
+    setFrameTransform(nextFrameRef.current, null);
+    displayedIdRef.current = attempt.id;
+    viewportRef.current?.classList.remove("is-dragging");
+  }, [navigationBlocked]);
+
   const navigate = (direction: -1 | 1) => {
-    if (animatingRef.current) return;
+    if (navigationBlockedRef.current || animatingRef.current) return;
     const next = attempts[index + direction];
     if (!next) return;
     // Buttons/keys take the same push the finger takes, minus the drag.
@@ -882,8 +899,8 @@ export default function ClipViewer({
           <div className="clip-header-end">
             {studio && speedSelect}
             <span className="clip-counter" aria-live="polite" aria-atomic="true" title={t("clipNav.positionAria", { index: index + 1, total })}>
-              <span className="sr-only">{t("clipNav.positionAria", { index: index + 1, total })}</span>
-              <span className="clip-counter-fraction" aria-hidden="true"><b>{index + 1}</b> / {total}</span>
+              <span className="sr-only">{workflow?.positionLabel ?? t("clipNav.positionAria", { index: index + 1, total })}</span>
+              <span className="clip-counter-fraction" aria-hidden="true">{workflow?.positionLabel ?? <><b>{index + 1}</b> / {total}</>}</span>
             </span>
           </div>
         </header>
@@ -898,7 +915,7 @@ export default function ClipViewer({
               type="button"
               className="clip-step"
               onClick={() => navigate(-1)}
-              disabled={index <= 0}
+              disabled={navigationBlocked || index <= 0}
               aria-label={t("clipNav.previous")}
               title={`${t("clipNav.previous")} (Shift+←)`}
             >
@@ -943,7 +960,7 @@ export default function ClipViewer({
                 onAspectRatioChange={setAspectRatio}
                 onLike={() => void like(true)}
                 onNavigate={navigate}
-                dragEnabled={pagerEnabled}
+                dragEnabled={pagerEnabled && !navigationBlocked}
                 onDragUpdate={applyDrag}
                 onDragEnd={endDrag}
                 onPinchStart={onPinchStart}
@@ -955,7 +972,7 @@ export default function ClipViewer({
             ) : (
               <div className="clip-no-media">
                 {t("clipViewer.noLinkedClip")}
-                {workflow && <ImmersiveControls videoRef={noMediaVideo} playbackRate={playbackRate} mediaPresented={false} onNavigate={navigate} dragEnabled={pagerEnabled} onDragUpdate={applyDrag} onDragEnd={endDrag} />}
+                {workflow && <ImmersiveControls videoRef={noMediaVideo} playbackRate={playbackRate} mediaPresented={false} onNavigate={navigate} dragEnabled={pagerEnabled && !navigationBlocked} onDragUpdate={applyDrag} onDragEnd={endDrag} />}
               </div>
             )}
             {!studio && (
@@ -1068,7 +1085,7 @@ export default function ClipViewer({
               type="button"
               className="clip-step"
               onClick={() => navigate(1)}
-              disabled={index >= total - 1}
+              disabled={navigationBlocked || index >= total - 1}
               aria-label={t("clipNav.next")}
               title={`${t("clipNav.next")} (Shift+→)`}
             >
@@ -1240,6 +1257,8 @@ export default function ClipViewer({
           <footer className="clip-navigation">
             <ClipViewerNavigation
               index={index}
+              disabled={navigationBlocked}
+              positionLabel={workflow?.positionLabel}
               total={total}
               onPrevious={() => navigate(-1)}
               onNext={() => navigate(1)}

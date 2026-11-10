@@ -105,3 +105,20 @@ pas un déploiement. Les liens de PR permettent de suivre le SHA final et la CI.
 | R51 | Même run — Medium clubs non bornés | `confirmed` : liste tous les clubs sans curseur | `{items, next_after}` + `SessionOnboarding` suit les pages. Test 101 clubs → 100 + 1, échoue sur l'ancien endpoint |
 | R52 | Même run — Medium galerie séquentielle (bis R44) | `rejected`, répétition sans fait nouveau (skill : une répétition n'est pas un défaut indépendant) : mêmes preuves qu'en R44 |
 | R53 | OpenCode round 9, run `40763230262`, head `e540616d` — Medium clubs onboarding | `confirmed` : page clubs suivie en boucle (même pattern), sans annulation | `GET .../clubs` paginé + bouton « Afficher plus » + `AbortController` (requêtes obsolètes/unmount annulées) ; groupes déjà par club + abort. Tests : 101 clubs → bouton → 101, abort-on-unmount prouvé |
+
+## Technique changes — UI council findings at 821cc868 (2026-11-10)
+
+| Finding | Verification and disposition | Correction / evidence |
+| --- | --- | --- |
+| Pager freezes after navigation during naming | Confirmed: optimistic displayed ID advanced while the workflow rejected movement. | Workflow explicitly blocks navigation, cancels in-flight commits and restores the actual displayed ID. Regression exercises blocked swipe then successful navigation. |
+| A → B → A creates duplicate identities | Confirmed in setup payloads. | Paginated owned technique choices plus draft identities; saved IDs reused across successive writes, including partial retries. Tests cover existing identity and same-draft A → B → A. |
+| Cannot move a draft boundary | Confirmed in review controls. | Select Move start, browse neighboring clips, apply the new anchor without recreating the technique. Regression checks new anchor. |
+| Missing temporal and technique context | Confirmed; counter represented the loaded window. | Complete SQL session ordinals/counts and intended labels, proposed draft label, no loaded-window fraction. PostgreSQL test spans 101 attempts. |
+| Setup fails / comparison shows misleading zeros | Sandbox logs showed 401, not a demonstrated database failure. Error-to-empty rendering confirmed. | Exclusive error/loading/empty states; auth recovery and retry; comparisons render coverage only after successful results. Regression checks error then recovery. Sandbox attempts and techniques return 200 after login. |
+| Multi-marker review counts imply final attribution | Confirmed: each independent preview was against saved history. | Remove provisional counts; keep server validation and sequential revisioned saves with visible partial-save state. |
+| Draft cancellation, implicit timezone save, undo | Confirmed. | Protect first unfinished label and dirty secondary forms; persist timezone preference after successful change only; confirm undo. |
+| Same-day period appears duration zero | Display defect confirmed; deleting same-day episodes rejected: distinct attempt anchors are valid. | Show times for same-day boundaries; sandbox renders 10:00–10:03. Duplicate-anchor validation remains server-side. |
+| Raw scopes, session IDs, UTC fields | Confirmed. | Named family choices/chips, date-labeled session choices, attempt ordinals, localized date inputs; timezone-normalized end/correction/filter APIs. DST tests cover summer/winter and nonexistent local times. |
+| Earlier/later pair can be reversed | Confirmed. | Normalize selected pair chronologically. Matching and conflicting assignments visible before medians. |
+
+Validation: 1,002 frontend tests (123 files), 22 disposable PostgreSQL tests plus 8 pure attribution tests passed; typecheck and production build passed. Additional focused setup/comparison tests passed. Browser smoke: authenticated code page and setup load; current technique and session ordinal visible, same-day times visible. No real media, native Safari/VoiceOver or biomechanical recognition validated. Release-note schema validation passes; full catalog check is blocked by a pre-existing branch divergence (origin/master contains session-playback-recovery.json absent from HEAD), unrelated to these edits.
