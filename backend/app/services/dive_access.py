@@ -194,6 +194,7 @@ def member_access_context(request: HTTPConnection, db: Session = Depends(get_db)
     dependency in the thread pool and its exit without a capacity limit.
     """
     from app.services.write_guard import _valid_machine_api_key
+    from app.security import registered_media_key
     path = request.url.path
     if (not get_settings().user_auth_enabled or path.startswith("/api/v1/auth/")
             or path.startswith("/api/v1/shared-dives/")
@@ -201,7 +202,8 @@ def member_access_context(request: HTTPConnection, db: Session = Depends(get_db)
             or path.startswith("/api/v1/deposits/claim/")
             # Backblaze event hook: no session, HMAC-signed body checked by the route.
             or path == "/api/v1/session-videos/b2-events"
-            or path.startswith("/api/v1/health") or _valid_machine_api_key(request)):
+            or path.startswith("/api/v1/health") or _valid_machine_api_key(request)
+            or registered_media_key(db, path, request.headers.get("x-api-key") or "")):
         yield
         return
     resolved = sessions.resolve_session(db, request.cookies.get(get_settings().auth_cookie_name))

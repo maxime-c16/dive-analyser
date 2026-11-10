@@ -202,3 +202,12 @@ Release notes: none — internal worker authentication/admission repair.
 
 The full backend suite also passes: 1,930 passed, 113 skipped, 28 deselected
 (`not performance`, SQLite; PostgreSQL-specific coverage remains unverified).
+
+
+Production startup after PR #201 exposed the parent `member_access_context`
+guard, which also precedes the worker route. It must use the same scoped
+registered-key check. Regression coverage now enables authentication in that
+parent dependency as well as the mutation and worker-route guards; both HTTP
+tests failed with 401 before this follow-up. Backend-only rollout, no migration,
+nginx, environment or additional Mac deployment required. The two-job v4 canary
+was paused during this repair; the M2 was stopped.
