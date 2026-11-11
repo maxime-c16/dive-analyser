@@ -51,8 +51,9 @@ function nativeHls(): boolean {
 let appleSupport: boolean | null = null
 /**
  * Apple's native player (AVFoundation): reads cross-origin segments without
- * CORS. Chrome 157 also answers canPlayType for HLS but refuses cross-origin
- * segments without CORS (MEDIA_ERR_SRC_NOT_SUPPORTED), so the vendor counts.
+ * CORS. Chrome 157 also answers canPlayType for HLS but refused the B2
+ * segments (MEDIA_ERR_SRC_NOT_SUPPORTED) with and without CORS, so the vendor
+ * counts and other browsers prefer hls.js.
  */
 export function appleHls(): boolean {
   if (appleSupport === null) appleSupport = nativeHls() && /^Apple/.test(navigator.vendor || '')
