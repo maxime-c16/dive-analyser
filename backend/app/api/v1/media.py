@@ -1224,12 +1224,16 @@ def _add_start_role_hints(db: Session, result: dict, video_uuids: list[str]) -> 
     # versions, name an uncapped one: the player may overestimate the
     # bitrate (a cautious start), never underestimate it.
     best: dict[str, str] = {}
-    for video_uuid, version in rows:
-        if video_uuid not in best or (best[video_uuid] in CAPPED_LIGHT_VERSIONS and version not in CAPPED_LIGHT_VERSIONS):
-            best[video_uuid] = version
     from app.services.derivative_read import hls_transform_versions
 
     hls_versions = hls_transform_versions()
+    # The adaptive hint is independent of the cautious bitrate hint: a ready
+    # Light in an HLS version is what the read path serves first (newest
+    # served version wins), even when an older uncapped row also exists.
+    hls_ready = {video_uuid for video_uuid, version in rows if version in hls_versions}
+    for video_uuid, version in rows:
+        if video_uuid not in best or (best[video_uuid] in CAPPED_LIGHT_VERSIONS and version not in CAPPED_LIGHT_VERSIONS):
+            best[video_uuid] = version
     hls_start_mode = "all" if get_settings().media_hls_cors_ready else "apple"
     for video_uuid, version in best.items():
         if video_uuid in result:
@@ -1237,7 +1241,7 @@ def _add_start_role_hints(db: Session, result: dict, video_uuids: list[str]) -> 
             result[video_uuid]["start_light_version"] = version
             # Adaptive start: the master playlist route still proves the
             # current source and storage, and 404s back to progressive.
-            if version in hls_versions:
+            if video_uuid in hls_ready:
                 result[video_uuid]["start_hls"] = hls_start_mode
 
 

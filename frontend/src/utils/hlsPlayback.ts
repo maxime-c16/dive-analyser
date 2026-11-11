@@ -84,7 +84,9 @@ let mseDisabled = false
 export function canPlayHls(mode: HlsMode | null | undefined): boolean {
   if (!mode) return false
   if (appleHls()) return true
-  return mode === 'all' && ((!mseDisabled && mseHls()) || nativeHls())
+  // Elsewhere only hls.js: Chrome's own native HLS refused B2 segments even
+  // with CORS, so a failed hls.js turns adaptive playback off for the tab.
+  return mode === 'all' && !mseDisabled && mseHls()
 }
 
 /** hls.js plays the stream (otherwise the element does, natively). */

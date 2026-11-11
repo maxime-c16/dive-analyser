@@ -29,7 +29,11 @@ HEAD_FETCH_BYTES = 64 * 1024
 MAX_HEAD_BYTES = 1024 * 1024
 
 _CACHE_MAX_ENTRIES = 4096
+#: Retained-memory budget: segments across all cached indexes (~100 B each,
+#: so ~25 MB). A 15 s clip has 15; a long one can have thousands.
+_CACHE_MAX_SEGMENTS = 250_000
 _cache: "OrderedDict[str, Optional[FragmentIndex]]" = OrderedDict()
+_cached_segments = 0
 _cache_lock = threading.Lock()
 
 
@@ -312,18 +316,27 @@ def cached_index(blob_sha256: str, read_head: RangeReader) -> Optional[FragmentI
         if blob_sha256 in _cache:
             _cache.move_to_end(blob_sha256)
             return _cache[blob_sha256]
+    global _cached_segments
     index = load_index(read_head)
+    size = len(index.segments) if index else 0
+    if size > _CACHE_MAX_SEGMENTS:
+        return index  # served, never retained
     with _cache_lock:
+        previous = _cache.pop(blob_sha256, None)
+        _cached_segments -= len(previous.segments) if previous else 0
         _cache[blob_sha256] = index
-        _cache.move_to_end(blob_sha256)
-        while len(_cache) > _CACHE_MAX_ENTRIES:
-            _cache.popitem(last=False)
+        _cached_segments += size
+        while len(_cache) > _CACHE_MAX_ENTRIES or _cached_segments > _CACHE_MAX_SEGMENTS:
+            _key, evicted = _cache.popitem(last=False)
+            _cached_segments -= len(evicted.segments) if evicted else 0
     return index
 
 
 def reset_cache() -> None:
+    global _cached_segments
     with _cache_lock:
         _cache.clear()
+        _cached_segments = 0
 
 
 # ---------------------------------------------------------------------------

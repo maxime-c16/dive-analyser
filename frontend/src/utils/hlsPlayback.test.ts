@@ -52,10 +52,10 @@ it('Apple players take either mode; the others need the bucket CORS ("all")', ()
   resetHlsPlayback({ apple: false, mse: true })
   expect(canPlayHls('apple')).toBe(false)
   expect(canPlayHls('all')).toBe(true)
-  // Chrome-style native HLS without MediaSource still needs CORS.
+  // Non-Apple native HLS (Chrome's) is never used: it refused B2 segments.
   resetHlsPlayback({ apple: false, native: true, mse: false })
   expect(canPlayHls('apple')).toBe(false)
-  expect(canPlayHls('all')).toBe(true)
+  expect(canPlayHls('all')).toBe(false)
   resetHlsPlayback({ apple: false, native: false, mse: false })
   expect(canPlayHls('all')).toBe(false)
 })
@@ -117,6 +117,13 @@ it('a failure before any segment raises an error and turns hls.js off for the ta
   expect(onError).toHaveBeenCalledTimes(1)
   expect(hlsEngineFailed(video)).toBe(true)
   expect(instances[0].destroyed).toBe(true)
+  expect(canPlayHls('all')).toBe(false)
+  // Not even through a native HLS the browser claims to have.
+  resetHlsPlayback({ apple: false, native: true, mse: true })
+  const other = document.createElement('video')
+  setMediaSource(other, hlsUrl('c2'))
+  await flush()
+  instances[instances.length - 1].emit('error', { fatal: true, type: 'networkError' })
   expect(canPlayHls('all')).toBe(false)
 })
 

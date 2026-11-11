@@ -242,3 +242,33 @@ def test_media_playlist_reads_the_package_with_no_open_transaction(client, db, h
     monkeypatch.setattr(playback_module.b2_presign, "read_object_head", read_head)
     assert client.get(uri).status_code == 200
     assert seen == [False]
+
+
+def test_index_cache_has_a_segment_budget(monkeypatch):
+    hls_index.reset_cache()
+    monkeypatch.setattr(hls_index, "_CACHE_MAX_SEGMENTS", 30)  # two 13-segment indexes
+    read = _reader(FMP4_HEAD, FMP4_SIZE)[0]
+    for blob in ("a", "b", "c"):
+        assert hls_index.cached_index(blob, read) is not None
+    assert list(hls_index._cache) == ["b", "c"]
+    assert hls_index._cached_segments == 26
+    monkeypatch.setattr(hls_index, "_CACHE_MAX_SEGMENTS", 10)
+    assert hls_index.cached_index("d", read) is not None  # served, too big to keep
+    assert "d" not in hls_index._cache
+    hls_index.reset_cache()
+
+
+def test_batch_hints_hls_even_beside_an_older_uncapped_light(client, db, hls, monkeypatch):
+    from tests.test_derivative_read_d5 import _derivative, _sha
+    from app.models.media_backbone import MediaDerivative
+
+    settings = get_settings()
+    current = settings.media_derivative_transform_version
+    monkeypatch.setattr(settings, "media_derivative_served_transform_versions", f"ffmpeg-h264-web-v4,{current}")
+    monkeypatch.setattr(settings, "media_hls_transform_versions", "ffmpeg-h264-web-v4")
+    src = db.query(MediaDerivative).filter_by(video_uuid=UUID_FULL, role="light").first().source_blob_sha256
+    _derivative(db, UUID_FULL, src, "light", _sha("hls-v4-light"), transform="ffmpeg-h264-web-v4")
+    db.commit()
+    body = client.post("/api/v1/media/status/batch", json={"video_uuids": [UUID_FULL]}).json()
+    assert body[UUID_FULL]["start_light_version"] == current  # cautious bitrate hint unchanged
+    assert body[UUID_FULL]["start_hls"] == "apple"
