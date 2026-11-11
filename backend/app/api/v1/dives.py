@@ -729,6 +729,14 @@ def update_dive(
         # depositor can manage it but must never expose it early.
         raise HTTPException(409, "Accept this deposit before making it public")
     phase_keys = {"phase1_performance", "phase2_performance"} & update_data.keys()
+    if (
+        not phase_keys
+        and update_data.get("performance") is not None
+        and (dive.phase1_performance or dive.phase2_performance)
+    ):
+        # The composite of a two-phase dive is derived from its phases; a lone
+        # letter would leave them disagreeing. Clear the phases explicitly.
+        raise HTTPException(422, "This dive is rated in two phases; send phases, or clear them to set a single rating")
     if phase_keys:
         phase1 = update_data.get("phase1_performance", dive.phase1_performance)
         phase2 = update_data.get("phase2_performance", dive.phase2_performance)

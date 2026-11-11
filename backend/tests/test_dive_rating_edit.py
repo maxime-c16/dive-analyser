@@ -51,3 +51,13 @@ def test_client_ordinal_alone_is_ignored(workspace):
     assert response.status_code == 200, response.text
     # Fixture dive is rated G; its ordinal stays derived from the letter.
     assert (response.json()['performance'], response.json()['performance_numeric']) == ('G', 3)
+
+
+def test_single_letter_cannot_override_a_two_phase_rating(workspace):
+    _db, as_user, dives, _users, _ = workspace
+    client = as_user('alice')
+    url = f"/api/v1/dives/{dives['alice-public']}"
+    assert client.put(url, json={'phase1_performance': 'G', 'phase2_performance': 'M'}).status_code == 200
+    assert client.put(url, json={'performance': 'F'}).status_code == 422
+    body = client.get(url).json()
+    assert (body['performance'], body['phase1_performance'], body['phase2_performance']) == ('M', 'G', 'M')
