@@ -297,3 +297,53 @@ def test_concurrent_first_loads_share_one_provider_read():
     assert len(results) == 4 and all(result is results[0] for result in results)
     assert hls_index._inflight == {}
     hls_index.reset_cache()
+
+
+def test_failed_first_load_keeps_one_gate_for_queued_and_new_callers():
+    import threading
+
+    hls_index.reset_cache()
+    first_started, release, active, peak = threading.Event(), threading.Event(), [0], [0]
+    lock = threading.Lock()
+    attempts = []
+
+    def flaky_read(length):
+        with lock:
+            active[0] += 1
+            peak[0] = max(peak[0], active[0])
+            attempts.append(length)
+            failing = len(attempts) == 1
+        try:
+            if failing:
+                first_started.set()
+                release.wait(5)
+                raise hls_index.IndexUnavailable("provider down")
+            return FMP4_HEAD[:length], FMP4_SIZE
+        finally:
+            with lock:
+                active[0] -= 1
+
+    outcomes = []
+
+    def call():
+        try:
+            outcomes.append(hls_index.cached_index("flaky", flaky_read))
+        except hls_index.IndexUnavailable:
+            outcomes.append("failed")
+
+    first = threading.Thread(target=call)
+    first.start()
+    first_started.wait(5)
+    queued = [threading.Thread(target=call) for _ in range(3)]
+    for thread in queued:
+        thread.start()
+    release.set()
+    late = threading.Thread(target=call)
+    late.start()
+    for thread in [first, *queued, late]:
+        thread.join(5)
+    assert peak[0] == 1  # never two provider reads at once
+    assert outcomes.count("failed") == 1 and len(outcomes) == 5
+    assert len(attempts) == 2  # the failure, then one retry shared by the rest
+    assert hls_index._inflight == {}
+    hls_index.reset_cache()

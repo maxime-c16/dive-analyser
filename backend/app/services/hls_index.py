@@ -34,7 +34,8 @@ _CACHE_MAX_ENTRIES = 4096
 _CACHE_MAX_SEGMENTS = 250_000
 _cache: "OrderedDict[str, Optional[FragmentIndex]]" = OrderedDict()
 _cached_segments = 0
-# Per-blob gates for first loads (single-flight); removed once idle.
+# Per-blob [gate, callers] for first loads (single-flight); removed when the
+# last caller leaves.
 _inflight: dict = {}
 _cache_lock = threading.Lock()
 
@@ -320,7 +321,12 @@ def cached_index(blob_sha256: str, read_head: RangeReader) -> Optional[FragmentI
         if blob_sha256 in _cache:
             _cache.move_to_end(blob_sha256)
             return _cache[blob_sha256]
-        gate = _inflight.setdefault(blob_sha256, threading.Lock())
+        # [gate, callers]: the record lives until its last caller leaves, so a
+        # failed load is retried by the queued callers one at a time, never
+        # beside a fresh gate.
+        entry = _inflight.setdefault(blob_sha256, [threading.Lock(), 0])
+        entry[1] += 1
+        gate = entry[0]
     try:
         with gate:
             with _cache_lock:
@@ -342,7 +348,8 @@ def cached_index(blob_sha256: str, read_head: RangeReader) -> Optional[FragmentI
             return index
     finally:
         with _cache_lock:
-            if _inflight.get(blob_sha256) is gate and not gate.locked():
+            entry[1] -= 1
+            if entry[1] == 0 and _inflight.get(blob_sha256) is entry:
                 del _inflight[blob_sha256]
 
 
