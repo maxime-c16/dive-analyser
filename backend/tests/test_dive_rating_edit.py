@@ -43,3 +43,11 @@ def test_other_members_cannot_edit_rating(workspace):
     _db, as_user, dives, _users, _ = workspace
     response = as_user('bob').put(f"/api/v1/dives/{dives['alice-public']}", json={'performance': 'F'})
     assert response.status_code in (403, 404)
+
+
+def test_client_ordinal_alone_is_ignored(workspace):
+    _db, as_user, dives, _users, _ = workspace
+    response = as_user('alice').put(f"/api/v1/dives/{dives['alice-public']}", json={'performance_numeric': 99})
+    assert response.status_code == 200, response.text
+    # Fixture dive is rated G; its ordinal stays derived from the letter.
+    assert (response.json()['performance'], response.json()['performance_numeric']) == ('G', 3)

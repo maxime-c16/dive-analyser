@@ -714,6 +714,8 @@ def update_dive(
 
     # Update only provided fields
     update_data = dive_update.model_dump(exclude_unset=True)
+    # The 0-4 ordinal is always derived from the letter, never client-set.
+    update_data.pop("performance_numeric", None)
     if db.info.get("member_access") and "person_name" in update_data:
         raise HTTPException(403, "Diver reassignment requires an operator")
     if update_data.get("visibility", "public") is None:
