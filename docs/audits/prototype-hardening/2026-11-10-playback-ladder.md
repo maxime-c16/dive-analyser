@@ -481,3 +481,22 @@ E2E account, existing grants, playlists rendered locally):
    `Content-Range`, `Content-Length` and `Accept-Ranges`. Then set
    `MEDIA_HLS_CORS_READY=true` and ship the server so Chrome, Android and
    desktop stream too.
+
+**Rollout log (2026-11-11)**
+- **B2 CORS, applied with owner approval.**
+  - Rule `appPlaybackRangeReads` on `diveanalyzer-prod-media` (bucket
+    revision 3 → 4; the bucket stays private).
+  - Allows `s3_get` and `s3_head` from `https://dive-analyser.tail32dd14.ts.net`
+    and `https://192.168.1.57:6443`, with the `range` header.
+  - Exposes `content-range`, `content-length`, `accept-ranges` and `etag`;
+    max age 3600 s.
+  - It was set with the server's `B2_UPLOAD` key, which holds
+    `writeBuckets`. B2 rejects the dotless `https://deb-serv:6443` origin,
+    so players on that origin keep the progressive files.
+- **Chrome against B2 with CORS.**
+  - hls.js: first frame 0.58 s, HQ from 2 s unthrottled; at 4 Mbps it stays
+    on Light.
+  - Chrome 157's own native HLS still fails (error 4). The player uses hls.js
+    wherever MediaSource exists, so that path is not taken.
+- **Configuration.** `docker-compose.yml` sets `MEDIA_HLS_CORS_READY=true`;
+  the change is backend environment only.
