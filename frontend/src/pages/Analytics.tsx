@@ -198,7 +198,6 @@ function Analytics() {
                 contentStyle={{ backgroundColor: '#15191c', border: '1px solid rgba(82,96,105,.45)', borderRadius: '8px' }}
                 formatter={(value: number) => fmtNum(value, 2)}
               />
-              <Legend />
               <Bar dataKey={groupPerformanceKey} name={performanceName} radius={[4, 4, 0, 0]}>
                 {heightChartData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={HEIGHT_COLORS[entry.name] || COLORS.primary} />
@@ -219,7 +218,6 @@ function Analytics() {
                 contentStyle={{ backgroundColor: '#15191c', border: '1px solid rgba(82,96,105,.45)', borderRadius: '8px' }}
                 formatter={(value: number) => `${fmtNum(value, 1)}%`}
               />
-              <Legend />
               <Bar dataKey="successRate" name={t("analytics.successRatePct")} radius={[4, 4, 0, 0]}>
                 {heightChartData.map((entry, index) => (
                   <Cell

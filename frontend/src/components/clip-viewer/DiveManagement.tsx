@@ -43,10 +43,10 @@ function LetterPicker({ label, value, onChange, disabled, hideLabel = false }: {
  * caption may carry), personal notes, and deletion behind a confirmation.
  * The server derives the composite letter from the phases.
  */
-export default function DiveManagement({ attempt, onUpdate, onDelete }: {
+export default function DiveManagement({ attempt, onUpdate }: {
   attempt: Attempt
   onUpdate: (attempt: Attempt) => void
-  onDelete: () => void
+  onDelete?: () => void
 }) {
   const { t, i18n } = useTranslation()
   const initialPhased = Boolean(attempt.phase1_performance && attempt.phase2_performance)
@@ -56,7 +56,6 @@ export default function DiveManagement({ attempt, onUpdate, onDelete }: {
   const [phase2, setPhase2] = useState<string | null>(attempt.phase2_performance ?? null)
   const [notes, setNotes] = useState(attempt.notes ?? '')
   const [busy, setBusy] = useState(false)
-  const [confirmDelete, setConfirmDelete] = useState(false)
   const [message, setMessage] = useState('')
 
   useEffect(() => { setMessage('') }, [performance, phase1, phase2, notes, phased])
@@ -84,18 +83,6 @@ export default function DiveManagement({ attempt, onUpdate, onDelete }: {
     } catch {
       setMessage(t('diveManagement.errorSave'))
     } finally {
-      setBusy(false)
-    }
-  }
-
-  async function remove() {
-    setBusy(true)
-    setMessage('')
-    try {
-      await api.delete(`/api/v1/dives/${attempt.id}`)
-      onDelete()
-    } catch {
-      setMessage(t('diveManagement.errorDelete'))
       setBusy(false)
     }
   }
@@ -131,6 +118,7 @@ export default function DiveManagement({ attempt, onUpdate, onDelete }: {
       )}
       <p className="clip-editor-score" aria-live="polite">
         <strong>{preview == null ? '—' : scoreNumber(preview, i18n.language)}</strong> / 10
+        {!phased && <span className="clip-editor-grade">{performanceLabel(performance)}</span>}
         {dirty && preview != null && preview !== attemptScore(attempt) && (
           <span>{t('diveManagement.was', { score: scoreNumber(attemptScore(attempt), i18n.language) })}</span>
         )}
@@ -143,19 +131,43 @@ export default function DiveManagement({ attempt, onUpdate, onDelete }: {
         {busy ? t('diveManagement.working') : t('diveManagement.saveChanges')}
       </button>
       {message && <p role="status" className="clip-editor-message">{message}</p>}
-      <div className="clip-editor-danger">
-        {confirmDelete ? (
-          <div role="alert">
-            <p>{t('diveManagement.deleteConfirm')}</p>
-            <div>
-              <button type="button" className="clip-danger" disabled={busy} onClick={remove}>{t('diveManagement.confirmDelete')}</button>
-              <button type="button" className="clip-quiet" disabled={busy} onClick={() => setConfirmDelete(false)}>{t('common.cancel')}</button>
-            </div>
-          </div>
-        ) : (
-          <button type="button" className="clip-quiet is-danger" disabled={busy} onClick={() => setConfirmDelete(true)}>{t('diveManagement.delete')}</button>
-        )}
-      </div>
     </form>
+  )
+}
+
+/** Deletion sits apart from editing, at the end of the Details tab. */
+export function DeleteDive({ attempt, onDelete }: { attempt: Attempt; onDelete: () => void }) {
+  const { t } = useTranslation()
+  const [confirming, setConfirming] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState(false)
+
+  async function remove() {
+    setBusy(true)
+    setError(false)
+    try {
+      await api.delete(`/api/v1/dives/${attempt.id}`)
+      onDelete()
+    } catch {
+      setError(true)
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="clip-editor-danger">
+      {confirming ? (
+        <div role="alert">
+          <p>{t('diveManagement.deleteConfirm')}</p>
+          <div>
+            <button type="button" className="clip-danger" disabled={busy} onClick={remove}>{t('diveManagement.confirmDelete')}</button>
+            <button type="button" className="clip-quiet" disabled={busy} onClick={() => setConfirming(false)}>{t('common.cancel')}</button>
+          </div>
+        </div>
+      ) : (
+        <button type="button" className="clip-quiet is-danger" disabled={busy} onClick={() => setConfirming(true)}>{t('diveManagement.delete')}</button>
+      )}
+      {error && <p role="status" className="clip-editor-message is-error">{t('diveManagement.errorDelete')}</p>}
+    </div>
   )
 }

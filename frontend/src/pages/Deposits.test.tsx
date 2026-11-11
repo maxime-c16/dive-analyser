@@ -24,7 +24,7 @@ beforeEach(() => {
 it('labels an admin’s other-diver batches as awaiting the owner', async () => {
   render(<MemoryRouter><Deposits /></MemoryRouter>)
   expect(await screen.findByText('Awaiting acceptance by FANNY')).toBeInTheDocument()
-  expect(screen.getByRole('heading', { name: 'Pending dive batches' })).toBeInTheDocument()
+  expect(screen.getByRole('heading', { name: 'Pending deposits' })).toBeInTheDocument()
   expect(screen.queryByText('Pick up your dives')).not.toBeInTheDocument()
 })
 

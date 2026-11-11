@@ -15,6 +15,7 @@
  * choices without replacing any source that has already shown a frame.
  * Preparation stays bounded to the current clip and an original-only next clip.
  */
+import { fmtRate } from '../../utils/formatNumber'
 import useEvaluationVideoSource from './useEvaluationVideoSource'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -542,7 +543,7 @@ function EvaluationScopedPlayer({
           {muted ? <VolumeX size={18} /> : <Volume2 size={18} />}
         </button>
         <button type="button" onClick={toggleSlow} aria-pressed={slow} aria-label={t('evaluations.slowAria')} title={t('evaluations.slowLabel')}>
-          0.5×
+          {fmtRate(0.5)}
         </button>
         {watching && <button type="button" aria-label={t('evaluations.wholeFrame')} aria-pressed={wholeFrame} onClick={() => { setWholeFrame(!wholeFrame); setPinchProgress(wholeFrame ? 0 : 1) }}><Maximize size={18} /></button>}
         {playback.playableChoices.length >= 2 && playback.kind === 'ready' && (

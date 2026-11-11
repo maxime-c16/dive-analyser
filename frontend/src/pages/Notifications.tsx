@@ -384,7 +384,6 @@ function AccountNotificationsPage() {
           </h1>
           <MobileShellActions />
         </div>
-        <p className="mt-1 text-sm text-app-muted">{t('notifications.headingDesc')}</p>
       </header>
 
       <div className="mb-4 flex flex-wrap items-center gap-2">

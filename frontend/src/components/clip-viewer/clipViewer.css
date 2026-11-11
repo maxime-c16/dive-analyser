@@ -2499,3 +2499,6 @@
   font-size: 12px;
   color: var(--app-muted);
 }
+.clip-editor-score .clip-editor-grade {
+  color: var(--app-text);
+}

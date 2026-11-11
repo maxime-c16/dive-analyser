@@ -2,7 +2,7 @@ import React from 'react'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, expect, it, vi } from 'vitest'
-import DiveManagement from './DiveManagement'
+import DiveManagement, { DeleteDive } from './DiveManagement'
 import DiveVisibilityControl from './DiveVisibilityControl'
 import ClipViewer from './ClipViewer'
 import { MemoryRouter } from 'react-router-dom'
@@ -29,7 +29,7 @@ it('saves personal notes and updates the reader only after success', async () =>
 it('requires a second confirmation before deleting and keeps the reader on failure', async () => {
   const onDelete = vi.fn()
   vi.mocked(api.delete).mockRejectedValue(new Error('denied'))
-  render(<DiveManagement attempt={attempt} onUpdate={vi.fn()} onDelete={onDelete} />)
+  render(<DeleteDive attempt={attempt} onDelete={onDelete} />)
   await userEvent.click(screen.getByRole('button', { name: 'Delete dive' }))
   expect(api.delete).not.toHaveBeenCalled()
   await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))

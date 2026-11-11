@@ -138,8 +138,8 @@ function Journey() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="border-b border-app bg-app-panel px-4 py-5 sm:px-6 sm:py-6">
-        <div className="mx-auto flex max-w-6xl items-start gap-2">
+      <div className="border-b border-app pb-3">
+        <div className="flex items-center gap-2">
           <h1 className="min-w-0 flex-1 text-3xl font-semibold tracking-tight text-app-text sm:text-4xl">
             {t("journey.title")}
           </h1>
@@ -149,8 +149,8 @@ function Journey() {
 
       {/* Stats Bar */}
       {journeyData && (
-        <div className="border-b border-app bg-app-panel px-4 py-4 sm:px-6">
-          <div className="max-w-6xl mx-auto">
+        <div className="app-panel">
+          <div>
             <div className="grid grid-cols-2 gap-x-4 gap-y-5 lg:grid-cols-5">
               <div className="min-w-0">
                 <div className="text-app-muted text-sm mb-1">{t("dashboard.totalDives")}</div>
@@ -298,7 +298,7 @@ function Journey() {
               <div className="mb-6 flex items-center justify-end gap-3 border-b border-app pb-4">
                 <h2 className="sr-only">{t("journey.milestones")}</h2>
                 <div className="flex items-center gap-3">
-                  <label className="text-sm text-app-muted">{t("journey.show")}:</label>
+                  <label className="text-sm text-app-muted">{t("journey.show")}</label>
                   <select
                     value={minSignificance}
                     onChange={(e) =>

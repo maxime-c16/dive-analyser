@@ -13,3 +13,8 @@ export function fmtNum(value: number | null | undefined, digits = 1): string {
     useGrouping: false,
   })
 }
+
+/** Playback rate as read aloud: "0,5×" in French, "1×". */
+export function fmtRate(rate: number): string {
+  return `${rate.toLocaleString(i18n.language || 'fr', { maximumFractionDigits: 2 })}×`
+}

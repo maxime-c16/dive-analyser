@@ -308,7 +308,6 @@ function BatchList() {
           <h1 className="min-w-0 flex-1 text-3xl font-semibold tracking-tight text-app-text">{t(hasOthers ? 'deposits.pendingTitle' : 'deposits.title')}</h1>
           <MobileShellActions />
         </div>
-        <p className="mt-1 text-sm text-app-muted">{t(hasOthers ? 'deposits.pendingSubtitle' : 'deposits.subtitle')}</p>
       </header>
       {batches.length === 0 ? (
         <p className="text-sm text-app-muted">{t('deposits.empty')}</p>

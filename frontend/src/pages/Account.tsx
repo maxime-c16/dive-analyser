@@ -721,17 +721,17 @@ export default function Account() {
             <section aria-label={t('account.profileAria')} className="border border-app bg-app-panel p-5">
               <div className="flex items-center gap-4">
                 <MemberAvatar member={user ?? { display_name: displayName }} size={56} />
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <div className="truncate font-medium text-app-text">{displayName}</div>
                   <div className="truncate text-sm text-app-muted">{user?.email}</div>
+                  <span
+                    className={`mt-1.5 inline-block rounded-full border px-2 py-0.5 text-xs font-medium ${
+                      isDiver ? 'border-app-accent text-app-accent' : 'border-app text-app-muted'
+                    }`}
+                  >
+                    {isDiver ? t('roles.Diver') : t('roles.Administrator')}
+                  </span>
                 </div>
-                <span
-                  className={`ml-auto shrink-0 border px-2 py-1 text-xs font-medium ${
-                    isDiver ? 'border-app-accent text-app-accent' : 'border-app text-app-muted'
-                  }`}
-                >
-                  {isDiver ? t('roles.Diver') : t('roles.Administrator')}
-                </span>
               </div>
               {isDiver && (
                 <p className="mt-3 text-sm leading-6 text-app-muted">

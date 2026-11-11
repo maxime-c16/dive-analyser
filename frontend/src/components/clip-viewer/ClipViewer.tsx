@@ -1,3 +1,4 @@
+import { fmtRate } from '../../utils/formatNumber'
 import { scoreNumber } from '../evaluation/scoreFormatting'
 import { preparePlaybackWindow } from '../../utils/preparedPlayback'
 import { useTranslation } from 'react-i18next'
@@ -31,7 +32,7 @@ import DiveVideoPlayer from "../DiveVideoPlayer";
 import ClipViewerNavigation, { PLAYBACK_RATES } from "./ClipViewerNavigation";
 import ClipFilmstrip from "./ClipFilmstrip";
 import ClipEvaluation, { useDiveEvaluation } from "./ClipEvaluation";
-import DiveManagement from "./DiveManagement";
+import DiveManagement, { DeleteDive } from "./DiveManagement";
 import DiveVisibilityControl from "./DiveVisibilityControl";
 import FederateDiveControl from "./FederateDiveControl";
 import ClipDetails from "./ClipDetails";
@@ -833,7 +834,7 @@ export default function ClipViewer({
       >
         {PLAYBACK_RATES.map((rate) => (
           <option key={rate} value={rate}>
-            {rate}×
+            {fmtRate(rate)}
           </option>
         ))}
       </select>
@@ -1176,7 +1177,7 @@ export default function ClipViewer({
                 <div className="clip-details-tab">
                   {attempt.can_manage && onUpdate && onDelete ? (
                     <section className="clip-section">
-                      <DiveManagement key={attempt.id} attempt={attempt} onUpdate={onUpdate} onDelete={onDelete} />
+                      <DiveManagement key={attempt.id} attempt={attempt} onUpdate={onUpdate} />
                     </section>
                   ) : attempt.notes && attempt.notes !== attempt.raw_caption ? (
                     <section className="clip-section clip-panel-description">
@@ -1208,6 +1209,11 @@ export default function ClipViewer({
                     <span className="clip-eyebrow">{t("diveManagement.info")}</span>
                     <ClipDetails attempt={attempt} open />
                   </section>
+                  {attempt.can_manage && onDelete ? (
+                    <section className="clip-section">
+                      <DeleteDive key={`delete-${attempt.id}`} attempt={attempt} onDelete={onDelete} />
+                    </section>
+                  ) : null}
                 </div>
               )}
             </div>

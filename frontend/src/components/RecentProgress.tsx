@@ -49,7 +49,7 @@ function RecentProgress({ sessions, onSessionClick }: RecentProgressProps) {
     const date = parseISO(session.date)
     return date >= rollingStart && date <= rollingEnd
   })
-  let weekLabel = `${format(rollingStart, 'MMM d', { locale: appLocale() })} - ${format(rollingEnd, 'MMM d', { locale: appLocale() })}`
+  let weekLabel = `${format(rollingStart, 'd MMM', { locale: appLocale() })} – ${format(rollingEnd, 'd MMM', { locale: appLocale() })}`
   let showWeekWarning = false
   let weekStart = rollingStart
   let weekEnd = rollingEnd
@@ -66,7 +66,7 @@ function RecentProgress({ sessions, onSessionClick }: RecentProgressProps) {
       return sessionDate >= weekStart && sessionDate <= weekEnd
     })
 
-    weekLabel = `${format(weekStart, 'MMM d', { locale: appLocale() })} - ${format(weekEnd, 'MMM d', { locale: appLocale() })}`
+    weekLabel = `${format(weekStart, 'd MMM', { locale: appLocale() })} – ${format(weekEnd, 'd MMM', { locale: appLocale() })}`
     showWeekWarning = true
   }
 
@@ -105,7 +105,7 @@ function RecentProgress({ sessions, onSessionClick }: RecentProgressProps) {
 
   // Prepare data for mini chart
   const chartData = [...recentSessions].reverse().map((session) => ({
-    date: format(parseISO(session.date), 'MMM d', { locale: appLocale() }),
+    date: format(parseISO(session.date), 'd MMM', { locale: appLocale() }),
     perf: session.avg_performance || 0,
     success: session.success_rate || 0,
   }))
@@ -258,7 +258,7 @@ function RecentProgress({ sessions, onSessionClick }: RecentProgressProps) {
                 <div className="flex items-start justify-between mb-3">
                   <div>
                     <p className="text-app-text font-semibold text-sm">
-                      {format(parseISO(session.date), 'MMM d', { locale: appLocale() })}
+                      {format(parseISO(session.date), 'd MMM', { locale: appLocale() })}
                     </p>
                     <p className="text-app-muted text-xs mt-1">
                       {t('progress.divesCount', { count: session.total_dives })}

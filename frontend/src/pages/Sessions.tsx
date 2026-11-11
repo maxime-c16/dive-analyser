@@ -93,7 +93,7 @@ function Sessions() {
     const date = parseISO(dateStr);
     if (isToday(date)) return t("sessions.today");
     if (isYesterday(date)) return t("sessions.yesterday");
-    return format(date, "EEEE, MMMM d", { locale: appLocale() });
+    return format(date, "EEEE d MMMM", { locale: appLocale() });
   };
 
   const getPerformanceColor = (perf: number | undefined) => {
@@ -236,7 +236,7 @@ function Sessions() {
                 <span className="w-2 h-2 bg-app-accent rounded-full"></span>
                 {month}
                 <span className="text-sm font-normal text-app-muted">
-                  ({monthSessions.length} {t("sessions.sessions")})
+                  {t("sessions.sessionCount", { count: monthSessions.length })}
                 </span>
               </h2>
 
@@ -265,10 +265,9 @@ function Sessions() {
                               <h3 className="text-lg font-semibold text-app-text">
                                 {getDateLabel(session.date)}
                               </h3>
-                              <p className="text-app-muted text-sm">
-                                {session.location ||
-                                  format(parseISO(session.date), "EEEE", { locale: appLocale() })}
-                              </p>
+                              {session.location && (
+                                <p className="text-app-muted text-sm">{session.location}</p>
+                              )}
                             </div>
                           </div>
                         </div>

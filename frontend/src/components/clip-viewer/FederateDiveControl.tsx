@@ -125,7 +125,7 @@ export default function FederateDiveControl({
           role="switch"
           aria-checked={checked}
           aria-label={i18n.t('fedUI.switchAria')}
-          disabled={busy || !isPublic}
+          disabled={busy || !isPublic || (status?.reason === 'global_opt_in_off' && !checked)}
           onClick={() => void setOptIn(!checked)}
           title={!isPublic ? i18n.t('fedUI.onlyPublic') : undefined}
           className="clip-switch"

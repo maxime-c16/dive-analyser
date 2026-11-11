@@ -126,7 +126,8 @@ const fr = {
     historyAria: 'Historique des étapes marquantes',
     noMatches: 'Aucune étape marquante ne correspond à ce filtre.',
     count: 'étapes marquantes',
-    majorNotable: '{{count}} majeure ou notable',
+    majorNotable_one: '{{count}} majeure ou notable',
+    majorNotable_other: '{{count}} majeures ou notables',
     majorBreakthrough: 'Percée majeure',
     notableStep: 'Étape notable',
     meaningfulProgress: 'Progrès révélateur',
@@ -584,7 +585,7 @@ const fr = {
     error: 'Le lien n’a pas pu être utilisé. Réessaie.',
   },
   deposits: {
-    pendingTitle: 'Lots de plongeons en attente',
+    pendingTitle: 'Dépôts en attente',
     pendingSubtitle: 'Consultez les clips déposés et suivez leur acceptation. Chaque plongeur accepte ses propres plongeons.',
     awaitingOwner: 'En attente de l’acceptation de {{name}}',
     readyForYou: 'Prêts à être acceptés par vous',
@@ -898,6 +899,8 @@ const fr = {
     summarySkipped: 'Les plongeons passés reviendront dans votre prochaine série.',
   },
   sessions: {
+    sessionCount_one: '{{count}} séance',
+    sessionCount_other: '{{count}} séances',
     title: 'Séances',
     sessions: 'Séances',
     errorLoad: 'Échec du chargement des séances',
