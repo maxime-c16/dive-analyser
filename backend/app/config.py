@@ -68,7 +68,9 @@ class Settings(BaseSettings):
     # Only Apple's native HLS player (Safari, every iOS browser) reads B2
     # segments without CORS; Chrome's native player and hls.js need the PROD
     # bucket to answer CORS for the app origin. Enable once it does.
-    media_hls_cors_ready: bool = os.getenv("MEDIA_HLS_CORS_READY", "false").lower() == "true"
+    # Comma-separated app origins the bucket's CORS rule admits. Requests
+    # served on one of them get "all"; other origins (or none) get "apple".
+    media_hls_cors_origins: str = os.getenv("MEDIA_HLS_CORS_ORIGINS", "")
     media_cache_max_bytes: int = int(os.getenv("MEDIA_CACHE_MAX_BYTES", str(50 * 1024 * 1024 * 1024)))
     primary_diver_name: str = os.getenv("PRIMARY_DIVER_NAME", "Maxime")
     dive_analysis_cache_ttl_seconds: int = int(os.getenv("DIVE_ANALYSIS_CACHE_TTL_SECONDS", "60"))

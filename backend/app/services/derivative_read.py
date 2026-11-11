@@ -41,6 +41,9 @@ from typing import Any, Optional
 
 from sqlalchemy.orm import Session
 
+from contextvars import ContextVar
+from urllib.parse import urlsplit
+
 from app.config import get_settings
 
 DERIVATIVE_ROLES = ("hq", "light", "poster")
@@ -119,7 +122,33 @@ def hls_mode(clip: Optional["ClipDerivatives"]) -> Optional[str]:
     """
     if not hls_roles(clip):
         return None
-    return "all" if get_settings().media_hls_cors_ready else "apple"
+    return current_hls_player_mode()
+
+
+# Host (``name[:port]``) of the request being served, set per request by the
+# media router; read by the HLS hints.
+_request_host: ContextVar[Optional[str]] = ContextVar("media_request_host", default=None)
+
+
+def note_request_host(host: Optional[str]) -> None:
+    _request_host.set((host or "").strip().lower() or None)
+
+
+def current_hls_player_mode() -> str:
+    """``all`` when this request's origin is one the bucket CORS admits.
+
+    Only Apple's native player reads B2 segments without CORS; every other
+    player (hls.js) must be on an origin listed in MEDIA_HLS_CORS_ORIGINS.
+    """
+    host = _request_host.get()
+    if not host:
+        return "apple"
+    allowed = {
+        urlsplit(origin.strip()).netloc.lower()
+        for origin in get_settings().media_hls_cors_origins.split(",")
+        if origin.strip()
+    }
+    return "all" if host in allowed else "apple"
 
 
 def hls_roles(clip: Optional["ClipDerivatives"]) -> list["DerivativeDecision"]:

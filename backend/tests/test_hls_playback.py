@@ -192,7 +192,7 @@ def test_status_and_batch_hint_hls_mode(client, hls, monkeypatch):
     batch = client.post("/api/v1/media/status/batch", json={"video_uuids": [UUID_FULL]}).json()
     assert batch[UUID_FULL]["start_hls"] == "apple"
     # Other players (Chrome's native HLS, hls.js) only once the bucket answers CORS.
-    monkeypatch.setattr(get_settings(), "media_hls_cors_ready", True)
+    monkeypatch.setattr(get_settings(), "media_hls_cors_origins", "https://elsewhere.example,https://testserver")
     assert client.get(f"/api/v1/media/{UUID_FULL}/status").json()["derivatives"]["hls"] == "all"
     batch = client.post("/api/v1/media/status/batch", json={"video_uuids": [UUID_FULL]}).json()
     assert batch[UUID_FULL]["start_hls"] == "all"
@@ -347,3 +347,15 @@ def test_failed_first_load_keeps_one_gate_for_queued_and_new_callers():
     assert len(attempts) == 2  # the failure, then one retry shared by the rest
     assert hls_index._inflight == {}
     hls_index.reset_cache()
+
+
+def test_origins_outside_the_bucket_cors_stay_apple_only(client, hls, monkeypatch):
+    # B2 rejects dotless hosts such as https://deb-serv:6443: a player served
+    # there must not try hls.js.
+    monkeypatch.setattr(get_settings(), "media_hls_cors_origins", "https://dive-analyser.example")
+    status = client.get(f"/api/v1/media/{UUID_FULL}/status", headers={"host": "deb-serv:6443"}).json()
+    assert status["derivatives"]["hls"] == "apple"
+    status = client.get(f"/api/v1/media/{UUID_FULL}/status", headers={"host": "dive-analyser.example"}).json()
+    assert status["derivatives"]["hls"] == "all"
+    batch = client.post("/api/v1/media/status/batch", json={"video_uuids": [UUID_FULL]}, headers={"host": "deb-serv:6443"}).json()
+    assert batch[UUID_FULL]["start_hls"] == "apple"

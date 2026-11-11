@@ -129,7 +129,21 @@ from app.services.representative_population import (
 
 from app.services.media_cache import thumb_url
 
-router = APIRouter(prefix="/media", tags=["media"], dependencies=[Depends(require_owner_for_mutation)])
+async def _note_request_host(request: Request) -> None:
+    """Remember the serving host for the HLS hints (B2 CORS is per origin).
+
+    Async on purpose: set in the request's own context, which the threadpool
+    copies into sync endpoints.
+    """
+    from app.services.derivative_read import note_request_host
+
+    note_request_host(request.headers.get("host"))
+
+
+router = APIRouter(
+    prefix="/media", tags=["media"],
+    dependencies=[Depends(require_owner_for_mutation), Depends(_note_request_host)],
+)
 
 
 RENDITION_PREFERENCE = {
@@ -1234,7 +1248,9 @@ def _add_start_role_hints(db: Session, result: dict, video_uuids: list[str]) -> 
     for video_uuid, version in rows:
         if video_uuid not in best or (best[video_uuid] in CAPPED_LIGHT_VERSIONS and version not in CAPPED_LIGHT_VERSIONS):
             best[video_uuid] = version
-    hls_start_mode = "all" if get_settings().media_hls_cors_ready else "apple"
+    from app.services.derivative_read import current_hls_player_mode
+
+    hls_start_mode = current_hls_player_mode()
     for video_uuid, version in best.items():
         if video_uuid in result:
             result[video_uuid]["start_role"] = "light"

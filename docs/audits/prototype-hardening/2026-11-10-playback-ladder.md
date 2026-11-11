@@ -402,7 +402,9 @@ Local branch `feat/hls-playback`; not deployed.
   - The batch sends `start_hls`.
   - `MEDIA_HLS_TRANSFORM_VERSIONS` (default `ffmpeg-h264-web-v4`; empty
     turns HLS off).
-  - `MEDIA_HLS_CORS_READY` (default off) switches `apple` to `all`.
+  - `MEDIA_HLS_CORS_ORIGINS` (default empty) lists the app origins the bucket's
+    CORS rule admits. A request served on one of them gets `all`; any other
+    origin gets `apple`.
 
 **Measured in real browsers on production v4 packages** (read-only:
 E2E account, existing grants, playlists rendered locally):
@@ -479,7 +481,7 @@ E2E account, existing grants, playlists rendered locally):
 2. **B2 CORS (production bucket setting, owner approval).** Allow `GET` and
    `HEAD` from the app origin with the `Range` header, exposing
    `Content-Range`, `Content-Length` and `Accept-Ranges`. Then set
-   `MEDIA_HLS_CORS_READY=true` and ship the server so Chrome, Android and
+   `MEDIA_HLS_CORS_ORIGINS` to those origins and ship the server so Chrome, Android and
    desktop stream too.
 
 **Rollout log (2026-11-11)**
@@ -498,7 +500,9 @@ E2E account, existing grants, playlists rendered locally):
     on Light.
   - Chrome 157's own native HLS still fails (error 4). The player uses hls.js
     wherever MediaSource exists, so that path is not taken.
-- **Configuration.** `docker-compose.yml` sets `MEDIA_HLS_CORS_READY=true`;
+- **Configuration.** `docker-compose.yml` sets `MEDIA_HLS_CORS_ORIGINS` to the
+  two bucket-admitted origins, so pages on `https://deb-serv:6443` stay
+  Apple-only;
   the diff only adds backend `environment` values.
 - **Proxy step after the server deploy** (`docs/REPO_WORKFLOW.md`, "Not
   automatic", `docker-compose.yml` row).
