@@ -353,8 +353,8 @@ function SessionDetail({ session, previousSession, onClose, allSessions, diverSc
                     <div>
                       <p className="text-app-muted text-xs uppercase mb-2">{i18n.t('dashboard.avgPerformance')}</p>
                       <div className="flex items-center gap-2">
-                        <span className="text-app-accent font-bold">{fmtNum(session.avg_performance, 2)}</span>
-                        <span className="text-app-muted text-sm">vs {fmtNum(previousSession.avg_performance, 2)}</span>
+                        <span className="text-app-accent font-bold">{fmtNum(session.avg_performance, 1)}</span>
+                        <span className="text-app-muted text-sm">vs {fmtNum(previousSession.avg_performance, 1)}</span>
                         {perfTrend && <TrendIndicator trend={perfTrend} />}
                       </div>
                     </div>

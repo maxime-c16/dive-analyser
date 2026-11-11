@@ -196,7 +196,7 @@ function Analytics() {
               <YAxis stroke="#98a2aa" domain={[0, 10]} />
               <Tooltip
                 contentStyle={{ backgroundColor: '#15191c', border: '1px solid rgba(82,96,105,.45)', borderRadius: '8px' }}
-                formatter={(value: number) => fmtNum(value, 2)}
+                formatter={(value: number) => fmtNum(value, 1)}
               />
               <Bar dataKey={groupPerformanceKey} name={performanceName} radius={[4, 4, 0, 0]}>
                 {heightChartData.map((entry, index) => (
@@ -287,13 +287,13 @@ function Analytics() {
               <div className="flex items-center justify-between mb-2">
                 <span className="text-2xl font-bold text-app-text">{dive.dive_code}</span>
                 <span className={`text-sm font-medium ${dive.improvement > 0 ? 'text-green-400' : 'text-red-400'}`}>
-                  {dive.improvement > 0 ? '↑' : '↓'} {fmtNum(Math.abs(dive.improvement), 2)}
+                  {dive.improvement > 0 ? '↑' : '↓'} {fmtNum(Math.abs(dive.improvement), 1)}
                 </span>
               </div>
               <div className="space-y-1 text-sm">
                 <div className="flex justify-between text-app-muted">
                   <span>{t('analytics.recentAvg')}:</span>
-                  <span className="text-app-text">{fmtNum(dive.recent_avg, 2)}</span>
+                  <span className="text-app-text">{fmtNum(dive.recent_avg, 1)}</span>
                 </div>
                 <div className="flex justify-between text-app-muted">
                   <span>{t('analysis.attempts')}:</span>
@@ -312,7 +312,7 @@ function Analytics() {
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div className="app-panel">
           <h3 className="text-app-muted text-sm mb-1">{t('analytics.averagePerformance')}</h3>
-          <p className="text-3xl font-bold text-app-accent">{fmtNum(avgPerformance, 2)}</p>
+          <p className="text-3xl font-bold text-app-accent">{fmtNum(avgPerformance, 1)}</p>
         </div>
         <div className="app-panel">
           <h3 className="text-app-muted text-sm mb-1">{t('analytics.averageSuccessRate')}</h3>

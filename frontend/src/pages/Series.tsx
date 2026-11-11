@@ -297,8 +297,8 @@ function SeriesWorkspace() {
       </div>
         {eventId && !eventReady && <p role="status">{text('Compétition inaccessible pour le moment.', 'Competition currently unavailable.')}</p>}
       </form>
-      <h2>{text('Mes brouillons', 'My drafts')}</h2>
-      {!items.length && <p>{text('Aucune série pour le moment.', 'No series yet.')}</p>}
+      <h2 className="mt-6 text-lg font-semibold">{text('Mes brouillons', 'My drafts')}</h2>
+      {!items.length && <p className="mt-1 text-sm text-app-muted">{text('Aucune série pour le moment.', 'No series yet.')}</p>}
       <ul className="series-list">{items.map(s => <li key={s.id}><Link to={`/series/${s.id}`}><strong>{s.title}</strong><span>{s.height} · {s.slot_count}{s.total_slots ? `/${s.total_slots}` : ''} {text('plongeons', 'dives')}</span></Link></li>)}</ul>
       {more && <button disabled={busy} onClick={async () => {
         setBusy(true); try { const rows = await seriesApi.list(eventId, (page + 1) * 50); setItems([...items, ...rows]); setPage(page + 1); setMore(rows.length === 50) } catch (e) { failure(e) } finally { setBusy(false) }

@@ -899,6 +899,8 @@ const fr = {
     summarySkipped: 'Les plongeons passés reviendront dans votre prochaine série.',
   },
   sessions: {
+    scopeLatest_one: 'Sur la dernière séance chargée',
+    scopeLatest_other: 'Sur les {{count}} dernières séances chargées',
     sessionCount_one: '{{count}} séance',
     sessionCount_other: '{{count}} séances',
     title: 'Séances',

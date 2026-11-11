@@ -287,7 +287,7 @@ function Dashboard() {
         />
         <MetricCard
           title={t("dashboard.avgPerformance")}
-          value={fmtNum(stats?.avg_performance, 2) || "0.00"}
+          value={fmtNum(stats?.avg_performance, 1) || "—"}
           subtitle={t("dashboard.avgPerformanceSubtitle")}
           color="accent"
           icon={BarChart3}
@@ -474,7 +474,7 @@ function Dashboard() {
                 }}
                 labelStyle={{ color: "#edf2f4" }}
                 formatter={(value: number, name: string) => [
-                  name === "performance" ? fmtNum(value, 2) : value,
+                  name === "performance" ? fmtNum(value, 1) : value,
                   name === "performance"
                     ? t("dashboard.avgPerformance")
                     : name === "dives"
@@ -759,7 +759,7 @@ function PerformanceBadge({ value }: { value: number | null }) {
       : value >= 4.5
         ? "text-amber-400"
         : "text-red-400";
-  return <span className={`font-medium ${color}`}>{fmtNum(value, 2)}</span>;
+  return <span className={`font-medium ${color}`}>{fmtNum(value, 1)}</span>;
 }
 
 function SuccessRateBadge({ value }: { value: number | null }) {

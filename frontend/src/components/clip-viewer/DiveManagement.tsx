@@ -17,7 +17,7 @@ function LetterPicker({ label, value, onChange, disabled, hideLabel = false }: {
 }) {
   return (
     <div className="clip-letter-row" role="group" aria-label={label}>
-      <span className={hideLabel ? 'sr-only' : undefined}>{label}</span>
+      <span className={hideLabel ? 'sr-only' : undefined}>{label}{value ? <b className="clip-letter-name"> · {performanceLabel(value)}</b> : null}</span>
       <div className="clip-letters">
         {LETTERS.map((letter) => (
           <button

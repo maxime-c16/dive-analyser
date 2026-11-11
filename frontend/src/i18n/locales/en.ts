@@ -899,6 +899,8 @@ const en = {
     summarySkipped: 'Passed dives come back in your next session.',
   },
   sessions: {    title: 'Sessions',
+    scopeLatest_one: 'Across the latest loaded session',
+    scopeLatest_other: 'Across the latest {{count}} loaded sessions',
     sessionCount_one: '{{count}} session',
     sessionCount_other: '{{count}} sessions',
     sessions: 'Sessions',

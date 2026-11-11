@@ -176,7 +176,7 @@ function Journey() {
                   className={`app-kpi-value text-2xl ${journeyData.growth.improvement > 0 ? "text-green-400" : "text-app-muted"}`}
                 >
                   {journeyData.growth.improvement > 0 ? "+" : ""}
-                  {fmtNum(journeyData.growth.improvement, 2)}
+                  {fmtNum(journeyData.growth.improvement, 1)}
                 </div>
               </div>
               <div className="min-w-0">
@@ -200,11 +200,11 @@ function Journey() {
 
       {/* Tab Navigation */}
       <nav
-        className="border-b border-app bg-app-panel"
+        className="md:border-b md:border-app"
         aria-label={t("journey.sectionsAria")}
       >
-        <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <label className="block py-3 md:hidden">
+        <div>
+          <label className="block md:hidden">
             <span className="sr-only">{t("journey.section")}</span>
             <select
               value={activeTab}
@@ -287,7 +287,7 @@ function Journey() {
       </nav>
 
       {/* Content Area */}
-      <div className="mx-auto w-full max-w-7xl px-4 sm:px-6">
+      <div className="w-full">
         <JourneyWithSync onSyncComplete={() => fetchJourneyData()}>
           {activeTab === "narrative" && journeyData && (
             <JourneyNarrative data={journeyData} />
@@ -591,7 +591,7 @@ function Journey() {
                             {t("journey.firstMonthAvg")}
                           </span>
                           <span className="text-app-text font-bold">
-                            {fmtNum(journeyData.growth.first_month_average, 2)}{" "}
+                            {fmtNum(journeyData.growth.first_month_average, 1)}{" "}
                             / 10
                           </span>
                         </div>
@@ -609,7 +609,7 @@ function Journey() {
                             {t("journey.latestMonthAvg")}
                           </span>
                           <span className="text-app-text font-bold">
-                            {fmtNum(journeyData.growth.last_month_average, 2)} /
+                            {fmtNum(journeyData.growth.last_month_average, 1)} /
                             10
                           </span>
                         </div>
@@ -628,7 +628,7 @@ function Journey() {
                           </div>
                           <div className="text-app-text text-lg">
                             {journeyData.growth.improvement > 0 ? "+" : ""}
-                            {fmtNum(journeyData.growth.improvement, 2)} {t("analysis.points")}
+                            {fmtNum(journeyData.growth.improvement, 1)} {t("analysis.points")}
                           </div>
                         </div>
                       </div>

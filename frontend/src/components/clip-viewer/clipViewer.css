@@ -2502,3 +2502,13 @@
 .clip-editor-score .clip-editor-grade {
   color: var(--app-text);
 }
+.clip-letter-name {
+  font-weight: 500;
+  color: var(--app-text);
+}
+.clip-setting-card:has(.clip-switch:disabled) .clip-setting-card-title {
+  color: var(--app-muted);
+}
+.clip-switch:disabled > span {
+  border-style: dashed;
+}

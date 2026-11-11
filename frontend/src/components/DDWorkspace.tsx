@@ -54,7 +54,7 @@ function DDWorkspace({ compact = false }: Props) {
             <h2 id="dd-workspace-title" className="text-xl font-semibold text-app-text sm:text-2xl">{t('ddWorkspace.title')}</h2>
           </div>
           <label className="text-sm text-app-muted">{t('ddWorkspace.view')}
-            <select aria-label={t('ddWorkspace.scopeAria')} value={scope} onChange={(event) => setScope(event.target.value as 'self' | 'all')} className="app-input ml-2 mt-1 w-full py-1 text-sm sm:mt-0 sm:w-auto">
+            <select aria-label={t('ddWorkspace.scopeAria')} value={scope} onChange={(event) => setScope(event.target.value as 'self' | 'all')} className="app-input mt-1 block w-full py-1 text-sm sm:ml-2 sm:mt-0 sm:inline-block sm:w-auto">
               <option value="self">{t('ddWorkspace.myDives')}</option>
               <option value="all">{t('ddWorkspace.allDivers')}</option>
             </select>

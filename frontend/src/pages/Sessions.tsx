@@ -165,7 +165,11 @@ function Sessions() {
           <MobileShellActions />
         </div>
 
-        {/* Quick Stats */}
+        {/* Quick Stats — computed from the loaded page; say so when truncated. */}
+        <div className="w-full sm:w-auto">
+        {sessions.length >= limit && (
+          <p className="mb-2 text-xs text-app-muted">{t("sessions.scopeLatest", { count: sessions.length })}</p>
+        )}
         <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:gap-4">
           <div className="app-panel min-w-0 px-3 py-2 sm:px-4">
             <span className="text-app-muted text-sm">{t("sessions.sessions")}</span>
@@ -183,6 +187,7 @@ function Sessions() {
               {fmtNum(stats.avgDivesPerSession, 1)}
             </span>
           </div>
+        </div>
         </div>
       </div>
 
@@ -295,7 +300,7 @@ function Sessions() {
                               <p
                                 className={`app-kpi-value text-2xl ${getPerformanceColor(session.avg_performance)}`}
                               >
-                                {fmtNum(session.avg_performance, 2) || "-"}
+                                {fmtNum(session.avg_performance, 1) || "-"}
                               </p>
                               {trend && <TrendIndicator trend={trend} />}
                             </div>

@@ -714,8 +714,7 @@ export default function Account() {
           </div>
         </nav>
 
-        <div className="min-w-0">
-          <LanguageSection />
+        <div className="min-w-0 space-y-4">
 
           {section === 'profile' && (
             <section aria-label={t('account.profileAria')} className="border border-app bg-app-panel p-5">
@@ -981,6 +980,7 @@ export default function Account() {
               </div>
             </section>
           )}
+          <LanguageSection />
         </div>
       </div>
     </div>

@@ -47,7 +47,7 @@ function MilestoneRow({ milestone }: { milestone: Milestone }) {
         <span className="block text-[11px] font-medium uppercase tracking-wide text-app-muted">{format(date, 'MMM', { locale: appLocale() })}</span>
       </time>
       <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1"><h3 className="font-semibold text-app-text">{display.title}</h3><span className="text-xs text-app-muted">{typeLabel(milestone.type)}</span></div>
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1"><h3 className="font-semibold text-app-text">{display.title}</h3>{!display.title.toLowerCase().startsWith(typeLabel(milestone.type).toLowerCase()) && <span className="text-xs text-app-muted">{typeLabel(milestone.type)}</span>}</div>
         <p className="mt-1 text-sm text-app-muted">{milestone.dive_code}{milestone.height ? ` · ${milestone.height}` : ''}</p>
         {!expanded && <p className="mt-2 line-clamp-2 text-sm leading-5 text-app-muted">{display.narrative}</p>}
       </div>
