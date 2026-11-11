@@ -241,6 +241,23 @@ def _has_current_derivative_proof(db: Session, revision: MediaRevision) -> bool:
     )
 
 
+def _is_current_hls_revision(db: Session, revision: MediaRevision) -> bool:
+    """The revision is a current ready Light/HQ package in an HLS version.
+
+    Same authority as ``_has_current_derivative_proof`` plus the
+    ``MEDIA_HLS_TRANSFORM_VERSIONS`` allowlist (the kill switch): exactly the
+    revisions the master playlist may list.
+    """
+    from app.services.derivative_read import hls_roles, safe_resolve_clip_derivatives
+    from app.services.derivative_publisher import MissingSourceError
+
+    try:
+        clip = safe_resolve_clip_derivatives(db, revision.video_uuid)
+    except (MissingSourceError, ValueError):
+        return False
+    return any(role.revision_id == revision.id for role in hls_roles(clip))
+
+
 def _serve_legacy_fallback(
     db: Session,
     request: Request,
@@ -373,14 +390,15 @@ def _grant_revision(
     *,
     proof_established: bool = False,
     deliver=None,
-    require_derivative: bool = False,
+    require_hls: bool = False,
 ):
     """Authorize, prove and sign one revision; redirect to it by default.
 
-    ``deliver(presign, revision, location, timer)`` replaces the redirect
-    (HLS playlists). It runs after the grant is recorded, with no open
-    transaction. ``require_derivative`` denies non-derivative revisions
-    before any storage work (no legacy fallback can be reached).
+    ``deliver(presign, package, timer)`` replaces the redirect (HLS
+    playlists). ``package`` is plain data (blob SHA-256, bucket, key) copied
+    before the grant commits; deliver runs with no open transaction.
+    ``require_hls`` admits only a current HLS package (see
+    ``_is_current_hls_revision``), before any storage work.
     """
     if not _flags_enabled():
         # Feature flags OFF: fail closed, route invisible.
@@ -397,8 +415,10 @@ def _grant_revision(
     timer.lap("authz")
 
     derived_only = _is_derivative_revision(revision)
-    if require_derivative and not derived_only:
-        _deny(db, user.id, revision.id, "not_a_package")
+    if require_hls:
+        if not derived_only or not _is_current_hls_revision(db, revision):
+            _deny(db, user.id, revision.id, "not_hls_package")
+        proof_established = True
     # proof_established: the caller resolved this exact revision as the
     # current ready proof in this same transaction, with no I/O since.
     if derived_only and not proof_established and not _has_current_derivative_proof(db, revision):
@@ -503,6 +523,13 @@ def _grant_revision(
 
     if _note_grant(user.id, revision.id):
         metrics.grant_refreshes.inc()
+    # Plain values only: the commit below expires ORM objects, and reading
+    # them afterwards would reopen a transaction before provider I/O.
+    package = {
+        "blob_sha256": revision.blob_sha256,
+        "bucket": location.bucket,
+        "object_key": location.object_key,
+    }
 
     _record_grant(
         db,
@@ -516,7 +543,8 @@ def _grant_revision(
     metrics.authorized.inc()
     metrics.b2_selected.inc()
     if deliver is not None:
-        return deliver(presign, revision, location, timer)
+        db.rollback()  # no transaction across the provider read in deliver
+        return deliver(presign, package, timer)
     redirect = RedirectResponse(url=presign.url, status_code=302)
     _secure_headers(redirect)
     redirect.headers["Server-Timing"] = timer.header()
@@ -608,9 +636,9 @@ def play_media_revision_hls(
     the playlist instead of a redirect. Not a fragmented package: 404.
     """
 
-    def deliver(presign, revision, location, timer):
+    def deliver(presign, package, timer):
         try:
-            index = _package_index(revision.blob_sha256, location.bucket, location.object_key)
+            index = _package_index(package["blob_sha256"], package["bucket"], package["object_key"])
         except b2_presign.PresignUnavailable:
             raise HTTPException(503, "B2 provider unavailable")
         timer.lap("index")
@@ -619,7 +647,7 @@ def play_media_revision_hls(
         return _playlist_response(hls_index.media_playlist(index, presign.url), timer)
 
     return _grant_revision(
-        revision_id, request, db, user, _StageTimer(), deliver=deliver, require_derivative=True,
+        revision_id, request, db, user, _StageTimer(), deliver=deliver, require_hls=True,
     )
 
 

@@ -218,3 +218,27 @@ def test_source_revision_has_no_media_playlist(client, db, hls):
     source = db.query(MediaRevision).filter_by(video_uuid=UUID_FULL).order_by(MediaRevision.id).first()
     assert client.get(f"/api/v1/media/revisions/{source.id}/hls.m3u8").status_code == 404
     assert hls["reads"] == []
+
+
+def test_media_playlist_honors_the_kill_switch(client, hls, monkeypatch):
+    uri = next(line for line in _master(client).text.splitlines() if line and not line.startswith("#"))
+    monkeypatch.setattr(get_settings(), "media_hls_transform_versions", "")
+    assert client.get(uri).status_code == 404
+    monkeypatch.setattr(get_settings(), "media_hls_transform_versions", "some-other-version")
+    assert client.get(uri).status_code == 404
+
+
+def test_media_playlist_reads_the_package_with_no_open_transaction(client, db, hls, monkeypatch):
+    import app.api.v1.media_playback as playback_module
+
+    uri = next(line for line in _master(client).text.splitlines() if line and not line.startswith("#"))
+    hls_index.reset_cache()
+    seen = []
+
+    def read_head(bucket, object_key, length):
+        seen.append(db.in_transaction())
+        return FMP4_HEAD[:length], FMP4_SIZE
+
+    monkeypatch.setattr(playback_module.b2_presign, "read_object_head", read_head)
+    assert client.get(uri).status_code == 200
+    assert seen == [False]

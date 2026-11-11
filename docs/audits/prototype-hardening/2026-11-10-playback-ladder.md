@@ -499,4 +499,13 @@ E2E account, existing grants, playlists rendered locally):
   - Chrome 157's own native HLS still fails (error 4). The player uses hls.js
     wherever MediaSource exists, so that path is not taken.
 - **Configuration.** `docker-compose.yml` sets `MEDIA_HLS_CORS_READY=true`;
-  the change is backend environment only.
+  the diff only adds backend `environment` values.
+- **Proxy step after the server deploy** (`docs/REPO_WORKFLOW.md`, "Not
+  automatic", `docker-compose.yml` row).
+  - `ci/ship.sh server` (also run by the auto-deploy) reloads both nginx
+    front doors.
+  - Confirm with `git diff <live>..<new> -- docker-compose.yml nginx
+    ops/tailscale` that nginx config, mounts and services are untouched.
+    Then check the nginx container is up and run `nginx -t` on it.
+  - If that diff ever touches nginx, run
+    `docker-compose up -d --force-recreate nginx` on deb-serv.
