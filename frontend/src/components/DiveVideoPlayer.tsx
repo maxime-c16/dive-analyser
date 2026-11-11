@@ -341,8 +341,9 @@ function DiveVideoPlayer({ diveCode, height, videoUuid, playbackRate = 1, onPlay
       if (autoStart && !lightUrl) autoStartRef.current = null
       // The adaptive stream already loading stays (whichever variant it listed first).
       else if (autoStart && isHlsUrl(autoStart) && hlsStart) chosen = autoStart
-      // The role URL already loading IS the durable Light: never reload it.
-      else if (autoStart && roleOfUrl(autoStart) === 'light' && (autoQuality || choiceRef.current === 'light')) chosen = autoStart
+      // The role URL already loading IS the durable Light: never reload it,
+      // unless this player has Light's faster playlist.
+      else if (autoStart && roleOfUrl(autoStart) === 'light' && (autoQuality || choiceRef.current === 'light') && !isPlaylistUrl(lightUrl)) chosen = autoStart
       const presented = presentedSourceRef.current
       const previewChoices = [previewUrl, ...data.cache_entries?.filter(entry => entry.rendition.startsWith('proxy_')).map(entry => entry.playback_url) || []].filter((url): url is string => !!url)
       // Revalidation never replaces an already presented, still available source.

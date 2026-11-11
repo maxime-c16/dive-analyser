@@ -6,7 +6,7 @@
  * Light 2.7 Mbps (v2 recipe; 6.4 Mbps for v1 packages), HQ ~12.9 Mbps.
  */
 
-import { canPlayHls, hlsUrl, type HlsMode } from './hlsPlayback'
+import { appleHls, canPlayHls, hlsUrl, type HlsMode } from './hlsPlayback'
 
 export type QualityPreference = 'auto' | 'preview' | 'light' | 'hq' | 'original'
 export type PlaybackRole = 'light' | 'hq'
@@ -208,6 +208,9 @@ export function autoStartUrl(
   if (!videoUuid || startRole !== 'light') return null
   if (preference !== 'auto' && preference !== 'light') return null
   if (preference === 'auto' && !canStartOn(lightMbpsForVersion(lightVersion))) return null
+  // A pinned Light on Apple's player starts faster from its own playlist
+  // (named by the status) than from the progressive fragmented file.
+  if (preference === 'light' && startHls && appleHls()) return null
   return autoHlsUrl(videoUuid, startHls) ?? roleUrl(videoUuid, 'light')
 }
 

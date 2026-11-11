@@ -12,7 +12,7 @@ import DiveVideoPlayer, {
 } from './DiveVideoPlayer'
 import { getMediaStatus, requestMedia, type MediaStatus } from '../services/mediaApi'
 import { getPreview, getPreviewForPlayback, resetMediaPreviews } from '../utils/mediaPreview'
-import { getQualityPreference, recordThroughput, resetPlaybackPolicy, throughputEstimate } from '../utils/playbackPolicy'
+import { getQualityPreference, recordThroughput, resetPlaybackPolicy, setQualityPreference, throughputEstimate } from '../utils/playbackPolicy'
 import { resetHlsPlayback } from '../utils/hlsPlayback'
 
 vi.mock('../services/mediaApi', async (importOriginal) => {
@@ -2125,4 +2125,17 @@ it('a weak network keeps the small proxy even when a stream exists', async () =>
   render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="hls-weak" immersive />)
   const video = await screen.findByLabelText('103B 1m dive video') as HTMLVideoElement
   await waitFor(() => expect(video).toHaveAttribute('src', '/proxy.mp4'))
+})
+
+it('a remembered Light choice starts the next dive on its playlist on Apple', async () => {
+  resetHlsPlayback({ apple: true })
+  setQualityPreference('light')
+  await seedHlsHint('hls-light-pref', 'apple')
+  vi.mocked(getMediaStatus).mockResolvedValue(adaptiveStatus('hls-light-pref'))
+  render(<DiveVideoPlayer diveCode="103B" height="1m" videoUuid="hls-light-pref" immersive />)
+  const video = await screen.findByLabelText('103B 1m dive video') as HTMLVideoElement
+  // Not the progressive role URL: status names the Light playlist.
+  expect(video).not.toHaveAttribute('src', '/api/v1/media/hls-light-pref/play/light')
+  await waitFor(() => expect(video).toHaveAttribute('src', '/api/v1/media/revisions/3/hls.m3u8'))
+  expect(screen.getByRole('button', { name: 'Change video quality' })).toHaveTextContent('Light')
 })
