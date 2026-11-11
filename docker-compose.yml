@@ -29,6 +29,9 @@ services:
 
   # FastAPI Backend
   backend:
+    # uvicorn is PID 1 and never reaps orphans: health-check children that
+    # time out pile up as zombies. tini (init) reaps them.
+    init: true
     # The host's Google resolver times out from this bridge network, causing
     # original playback HEAD checks to fail before a storage redirect. Docker
     # keeps internal service discovery; use reachable upstreams for B2/SMTP.
