@@ -1,5 +1,6 @@
 import { canPrefetch } from '../hooks/useNavigationIntent'
 import { getPreview, getPreviewForPlayback } from './mediaPreview'
+import { clearMediaSource, isHlsUrl, mediaSourceOf, setMediaSource } from './hlsPlayback'
 import { autoStartUrl, lightMbpsForVersion, sampleBuffering } from './playbackPolicy'
 
 // Keep the actual media element, not a fetch of its bytes. A revision URL
@@ -30,8 +31,7 @@ function dispose(entry: Entry) {
   entry.stopSampling?.()
   if (entry.timer) clearTimeout(entry.timer)
   entry.video.pause()
-  entry.video.removeAttribute('src')
-  entry.video.load() // Abort the resource, including any presigned transfer.
+  clearMediaSource(entry.video) // Abort every transfer, presigned or HLS.
   entries.delete(entry.uuid)
 }
 function park(entry: Entry) {
@@ -94,8 +94,7 @@ export function adoptPlaybackVideo(uuid: string, previous: HTMLVideoElement, nex
 /** Stop a media element and abort its transfer (presigned or not). */
 export function releaseDetached(video: HTMLVideoElement) {
   video.pause()
-  video.removeAttribute('src')
-  video.load()
+  clearMediaSource(video)
 }
 
 export function releasePlaybackVideo(uuid: string, video: HTMLVideoElement) {
@@ -158,8 +157,10 @@ export function warmPlaybackVideo(uuid: string) {
   // A neighbor that can start on its durable Light by role needs no status
   // lookup at all: warm exactly the URL the player will start on.
   void waitForWarmup().then(() => getPreview(uuid)).then(async tile => {
-    const start = autoStartUrl(uuid, tile.startRole, tile.startLightVersion)
-    if (start) return { ...tile, playbackUrl: start, previewPlaybackUrl: null, playbackResolved: true, sampleMbps: lightMbpsForVersion(tile.startLightVersion) }
+    const start = autoStartUrl(uuid, tile.startRole, tile.startLightVersion, tile.startHls)
+    // An adaptive start may switch renditions: its buffering speed does not
+    // map to one bitrate, so only a progressive Light is measured here.
+    if (start) return { ...tile, playbackUrl: start, previewPlaybackUrl: null, playbackResolved: true, sampleMbps: isHlsUrl(start) ? undefined : lightMbpsForVersion(tile.startLightVersion) }
     return getPreviewForPlayback(uuid)
   }).then(preview => {
     if (epoch !== generation || !desired.has(uuid) || !preview.playbackUrl || !preview.playbackResolved) return
@@ -167,15 +168,15 @@ export function warmPlaybackVideo(uuid: string) {
     if (entry.active) return
     // Ready previews are small; anticipate bytes as well as metadata.
     // Originals retain conservative metadata-only preloading.
-    entry.video.preload = preview.previewPlaybackUrl === preview.playbackUrl || preview.playbackUrl.includes('/play/light') ? 'auto' : 'metadata'
-    if (entry.video.getAttribute('src') !== preview.playbackUrl) {
+    entry.video.preload = preview.previewPlaybackUrl === preview.playbackUrl || preview.playbackUrl.includes('/play/light') || isHlsUrl(preview.playbackUrl) ? 'auto' : 'metadata'
+    if (mediaSourceOf(entry.video) !== preview.playbackUrl) {
       // A neighbor's background download of a durable Light is the most
       // frequent B2 transfer the viewer makes: measure it (cross-origin
       // bytes are not readable, buffered media seconds are).
       const mbps = (preview as { sampleMbps?: number }).sampleMbps
       entry.stopSampling?.()
       entry.stopSampling = mbps ? sampleBuffering(entry.video, mbps) : undefined
-      entry.video.src = preview.playbackUrl
+      setMediaSource(entry.video, preview.playbackUrl)
     }
     if (entry.timer) clearTimeout(entry.timer)
     park(entry)

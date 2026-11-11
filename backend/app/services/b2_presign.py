@@ -356,3 +356,35 @@ def open_get_stream(bucket: str, object_key: str):
         if response and response.get('Body') is not None:
             response['Body'].close()
         raise PresignUnavailable('Video stream unavailable') from None
+
+
+def read_object_head(bucket: str, object_key: str, length: int) -> tuple[bytes, Optional[int]]:
+    """First ``length`` bytes of one object and its total size.
+
+    Used to index fragmented packages for HLS. Bounded by the caller; the
+    body is read and closed here. Provider failures raise PresignUnavailable.
+    """
+    if length <= 0:
+        raise ValueError("length must be positive")
+    response = None
+    try:
+        response = _b2_client().get_object(Bucket=bucket, Key=object_key, Range=f"bytes=0-{length - 1}")
+        body = response["Body"]
+        try:
+            data = body.read(length)
+        finally:
+            body.close()
+    except PresignUnavailable:
+        raise
+    except Exception as exc:
+        raise PresignUnavailable(f"package header unavailable: {type(exc).__name__}") from None
+    total = None
+    content_range = response.get("ContentRange") or ""
+    if "/" in content_range:
+        try:
+            total = int(content_range.rsplit("/", 1)[1])
+        except ValueError:
+            total = None
+    if total is None and len(data) < length:
+        total = len(data)
+    return data, total

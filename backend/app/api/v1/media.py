@@ -129,7 +129,21 @@ from app.services.representative_population import (
 
 from app.services.media_cache import thumb_url
 
-router = APIRouter(prefix="/media", tags=["media"], dependencies=[Depends(require_owner_for_mutation)])
+async def _note_request_host(request: Request) -> None:
+    """Remember the serving host for the HLS hints (B2 CORS is per origin).
+
+    Async on purpose: set in the request's own context, which the threadpool
+    copies into sync endpoints.
+    """
+    from app.services.derivative_read import note_request_host
+
+    note_request_host(request.headers.get("host"))
+
+
+router = APIRouter(
+    prefix="/media", tags=["media"],
+    dependencies=[Depends(require_owner_for_mutation), Depends(_note_request_host)],
+)
 
 
 RENDITION_PREFERENCE = {
@@ -1224,13 +1238,27 @@ def _add_start_role_hints(db: Session, result: dict, video_uuids: list[str]) -> 
     # versions, name an uncapped one: the player may overestimate the
     # bitrate (a cautious start), never underestimate it.
     best: dict[str, str] = {}
+    from app.services.derivative_read import hls_transform_versions
+
+    hls_versions = hls_transform_versions()
+    # The adaptive hint is independent of the cautious bitrate hint: a ready
+    # Light in an HLS version is what the read path serves first (newest
+    # served version wins), even when an older uncapped row also exists.
+    hls_ready = {video_uuid for video_uuid, version in rows if version in hls_versions}
     for video_uuid, version in rows:
         if video_uuid not in best or (best[video_uuid] in CAPPED_LIGHT_VERSIONS and version not in CAPPED_LIGHT_VERSIONS):
             best[video_uuid] = version
+    from app.services.derivative_read import current_hls_player_mode
+
+    hls_start_mode = current_hls_player_mode()
     for video_uuid, version in best.items():
         if video_uuid in result:
             result[video_uuid]["start_role"] = "light"
             result[video_uuid]["start_light_version"] = version
+            # Adaptive start: the master playlist route still proves the
+            # current source and storage, and 404s back to progressive.
+            if video_uuid in hls_ready:
+                result[video_uuid]["start_hls"] = hls_start_mode
 
 
 @router.post("/{video_uuid}/request")

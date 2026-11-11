@@ -41,6 +41,9 @@ from typing import Any, Optional
 
 from sqlalchemy.orm import Session
 
+from contextvars import ContextVar
+from urllib.parse import urlsplit
+
 from app.config import get_settings
 
 DERIVATIVE_ROLES = ("hq", "light", "poster")
@@ -88,25 +91,99 @@ class ClipDerivatives:
     recommended: Optional[str] = None
 
     def to_status_payload(self) -> dict[str, Any]:
+        # Single-rendition HLS for an explicit Light/HQ choice: Apple's player
+        # starts a fragmented MP4 far faster through a playlist (~0.8 s) than
+        # as a progressive file (3-6 s). An HQ aliased to Light shares it.
+        hls_revisions = {role.revision_id for role in hls_roles(self)}
         return {
             "source_revision_id": self.source_revision_id,
             "transform_version": self.transform_version,
             "start": self.start,
             "recommended": self.recommended,
-            "hq": _role_payload(self.roles.get("hq")),
-            "light": _role_payload(self.roles.get("light")),
+            # Adaptive HLS available (/media/{uuid}/hls.m3u8); a hint, the
+            # playlist route re-proves everything.
+            "hls": hls_mode(self),
+            "hq": _role_payload(self.roles.get("hq"), hls_revisions),
+            "light": _role_payload(self.roles.get("light"), hls_revisions),
             "poster": _role_payload(self.roles.get("poster")),
         }
 
 
-def _role_payload(decision: Optional[DerivativeDecision]) -> dict[str, Any]:
+def hls_transform_versions() -> frozenset[str]:
+    """Transform versions whose packages are fragmented MP4 (HLS-ready)."""
+    raw = get_settings().media_hls_transform_versions
+    return frozenset(item.strip() for item in raw.split(",") if item.strip())
+
+
+def hls_mode(clip: Optional["ClipDerivatives"]) -> Optional[str]:
+    """Which players may use the clip's HLS: ``apple``, ``all`` or None.
+
+    ``apple``: only Apple's native player, which reads B2 without CORS.
+    """
+    if not hls_roles(clip):
+        return None
+    return current_hls_player_mode()
+
+
+# Host (``name[:port]``) of the request being served, set per request by the
+# media router; read by the HLS hints.
+_request_host: ContextVar[Optional[str]] = ContextVar("media_request_host", default=None)
+
+
+def note_request_host(host: Optional[str]) -> None:
+    _request_host.set((host or "").strip().lower() or None)
+
+
+def current_hls_player_mode() -> str:
+    """``all`` when this request's origin is one the bucket CORS admits.
+
+    Only Apple's native player reads B2 segments without CORS; every other
+    player (hls.js) must be on an origin listed in MEDIA_HLS_CORS_ORIGINS.
+    """
+    host = _request_host.get()
+    if not host:
+        return "apple"
+    allowed = {
+        urlsplit(origin.strip()).netloc.lower()
+        for origin in get_settings().media_hls_cors_origins.split(",")
+        if origin.strip()
+    }
+    return "all" if host in allowed else "apple"
+
+
+def hls_roles(clip: Optional["ClipDerivatives"]) -> list["DerivativeDecision"]:
+    """Ready roles servable as HLS variants, Light first; empty if none.
+
+    Light must be ready in an HLS version (it is the safe start). HQ joins
+    when it is a distinct ready rendition in an HLS version; an HQ aliased to
+    Light adds nothing.
+    """
+    if clip is None:
+        return []
+    versions = hls_transform_versions()
+    light = clip.roles.get("light")
+    if light is None or light.state != "ready" or light.revision_id is None or light.transform_version not in versions:
+        return []
+    roles = [light]
+    hq = clip.roles.get("hq")
+    if (
+        hq is not None and hq.state == "ready" and hq.revision_id is not None
+        and not hq.aliased_to and hq.transform_version in versions
+    ):
+        roles.append(hq)
+    return roles
+
+
+def _role_payload(decision: Optional[DerivativeDecision], hls_revisions: frozenset | set = frozenset()) -> dict[str, Any]:
     if decision is None:
-        return {"state": "missing", "playback_url": None, "revision_id": None, "aliased_to": None}
+        return {"state": "missing", "playback_url": None, "revision_id": None, "aliased_to": None, "hls_url": None}
+    servable = decision.state == "ready" and decision.revision_id in hls_revisions
     return {
         "state": decision.state,
         "playback_url": decision.playback_url,
         "revision_id": decision.revision_id,
         "aliased_to": decision.aliased_to,
+        "hls_url": f"/api/v1/media/revisions/{int(decision.revision_id)}/hls.m3u8" if servable else None,
     }
 
 

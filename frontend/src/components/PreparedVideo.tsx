@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef, type MutableRefObject, type RefObject } from 'react'
+import { clearMediaSource, mediaSourceOf, setMediaSource } from '../utils/hlsPlayback'
 import { acquirePlaybackVideo, adoptPlaybackVideo, holdWarmup, releasePlaybackVideo, onPreparedPlaybackReset } from '../utils/preparedPlayback'
 
 /** Replace the hosted element with a prepared one; false if not possible. */
@@ -97,9 +98,9 @@ export default function PreparedVideo(props: Props) {
     const video = primaryRef.current
     if (!video) return
     decorate(video)
-    if (video.getAttribute('src') !== (props.src ?? null)) {
-      if (props.src) video.src = props.src
-      else { video.removeAttribute('src'); video.load() }
+    if (mediaSourceOf(video) !== (props.src ?? null)) {
+      if (props.src) setMediaSource(video, props.src)
+      else clearMediaSource(video)
     }
     // These events may already have fired before adopting the warm video.
     if (props.src && video.readyState >= 1) props.onLoadedMetadata()
@@ -132,7 +133,7 @@ export default function PreparedVideo(props: Props) {
 
   useLayoutEffect(() => onPreparedPlaybackReset(() => {
     const video = primaryRef.current;
-    if (video) { video.pause(); video.removeAttribute('src'); video.load(); }
+    if (video) { video.pause(); clearMediaSource(video); }
   }), [props.videoUuid]);
   return <div ref={hostRef} className="relative h-full w-full" />
 }
