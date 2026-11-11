@@ -147,7 +147,7 @@ export default function ClipComments({
           className="clip-load-more"
           onClick={() => void load(before)}
         >
-          Older comments
+          {t('comments.olderComments')}
         </button>
       )}
     </div>

@@ -263,7 +263,7 @@ export default function CodeAnalysis() {
     <div className="ca-span">
       {topbar}
       <div className="ca-hero">
-        <div><h1 className="ca-hero-code">{code}</h1><p className="ca-hero-name">{name !== code ? name : ''}{dd ? ` · DD ${fmtScore(dd)}` : ''}</p></div>
+        <div><h1 className="ca-hero-code">{code}</h1><p className="ca-hero-name">{name !== code ? name : ''}{dd ? <> · <span className="whitespace-nowrap">DD {fmtScore(dd)}</span></> : null}</p></div>
         {analytics && <div className="ca-hero-trend">
           {trend == null ? latest && <><strong className="ca-flat">{formatDistanceToNowStrict(parseISO(all[all.length - 1].dive_datetime), { locale: appLocale() })}</strong><span>{t('codeAnalysis.sinceLastAttempt')}</span></> : <>
             <strong className={trend >= 0.5 ? 'ca-up' : trend <= -0.5 ? 'ca-down' : undefined}>{Math.abs(trend) < 0.5 ? t('codeAnalysis.stable') : `${trend > 0 ? '▲ +' : '▼ '}${fmtScore(trend)}`}</strong>

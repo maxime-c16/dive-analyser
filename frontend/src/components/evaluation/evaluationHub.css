@@ -234,7 +234,7 @@
   .evaluations-navigation { flex-wrap:wrap; gap:0; }
   .evaluations-navigation .evaluations-tabs { flex:1 1 100%; }
   .evaluations-page .evaluations-tabs button { overflow:visible; text-overflow:clip; font-size:14px; padding:10px 6px; }
-  .eval-room-link { margin-left:auto; min-height:36px; border:0; padding:4px 0; }
+  .eval-room-link { margin:8px 0 8px auto; min-height:36px; padding:0 14px; border:1px solid var(--app-border-strong); border-radius:999px; color:var(--app-accent); font-weight:500; }
   .eval-room-short { display:none; }
   .eval-room-full { display:inline; }
   .evaluations-page { padding-bottom:24px; }

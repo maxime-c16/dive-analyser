@@ -1,3 +1,4 @@
+import { fmtNum } from '../utils/formatNumber'
 import { useModalOverlay } from '../utils/overlays'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -90,7 +91,7 @@ function RepresentativeCardView({
       )}
       <div className="space-y-3 p-4 text-sm">
         <div>
-          <div className="text-xl font-semibold text-app-text">{rep.attempt.score_10.toFixed(1)} <span className="text-sm font-normal text-app-muted">/ {rep.attempt.performance}</span></div>
+          <div className="text-xl font-semibold text-app-text">{fmtNum(rep.attempt.score_10, 1)} <span className="text-sm font-normal text-app-muted">/ {rep.attempt.performance}</span></div>
           <div className="mt-1 text-app-muted">{formatDate(rep.attempt.dive_datetime)} · {rep.attempt.height} · {rep.attempt.is_sync ? 'SYNC' : t('analysis.individual')}</div>
           <div className="mt-1 text-app-muted">{rep.attempt.diver?.display_name || t('analysis.unassigned')} · {rep.attempt.modifiers.join(', ') || t('analysis.noModifiers')}</div>
         </div>
@@ -156,9 +157,9 @@ function CandidatePanel({
             <div key={candidate.candidate.id} className="border border-app p-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <div className="font-semibold text-app-text">{candidate.candidate.score_10.toFixed(1)} / {candidate.candidate.performance}</div>
+                  <div className="font-semibold text-app-text">{fmtNum(candidate.candidate.score_10, 1)} / {candidate.candidate.performance}</div>
                   <div className="mt-1 text-sm text-app-muted">{formatDate(candidate.candidate.dive_datetime)} · {candidate.candidate.height} · {candidate.candidate.is_sync ? 'SYNC' : t('analysis.individual')}</div>
-                  <div className="mt-1 text-xs text-app-muted">{t('repMedia.scoreDistance')} {candidate.similarity.score_distance.toFixed(1)} · {VIABILITY_KEYS.has(candidate.media_viability) ? t(`repMedia.viability.${candidate.media_viability}`) : candidate.media_viability}</div>
+                  <div className="mt-1 text-xs text-app-muted">{t('repMedia.scoreDistance')} {fmtNum(candidate.similarity.score_distance, 1)} · {VIABILITY_KEYS.has(candidate.media_viability) ? t(`repMedia.viability.${candidate.media_viability}`) : candidate.media_viability}</div>
                   <div className="mt-1 text-xs text-app-muted">{candidate.ready_renditions.length ? t('repMedia.alreadyReady', { renditions: candidate.ready_renditions.join(', ') }) : t('repMedia.noCachedRendition')} · {t('analysis.attempts')} {candidate.materialization_history.attempt_count}</div>
                 </div>
                 <div className="text-right text-xs text-app-muted">

@@ -462,7 +462,7 @@ describe("Account (final V2)", () => {
     renderAccount();
     expect(await screen.findByText("Diver score")).toBeInTheDocument();
     expect(screen.getByText("Provisional")).toBeInTheDocument();
-    expect(screen.getByText(/Performance 7\.5 \/ 10 across 2 votes/)).toBeInTheDocument();
+    expect(screen.getByText(/Performance 7\.5\/10 · 2 votes/)).toBeInTheDocument();
     expect(screen.getByText(/1 dives evaluated/)).toBeInTheDocument();
     expect(screen.getByText(/1 community interactions/)).toBeInTheDocument();
   });

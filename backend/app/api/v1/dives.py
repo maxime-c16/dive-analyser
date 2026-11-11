@@ -18,6 +18,8 @@ from app.schemas.dive import DiveCreate, DiveUpdate
 from app.services.dive_access import apply_self_scope, owned_diver_ids, require_dive_owner
 from app.services.diver_identity import get_primary_diver, invalidate_analysis_cache, resolve_diver
 from app.services.difficulty_adjustment import formula_dd
+from app.services.performance_scoring import ORDINAL_SCORE
+from app.services.phase_validator import PhaseValidator
 from app.services.world_aquatics_dd import REFERENCE_ID
 
 router = APIRouter(dependencies=[Depends(require_workspace_user), Depends(require_owner_for_mutation)])
@@ -712,6 +714,8 @@ def update_dive(
 
     # Update only provided fields
     update_data = dive_update.model_dump(exclude_unset=True)
+    # The 0-4 ordinal is always derived from the letter, never client-set.
+    update_data.pop("performance_numeric", None)
     if db.info.get("member_access") and "person_name" in update_data:
         raise HTTPException(403, "Diver reassignment requires an operator")
     if update_data.get("visibility", "public") is None:
@@ -724,6 +728,32 @@ def update_dive(
         # A pending deposit stays private until its owner accepts it; the
         # depositor can manage it but must never expose it early.
         raise HTTPException(409, "Accept this deposit before making it public")
+    phase_keys = {"phase1_performance", "phase2_performance"} & update_data.keys()
+    if (
+        not phase_keys
+        and update_data.get("performance") is not None
+        and (dive.phase1_performance or dive.phase2_performance)
+    ):
+        # The composite of a two-phase dive is derived from its phases; a lone
+        # letter would leave them disagreeing. Clear the phases explicitly.
+        raise HTTPException(422, "This dive is rated in two phases; send phases, or clear them to set a single rating")
+    if phase_keys:
+        phase1 = update_data.get("phase1_performance", dive.phase1_performance)
+        phase2 = update_data.get("phase2_performance", dive.phase2_performance)
+        if (phase1 is None) != (phase2 is None):
+            raise HTTPException(422, "Both phases must be rated together")
+        if phase1 is not None:
+            # The legacy composite stays derived, exactly as the Photos sync does.
+            update_data["performance"] = PhaseValidator.infer_legacy_score(phase1, phase2)
+        elif update_data.get("performance") is None:
+            raise HTTPException(422, "A single rating is required when phases are cleared")
+        update_data["phase1_numeric"] = ORDINAL_SCORE[phase1] if phase1 else None
+        update_data["phase2_numeric"] = ORDINAL_SCORE[phase2] if phase2 else None
+    if "performance" in update_data and update_data["performance"] is None:
+        raise HTTPException(422, "Rating cannot be null")
+    if update_data.get("performance") is not None:
+        # The ordinal is server authority; a client value can never disagree.
+        update_data["performance_numeric"] = ORDINAL_SCORE[update_data["performance"]]
     for field, value in update_data.items():
         setattr(dive, field, value)
     if "person_name" in update_data:

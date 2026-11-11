@@ -21,7 +21,7 @@ function formatWhen(iso: string | null, locale: string): string {
   if (!iso) return ''
   const date = new Date(iso)
   if (Number.isNaN(date.getTime())) return ''
-  return date.toLocaleString(locale)
+  return date.toLocaleString(locale, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
 }
 
 /** "Dive of <date>" when the real session date is known and differs from the
@@ -115,12 +115,12 @@ function NotificationRow({
   return (
     <article
       aria-label={title}
-      className={`border border-app bg-app-panel p-4 ${unread ? 'border-l-2 border-l-[var(--app-accent)]' : ''}`}
+      className={`rounded-xl border border-app bg-app-panel p-4 ${unread ? 'border-l-2 border-l-[var(--app-accent)]' : ''}`}
     >
       <div className="flex items-start justify-between gap-3">
         <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-app-accent">
           {typeLabel(t, item.type)}
-          {unread ? ` · ${t('notifications.unreadBadge')}` : ''}
+          {unread ? <span className="sr-only"> · {t('notifications.unreadBadge')}</span> : null}
         </p>
         {item.created_at && (
           <time dateTime={item.created_at} className="shrink-0 text-xs text-app-muted">
@@ -135,17 +135,17 @@ function NotificationRow({
         {calendarView && calendarView.url.startsWith('/calendar') && (
           <Link
             to={calendarView.url}
-            className="touch-target inline-flex items-center gap-2 border border-app bg-app-panel-elevated px-3 py-2 text-sm font-medium text-app-text"
+            className="touch-target inline-flex items-center gap-2 rounded-lg border border-app bg-app-panel-elevated px-3 py-2 text-sm font-medium text-app-text"
           >
             <CalendarDays className="h-4 w-4" aria-hidden />
             {t('notifications.calendar.openEvent')}
           </Link>
         )}
-        {item.conversation_id != null && <Link to={`/messages/${item.conversation_id}`} className="touch-target border border-app px-3 py-2 text-sm text-app-text">{t('messages.open')}</Link>}
+        {item.conversation_id != null && <Link to={`/messages/${item.conversation_id}`} className="touch-target inline-flex items-center rounded-lg border border-app px-3 py-2 text-sm text-app-text">{t('messages.open')}</Link>}
         {item.type === 'session_video' && (
           <Link
             to={item.session_id ? `/sessions/shared/${item.session_id}` : "/dives"}
-            className="touch-target inline-flex items-center gap-2 border border-app bg-app-panel-elevated px-3 py-2 text-sm font-medium text-app-text"
+            className="touch-target inline-flex items-center gap-2 rounded-lg border border-app bg-app-panel-elevated px-3 py-2 text-sm font-medium text-app-text"
           >
             <Film className="h-4 w-4" aria-hidden />
             {t('nav.dives')}
@@ -154,7 +154,7 @@ function NotificationRow({
         {item.dive_id != null && (
           <Link
             to={`/dives?clip=${item.dive_id}`}
-            className="touch-target inline-flex items-center gap-2 border border-app bg-app-panel-elevated px-3 py-2 text-sm font-medium text-app-text"
+            className="touch-target inline-flex items-center gap-2 rounded-lg border border-app bg-app-panel-elevated px-3 py-2 text-sm font-medium text-app-text"
           >
             <Film className="h-4 w-4" aria-hidden />
             {t('notifications.openDive')}
@@ -165,7 +165,7 @@ function NotificationRow({
             type="button"
             onClick={onMarkRead}
             disabled={busy}
-            className="touch-target inline-flex items-center gap-2 border border-app bg-transparent px-3 py-2 text-sm text-app-muted hover:text-app-text disabled:opacity-60"
+            className="touch-target inline-flex items-center gap-2 rounded-lg border border-app bg-transparent px-3 py-2 text-sm text-app-muted hover:text-app-text disabled:opacity-60"
           >
             <Check className="h-4 w-4" aria-hidden />
             {t('notifications.markRead')}
@@ -384,19 +384,18 @@ function AccountNotificationsPage() {
           </h1>
           <MobileShellActions />
         </div>
-        <p className="mt-1 text-sm text-app-muted">{t('notifications.headingDesc')}</p>
       </header>
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        <div role="group" aria-label={t('notifications.filterAria')} className="flex gap-2">
+        <div role="group" aria-label={t('notifications.filterAria')} className="flex gap-1 rounded-full border border-app bg-app-panel p-1">
           <button
             type="button"
             aria-pressed={!unreadOnly}
             onClick={() => setUnreadOnly(false)}
-            className={`touch-target border px-3 py-2 text-sm font-medium ${
+            className={`min-h-9 rounded-full px-3 text-sm font-medium ${
               !unreadOnly
-                ? 'border-app-accent bg-app-accent/10 text-app-accent'
-                : 'border-app bg-app-panel-elevated text-app-muted hover:text-app-text'
+                ? 'bg-app-panel-elevated text-app-text shadow-[inset_0_0_0_1px_var(--app-border-strong)]'
+                : 'text-app-muted hover:text-app-text'
             }`}
           >
             {t('notifications.showAll')}
@@ -405,10 +404,10 @@ function AccountNotificationsPage() {
             type="button"
             aria-pressed={unreadOnly}
             onClick={() => setUnreadOnly(true)}
-            className={`touch-target border px-3 py-2 text-sm font-medium ${
+            className={`min-h-9 rounded-full px-3 text-sm font-medium ${
               unreadOnly
-                ? 'border-app-accent bg-app-accent/10 text-app-accent'
-                : 'border-app bg-app-panel-elevated text-app-muted hover:text-app-text'
+                ? 'bg-app-panel-elevated text-app-text shadow-[inset_0_0_0_1px_var(--app-border-strong)]'
+                : 'text-app-muted hover:text-app-text'
             }`}
           >
             {countsKnown
@@ -420,7 +419,7 @@ function AccountNotificationsPage() {
           type="button"
           onClick={handleMarkAll}
           disabled={busyAll || unreadCount === 0}
-          className="touch-target ml-auto inline-flex items-center gap-2 border border-app bg-app-panel-elevated px-3 py-2 text-sm font-medium text-app-text disabled:opacity-60"
+          className="touch-target ml-auto inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-full px-2 text-sm font-medium text-app-accent disabled:text-app-muted disabled:opacity-60"
         >
           <CheckCheck className="h-4 w-4" aria-hidden />
           {busyAll ? t('notifications.saving') : t('notifications.markAllRead')}

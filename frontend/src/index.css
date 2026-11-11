@@ -268,8 +268,9 @@ select {
 }
 
 @layer components {
+  /* The shell's <main> already sets the page gutter; pages only stack. */
   .app-page {
-    @apply space-y-6 px-4 py-5 sm:px-6 lg:px-8 lg:py-8;
+    @apply space-y-6;
   }
 
   .app-panel {
@@ -335,3 +336,35 @@ button:disabled { cursor:default; }
 .library-card-media:has([data-preview-state=missing]) { aspect-ratio:4 / 3; }
 .library-card-media:has([data-preview-state=missing]) > [data-preview-state] { min-height:110px; }
 .library-card-media [data-preview-state=missing] { padding-bottom:20px; }
+
+/* One corner language. Newer surfaces are rounded (10–16px); older Tailwind
+   panels, link-buttons and fields were square. Anything that sets its own
+   rounded-* class keeps it, and single-edge borders (tab rows, dividers)
+   are untouched because they never carry the full `border` class. */
+.app-panel:not([class*="rounded"]),
+.border.border-app.bg-app-panel:not([class*="rounded"]),
+.border.border-app-strong.bg-app-panel:not([class*="rounded"]) {
+  border-radius: 0.75rem;
+}
+.border.border-app.bg-app-panel-elevated:not([class*="rounded"]),
+.touch-target.border:not([class*="rounded"]),
+:is(input, select, textarea).border:not([class*="rounded"]) {
+  border-radius: 0.625rem;
+}
+
+/* WebKit/iOS ignores padding and height on natively drawn selects, which
+   rendered them as thin pills beside 44px fields. Draw them ourselves. */
+select:not([multiple]):not([size]) {
+  -webkit-appearance: none;
+  appearance: none;
+  padding-right: 2rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23a6b1b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m7 15 5 5 5-5'/%3E%3Cpath d='m7 9 5-5 5 5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.625rem center;
+  background-size: 1rem;
+}
+@media (max-width: 639px) {
+  select:not([multiple]):not([size]) {
+    border-radius: 0.625rem;
+  }
+}

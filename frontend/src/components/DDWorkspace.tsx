@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { fmtNum } from '../utils/formatNumber'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
@@ -54,7 +55,7 @@ function DDWorkspace({ compact = false }: Props) {
             <h2 id="dd-workspace-title" className="text-xl font-semibold text-app-text sm:text-2xl">{t('ddWorkspace.title')}</h2>
           </div>
           <label className="text-sm text-app-muted">{t('ddWorkspace.view')}
-            <select aria-label={t('ddWorkspace.scopeAria')} value={scope} onChange={(event) => setScope(event.target.value as 'self' | 'all')} className="app-input ml-2 mt-1 w-full py-1 text-sm sm:mt-0 sm:w-auto">
+            <select aria-label={t('ddWorkspace.scopeAria')} value={scope} onChange={(event) => setScope(event.target.value as 'self' | 'all')} className="app-input mt-1 block w-full py-1 text-sm sm:ml-2 sm:mt-0 sm:inline-block sm:w-auto">
               <option value="self">{t('ddWorkspace.myDives')}</option>
               <option value="all">{t('ddWorkspace.allDivers')}</option>
             </select>
@@ -80,8 +81,8 @@ function DDWorkspace({ compact = false }: Props) {
                 <defs><linearGradient id="ddMedianFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor="#54beab" stopOpacity={0.3} /><stop offset="100%" stopColor="#54beab" stopOpacity={0} /></linearGradient></defs>
                 <CartesianGrid stroke="rgba(82,96,105,.35)" vertical={false} />
                 <XAxis dataKey="label" tick={{ fill: '#98a2aa', fontSize: 11 }} tickLine={false} axisLine={false} minTickGap={28} />
-                <YAxis domain={['dataMin - 0.2', 'dataMax + 0.2']} tick={{ fill: '#98a2aa', fontSize: 11 }} tickLine={false} axisLine={false} allowDecimals />
-                <Tooltip contentStyle={{ background: '#15191c', border: '1px solid rgba(126,146,156,.7)', borderRadius: 0 }} labelStyle={{ color: '#edf2f4' }} formatter={(value: number, name: string) => [oneDecimal(value), name === 'median_dd' ? t('ddWorkspace.medianDD') : t('ddWorkspace.highestDD')]} />
+                <YAxis domain={['dataMin - 0.2', 'dataMax + 0.2']} tick={{ fill: '#98a2aa', fontSize: 11 }} tickLine={false} axisLine={false} allowDecimals tickFormatter={(value: number) => fmtNum(value, 1)} />
+                <Tooltip contentStyle={{ background: '#15191c', border: '1px solid rgba(126,146,156,.7)', borderRadius: 10 }} labelStyle={{ color: '#edf2f4' }} formatter={(value: number, name: string) => [oneDecimal(value), name === 'median_dd' ? t('ddWorkspace.medianDD') : t('ddWorkspace.highestDD')]} />
                 <Area type="stepAfter" dataKey="max_dd" stroke="#c9d4d6" strokeWidth={1.5} fill="none" name="max_dd" />
                 <Area type="monotone" dataKey="median_dd" stroke="#54beab" strokeWidth={3} fill="url(#ddMedianFill)" name="median_dd" />
               </AreaChart>
@@ -95,9 +96,21 @@ function DDWorkspace({ compact = false }: Props) {
       {!compact && <div className="border-t border-app p-4 sm:p-6"><div className="flex flex-wrap items-end justify-between gap-3"><h3 className="font-semibold text-app-text">{t('ddWorkspace.inventory')}</h3><span className="text-xs text-app-muted">{data.reference.label}</span></div><div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">{topInventory.map((item) => <Link key={`${item.dive_code}-${item.height}`} to={`/dives/analysis/${item.dive_code}`} className="group border border-app bg-app-panel-elevated p-3 transition-colors hover:border-app-strong"><div className="flex items-start justify-between gap-3"><div><div className="font-mono text-lg font-semibold text-app-text">{item.dive_code}</div><div className="mt-1 text-xs text-app-muted">{divePositionName(null, item.dive_code)} · {item.height} · {t('ddWorkspace.attemptsCount', { count: item.attempt_count })}</div></div><div className="flex items-center gap-1 text-app-accent"><span className="font-semibold">{oneDecimal(item.dd_value)}</span><ArrowUpRight className="h-4 w-4" /></div></div></Link>)}</div></div>}
 
       {summary.legacy_mismatch_count > 0 && <div className="flex gap-3 border-t border-app bg-app-panel-elevated px-4 py-3 text-sm text-app-muted sm:px-6"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" /><p>{t('ddWorkspace.legacyMismatch', { count: summary.legacy_mismatch_count })}</p></div>}
-      {data.undefined_reasons.length > 0 && <div className="border-t border-app px-4 py-3 text-xs leading-5 text-app-muted sm:px-6">{t('ddWorkspace.excludedFromOfficial', { list: data.undefined_reasons.map((item) => `${item.attempt_count} ${item.reason.toLowerCase()}`).join(' · ') })}</div>}
+      {data.undefined_reasons.length > 0 && <div className="border-t border-app px-4 py-3 text-xs leading-5 text-app-muted sm:px-6">{t('ddWorkspace.excludedFromOfficial', { list: data.undefined_reasons.map((item) => t(`ddWorkspace.undefinedReason.${undefinedReasonKey(item.reason)}`, { count: item.attempt_count })).join(' · ') })}</div>}
     </section>
   )
 }
+
+/** Backend reasons are canonical English sentences; display them translated. */
+const UNDEFINED_REASON_KEYS: Record<string, string> = {
+  'Straight jumps and unsupported dive codes have no official DD here': 'straight',
+  'One and one-and-a-half somersault twisting dives require Free position': 'twistFree',
+  'Twisting dives with two or more somersaults require Pike or Tuck': 'twistPikeTuck',
+  'Half-somersault twisting dives require A, B, or C position': 'twistHalf',
+  'Free position is only defined for twisting dives': 'freeOnlyTwist',
+  'Unsupported official board height': 'height',
+}
+const undefinedReasonKey = (reason: string) =>
+  Object.entries(UNDEFINED_REASON_KEYS).find(([prefix]) => reason.startsWith(prefix))?.[1] ?? 'other'
 
 export default DDWorkspace

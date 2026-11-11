@@ -1,3 +1,7 @@
+/* evaluations.css is the base layer; this sheet overrides it. Importing it
+   here pins the order on every route (the clip player used to load this
+   sheet first, so the lazily loaded base later won the cascade). */
+@import './evaluations.css';
 /* Approved A: native app surfaces, carnet scores, watch first. */
 .eval-card-raised { animation: eval-carnet-raise 780ms cubic-bezier(.2,.75,.25,1) var(--stagger,0ms) both; pointer-events: none; }
 @keyframes eval-carnet-raise { from { transform: translateY(80%) rotate(-3deg); opacity: 0; } 60% { transform: translateY(-5%); opacity: 1; } to { transform: none; opacity: 1; } }
@@ -229,3 +233,8 @@
 .eval-preparation-identity span { font-size:13px; color:var(--app-muted); }
 
 @media(max-width:359px) { .eval-preparation-actions { flex-direction:column; width:100%; } .eval-preparation-actions button { width:100%; flex:none; white-space:normal; } }
+/* WebKit ignores accent-color on <progress>: draw the bar in the app accent. */
+.eval-watch-progress progress { -webkit-appearance: none; appearance: none; border: 0; border-radius: 999px; overflow: hidden; background: rgba(255,255,255,.14); }
+.eval-watch-progress progress::-webkit-progress-bar { background: rgba(255,255,255,.14); border-radius: 999px; }
+.eval-watch-progress progress::-webkit-progress-value { background: var(--app-accent); border-radius: 999px; }
+.eval-watch-progress progress::-moz-progress-bar { background: var(--app-accent); border-radius: 999px; }

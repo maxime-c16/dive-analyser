@@ -40,7 +40,11 @@ class DiveUpdate(BaseModel):
     """Dive update schema (all fields optional)"""
 
     visibility: Optional[Literal["public", "private"]] = None
-    performance: Optional[str] = None
+    performance: Optional[Literal["F", "B", "M", "G", "P"]] = None
+    # Two-phase rating: send both letters, or both null to return the dive
+    # to a single rating. The composite ``performance`` is derived server-side.
+    phase1_performance: Optional[Literal["F", "B", "M", "G", "P"]] = None
+    phase2_performance: Optional[Literal["F", "B", "M", "G", "P"]] = None
     performance_numeric: Optional[int] = None
     notes: Optional[str] = None
     is_lineup: Optional[bool] = None

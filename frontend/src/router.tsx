@@ -481,7 +481,7 @@ function Layout({ children }: { children: React.ReactNode }) {
   const primaryNavItems = usePrimaryNav();
   const skipToMainContent = useSkipToMainContent();
   return (
-    <div className="min-h-screen bg-app text-app-text">
+    <div className="min-h-screen min-w-0 bg-app text-app-text">
       <a href="#main-content" className="skip-link" onClick={skipToMainContent}>
         {t("nav.skipToContent")}
       </a>
@@ -529,7 +529,7 @@ function Layout({ children }: { children: React.ReactNode }) {
 
         <div className="flex min-w-0 flex-1 flex-col">
           <MobileShell>
-            <main id="main-content" tabIndex={-1} className="shell-main flex-1">
+            <main id="main-content" tabIndex={-1} className="shell-main min-w-0 flex-1">
               <div className="mx-auto w-full max-w-[1440px] px-4 py-5 sm:px-6 lg:px-8 lg:py-8">
                 <Breadcrumbs />
                 {children}

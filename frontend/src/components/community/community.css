@@ -143,7 +143,7 @@
 .cm-board-controls { display:flex; align-items:center; justify-content:flex-end; gap:8px; min-width:0; }
 .cm-board.is-sparse { border:0; border-radius:0; padding:0; background:none; }
 .cm-board.is-sparse .ca-panel-h { flex-wrap:wrap; margin-bottom:8px; }
-.cm-board.is-sparse .cm-board-category { margin:0; padding:6px 24px 6px 8px; font-size:13px; }
+.cm-board.is-sparse .cm-board-category { margin:0; padding:6px 32px 6px 8px; font-size:13px; }
 @media(max-width:639px) { .cm-board.is-sparse .cm-board-controls { flex:1 1 100%; justify-content:space-between; } }
 
 .cm-board.is-sparse .cm-podium { max-width:360px; width:100%; }

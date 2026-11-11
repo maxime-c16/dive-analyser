@@ -1,3 +1,4 @@
+import { fmtRate } from '../../utils/formatNumber'
 import React, { useEffect, useRef, useState, type RefObject } from "react";
 import { useTranslation } from "react-i18next";
 import { Heart, Maximize, Pause, Play, Volume2, VolumeX } from "lucide-react";
@@ -462,7 +463,7 @@ export default function ImmersiveControls({
           </div>
           {onPlaybackRateChange && (
             <label className="clip-speed-pill">
-              <span aria-hidden="true">{playbackRate}×</span>
+              <span aria-hidden="true">{fmtRate(playbackRate)}</span>
               <select
                 aria-label={t('clipNav.playbackSpeed')}
                 value={playbackRate}
@@ -470,7 +471,7 @@ export default function ImmersiveControls({
               >
                 {PLAYBACK_RATES.map((rate) => (
                   <option key={rate} value={rate}>
-                    {rate}×
+                    {fmtRate(rate)}
                   </option>
                 ))}
               </select>
