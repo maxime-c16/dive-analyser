@@ -397,6 +397,8 @@ def test_browse_session_position_and_technique_inventory_are_complete(pg, monkey
         page = api.attempts(1,1,api.ReadInput(**context,after=50),None,db)
         assert page['items'][0]['session_index'] == 51
         assert page['items'][0]['session_total'] == 101
+        assert page['items'][0]['history_total'] == 101
+        assert page['items'][0]['history_index'] == 51
         names = api.technique_choices(1,1,None,0,db)
         assert len(names['items']) == 50 and names['next'] == 50
         assert len(api.technique_choices(1,1,None,names['next'],db)['items']) == 25

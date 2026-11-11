@@ -109,8 +109,8 @@ def attempts(diver: int, track: int, body: ReadInput, request: Request, db: Sess
     params = dict(body.model_dump(), diver=diver, track=track)
     if sum(bool(value) for value in (body.after, body.before, body.around, body.seek_at)) > 1:
         raise HTTPException(422, 'Choose one navigation cursor')
-    source = RESOLVED + ", browse_context AS (SELECT resolved.*, row_number() OVER (PARTITION BY session_id ORDER BY history_occurred_at,id) session_index, count(*) OVER (PARTITION BY session_id) session_total FROM resolved) "
-    query = """ SELECT id,session_id,session_index,session_total,video_uuid,dive_code,dive_datetime,history_occurred_at,performance,late_import,intended_scope,intended_start_at,intended_start_id,episode_id,recorded_episode_id,recorded_episode_deleted,intended_id,state,use_id,
+    source = RESOLVED + ", browse_context AS (SELECT resolved.*,count(*) OVER () history_total,row_number() OVER (ORDER BY history_occurred_at,id) history_index, row_number() OVER (PARTITION BY session_id ORDER BY history_occurred_at,id) session_index, count(*) OVER (PARTITION BY session_id) session_total FROM resolved) "
+    query = """ SELECT id,session_id,history_total,history_index,session_index,session_total,video_uuid,dive_code,dive_datetime,history_occurred_at,performance,late_import,intended_scope,intended_start_at,intended_start_id,episode_id,recorded_episode_id,recorded_episode_deleted,intended_id,state,use_id,
     (SELECT label FROM techniques WHERE techniques.id=resolved.use_id AND techniques.track_id=:track) use_label,(SELECT label FROM techniques WHERE techniques.id=resolved.intended_id AND techniques.track_id=:track) intended_label,source FROM browse_context AS resolved
     WHERE (CAST(:session_id AS integer) IS NULL OR session_id=:session_id)
     AND (CAST(:from_date AS timestamp) IS NULL OR history_occurred_at>=:from_date)

@@ -191,7 +191,7 @@ export default function ClipViewer({
   onUpdate?: (attempt: Attempt) => void;
   onDelete?: () => void;
   onAnalyse?: (attempt: Attempt) => void;
-  workflow?: { title: string; backLabel: string; content: React.ReactNode; navigationDisabled?: boolean; positionLabel?: string };
+  workflow?: { title: string; backLabel: string; content: React.ReactNode; navigationDisabled?: boolean; positionLabel?: string; history?: { total: number; previous: boolean; next: boolean; loading: boolean; onPrevious: () => void; onNext: () => void } };
 }) {
   const { t, i18n } = useTranslation();
   const navigationBlocked = Boolean(workflow?.navigationDisabled);
@@ -905,8 +905,8 @@ export default function ClipViewer({
           </div>
         </header>
         <div className="clip-layout">
-          {studio && (
-            <ClipFilmstrip attempt={attempt} attempts={attempts} onSelect={onMove} />
+          {(studio || workflow?.history) && (
+            <ClipFilmstrip attempt={attempt} attempts={attempts} onSelect={onMove} history={workflow?.history} disabled={navigationBlocked} />
           )}
           <div className="clip-stage-column">
           <div className="clip-stage-row">

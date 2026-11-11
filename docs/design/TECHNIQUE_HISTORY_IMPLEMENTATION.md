@@ -275,3 +275,9 @@ The LAN sandbox now uses an isolated snapshot of the requesting account's own re
 Removed the technique-selection visibility callback from CodeAnalysis, TechniqueWorkspace and TechniqueHistory. Previously the existence of a period activated techniqueView and unmounted the ordinary Scores panel, including its attempt/session controls and full-history summaries. Technique history now manages only its own chart; recording, selecting and comparing periods cannot hide the ordinary score chart.
 
 Regression: a signed-in code page receives the former technique-activation event and retains the Scores heading and Chart view controls. The related page/workspace/history tests and production build pass. No data or API changes required.
+
+### Browse clips across sessions (2026-11-11)
+
+The Library filmstrip previously restricted its thumbnails to the viewed day, even when the technique setup had loaded50 attempts across many sessions. Technique workflows now explicitly opt into a cross-session filmstrip, including on phones. Each thumbnail identifies its date/time and the header shows loaded/complete counts. Earlier/later controls page the existing bounded navigation window; crossing the100-item retention limit keeps the selected clip inside the retained window. Naming/saving disables thumbnail navigation. Ordinary Library filmstrips keep their same-day behavior.
+
+Complete history ordinals/counts are computed in SQL before paging. Runtime verification on the real-account snapshot returned50 attempts across14 sessions in the first page and the next50 from history index51. Position, height and individual/sync context remain explicit; the1m context contains106 of the code's107 attempts. Tests cover cross-session selection, paging controls, ordinary same-day behavior, complete SQL counts and existing player/setup paths.65 focused frontend tests,26 PostgreSQL tests and production build passed.

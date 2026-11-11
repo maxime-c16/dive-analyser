@@ -6,6 +6,11 @@
  */
 const fr = {
   technique: {
+    codeHistory: "Historique du code",
+    loadedClips: "{{loaded}} / {{total}} clips affichés",
+    earlierClips: "Afficher les clips précédents",
+    laterClips: "Afficher la suite des clips",
+
     allPeriods: "Toutes les périodes",
     allPositions: "Toutes les positions",
     adjustExisting: "Un changement commence ici · Ajuster",

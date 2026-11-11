@@ -11,7 +11,7 @@ import type { Attempt } from '../../utils/attemptPresentation'
 type Context = { code: string; apparatus: string; height: string; position: string; sync: boolean }
 export type SetupEpisode = { id: number; anchor_id?: number | null; technique_id: number | null; label: string | null; scope: string; position?: string | null; sync?: boolean | null; notes?: string; uncertain_until?: string | null }
 type Impact = { anchor_id: number; end_at: string | null; end_id: number | null; counts: { affected: number; explicit_preserved: number }; replaces: string | null; following: { id: number; label: string | null; start_at: string } | null }
-type HistoryAttempt = { intended_scope?: string | null; episode_id?: number | null; intended_start_at?: string | null; intended_start_id?: number | null; session_index?: number; session_total?: number; intended_label?: string | null; id: number; session_id: number; dive_code: string; dive_datetime: string; history_occurred_at: string; video_uuid?: string | null; performance: string }
+type HistoryAttempt = { history_total?: number; history_index?: number; intended_scope?: string | null; episode_id?: number | null; intended_start_at?: string | null; intended_start_id?: number | null; session_index?: number; session_total?: number; intended_label?: string | null; id: number; session_id: number; dive_code: string; dive_datetime: string; history_occurred_at: string; video_uuid?: string | null; performance: string }
 type Marker = { attempt: HistoryAttempt; label: string; saved: boolean; identityKey: string; techniqueId?: number }
 const ordered = (markers: Marker[]) => [...markers].sort((a, b) => a.attempt.history_occurred_at.localeCompare(b.attempt.history_occurred_at) || a.attempt.id - b.attempt.id)
 
@@ -72,6 +72,7 @@ export default function TechniqueSetup({ base, context, revision, constrainPosit
         if (replace) return rows
         const unique = [...new Map((direction === 'before' ? [...rows, ...existing] : [...existing, ...rows]).map(row => [row.id, row])).values()]
         const retained = direction === 'before' ? unique.slice(0,100) : unique.slice(-100)
+        if (current && !retained.some(row => row.id === current.id)) setCurrent(direction === 'before' ? rows[rows.length - 1] : rows[0])
         if (unique.length > 100) {
           if (direction === 'before') setNext(retained[retained.length - 1].id)
           else setPrevious(retained[0].id)
@@ -198,5 +199,5 @@ export default function TechniqueSetup({ base, context, revision, constrainPosit
     : loading ? <p role="status">{t('technique.loadingClips')}</p>
     : <><p>{t('technique.noClips')}</p><button className="th-secondary" onClick={() => { setSeek(''); void load(0,true,'') }}>{t('technique.backToFirstClip')}</button></>}
   </div></TechniqueDialog>
-  return <ClipViewer attempt={asAttempt(current)} attempts={items.map(asAttempt)} onMove={a => { if (!editing && !saving) setCurrent(items.find(row => row.id === a.id) ?? current) }} onClose={quit} playbackRate={rate} onPlaybackRateChange={setRate} workflow={{ title: t('technique.setupTitle'), backLabel: context.code, content, navigationDisabled: Boolean(editing || saving), positionLabel: current.session_index && current.session_total ? t('technique.sessionAttempt', { index: current.session_index, total: current.session_total }) : date(current.dive_datetime) }} />
+  return <ClipViewer attempt={asAttempt(current)} attempts={items.map(asAttempt)} onMove={a => { if (!editing && !saving) setCurrent(items.find(row => row.id === a.id) ?? current) }} onClose={quit} playbackRate={rate} onPlaybackRateChange={setRate} workflow={{ title: t('technique.setupTitle'), backLabel: context.code, content, navigationDisabled: Boolean(editing || saving), history: { total: current.history_total ?? items.length, previous: previous != null, next: next != null, loading, onPrevious: () => void load(items[0].id, false, '', 'before'), onNext: () => { if (next != null) void load(next) } }, positionLabel: current.session_index && current.session_total ? t('technique.sessionAttempt', { index: current.session_index, total: current.session_total }) : date(current.dive_datetime) }} />
 }

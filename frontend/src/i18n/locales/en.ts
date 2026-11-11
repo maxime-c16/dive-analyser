@@ -6,6 +6,11 @@
  */
 const en = {
   technique: {
+    codeHistory: "Dive code history",
+    loadedClips: "{{loaded}} / {{total}} clips loaded",
+    earlierClips: "Load earlier clips",
+    laterClips: "Load more clips",
+
     allPeriods: "All periods",
     allPositions: "All positions",
     adjustExisting: "A change already starts here · Adjust it",
