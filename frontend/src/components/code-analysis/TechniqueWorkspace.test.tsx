@@ -22,6 +22,6 @@ it('loads contexts through the versioned API instead of the SPA fallback', async
       status: 200, statusText: 'OK', headers: {}, config,
     }
   }
-  render(<TechniqueWorkspace viewer={1} code="5132D" height={null} onSelected={() => {}} />)
+  render(<TechniqueWorkspace viewer={1} code="5132D" height={null} />)
   expect(await screen.findByText('Technique history for diver 1')).toBeInTheDocument()
 })

@@ -17,7 +17,7 @@ type Episode = { anchor_id?: number | null; notes?: string; apparatus?: string; 
 type Attempt = { session_index?: number; session_total?: number; session_id?: number; recorded_episode_deleted?: boolean; recorded_episode_id?: number; late_import?: boolean; use_label?: string; video_uuid?: string; dive_code: string; id: number; dive_datetime: string; history_occurred_at: string; state: string; source: string; episode_id: number | null }
 type Context = { code: string; apparatus: string; height: string; position: string; sync: boolean }
 
-export default function TechniqueHistory({ diver, context, onSelected }: { diver: number; context: Context; onSelected?: (active: boolean) => void }) {
+export default function TechniqueHistory({ diver, context }: { diver: number; context: Context }) {
   const { t } = useTranslation()
   const [trackAfter, setTrackAfter] = useState(0)
   const [chartActive, setChartActive] = useState(true)
@@ -63,7 +63,6 @@ export default function TechniqueHistory({ diver, context, onSelected }: { diver
     || (Number(b.position != null) + Number(b.sync != null)) - (Number(a.position != null) + Number(a.sync != null))
     || b.start_at.localeCompare(a.start_at))[0]
   const uniqueTechniques = episodes.filter((e, i, all) => e.technique_id && all.findIndex(other => other.technique_id === e.technique_id) === i)
-  useEffect(() => { onSelected?.(visibleEpisodes.length > 0 && (pair.length > 0 || chartActive)); return () => onSelected?.(false) }, [pair.length, chartActive, visibleEpisodes.length, onSelected])
   const base = `/api/v1/technique-history/${diver}`
   useEffect(() => {
     const g = ++generation.current

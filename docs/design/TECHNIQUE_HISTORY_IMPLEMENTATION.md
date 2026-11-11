@@ -269,3 +269,9 @@ Selecting a period now leaves the chart's time scale fixed to the loaded data. P
 The technique chart selects on completed taps, not pointer-down or vertical scrolling. Taps use the nearest plotted point; the isolated-point cursor is hidden because this view selects technique periods. General score charts retain horizontal scrubbing. Tests verify stable coordinates across selection changes and that vertical movement produces no selection. A real-media mobile browser smoke confirmed stable point coordinates, the named period and configured range transition.
 
 The LAN sandbox now uses an isolated snapshot of the requesting account's own real history and original password verifier, with the available videos for the tested code. No production credentials are reset, no production sessions copied and no demo technique periods are applied to real attempts. Private exports, media and runtime settings remain outside the repository. All test edits stay in the local snapshot; it has no production database connection or mail delivery.
+
+### Keep the main score chart visible (2026-11-11)
+
+Removed the technique-selection visibility callback from CodeAnalysis, TechniqueWorkspace and TechniqueHistory. Previously the existence of a period activated techniqueView and unmounted the ordinary Scores panel, including its attempt/session controls and full-history summaries. Technique history now manages only its own chart; recording, selecting and comparing periods cannot hide the ordinary score chart.
+
+Regression: a signed-in code page receives the former technique-activation event and retains the Scores heading and Chart view controls. The related page/workspace/history tests and production build pass. No data or API changes required.
