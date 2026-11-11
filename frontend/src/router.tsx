@@ -481,7 +481,7 @@ function Layout({ children }: { children: React.ReactNode }) {
   const primaryNavItems = usePrimaryNav();
   const skipToMainContent = useSkipToMainContent();
   return (
-    <div className="min-h-screen bg-app text-app-text">
+    <div className="min-h-screen min-w-0 bg-app text-app-text">
       <a href="#main-content" className="skip-link" onClick={skipToMainContent}>
         {t("nav.skipToContent")}
       </a>
