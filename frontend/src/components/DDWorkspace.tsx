@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { fmtNum } from '../utils/formatNumber'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
@@ -80,8 +81,8 @@ function DDWorkspace({ compact = false }: Props) {
                 <defs><linearGradient id="ddMedianFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor="#54beab" stopOpacity={0.3} /><stop offset="100%" stopColor="#54beab" stopOpacity={0} /></linearGradient></defs>
                 <CartesianGrid stroke="rgba(82,96,105,.35)" vertical={false} />
                 <XAxis dataKey="label" tick={{ fill: '#98a2aa', fontSize: 11 }} tickLine={false} axisLine={false} minTickGap={28} />
-                <YAxis domain={['dataMin - 0.2', 'dataMax + 0.2']} tick={{ fill: '#98a2aa', fontSize: 11 }} tickLine={false} axisLine={false} allowDecimals />
-                <Tooltip contentStyle={{ background: '#15191c', border: '1px solid rgba(126,146,156,.7)', borderRadius: 0 }} labelStyle={{ color: '#edf2f4' }} formatter={(value: number, name: string) => [oneDecimal(value), name === 'median_dd' ? t('ddWorkspace.medianDD') : t('ddWorkspace.highestDD')]} />
+                <YAxis domain={['dataMin - 0.2', 'dataMax + 0.2']} tick={{ fill: '#98a2aa', fontSize: 11 }} tickLine={false} axisLine={false} allowDecimals tickFormatter={(value: number) => fmtNum(value, 1)} />
+                <Tooltip contentStyle={{ background: '#15191c', border: '1px solid rgba(126,146,156,.7)', borderRadius: 10 }} labelStyle={{ color: '#edf2f4' }} formatter={(value: number, name: string) => [oneDecimal(value), name === 'median_dd' ? t('ddWorkspace.medianDD') : t('ddWorkspace.highestDD')]} />
                 <Area type="stepAfter" dataKey="max_dd" stroke="#c9d4d6" strokeWidth={1.5} fill="none" name="max_dd" />
                 <Area type="monotone" dataKey="median_dd" stroke="#54beab" strokeWidth={3} fill="url(#ddMedianFill)" name="median_dd" />
               </AreaChart>

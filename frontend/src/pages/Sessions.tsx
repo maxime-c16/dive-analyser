@@ -310,7 +310,7 @@ function Sessions() {
                             <span
                               className={`inline-block px-3 py-1 text-sm font-bold tabular-nums ${getSuccessRateColor(session.success_rate)}`}
                             >
-                              {session.success_rate
+                              {session.success_rate != null
                                 ? `${fmtNum(session.success_rate, 0)}%`
                                 : "-"}
                             </span>
@@ -347,7 +347,7 @@ function Sessions() {
                       </div>
 
                       {/* Direction Indicators */}
-                      <div className="mt-4 border-t border-app pt-4">
+                      <div className="mt-4 border-t border-app pt-4 empty:hidden">
                         <SessionDirectionIndicator
                           sessionId={session.id}
                           diverScope={diverScope}
