@@ -272,3 +272,28 @@ def test_batch_hints_hls_even_beside_an_older_uncapped_light(client, db, hls, mo
     body = client.post("/api/v1/media/status/batch", json={"video_uuids": [UUID_FULL]}).json()
     assert body[UUID_FULL]["start_light_version"] == current  # cautious bitrate hint unchanged
     assert body[UUID_FULL]["start_hls"] == "apple"
+
+
+def test_concurrent_first_loads_share_one_provider_read():
+    import threading
+
+    hls_index.reset_cache()
+    release = threading.Event()
+    calls = []
+
+    def slow_read(length):
+        calls.append(length)
+        release.wait(5)
+        return FMP4_HEAD[:length], FMP4_SIZE
+
+    results = []
+    threads = [threading.Thread(target=lambda: results.append(hls_index.cached_index("same", slow_read))) for _ in range(4)]
+    for thread in threads:
+        thread.start()
+    release.set()
+    for thread in threads:
+        thread.join(5)
+    assert len(calls) == 1
+    assert len(results) == 4 and all(result is results[0] for result in results)
+    assert hls_index._inflight == {}
+    hls_index.reset_cache()

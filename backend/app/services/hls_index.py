@@ -34,6 +34,8 @@ _CACHE_MAX_ENTRIES = 4096
 _CACHE_MAX_SEGMENTS = 250_000
 _cache: "OrderedDict[str, Optional[FragmentIndex]]" = OrderedDict()
 _cached_segments = 0
+# Per-blob gates for first loads (single-flight); removed once idle.
+_inflight: dict = {}
 _cache_lock = threading.Lock()
 
 
@@ -310,32 +312,45 @@ def load_index(read_head: RangeReader) -> Optional[FragmentIndex]:
 def cached_index(blob_sha256: str, read_head: RangeReader) -> Optional[FragmentIndex]:
     """Index for one immutable blob; non-fragmented results are cached too.
 
+    Single-flight per blob: concurrent first requests share one B2 read.
     Provider failures raise IndexUnavailable and are never cached.
     """
+    global _cached_segments
     with _cache_lock:
         if blob_sha256 in _cache:
             _cache.move_to_end(blob_sha256)
             return _cache[blob_sha256]
-    global _cached_segments
-    index = load_index(read_head)
-    size = len(index.segments) if index else 0
-    if size > _CACHE_MAX_SEGMENTS:
-        return index  # served, never retained
-    with _cache_lock:
-        previous = _cache.pop(blob_sha256, None)
-        _cached_segments -= len(previous.segments) if previous else 0
-        _cache[blob_sha256] = index
-        _cached_segments += size
-        while len(_cache) > _CACHE_MAX_ENTRIES or _cached_segments > _CACHE_MAX_SEGMENTS:
-            _key, evicted = _cache.popitem(last=False)
-            _cached_segments -= len(evicted.segments) if evicted else 0
-    return index
+        gate = _inflight.setdefault(blob_sha256, threading.Lock())
+    try:
+        with gate:
+            with _cache_lock:
+                if blob_sha256 in _cache:
+                    _cache.move_to_end(blob_sha256)
+                    return _cache[blob_sha256]
+            index = load_index(read_head)
+            size = len(index.segments) if index else 0
+            if size > _CACHE_MAX_SEGMENTS:
+                return index  # served, never retained
+            with _cache_lock:
+                previous = _cache.pop(blob_sha256, None)
+                _cached_segments -= len(previous.segments) if previous else 0
+                _cache[blob_sha256] = index
+                _cached_segments += size
+                while len(_cache) > _CACHE_MAX_ENTRIES or _cached_segments > _CACHE_MAX_SEGMENTS:
+                    _key, evicted = _cache.popitem(last=False)
+                    _cached_segments -= len(evicted.segments) if evicted else 0
+            return index
+    finally:
+        with _cache_lock:
+            if _inflight.get(blob_sha256) is gate and not gate.locked():
+                del _inflight[blob_sha256]
 
 
 def reset_cache() -> None:
     global _cached_segments
     with _cache_lock:
         _cache.clear()
+        _inflight.clear()
         _cached_segments = 0
 
 
