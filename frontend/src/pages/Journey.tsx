@@ -1,3 +1,4 @@
+import { fmtNum } from '../utils/formatNumber'
 import React, { useEffect, useState } from "react";
 import { api } from "../services/api";
 import JourneyTimeline from "../components/JourneyTimeline";
@@ -139,7 +140,7 @@ function Journey() {
       {/* Header */}
       <div className="border-b border-app bg-app-panel px-4 py-5 sm:px-6 sm:py-6">
         <div className="mx-auto flex max-w-6xl items-start gap-2">
-          <h1 className="min-w-0 flex-1 text-3xl font-semibold sm:text-4xl">
+          <h1 className="min-w-0 flex-1 text-3xl font-semibold tracking-tight text-app-text sm:text-4xl">
             {t("journey.title")}
           </h1>
           <MobileShellActions />
@@ -175,7 +176,7 @@ function Journey() {
                   className={`app-kpi-value text-2xl ${journeyData.growth.improvement > 0 ? "text-green-400" : "text-app-muted"}`}
                 >
                   {journeyData.growth.improvement > 0 ? "+" : ""}
-                  {journeyData.growth.improvement.toFixed(2)}
+                  {fmtNum(journeyData.growth.improvement, 2)}
                 </div>
               </div>
               <div className="min-w-0">
@@ -294,8 +295,8 @@ function Journey() {
 
           {activeTab === "timeline" && (
             <>
-              <div className="mb-6 flex flex-col gap-3 border-b border-app pb-4 sm:flex-row sm:items-center sm:justify-between">
-                <h2 className="text-2xl font-semibold">{t("journey.milestones")}</h2>
+              <div className="mb-6 flex items-center justify-end gap-3 border-b border-app pb-4">
+                <h2 className="sr-only">{t("journey.milestones")}</h2>
                 <div className="flex items-center gap-3">
                   <label className="text-sm text-app-muted">{t("journey.show")}:</label>
                   <select
@@ -534,10 +535,8 @@ function Journey() {
                         </div>
                         <div className="app-kpi-value text-2xl text-app-accent">
                           {journeyData.psychological.fear_coefficient
-                            ? journeyData.psychological.fear_coefficient.toFixed(
-                                2,
-                              )
-                            : "1.0"}
+                            ? fmtNum(journeyData.psychological.fear_coefficient, 2)
+                            : fmtNum(1, 1)}
                         </div>
                       </div>
                       <div className="border border-green-500/30 bg-green-500/10 p-4">
@@ -592,7 +591,7 @@ function Journey() {
                             {t("journey.firstMonthAvg")}
                           </span>
                           <span className="text-app-text font-bold">
-                            {journeyData.growth.first_month_average.toFixed(2)}{" "}
+                            {fmtNum(journeyData.growth.first_month_average, 2)}{" "}
                             / 10
                           </span>
                         </div>
@@ -610,7 +609,7 @@ function Journey() {
                             {t("journey.latestMonthAvg")}
                           </span>
                           <span className="text-app-text font-bold">
-                            {journeyData.growth.last_month_average.toFixed(2)} /
+                            {fmtNum(journeyData.growth.last_month_average, 2)} /
                             10
                           </span>
                         </div>
@@ -629,7 +628,7 @@ function Journey() {
                           </div>
                           <div className="text-app-text text-lg">
                             {journeyData.growth.improvement > 0 ? "+" : ""}
-                            {journeyData.growth.improvement.toFixed(2)} {t("analysis.points")}
+                            {fmtNum(journeyData.growth.improvement, 2)} {t("analysis.points")}
                           </div>
                         </div>
                       </div>

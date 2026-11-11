@@ -1,3 +1,4 @@
+import { fmtNum } from '../utils/formatNumber'
 import React from 'react'
 import { useTranslation } from 'react-i18next'
 import { TrendingUp, TrendingDown, Minus, Info } from 'lucide-react'
@@ -31,7 +32,7 @@ function RecentProgress({ sessions, onSessionClick }: RecentProgressProps) {
   const calculateTrend = (current: number | undefined, previous: number | undefined) => {
     if (!current || !previous) return null
     const diff = current - previous
-    const percent = ((diff / previous) * 100).toFixed(1)
+    const percent = fmtNum(((diff / previous) * 100), 1)
     return {
       percent,
       isPositive: diff > 0,
@@ -175,7 +176,7 @@ function RecentProgress({ sessions, onSessionClick }: RecentProgressProps) {
           <p className="text-app-accent text-xs font-semibold uppercase tracking-wider">{t('progress.avgPerformance')}</p>
           <div className="mt-3 flex flex-col items-center">
             <p className={`text-3xl sm:text-4xl font-bold ${performanceColor(weekAvgPerf)}`}>
-              {weekAvgPerf.toFixed(1)}
+              {fmtNum(weekAvgPerf, 1)}
               <span className="ml-1 text-sm text-app-muted align-middle">/10</span>
             </p>
             {weekPerfTrend && (
@@ -200,7 +201,7 @@ function RecentProgress({ sessions, onSessionClick }: RecentProgressProps) {
           {recentSessions.length > 0 && (
             <div className="mt-3 flex flex-col items-center">
               <p className="text-3xl sm:text-4xl font-bold text-app-text">
-                {(recentSessions[0].success_rate || 0).toFixed(0)}%
+                {fmtNum((recentSessions[0].success_rate || 0), 0)}%
               </p>
               {successTrend && (
                 <div className="mt-2 flex items-center justify-center gap-1.5">
@@ -273,7 +274,7 @@ function RecentProgress({ sessions, onSessionClick }: RecentProgressProps) {
                     <span className="text-app-muted">{t('progress.performance')}</span>
                     <div className="flex items-center gap-2">
                       <span className={`font-bold ${performanceColor(session.avg_performance || 0)}`}>
-                        {session.avg_performance?.toFixed(1)}
+                        {fmtNum(session.avg_performance, 1)}
                       </span>
                       <span className="text-xs text-app-muted">/10</span>
                       {perfTrend ? (
@@ -295,7 +296,7 @@ function RecentProgress({ sessions, onSessionClick }: RecentProgressProps) {
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-app-muted">{t('progress.successRate')}</span>
                     <div className="flex items-center gap-2">
-                      <span className="text-green-400 font-bold">{session.success_rate?.toFixed(0)}%</span>
+                      <span className="text-green-400 font-bold">{fmtNum(session.success_rate, 0)}%</span>
                       {successTrend ? (
                         <div className="flex items-center gap-0.5">
                           {successTrend.isPositive ? (

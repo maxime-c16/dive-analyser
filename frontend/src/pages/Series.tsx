@@ -1,3 +1,5 @@
+import { fmtNum } from '../utils/formatNumber'
+import { MobileShellActions } from '../navigation/mobileShellActions'
 import SeriesComparison from '../components/series/SeriesComparison'
 import SeriesCard from '../components/series/SeriesCard'
 import { useSeriesReorderMotion } from '../components/series/useSeriesReorderMotion'
@@ -246,7 +248,7 @@ function SeriesWorkspace() {
     const c = resolved(choice)
     if (!c.code) return 'DD —'
     if (!isCode(c.code)) return text('Code à compléter', 'Complete the code')
-    if (c.dd != null) return `DD ${c.dd.toFixed(1)}`
+    if (c.dd != null) return `DD ${fmtNum(c.dd, 1)}`
     if (lookupFailed[lookupKey(c.code, sheet!.height)]) return text('DD à réessayer', 'Retry DD lookup')
     return c.dd === undefined ? text('Calcul DD…', 'Calculating DD…') : text('DD indisponible', 'DD unavailable')
   }
@@ -277,6 +279,7 @@ function SeriesWorkspace() {
         {!mobile && <button disabled={!availableClips} onClick={() => openPlayer()}>{text('Voir la série', 'Watch series')} ({availableClips})</button>}
         {sheet.can_edit && <><button aria-expanded={panel === 'sharing'} onClick={() => { setPanel(panel === 'sharing' ? null : 'sharing'); setPicker(null) }}>{text('Partager', 'Share')}</button>{!mobile && <button className="series-primary" disabled={busy || !dirty || !sheet.title.trim()} onClick={save}>{busy ? text('Enregistrement…', 'Saving…') : text('Enregistrer', 'Save')}</button>}</>}
       </div>}
+      <MobileShellActions />
     </header>
     {error && <p role="alert" className="series-error">{error} <button onClick={() => {
       if (!dirty || window.confirm(text('Recharger et abandonner tes modifications ?', 'Reload and discard your changes?'))) setRevision(r => r + 1)
@@ -302,7 +305,7 @@ function SeriesWorkspace() {
       }}>{text('Voir la suite', 'Load more')}</button>}
     </> : sheet && <>
       <div className="series-overview"><label className="series-name"><span className="sr-only">{text('Nom de la série', 'Series name')}</span><input value={sheet.title} maxLength={160} disabled={!sheet.can_edit || busy} onChange={e => { setSheet({ ...sheet, title: e.target.value }); setDirty(true); setNotice('') }} /></label>
-        <div className="series-summary"><span className="series-height">{sheet.height}</span><span><b>{filled}/{sheet.slots.length}</b> {text('plongeons', 'dives')}</span><span><b>{totalDD.toFixed(1)}</b> {known.length < filled ? text('DD partiel', 'partial DD') : text('DD total', 'total DD')}</span></div>
+        <div className="series-summary"><span className="series-height">{sheet.height}</span><span><b>{filled}/{sheet.slots.length}</b> {text('plongeons', 'dives')}</span><span><b>{fmtNum(totalDD, 1)}</b> {known.length < filled ? text('DD partiel', 'partial DD') : text('DD total', 'total DD')}</span></div>
       </div>
       {sheet.can_edit && <div className="series-clip-policy" data-policy={clipPolicy} role="group" aria-label={text('Sélection automatique des clips', 'Automatic clip selection')}>{(['best', 'recent'] as const).map(policy => <button key={policy} aria-pressed={clipPolicy === policy} disabled={busy} onClick={() => {
         if (policy === clipPolicy) return

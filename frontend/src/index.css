@@ -335,3 +335,18 @@ button:disabled { cursor:default; }
 .library-card-media:has([data-preview-state=missing]) { aspect-ratio:4 / 3; }
 .library-card-media:has([data-preview-state=missing]) > [data-preview-state] { min-height:110px; }
 .library-card-media [data-preview-state=missing] { padding-bottom:20px; }
+
+/* One corner language. Newer surfaces are rounded (10–16px); older Tailwind
+   panels, link-buttons and fields were square. Anything that sets its own
+   rounded-* class keeps it, and single-edge borders (tab rows, dividers)
+   are untouched because they never carry the full `border` class. */
+.app-panel:not([class*="rounded"]),
+.border.border-app.bg-app-panel:not([class*="rounded"]),
+.border.border-app-strong.bg-app-panel:not([class*="rounded"]) {
+  border-radius: 0.75rem;
+}
+.border.border-app.bg-app-panel-elevated:not([class*="rounded"]),
+.touch-target.border:not([class*="rounded"]),
+:is(input, select, textarea).border:not([class*="rounded"]) {
+  border-radius: 0.625rem;
+}

@@ -1,3 +1,4 @@
+import { fmtNum } from '../utils/formatNumber'
 import React, { useEffect, useRef, useState } from 'react'
 import { X, TrendingUp, TrendingDown, Minus, Film } from 'lucide-react'
 import { api } from '../services/api'
@@ -198,7 +199,7 @@ function SessionDetail({ session, previousSession, onClose, allSessions, diverSc
                   <p className="text-app-muted text-xs uppercase">{i18n.t('dashboard.avgPerformance')} /10</p>
                   <div className="flex items-center gap-2 mt-2">
                     <p className="text-2xl font-bold text-app-accent">
-                      {session.avg_performance?.toFixed(1) ?? '-'}
+                      {fmtNum(session.avg_performance, 1) || '-'}
                     </p>
                     <span className="text-app-muted text-sm">/10</span>
                     <TrendIndicator trend={perfTrend} />
@@ -207,7 +208,7 @@ function SessionDetail({ session, previousSession, onClose, allSessions, diverSc
                 <div className="bg-app-panel-elevated rounded-lg p-4">
                   <p className="text-app-muted text-xs uppercase">{i18n.t('dashboard.successRate')}</p>
                   <div className="flex items-center gap-2 mt-2">
-                    <p className="text-2xl font-bold text-green-400">{session.success_rate?.toFixed(0)}%</p>
+                    <p className="text-2xl font-bold text-green-400">{fmtNum(session.success_rate, 0)}%</p>
                     <TrendIndicator trend={successTrend} />
                   </div>
                 </div>
@@ -219,7 +220,7 @@ function SessionDetail({ session, previousSession, onClose, allSessions, diverSc
                   <p className="text-app-muted text-xs uppercase">{i18n.t('sessionDetail.bestDive')}</p>
                   <p className="text-xl font-bold text-app-accent mt-2">
                     {dives.length > 0
-                      ? `${Math.max(...dives.map(d => performanceScore10(d.performance, d.phase1_performance, d.phase2_performance))).toFixed(1)} / 10`
+                      ? `${fmtNum(Math.max(...dives.map(d => performanceScore10(d.performance, d.phase1_performance, d.phase2_performance))), 1)} / 10`
                       : '-'}
                   </p>
                 </div>
@@ -302,7 +303,7 @@ function SessionDetail({ session, previousSession, onClose, allSessions, diverSc
                         <YAxis stroke="#98a2aa" domain={[0, 10]} />
                         <Tooltip
                           contentStyle={{ backgroundColor: '#15191c', border: '1px solid rgba(82,96,105,.45)' }}
-                          formatter={(value: number) => [value.toFixed(1), `${i18n.t('analysis.execution')} /10`]}
+                          formatter={(value: number) => [fmtNum(value, 1), `${i18n.t('analysis.execution')} /10`]}
                           labelFormatter={(value) => `${i18n.t('analysis.attempts')} ${value}`}
                         />
                         <Line type="monotone" dataKey="performance" name={`${i18n.t('analysis.execution')} /10`} stroke="#54beab" strokeWidth={2} dot={{ fill: '#54beab', r: 3 }} />
@@ -352,16 +353,16 @@ function SessionDetail({ session, previousSession, onClose, allSessions, diverSc
                     <div>
                       <p className="text-app-muted text-xs uppercase mb-2">{i18n.t('dashboard.avgPerformance')}</p>
                       <div className="flex items-center gap-2">
-                        <span className="text-app-accent font-bold">{session.avg_performance?.toFixed(2)}</span>
-                        <span className="text-app-muted text-sm">vs {previousSession.avg_performance?.toFixed(2)}</span>
+                        <span className="text-app-accent font-bold">{fmtNum(session.avg_performance, 2)}</span>
+                        <span className="text-app-muted text-sm">vs {fmtNum(previousSession.avg_performance, 2)}</span>
                         {perfTrend && <TrendIndicator trend={perfTrend} />}
                       </div>
                     </div>
                     <div>
                       <p className="text-app-muted text-xs uppercase mb-2">{i18n.t('dashboard.successRate')}</p>
                       <div className="flex items-center gap-2">
-                        <span className="text-green-400 font-bold">{session.success_rate?.toFixed(0)}%</span>
-                        <span className="text-app-muted text-sm">vs {previousSession.success_rate?.toFixed(0)}%</span>
+                        <span className="text-green-400 font-bold">{fmtNum(session.success_rate, 0)}%</span>
+                        <span className="text-app-muted text-sm">vs {fmtNum(previousSession.success_rate, 0)}%</span>
                         {successTrend && <TrendIndicator trend={successTrend} />}
                       </div>
                     </div>

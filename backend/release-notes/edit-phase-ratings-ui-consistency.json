@@ -1,0 +1,8 @@
+{
+  "id": "edit-phase-ratings-ui-consistency",
+  "date": "2026-11-11",
+  "title": "Edit both phase ratings and a tidier player",
+  "body": "In a clip's Details tab you can now edit a dive's rating as one note or as its two phases, with the /10 score updating as you tap. The player's Evaluation, Comments and Details tabs now share one sheet, the jury keypad no longer overlaps on phones, and numbers, titles and cards look the same across the app.",
+  "audience": "all",
+  "components": ["frontend", "backend"]
+}

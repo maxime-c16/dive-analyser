@@ -42,21 +42,43 @@ it('requires a second confirmation before deleting and keeps the reader on failu
 
 it('hides management controls for another member’s public dive', () => {
   render(<MemoryRouter><ClipViewer attempt={{ ...attempt, can_manage: false }} attempts={[attempt]} onClose={vi.fn()} onMove={vi.fn()} playbackRate={1} onPlaybackRateChange={vi.fn()} onUpdate={vi.fn()} onDelete={vi.fn()} /></MemoryRouter>)
-  expect(screen.queryByRole('button', { name: 'Manage dive' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Delete dive' })).not.toBeInTheDocument()
   expect(screen.getByText('Public dive')).toBeInTheDocument()
 })
 
 
-it('changes visibility directly from the compact control and retains it on failure', async () => {
+it('changes visibility directly from the switch and retains it on failure', async () => {
   const onUpdate = vi.fn()
   vi.mocked(api.put).mockRejectedValue(new Error('denied'))
   render(<DiveVisibilityControl attempt={attempt} onUpdate={onUpdate} />)
-  await userEvent.selectOptions(screen.getByLabelText('Dive visibility'), 'private')
+  await userEvent.click(screen.getByRole('button', { name: 'Private' }))
   await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Could not save.'))
   expect(onUpdate).not.toHaveBeenCalled()
-  expect(screen.getByLabelText('Dive visibility')).toHaveValue('public')
+  expect(screen.getByRole('button', { name: 'Public' })).toHaveAttribute('aria-pressed', 'true')
   vi.mocked(api.put).mockResolvedValue({ data: { ...attempt, visibility: 'private' } })
-  await userEvent.selectOptions(screen.getByLabelText('Dive visibility'), 'private')
+  await userEvent.click(screen.getByRole('button', { name: 'Private' }))
   await waitFor(() => expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ visibility: 'private' })))
   expect(api.put).toHaveBeenLastCalledWith('/api/v1/dives/7', { visibility: 'private' })
+})
+
+it('edits the two phases of a split rating', async () => {
+  const phased = { ...attempt, performance: 'M', phase1_performance: 'G', phase2_performance: 'M' }
+  vi.mocked(api.put).mockResolvedValue({ data: { ...phased, phase2_performance: 'G', performance: 'G' } })
+  render(<DiveManagement attempt={phased} onUpdate={vi.fn()} onDelete={vi.fn()} />)
+  // Split dives open on their phases, not on the merged letter.
+  expect(screen.getByRole('button', { name: '2 phases' })).toHaveAttribute('aria-pressed', 'true')
+  expect(screen.getByRole('button', { name: 'Save changes' })).toBeDisabled()
+  await userEvent.click(screen.getByRole('button', { name: /^Phase 2 : Good/ }))
+  await userEvent.click(screen.getByRole('button', { name: 'Save changes' }))
+  await waitFor(() => expect(api.put).toHaveBeenCalledWith('/api/v1/dives/7', expect.objectContaining({ phase1_performance: 'G', phase2_performance: 'G' })))
+})
+
+it('returns a split dive to a single rating', async () => {
+  const phased = { ...attempt, performance: 'M', phase1_performance: 'G', phase2_performance: 'M' }
+  vi.mocked(api.put).mockResolvedValue({ data: attempt })
+  render(<DiveManagement attempt={phased} onUpdate={vi.fn()} onDelete={vi.fn()} />)
+  await userEvent.click(screen.getByRole('button', { name: 'Single rating' }))
+  await userEvent.click(screen.getByRole('button', { name: /: Perfect/ }))
+  await userEvent.click(screen.getByRole('button', { name: 'Save changes' }))
+  await waitFor(() => expect(api.put).toHaveBeenCalledWith('/api/v1/dives/7', expect.objectContaining({ performance: 'P', phase1_performance: null, phase2_performance: null })))
 })

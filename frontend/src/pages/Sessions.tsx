@@ -1,3 +1,4 @@
+import { fmtNum } from '../utils/formatNumber'
 import React, { useEffect, useState } from "react";
 import { getNavigationData } from "../services/navigationData";
 import { format, parseISO, isToday, isYesterday, isThisWeek } from "date-fns";
@@ -159,8 +160,8 @@ function Sessions() {
 
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-start gap-2">
-          <h1 className="min-w-0 flex-1 text-3xl font-bold text-app-text">{t("sessions.title")}</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="min-w-0 flex-1 text-3xl font-semibold tracking-tight text-app-text">{t("sessions.title")}</h1>
           <MobileShellActions />
         </div>
 
@@ -179,7 +180,7 @@ function Sessions() {
           <div className="app-panel col-span-2 min-w-0 px-3 py-2 sm:col-span-1 sm:px-4">
             <span className="text-app-muted text-sm">{t("sessions.avgPerSession")}</span>
             <span className="app-kpi-value ml-2 text-app-text">
-              {stats.avgDivesPerSession.toFixed(1)}
+              {fmtNum(stats.avgDivesPerSession, 1)}
             </span>
           </div>
         </div>
@@ -295,7 +296,7 @@ function Sessions() {
                               <p
                                 className={`app-kpi-value text-2xl ${getPerformanceColor(session.avg_performance)}`}
                               >
-                                {session.avg_performance?.toFixed(2) || "-"}
+                                {fmtNum(session.avg_performance, 2) || "-"}
                               </p>
                               {trend && <TrendIndicator trend={trend} />}
                             </div>
@@ -306,7 +307,7 @@ function Sessions() {
                               className={`inline-block px-3 py-1 text-sm font-bold tabular-nums ${getSuccessRateColor(session.success_rate)}`}
                             >
                               {session.success_rate
-                                ? `${session.success_rate.toFixed(0)}%`
+                                ? `${fmtNum(session.success_rate, 0)}%`
                                 : "-"}
                             </span>
                             <p className="text-xs text-app-muted mt-1">

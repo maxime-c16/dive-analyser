@@ -114,11 +114,11 @@ export default function FederateDiveControl({
   const checked = status?.federate_enabled ?? !!attempt.federate_enabled
 
   return (
-    <div className="mt-3 w-full rounded border border-app bg-app-panel-elevated p-3">
-      <div className="flex items-center justify-between gap-3">
+    <div className="clip-setting-card">
+      <div className="clip-setting-card-row">
         <div className="min-w-0">
-          <div className="text-sm font-medium text-app-text">{i18n.t('fedUI.title')}</div>
-          <div className="text-xs text-app-muted">{i18n.t('fedUI.subtitle')}</div>
+          <div className="clip-setting-card-title">{i18n.t('fedUI.title')}</div>
+          <div className="clip-setting-card-copy">{i18n.t('fedUI.subtitle')}</div>
         </div>
         <button
           type="button"
@@ -128,44 +128,24 @@ export default function FederateDiveControl({
           disabled={busy || !isPublic}
           onClick={() => void setOptIn(!checked)}
           title={!isPublic ? i18n.t('fedUI.onlyPublic') : undefined}
-          className={`relative inline-flex h-6 w-11 shrink-0 touch-target items-center rounded-full border transition-colors ${
-            checked ? 'border-app-accent bg-app-accent' : 'border-app bg-app-panel-elevated'
-          } disabled:opacity-50`}
+          className="clip-switch"
         >
-          <span
-            aria-hidden
-            className={`inline-block h-4 w-4 rounded-full bg-[var(--app-text)] transition-transform ${
-              checked ? 'translate-x-5' : 'translate-x-1'
-            }`}
-          />
+          <span aria-hidden />
         </button>
       </div>
 
-      <p role="note" className="mt-2 text-xs leading-5 text-app-muted">
+      <p role="note" className="clip-setting-card-copy">
         {status ? reasonLabel(status.reason) : isPublic ? i18n.t('fedUI.checking') : i18n.t('fedUI.reason.divePrivate')}
         {' '}{i18n.t('fedUI.neverPublishesNote')}
       </p>
 
       {status?.eligible && (
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => void copyCrossPost()}
-          className="touch-target mt-2 inline-flex w-full items-center justify-center gap-2 border border-app-strong bg-app-panel px-3 py-2 text-xs font-semibold text-app-text disabled:opacity-60 sm:w-auto"
-        >
+        <button type="button" disabled={busy} onClick={() => void copyCrossPost()} className="clip-secondary">
           {copied ? i18n.t('fedUI.copied') : i18n.t('fedUI.copyText')}
         </button>
       )}
-      {copied && (
-        <p role="status" className="mt-1 text-xs text-app-muted">
-          {i18n.t('fedUI.copiedNote')}
-        </p>
-      )}
-      {error && (
-        <p role="alert" className="mt-1 text-xs text-red-300">
-          {error}
-        </p>
-      )}
+      {copied && <p role="status" className="clip-setting-card-copy">{i18n.t('fedUI.copiedNote')}</p>}
+      {error && <p role="alert" className="clip-editor-message is-error">{error}</p>}
     </div>
   )
 }

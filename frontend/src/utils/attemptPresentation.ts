@@ -99,14 +99,16 @@ export function attemptSummary(attempt: Attempt) {
 
 export function attemptDetailRows(attempt: Attempt): Array<[string, string]> {
   const score = attemptScore(attempt);
+  const decimal = (value: number) =>
+    value.toLocaleString(i18n.language, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
   const label = (key: string) => i18n.t(`attemptDetail.${key}`);
   const rows: Array<[string, string]> = [];
   // Diver attribution is shown only when the data has a name: own-library
   // rows carry none, and nothing should ever infer the viewer from absence.
   if (attempt.person_name) rows.push([label("diver"), attempt.person_name]);
   rows.push(
-    [label("score"), `${score.toFixed(1)} / 10 · ${attempt.performance}`],
-    [label("officialDD"), attempt.official_dd?.toFixed(1) || i18n.t("attemptDetail.notDefined")],
+    [label("score"), `${decimal(score)} / 10 · ${attempt.performance}`],
+    [label("officialDD"), attempt.official_dd != null ? decimal(attempt.official_dd) : i18n.t("attemptDetail.notDefined")],
     [
       label("phases"),
       attempt.phase1_performance && attempt.phase2_performance

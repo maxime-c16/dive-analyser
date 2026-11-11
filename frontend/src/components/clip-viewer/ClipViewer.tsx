@@ -195,7 +195,6 @@ export default function ClipViewer({
   const index = attempts.findIndex((item) => item.id === attempt.id);
   const total = attempts.length;
   const location = useLocation();
-  const [manageOpen, setManageOpen] = useState(false);
   const [aspectRatio, setAspectRatio] = useState(9 / 16);
   const [studio, setStudio] = useState(
     () => window.matchMedia?.(STUDIO_QUERY).matches ?? true,
@@ -209,7 +208,6 @@ export default function ClipViewer({
   const openSheet = (next: PanelTab) => {
     setTab(next);
     setSheetOpen(true);
-    setManageOpen(false);
   };
   // Pinch-in on the video: overlays hide and the whole frame shows, like
   // Instagram. Per-dive: moving to another clip restores the overlays.
@@ -331,7 +329,6 @@ export default function ClipViewer({
   const scrimRef = useRef<HTMLButtonElement>(null);
   const closePanel = () => {
     setSheetOpen(false);
-    setManageOpen(false);
     // Over the video again: show the HUD and arm its countdown.
     revealHud();
   };
@@ -578,7 +575,6 @@ export default function ClipViewer({
   const dialogRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
-    setManageOpen(false);
     setSheetOpen(false);
     setCleanView(false);
     setAspectRatio(9 / 16);
@@ -1077,7 +1073,7 @@ export default function ClipViewer({
               type="button"
               tabIndex={-1}
               ref={scrimRef}
-              className={`clip-panel-scrim ${commentsOpen ? "clip-comments-scrim" : ""}`}
+              className="clip-panel-scrim"
               aria-label={t("clipViewer.closeDetailsAndComments")}
               onClick={closePanel}
             />
@@ -1086,7 +1082,7 @@ export default function ClipViewer({
             ref={panelRef}
             tabIndex={-1}
             id="clip-review-panel"
-            className={`clip-panel ${panelOpen ? "is-open" : ""} ${commentsOpen && !studio ? "clip-panel-comments" : ""}`}
+            className={`clip-panel ${panelOpen ? "is-open" : ""}`}
             aria-label={t("clipViewer.diveDetails")}
           >
             {studio ? (
@@ -1177,55 +1173,42 @@ export default function ClipViewer({
               ) : panelTab === "comments" ? (
                 <ClipComments key={attempt.id} id={attempt.id} onCountChange={updateCommentCount} />
               ) : (
-                <>
-                  {description && (
-                    <div className="clip-panel-description">
+                <div className="clip-details-tab">
+                  {attempt.can_manage && onUpdate && onDelete ? (
+                    <section className="clip-section">
+                      <DiveManagement key={attempt.id} attempt={attempt} onUpdate={onUpdate} onDelete={onDelete} />
+                    </section>
+                  ) : attempt.notes && attempt.notes !== attempt.raw_caption ? (
+                    <section className="clip-section clip-panel-description">
                       <span className="clip-eyebrow">{t("clipViewer.description")}</span>
-                      <p>{description}</p>
-                    </div>
+                      <p>{attempt.notes}</p>
+                    </section>
+                  ) : null}
+                  {(attempt.can_manage && onUpdate) || downloadButton ? (
+                    <section className="clip-section">
+                      <span className="clip-eyebrow">{t("diveManagement.sharing")}</span>
+                      {attempt.can_manage && onUpdate ? (
+                        <>
+                          <DiveVisibilityControl key={`visibility-${attempt.id}`} attempt={attempt} onUpdate={onUpdate} />
+                          <FederateDiveControl key={`fediverse-${attempt.id}`} attempt={attempt} onUpdate={onUpdate} />
+                        </>
+                      ) : (
+                        <p className="clip-setting">
+                          <span>{attempt.visibility === "private" ? t("clipViewer.privateDive") : t("clipViewer.publicDive")}</span>
+                        </p>
+                      )}
+                      {!studio && downloadButton ? <div className="clip-download-row">{downloadButton}</div> : null}
+                    </section>
+                  ) : (
+                    <p className="clip-setting">
+                      <span>{attempt.visibility === "private" ? t("clipViewer.privateDive") : t("clipViewer.publicDive")}</span>
+                    </p>
                   )}
-                  <ClipDetails attempt={attempt} open />
-                  <div className="clip-management">
-                    {!studio && downloadButton}
-                    {attempt.can_manage && onUpdate ? (
-                      <>
-                        <DiveVisibilityControl
-                          key={`visibility-${attempt.id}`}
-                          attempt={attempt}
-                          onUpdate={onUpdate}
-                        />
-                        <FederateDiveControl
-                          key={`fediverse-${attempt.id}`}
-                          attempt={attempt}
-                          onUpdate={onUpdate}
-                        />
-                      </>
-                    ) : (
-                      <span>
-                        {attempt.visibility === "private"
-                          ? t("clipViewer.privateDive")
-                          : t("clipViewer.publicDive")}
-                      </span>
-                    )}
-                    {attempt.can_manage && onUpdate && onDelete && (
-                      <button
-                        type="button"
-                        aria-expanded={manageOpen}
-                        onClick={() => setManageOpen((open) => !open)}
-                      >
-                        {t("clipViewer.manageDive")}
-                      </button>
-                    )}
-                  </div>
-                  {manageOpen && attempt.can_manage && onUpdate && onDelete && (
-                    <DiveManagement
-                      key={attempt.id}
-                      attempt={attempt}
-                      onUpdate={onUpdate}
-                      onDelete={onDelete}
-                    />
-                  )}
-                </>
+                  <section className="clip-section">
+                    <span className="clip-eyebrow">{t("diveManagement.info")}</span>
+                    <ClipDetails attempt={attempt} open />
+                  </section>
+                </div>
               )}
             </div>
           </aside>

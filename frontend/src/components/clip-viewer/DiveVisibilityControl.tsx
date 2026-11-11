@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import api from '../../services/api'
 import type { Attempt } from '../../utils/attemptPresentation'
 
+/** Public/private as one two-option switch; saves on tap, reverts on failure. */
 export default function DiveVisibilityControl({ attempt, onUpdate }: {
   attempt: Attempt
   onUpdate: (attempt: Attempt) => void
@@ -10,8 +11,10 @@ export default function DiveVisibilityControl({ attempt, onUpdate }: {
   const { t } = useTranslation()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(false)
+  const current = attempt.visibility ?? 'public'
 
   async function change(visibility: 'public' | 'private') {
+    if (visibility === current) return
     setBusy(true)
     setError(false)
     try {
@@ -24,14 +27,17 @@ export default function DiveVisibilityControl({ attempt, onUpdate }: {
     }
   }
 
-  return <span className="inline-flex items-center gap-2">
-    <select aria-label={t('clipViewer.visibility')} title={t('clipViewer.visibilityHint')}
-      value={attempt.visibility ?? 'public'} disabled={busy}
-      onChange={event => void change(event.target.value as 'public' | 'private')}
-      className="h-8 w-auto rounded border border-app bg-app-panel px-2 text-xs text-app-text">
-      <option value="public">{t('clipViewer.public')}</option>
-      <option value="private">{t('clipViewer.private')}</option>
-    </select>
-    {error && <span role="status" className="text-xs text-red-300">{t('clipViewer.couldNotSave')}</span>}
-  </span>
+  return (
+    <div className="clip-setting">
+      <span>{t('clipViewer.visibility')}</span>
+      <div className="clip-segmented" role="group" aria-label={t('clipViewer.visibility')} title={t('clipViewer.visibilityHint')}>
+        {(['public', 'private'] as const).map((value) => (
+          <button key={value} type="button" aria-pressed={current === value} disabled={busy} onClick={() => void change(value)}>
+            {t(`clipViewer.${value}`)}
+          </button>
+        ))}
+      </div>
+      {error && <p role="status" className="clip-editor-message is-error">{t('clipViewer.couldNotSave')}</p>}
+    </div>
+  )
 }
