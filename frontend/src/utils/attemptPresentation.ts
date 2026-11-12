@@ -40,7 +40,7 @@ export const PERFORMANCE = ["P", "G", "M", "B", "F"] as const;
 /**
  * Performance letters are the app's own F/B/M/G/P scale (also FINA entry
  * codes); their display names are localized:
- * P = Perfect/Parfait, G = Good/Bon, M = Medium/Moyen, B = Below target,
+ * P = Perfect/Parfait, G = Good/Bon, M = Medium/Moyen, B = Unsatisfactory/Non satisfaisant,
  * F = Failed/Manqué.
  */
 export function performanceLabel(performance: string): string {
