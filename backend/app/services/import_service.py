@@ -12,6 +12,7 @@ from sqlalchemy import func
 from app.models.dive import Dive
 from app.models.session import Session as SessionModel
 from app.services.performance_scoring import ORDINAL_SCORE, dive_score_10, is_success
+from app.services.phase_validator import PhaseValidator
 from app.services.diver_identity import invalidate_analysis_cache, resolve_diver
 
 # Performance letter to numeric mapping
@@ -176,15 +177,27 @@ class ImportService:
 
     def _create_dive(self, session_id: int, dive_data: Dict) -> Dive:
         """Create a dive record from JSON data"""
-        performance = dive_data.get('performance', 'M')
-        performance_numeric = PERFORMANCE_MAP.get(performance, 2)
-
         # Phase-specific scores (new two-phase format introduced Jan 2026)
         # Phase 1: Hurdle + Flight (takeoff quality)
         # Phase 2: Opening + Water Splash + Entry (landing quality)
         phase1_performance = dive_data.get('phase1_performance')
-        phase1_numeric = dive_data.get('phase1_numeric')
         phase2_performance = dive_data.get('phase2_performance')
+        phase_valid, _ = PhaseValidator.validate_combination(
+            phase1_performance, phase2_performance
+        )
+        if phase_valid and phase1_performance is not None:
+            # The stored letter is the band of the composite score, never the
+            # payload's letter — exactly as the Photos sync does
+            # (docs/SCORING.md §1). A payload written under the old
+            # min(phase1, phase2) rule must not survive the import.
+            performance = PhaseValidator.infer_legacy_score(
+                phase1_performance, phase2_performance
+            )
+        else:
+            performance = dive_data.get('performance', 'M')
+        performance_numeric = PERFORMANCE_MAP.get(performance, 2)
+
+        phase1_numeric = dive_data.get('phase1_numeric')
         phase2_numeric = dive_data.get('phase2_numeric')
 
         person_name = dive_data.get('person')

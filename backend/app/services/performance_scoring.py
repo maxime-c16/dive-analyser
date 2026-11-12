@@ -27,6 +27,18 @@ ATHLETE_SCORE_10 = {
 PHASE1_WEIGHT = 0.45
 PHASE2_WEIGHT = 0.55
 
+# Lowest 0-10 score of each letter band: the midpoint between neighbouring
+# letters, so a score maps to its nearest letter. The score is the authority:
+# a two-phase dive's stored letter, its colour and its success are all derived
+# from it (docs/SCORING.md). Mirrored in frontend/src/utils/performanceScoring.ts.
+GRADE_FLOORS = {
+    "P": 8.5,
+    "G": 5.75,
+    "M": 3.25,
+    "B": 1.0,
+    "F": 0.0,
+}
+
 
 def ordinal_score(performance: str | None) -> int | None:
     if performance is None:
@@ -53,6 +65,22 @@ def phase_score_10(
     return (phase1_score * PHASE1_WEIGHT) + (phase2_score * PHASE2_WEIGHT)
 
 
+def grade_for_score(score: float) -> str:
+    """Nearest letter for a 0-10 score (P, G, M, B or F)."""
+    for letter, floor in GRADE_FLOORS.items():
+        if score >= floor - 1e-9:
+            return letter
+    return "F"
+
+
+def composite_grade(phase1_performance: str, phase2_performance: str) -> str:
+    """Stored letter of a two-phase dive: the band of its weighted score."""
+    score = phase_score_10(phase1_performance, phase2_performance)
+    if score is None:
+        raise ValueError("Both phases are required")
+    return grade_for_score(score)
+
+
 def dive_score_10(dive: Dive) -> float:
     two_phase_score = phase_score_10(dive.phase1_performance, dive.phase2_performance)
     if two_phase_score is not None:
@@ -74,10 +102,13 @@ def attempt_score_10(
 
 
 def is_success(performance: str | None) -> bool:
+    """Réussite: landed at M or better. The letter agrees with the score
+    because two-phase letters come from composite_grade."""
     return performance in {"M", "G", "P"}
 
 
 def is_excellent(performance: str | None) -> bool:
+    """G ou mieux: a clean dive, G or P."""
     return performance in {"G", "P"}
 
 

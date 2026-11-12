@@ -1,4 +1,5 @@
 import { fmtNum } from '../utils/formatNumber'
+import { performanceColor } from '../utils/performanceScoring'
 import React, { useEffect, useState } from "react";
 import { getNavigationData } from "../services/navigationData";
 import { useSyncStatus } from "../hooks/useSyncStatus";
@@ -98,23 +99,8 @@ const COLORS = {
  * the `groups.*` keys at render time.
  */
 
-const PERFORMANCE_COLORS = {
-  P: "#22c55e",
-  G: "#3b82f6",
-  M: "#f59e0b",
-  B: "#f97316",
-  F: "#ef4444",
-};
-
 function Dashboard() {
   const { t } = useTranslation();
-  const performanceLabelLocalized: Record<string, string> = {
-    P: t("performance.P"),
-    G: t("performance.G"),
-    M: t("performance.M"),
-    B: `${t("performance.B")}/${t("performance.F")}`,
-    BF: `${t("performance.B")}/${t("performance.F")}`,
-  };
   const { currentSync, isConnected } = useSyncStatus();
   const [stats, setStats] = useState<OverallStats | null>(null);
   const [monthlyStats, setMonthlyStats] = useState<MonthlyStats[]>([]);
@@ -219,26 +205,6 @@ function Dashboard() {
       dateLabel: format(parseISO(value.dive_datetime), "d MMM", { locale: appLocale() }),
       personalValue: value.value,
     }));
-
-  // Approximate tag distribution until the API exposes raw performance buckets.
-  const performanceData = [
-    {
-      name: performanceLabelLocalized.P,
-      value: Math.round((stats?.success_rate || 0) * 0.3),
-      color: PERFORMANCE_COLORS.P,
-    },
-    {
-      name: performanceLabelLocalized.G,
-      value: Math.round((stats?.success_rate || 0) * 0.7 - 20),
-      color: PERFORMANCE_COLORS.G,
-    },
-    {
-      name: performanceLabelLocalized.M,
-      value: Math.round(100 - (stats?.success_rate || 0) - 5),
-      color: PERFORMANCE_COLORS.M,
-    },
-    { name: performanceLabelLocalized.BF, value: 5, color: PERFORMANCE_COLORS.F },
-  ].filter((d) => d.value > 0);
 
   return (
     <div className="app-page">
@@ -753,13 +719,7 @@ function MetricCard({
 function PerformanceBadge({ value }: { value: number | null }) {
   if (value === null) return <span className="text-app-muted">-</span>;
 
-  const color =
-    value >= 7
-      ? "text-green-400"
-      : value >= 4.5
-        ? "text-amber-400"
-        : "text-red-400";
-  return <span className={`font-medium ${color}`}>{fmtNum(value, 1)}</span>;
+  return <span className={`font-medium ${performanceColor(value)}`}>{fmtNum(value, 1)}</span>;
 }
 
 function SuccessRateBadge({ value }: { value: number | null }) {

@@ -54,7 +54,8 @@ def test_sync_single_video_two_phase(api_client: TestClient, test_db: Session, a
     assert dive.position == "B"
     assert dive.phase1_performance == "G"
     assert dive.phase2_performance == "P"
-    assert dive.performance == "G"  # Composite (min of G and P)
+    assert dive.performance == "P"  # Band of 0.45*7 + 0.55*10 = 8.65 (docs/SCORING.md)
+    assert dive.performance_numeric == 4
 
 
 @pytest.mark.unit

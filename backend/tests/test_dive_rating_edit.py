@@ -10,7 +10,7 @@ def test_owner_sets_two_phases_and_composite_follows(workspace):
     assert response.status_code == 200, response.text
     body = response.json()
     assert (body['phase1_performance'], body['phase2_performance']) == ('G', 'M')
-    # Composite is derived (min of the phases), never the client's value.
+    # Composite is derived (band of 0.45*7 + 0.55*4.5 = 5.625), never the client's value.
     assert (body['performance'], body['performance_numeric']) == ('M', 2)
     assert (body['phase1_numeric'], body['phase2_numeric']) == (3, 2)
 
