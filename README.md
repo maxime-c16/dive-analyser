@@ -13,6 +13,7 @@ media pipeline driven by a Mac worker. Deploys continuously from `master`
 | CI matrix, tiers, what must be tested | `ci/README.md` |
 | Auto-deploy, versioning, merge protection | `docs/CD.md` |
 | Engineering checks before changing code | `docs/AGENT_ENGINEERING.md` |
+| Scores, notes, success rates, colour bands | `docs/SCORING.md` |
 | Release-note schema | `docs/RELEASE_NOTES.md` |
 | Concrete environment notes (ssh, secrets, quirks) | `TOOLS.md` |
 | System snapshot / chronicle (verify dates) | `docs/PROJECT_STATE.md` |

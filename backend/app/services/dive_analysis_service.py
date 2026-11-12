@@ -15,7 +15,7 @@ from app.models.dive import Dive
 from app.models.media import MediaCacheEntry, MediaJob
 from app.models.training_period import TrainingPeriod
 from app.services.media_cache import playback_url
-from app.services.performance_scoring import ATHLETE_SCORE_10, dive_score_10
+from app.services.performance_scoring import ATHLETE_SCORE_10, GRADE_FLOORS, dive_score_10
 from app.services.diver_identity import get_primary_diver
 from app.services.difficulty_adjustment import difficulty_summary, formula_dd
 
@@ -90,7 +90,7 @@ def summarize(dives: Iterable[Dive], success_threshold: str = "G", weighting: We
     attempts = list(dives)
     values = _weighted_scores(attempts, weighting)
     value_summary = summarize_values(values)
-    threshold_score = ATHLETE_SCORE_10[success_threshold]
+    threshold_score = GRADE_FLOORS[success_threshold]
     best = max(attempts, key=dive_score_10) if attempts else None
     worst = min(attempts, key=dive_score_10) if attempts else None
     return {

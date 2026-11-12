@@ -230,6 +230,8 @@ The goal: Be helpful without being annoying. Check in a few times a day, do usef
 
 Before changing code, read **[docs/AGENT_ENGINEERING.md](docs/AGENT_ENGINEERING.md)**. It covers bounded SQL/resource work, identity and async state, atomicity, and evidence for review findings. Apply the checks relevant to the change. The sourced analysis is in [docs/reviews/REVIEW_BOT_PATTERNS.md](docs/reviews/REVIEW_BOT_PATTERNS.md).
 
+Before touching any score, average, success rate or colour band, read **[docs/SCORING.md](docs/SCORING.md)**: personal notes and jury notes are separate, and every derived value comes from one owner function.
+
 Project skills (versioned in this repository):
 
 - [review-findings-to-fix](.agents/skills/review-findings-to-fix/SKILL.md): use when asked to analyse, resolve or challenge PR review findings.

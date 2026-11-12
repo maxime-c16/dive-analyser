@@ -28,7 +28,7 @@ from sqlalchemy import and_, case, func
 
 from app.models.dive import Dive
 from app.services.dive_analysis_service import is_analytics_dive
-from app.services.performance_scoring import ATHLETE_SCORE_10, attempt_score_10
+from app.services.performance_scoring import GRADE_FLOORS, attempt_score_10
 
 RECENT_ATTEMPTS = 16
 SPARK_ATTEMPTS = 40
@@ -38,7 +38,8 @@ TREND_BASELINE_DAYS = 182
 TREND_MIN_ATTEMPTS = 4
 MONTHS = 12
 WEEKS = 26
-SUCCESS_SCORE = ATHLETE_SCORE_10["G"]
+# "G ou mieux": the score lands in the G or P band (docs/SCORING.md).
+SUCCESS_SCORE = GRADE_FLOORS["G"]
 
 
 def _round(value: float | None) -> float | None:

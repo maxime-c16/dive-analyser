@@ -1,0 +1,8 @@
+{
+  "id": "two-phase-letter-matches-score",
+  "date": "2026-11-12",
+  "title": "One rating, one letter",
+  "body": "A dive rated in two phases now shows the letter of its score: G then P scores 8.7 and shows P, no longer G. Success rates, colours and filters follow the same rule everywhere. Code analysis now labels its G-or-better rate as such.",
+  "audience": "all",
+  "components": ["frontend", "backend"]
+}

@@ -1,4 +1,5 @@
 import i18n from '../i18n'
+import { gradeForScore } from './performanceScoring'
 
 /** Statistics for one dive code's attempts (all scores on the 0-10 athlete scale). */
 
@@ -52,10 +53,8 @@ export function extremes(smoothed: number[]): Extreme[] {
   return [...pick('peak'), ...pick('valley')].sort((a, b) => a.index - b.index)
 }
 
-/** Rating band for a 0-10 score, matching the Library rating colours. */
-export function scoreBand(score: number): 'P' | 'G' | 'M' | 'B' | 'F' {
-  return score >= 8.5 ? 'P' : score >= 5.75 ? 'G' : score >= 3.25 ? 'M' : score >= 1 ? 'B' : 'F'
-}
+/** Rating band for a 0-10 score, matching the Library rating colours (docs/SCORING.md). */
+export const scoreBand = gradeForScore
 
 export const DAY_MS = 86_400_000
 

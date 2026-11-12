@@ -294,6 +294,14 @@ deploy that ships it (additive partial index on the unread keyset probes;
 wrapper; idempotent). The previous backend keeps working with or without it.
 Details: docs/audits/ux-fixes/feedback-reliability.md.
 
+### Two-phase letters follow the score
+
+Apply `backend/migrations/backfill_two_phase_composite_grade.sql` **after**
+the backend deploy that ships it (idempotent; re-run it if Photos synced
+two-phase dives between the deploy and the first run). It realigns stored
+letters of two-phase dives with their 0–10 score. Rollback needs nothing: the
+previous backend reads any letter. Contract: [SCORING.md](SCORING.md).
+
 ### Synchro participants
 
 Apply `backend/migrations/add_dive_sync_pairs.sql` before deploying the backend.

@@ -19,7 +19,7 @@ import { clearCodeSummaryCache, getCodeAttemptsResult, getCodeSummaries, peekCod
 import { attemptScore, type Attempt } from '../utils/attemptPresentation'
 import { DAY_MS, mean, median, quantile, recentTrend, rolling, scoreBand, smoothingWindow, type Extreme, fmtScore } from '../utils/codeStats'
 import { appLocale } from '../utils/dateLocale'
-import { ATHLETE_SCORE_10 } from '../utils/performanceScoring'
+import { GRADE_FLOORS } from '../utils/performanceScoring'
 
 const ClipViewer = lazy(() => loadChunk(() => import('../components/clip-viewer/ClipViewer')))
 
@@ -289,7 +289,7 @@ export default function CodeAnalysis() {
             <div className="ca-kpi"><dt>{t('codeAnalysis.average')}</dt><dd><CountUp value={mean(scores)} /></dd></div>
             <div className="ca-kpi"><dt>{t('codeAnalysis.median')}</dt><dd><CountUp value={med} /></dd></div>
             <div className="ca-kpi"><dt>{t('dives.best')}</dt><dd className="ca-t-P"><CountUp value={scores.length ? Math.max(...scores) : null} /></dd></div>
-            <div className="ca-kpi"><dt title={t('codeAnalysis.successTitle')}>{t('codeAnalysis.success')}</dt><dd title={t('codeAnalysis.successTitle')}><CountUp value={scored.length ? 100 * scored.filter(item => attemptScore(item) >= ATHLETE_SCORE_10.G).length / scored.length : null} digits={0} suffix="%" /></dd></div>
+            <div className="ca-kpi"><dt title={t('codeAnalysis.successTitle')}>{t('codeAnalysis.success')}</dt><dd title={t('codeAnalysis.successTitle')}><CountUp value={scored.length ? 100 * scored.filter(item => attemptScore(item) >= GRADE_FLOORS.G).length / scored.length : null} digits={0} suffix="%" /></dd></div>
           </dl>
           <div style={{ marginTop: 10 }}><RatingBar ratings={ratingCounts(items.map(item => item.performance))} /></div>
           <p className="ca-sample" title={attemptsCapped ? (attemptsTotal === null ? t('codeAnalysis.cappedPlain') : t('codeAnalysis.cappedAria', { total: attemptsTotal })) : undefined}>{attemptsCapped && attemptsTotal !== null
