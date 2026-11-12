@@ -1045,7 +1045,7 @@ const fr = {
     lastPerformance: 'Dernière performance :',
     performance: {
       F: 'Manqué',
-      B: 'Mauvais',
+      B: 'Non satisfaisant',
       M: 'Moyen',
       G: 'Bon',
       P: 'Parfait',
@@ -1590,7 +1590,7 @@ const fr = {
     P: 'Parfait',
     G: 'Bon',
     M: 'Moyen',
-    B: 'Sous la cible',
+    B: 'Non satisfaisant',
     F: 'Manqué',
   },
   attemptDetail: {
@@ -1645,7 +1645,7 @@ const fr = {
     contextSync: 'SYNCHRO seulement',
     ratingFilter: 'Note',
     allRatings: 'Toutes les notes',
-    scoreChipTitle: '{{score}} sur l’échelle 0–10 — lettre affichée {{letter}} (P · Parfait … F · Échec).',
+    scoreChipTitle: '{{score}} sur l’échelle 0–10 — lettre affichée {{letter}} (P · Parfait … F · Manqué).',
     modifierHelp: 'Que signifient DB, SD, HU, SYNC et DD ?',
     modifierNames: { DB: 'Double rebond', SD: 'Départ sans élan', HU: 'Mains en haut' },
     modifierDescriptions: {
@@ -1658,7 +1658,7 @@ const fr = {
     helpDdName: 'Valeur de difficulté (table World Aquatics)',
     helpDdDescription: 'La DD pondère le code, la hauteur et la position. Les notes vont sur l’échelle séparée 0–10.',
     ratingsItem: 'Lettres de note',
-    ratingsScale: 'P · Parfait 10 — G · Bien 7 — M · Moyen 4,5 — B · Sous la cible 2 — F · Échec 0.',
+    ratingsScale: 'P · Parfait 10 — G · Bon 7 — M · Moyen 4,5 — B · Non satisfaisant 2 — F · Manqué 0.',
     modifiers: 'Modificateurs',
     resetFilters: 'Réinitialiser les filtres',
     noMatches: 'Aucun plongeon ne correspond à cette recherche.',

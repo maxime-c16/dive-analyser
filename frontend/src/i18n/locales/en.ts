@@ -1044,7 +1044,7 @@ const en = {
     lastPerformance: 'Last performance:',
     performance: {
       F: 'Failed',
-      B: 'Bad',
+      B: 'Unsatisfactory',
       M: 'Medium',
       G: 'Good',
       P: 'Perfect',
@@ -1588,7 +1588,7 @@ const en = {
     P: 'Perfect',
     G: 'Good',
     M: 'Medium',
-    B: 'Below target',
+    B: 'Unsatisfactory',
     F: 'Failed',
   },
   attemptDetail: {
@@ -1656,7 +1656,7 @@ const en = {
     helpDdName: 'Official difficulty (World Aquatics table)',
     helpDdDescription: 'The DD weighs code, height and position. Scores sit on the separate 0–10 scale.',
     ratingsItem: 'Rating letters',
-    ratingsScale: 'P · Perfect 10 — G · Good 7 — M · Medium 4.5 — B · Below target 2 — F · Failed 0.',
+    ratingsScale: 'P · Perfect 10 — G · Good 7 — M · Medium 4.5 — B · Unsatisfactory 2 — F · Failed 0.',
     modifiers: 'Modifiers',
     resetFilters: 'Reset filters',
     noMatches: 'No attempts match this search.',

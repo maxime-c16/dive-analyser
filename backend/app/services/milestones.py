@@ -168,7 +168,7 @@ class DiveAttempt:
         """Human-readable phase 1 description."""
         if not self.phase1_performance:
             return "N/A"
-        names = {'F': 'Failed', 'B': 'Bad', 'M': 'Medium', 'G': 'Good', 'P': 'Perfect'}
+        names = {'F': 'Failed', 'B': 'Unsatisfactory', 'M': 'Medium', 'G': 'Good', 'P': 'Perfect'}
         return names.get(self.phase1_performance, 'Unknown')
 
     @property
@@ -176,7 +176,7 @@ class DiveAttempt:
         """Human-readable phase 2 description."""
         if not self.phase2_performance:
             return "N/A"
-        names = {'F': 'Failed', 'B': 'Bad', 'M': 'Medium', 'G': 'Good', 'P': 'Perfect'}
+        names = {'F': 'Failed', 'B': 'Unsatisfactory', 'M': 'Medium', 'G': 'Good', 'P': 'Perfect'}
         return names.get(self.phase2_performance, 'Unknown')
 
 
@@ -685,7 +685,7 @@ class MilestoneDetector:
         """Convert performance code to name."""
         return {
             'F': 'Failed',
-            'B': 'Bad',
+            'B': 'Unsatisfactory',
             'M': 'Medium',
             'G': 'Good',
             'P': 'Perfect'
