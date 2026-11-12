@@ -698,7 +698,7 @@ class MilestoneDetector:
         elif value >= 5.75:
             return "Medium-Good"
         elif value >= 3.25:
-            return "Bad-Medium"
+            return "Unsatisfactory-Medium"
         else:
             return "struggling"
 
