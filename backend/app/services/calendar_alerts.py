@@ -167,13 +167,16 @@ def _push_when(occ: Optional[EventOccurrence], event: CalendarEvent) -> str:
     return local.strftime("%a %d %b %H:%M")
 
 
-def _push_iso(value, event: CalendarEvent) -> str:
-    """A stored ISO instant ('...Z') rendered like _push_when ('' on garbage)."""
+def _push_iso(value, event: CalendarEvent, all_day: bool = False) -> str:
+    """A stored ISO instant ('...Z') rendered like _push_when ('' on garbage).
+    All-day moves render as dates only: their window_start is local midnight,
+    and the model defines all-day events by local dates — no real time."""
     try:
         instant = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
         if instant.tzinfo is None:
             instant = instant.replace(tzinfo=timezone.utc)
-        return instant.astimezone(ZoneInfo(event.timezone)).strftime("%a %d %b %H:%M")
+        local = instant.astimezone(ZoneInfo(event.timezone))
+        return local.strftime("%a %d %b" if all_day else "%a %d %b %H:%M")
     except (TypeError, ValueError):
         return ""
 
@@ -658,7 +661,11 @@ def _push_body(db: Session, d: CalendarAlertDelivery, event: CalendarEvent) -> s
     if calendar is not None and calendar.kind == "group" and calendar.name:
         parts.append(calendar.name)
     if "time_changed" in kinds:
-        old, new = _push_iso((own or {}).get("old_start"), event), _push_iso((own or {}).get("new_start"), event)
+        # The delivery occurrence decides date-only vs time rendering: an
+        # all-day session's window_start is local midnight, not a real time.
+        all_day = bool(occ is not None and occ.is_all_day)
+        old, new = _push_iso((own or {}).get("old_start"), event, all_day), \
+            _push_iso((own or {}).get("new_start"), event, all_day)
         if old and new:
             parts.append(f"Moved from {old} to {new}")
     when = _push_when(occ, event)

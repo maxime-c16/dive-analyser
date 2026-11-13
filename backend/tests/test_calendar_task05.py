@@ -263,6 +263,25 @@ def test_merged_details_count_every_represented_session(cal):
     assert payload["body"].endswith("· +1 more")
 
 
+def test_push_body_renders_all_day_moves_as_dates(cal):
+    """All-day sessions have no real time (local dates define them): a move
+    renders 'Moved from Sun 15 Nov to Mon 16 Nov', never a '00:00'."""
+    db, occ = cal["db"], cal["occ"]["club"]
+    live = db.get(EventOccurrence, occ.id)
+    details = {"occurrences": [{"id": live.id, "kinds": ["time_changed"],
+                                "old_start": (TODAY + timedelta(days=2)).isoformat() + "T00:00:00Z",
+                                "new_start": (TODAY + timedelta(days=3)).isoformat() + "T00:00:00Z"}],
+               "total": 1}
+    db.add(alerts._new_delivery(delivery_key="push-allday-move", kind="change", notif_type="calendar_change",
+                                user_id=uid(cal, "alice"), event_id=live.event_id, occurrence_id=live.id,
+                                details=details, expires_at=datetime.utcnow() + timedelta(days=1),
+                                now=datetime.utcnow()))
+    db.commit()
+    payload = alerts.push_payload(db, deliveries(cal, delivery_key="push-allday-move")[0])
+    assert payload["body"] == "Club camp · Moved from Sun 15 Nov to Mon 16 Nov · Mon 16 Nov"
+    assert "00:00" not in payload["body"]
+
+
 def test_push_body_omits_change_strings_without_the_delivery_occurrence(cal):
     """Rows written before the cap kept the delivery's session (or any row
     whose item went missing) degrade to what/where/group/when: another
