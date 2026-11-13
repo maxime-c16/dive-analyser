@@ -668,6 +668,34 @@ describe('Calendar alerts in the inbox (Task05)', () => {
     expect(text).not.toContain('This event is cancelled')
   })
 
+  it('formats each endpoint of a timed <-> all-day move with its own shape', async () => {
+    rows = [{
+      ...moved,
+      id: 14,
+      calendar: {
+        ...moved.calendar!,
+        kind: 'change',
+        changes: [{
+          kinds: ['time_changed'],
+          old_start: '2026-10-21T17:00:00Z',
+          old_all_day: false,
+          new_start: '2026-10-22T00:00:00Z', // local midnight (Europe/Paris)
+          new_all_day: true,
+        }],
+        total: 1,
+      },
+    }]
+    renderPage()
+    expect(await screen.findByText(/Event changed · Groupe A training/)).toBeInTheDocument()
+    const text = screen.getByText(/Moved:/).textContent ?? ''
+    expect(text).toMatch(/07:00 PM.*→/) // the old timed endpoint keeps its time
+    // The moved line only (before the context and when lines): its new
+    // endpoint is a date, not a time.
+    const movedLine = text.split(' · ')[0] ?? ''
+    const to = movedLine.split('→')[1] ?? ''
+    expect(to).not.toMatch(/:/)
+  })
+
   it('redacts an alert whose event is no longer visible (no title, no link)', async () => {
     rows = [{ ...redacted }]
     renderPage()

@@ -42,7 +42,15 @@ export type CalendarNotificationView =
       status: 'scheduled' | 'cancelled'
       /** The whole event is cancelled, not just the row's session. */
       event_cancelled: boolean
-      changes: { kinds: string[]; old_start: string | null; new_start: string | null }[]
+      changes: {
+        kinds: string[]
+        old_start: string | null
+        new_start: string | null
+        /** Each endpoint's all-day shape: a form change formats its two ends
+         * independently (an old local midnight is a date, not "00:00"). */
+        old_all_day?: boolean
+        new_all_day?: boolean
+      }[]
       total: number
       /** False only when a merge could not compute the exact session count
        * (a legacy pending alert hid its unlisted sessions): "+N more" would

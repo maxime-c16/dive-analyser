@@ -42,14 +42,16 @@ function sessionDateLabel(item: AppNotification, lang: string): string | null {
 
 type Translate = (key: string, options?: Record<string, unknown>) => string
 
-/** Event time in the event's own timezone (all-day: the local date). */
+/** Event time in the event's own timezone. All-day: the local date — for a
+ * full instant that is the event-timezone date (a local midnight stored as
+ * UTC is the previous UTC day), so no UTC rendering here. */
 function eventWhen(iso: string | null, timeZone: string, lang: string, allDay = false): string {
   if (!iso) return ''
   const date = new Date(allDay && iso.length === 10 ? `${iso}T12:00:00Z` : iso)
   if (Number.isNaN(date.getTime())) return ''
   try {
     return date.toLocaleString(lang, allDay
-      ? { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' }
+      ? { weekday: 'short', day: 'numeric', month: 'short', timeZone }
       : { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone })
   } catch {
     return date.toLocaleString(lang)
@@ -73,8 +75,8 @@ function calendarLines(t: Translate, view: Extract<CalendarNotificationView, { r
   for (const change of view.changes) {
     if (change.kinds.includes('time_changed') && change.old_start && change.new_start) {
       lines.push(t('notifications.calendar.moved', {
-        from: eventWhen(change.old_start, view.timezone, lang),
-        to: eventWhen(change.new_start, view.timezone, lang),
+        from: eventWhen(change.old_start, view.timezone, lang, change.old_all_day === true),
+        to: eventWhen(change.new_start, view.timezone, lang, change.new_all_day === true),
       }))
     }
     if (change.kinds.includes('venue_changed')) {

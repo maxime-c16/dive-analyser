@@ -369,6 +369,46 @@ def test_push_title_and_marker_follow_the_delivery_occurrence(cal):
     assert "Cancelled" in own_push["body"]
 
 
+def test_push_body_formats_form_changes_separately(cal):
+    """A timed <-> all-day change formats each endpoint with its own shape:
+    the old local midnight is a date, a new all-day endpoint keeps its date,
+    a new timed endpoint keeps its time."""
+    db, occ, club = cal["db"], cal["occ"]["ga"], cal["occ"]["club"]
+    live, camp = db.get(EventOccurrence, occ.id), db.get(EventOccurrence, club.id)
+    timed_old = live.starts_at.isoformat() + "Z"  # the previous timed slot
+    # ga: timed -> all-day (Sun 15 Nov); camp: all-day -> timed (Mon 16 Nov 16:00).
+    live.is_all_day, live.starts_at, live.ends_at = True, None, None
+    live.start_date, live.end_date = TODAY + timedelta(days=2), TODAY + timedelta(days=3)
+    live.window_start = datetime.combine(TODAY + timedelta(days=2), time())
+    live.window_end = datetime.combine(TODAY + timedelta(days=3), time())
+    camp.is_all_day, camp.start_date, camp.end_date = False, None, None
+    camp.starts_at = datetime.combine(TODAY + timedelta(days=3), time(15))
+    camp.ends_at = camp.starts_at + timedelta(hours=2)
+    camp.window_start, camp.window_end = camp.starts_at, camp.ends_at
+    ga_details = {"occurrences": [{"id": live.id, "kinds": ["time_changed"], "old_start": timed_old,
+                                   "new_start": live.window_start.isoformat() + "Z",
+                                   "old_all_day": False, "new_all_day": True}],
+                  "total": 1, "ids": [live.id], "total_exact": True}
+    club_details = {"occurrences": [{"id": camp.id, "kinds": ["time_changed"],
+                                     "old_start": (TODAY + timedelta(days=3)).isoformat() + "T00:00:00Z",
+                                     "new_start": camp.starts_at.isoformat() + "Z",
+                                     "old_all_day": True, "new_all_day": False}],
+                    "total": 1, "ids": [camp.id], "total_exact": True}
+    for key, who, details, occ_row in (("push-form-ga", "alice", ga_details, live),
+                                       ("push-form-club", "bob", club_details, camp)):
+        db.add(alerts._new_delivery(delivery_key=key, kind="change", notif_type="calendar_change",
+                                    user_id=uid(cal, who), event_id=occ_row.event_id,
+                                    occurrence_id=occ_row.id,
+                                    details=details, expires_at=datetime.utcnow() + timedelta(days=1),
+                                    now=datetime.utcnow()))
+    db.commit()
+    ga_push = alerts.push_payload(db, deliveries(cal, delivery_key="push-form-ga")[0])
+    assert ga_push["body"] == ("Groupe A training · Groupe A · "
+                               "Moved from Sat 14 Nov 19:00 to Sun 15 Nov · Sun 15 Nov")
+    club_push = alerts.push_payload(db, deliveries(cal, delivery_key="push-form-club")[0])
+    assert club_push["body"] == "Club camp · Moved from Mon 16 Nov to Mon 16 Nov 16:00 · Mon 16 Nov 16:00"
+
+
 def test_merged_details_stay_inexact_after_a_legacy_merge():
     """A false total_exact survives later merges: a legacy side's unlisted
     sessions are missing from every future union, whatever the ledgers."""

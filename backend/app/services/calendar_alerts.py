@@ -327,6 +327,12 @@ def _details_from_logs(logs: List[CalendarChangeLog]) -> tuple:
             old, new = (log.changes or {}).get("window_start", [None, None])
             entry.setdefault("old_start", old)
             entry["new_start"] = new
+            # A form change (all-day <-> timed) carries each endpoint's shape:
+            # the old local midnight must not render as "00:00", and the new
+            # all-day endpoint must not drop its date (latest log wins).
+            shapes = (log.changes or {}).get("is_all_day")
+            if isinstance(shapes, (list, tuple)) and len(shapes) == 2:
+                entry["old_all_day"], entry["new_all_day"] = bool(shapes[0]), bool(shapes[1])
         elif kind == "venue_changed":
             if log.occurrence_id:
                 per.setdefault(log.occurrence_id, {"kinds": set()})["kinds"].add("venue_changed")
@@ -358,6 +364,12 @@ def _merge_details(old: dict, new: dict, keep_id: Optional[int] = None) -> dict:
             if prev.get("old_start") is None:
                 prev["old_start"] = item.get("old_start")
             prev["new_start"] = item["new_start"]
+        # All-day shapes ride along with the times they describe: the oldest
+        # old shape and the newest new shape, like the times themselves.
+        if "old_all_day" in item:
+            prev.setdefault("old_all_day", item["old_all_day"])
+        if "new_all_day" in item:
+            prev["new_all_day"] = item["new_all_day"]
     known = set(merged)  # the ids ledger keys: the union of listed sessions
     for side in (old.get("ids"), new.get("ids")):
         if isinstance(side, list):
@@ -445,8 +457,14 @@ def expand_one(db: Session, outbox: CalendarAlertOutbox, now: datetime) -> int:
             items = []
             for oid in sorted(oids, key=lambda i: occurrences[i].window_start):
                 info = affected[oid]
-                items.append({"id": oid, "kinds": sorted(info["kinds"]), "old_start": info.get("old_start"),
-                              "new_start": info.get("new_start")})
+                item = {"id": oid, "kinds": sorted(info["kinds"]), "old_start": info.get("old_start"),
+                        "new_start": info.get("new_start")}
+                # Each endpoint's all-day shape (a form change formats its two
+                # ends independently; the current shape is the fallback).
+                shape_now = bool(occurrences[oid].is_all_day)
+                item["old_all_day"] = bool(info.get("old_all_day", shape_now))
+                item["new_all_day"] = bool(info.get("new_all_day", shape_now))
+                items.append(item)
             cancelled = event_cancelled or any("cancelled" in i["kinds"] for i in items)
             kind = "cancellation" if cancelled else "change"
             details = {"occurrences": items[:MAX_DETAIL_OCCURRENCES], "total": len(items),
@@ -702,11 +720,13 @@ def _push_body(db: Session, d: CalendarAlertDelivery, event: CalendarEvent) -> s
     if calendar is not None and calendar.kind == "group" and calendar.name:
         parts.append(calendar.name)
     if "time_changed" in kinds:
-        # The delivery occurrence decides date-only vs time rendering: an
-        # all-day session's window_start is local midnight, not a real time.
+        # Each endpoint formats with its own all-day shape (the current shape
+        # is only the fallback): an old local midnight is a date, a new
+        # all-day endpoint keeps its date, a new timed endpoint keeps its time.
         all_day = bool(occ is not None and occ.is_all_day)
-        old, new = _push_iso((own or {}).get("old_start"), event, all_day), \
-            _push_iso((own or {}).get("new_start"), event, all_day)
+        old_shape, new_shape = (own or {}).get("old_all_day"), (own or {}).get("new_all_day")
+        old = _push_iso((own or {}).get("old_start"), event, all_day if old_shape is None else old_shape)
+        new = _push_iso((own or {}).get("new_start"), event, all_day if new_shape is None else new_shape)
         if old and new:
             parts.append(f"Moved from {old} to {new}")
     when = _push_when(occ, event)
@@ -996,7 +1016,10 @@ def render_for_reader(db: Session, user: AppUser, rows: List[Notification]) -> D
             "status": "cancelled" if occ.status == "cancelled" else "scheduled",
             "event_cancelled": bool(details.get("event_cancelled")),
             "changes": [{"kinds": i.get("kinds", []), "old_start": i.get("old_start"),
-                         "new_start": i.get("new_start")} for i in details.get("occurrences", [])],
+                         "new_start": i.get("new_start"),
+                         "old_all_day": bool(i.get("old_all_day", occ.is_all_day)),
+                         "new_all_day": bool(i.get("new_all_day", occ.is_all_day))}
+                        for i in details.get("occurrences", [])],
             "total": details.get("total", 0),
             "total_exact": bool(details.get("total_exact", True))}}
     return out
