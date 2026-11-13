@@ -410,6 +410,76 @@ def test_push_body_formats_form_changes_separately(cal):
     assert club_push["body"] == "Club camp · Moved from Mon 16 Nov to Mon 16 Nov 16:00 · Mon 16 Nov 16:00"
 
 
+def test_push_body_announces_only_changed_venues(cal):
+    """'New venue' fires only when the session's effective venue name changed:
+    an address/map_url-only event edit changes no pool, and an event-level
+    name change never reaches a session with its own venue override."""
+    db, occ = cal["db"], cal["occ"]["ga"]
+    live = db.get(EventOccurrence, occ.id)
+    event_row = db.get(type(cal["events"]["ga"]), occ.event_id)
+    event_row.venue_name = "Piscine X"  # the event's pool, unchanged by edits below
+    synthesized = [{"id": live.id, "kinds": ["venue_changed"]}]
+    db.commit()
+
+    def delivery(key, details):
+        db.add(alerts._new_delivery(delivery_key=key, kind="change", notif_type="calendar_change",
+                                    user_id=uid(cal, "alice"), event_id=occ.event_id, occurrence_id=live.id,
+                                    details=details, expires_at=datetime.utcnow() + timedelta(days=1),
+                                    now=datetime.utcnow()))
+        db.commit()
+        return alerts.push_payload(db, deliveries(cal, delivery_key=key)[0])["body"]
+
+    # Address-only edit: the pool did not change.
+    body = delivery("venue-address-only", {"occurrences": synthesized, "total": 1, "ids": [live.id],
+                                           "event_venue": True, "event_venue_name": False,
+                                           "total_exact": True})
+    assert "New venue" not in body and "Piscine X" in body
+    # Event-level name change, the session has its own override: unchanged.
+    live.venue_name = "Bassin A"
+    db.commit()
+    body = delivery("venue-override", {"occurrences": synthesized, "total": 1, "ids": [live.id],
+                                       "event_venue": True, "event_venue_name": True,
+                                       "total_exact": True})
+    assert "New venue" not in body and "Bassin A" in body
+    # Event-level name change, the session inherits the event venue: changed.
+    live.venue_name = None
+    db.commit()
+    body = delivery("venue-inherited", {"occurrences": synthesized, "total": 1, "ids": [live.id],
+                                        "event_venue": True, "event_venue_name": True,
+                                        "total_exact": True})
+    assert "New venue: Piscine X" in body
+    # Legacy rows (no flag) keep the previous behavior.
+    assert "New venue" in delivery("venue-legacy", {"occurrences": synthesized, "total": 1,
+                                                    "ids": [live.id], "event_venue": True,
+                                                    "total_exact": True})
+
+
+def test_read_side_strips_uneffective_venue_changes(cal):
+    """The read row drops a venue_changed kind that did not change the
+    session's effective venue instead of claiming 'Place changed'."""
+    db, occ = cal["db"], cal["occ"]["ga"]
+    live = db.get(EventOccurrence, occ.id)
+    live.venue_name = "Bassin A"  # own override
+    db.commit()
+    for key, event_venue_name in (("read-address-only", False), ("read-override", True)):
+        details = {"occurrences": [{"id": live.id, "kinds": ["venue_changed"]}],
+                   "total": 1, "ids": [live.id], "event_venue": True,
+                   "event_venue_name": event_venue_name, "total_exact": True}
+        row = alerts.notification_service.stage(db, user_id=uid(cal, "alice"), type="calendar_change",
+                                                title=alerts.GENERIC_TITLES["change"])
+        db.add(alerts._new_delivery(delivery_key=key, kind="change", notif_type="calendar_change",
+                                    user_id=uid(cal, "alice"), event_id=occ.event_id, occurrence_id=live.id,
+                                    details=details, notification_id=row.id,
+                                    expires_at=datetime.utcnow() + timedelta(days=1), now=datetime.utcnow()))
+    db.commit()
+    reader = db.get(AppUser, uid(cal, "alice"))
+    for key in ("read-address-only", "read-override"):
+        delivery_row = deliveries(cal, delivery_key=key)[0]
+        notification = db.get(Notification, delivery_row.notification_id)
+        view = alerts.render_for_reader(db, reader, [notification])[notification.id]
+        assert view["calendar"]["changes"][0]["kinds"] == []
+
+
 def test_merged_details_stay_inexact_after_a_legacy_merge():
     """A false total_exact survives later merges: a legacy side's unlisted
     sessions are missing from every future union, whatever the ledgers."""
