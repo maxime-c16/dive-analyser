@@ -263,6 +263,64 @@ def test_merged_details_count_every_represented_session(cal):
     assert payload["body"].endswith("· +1 more")
 
 
+def test_merged_details_count_disjoint_sessions_exactly(cal):
+    """The ids ledger makes the union exact across the cap: a capped alert
+    (total 15, 10 listed) merged with a distinct session counts 16 — both in
+    the merged details and in the push."""
+    old = {"occurrences": [{"id": i, "kinds": ["venue_changed"]} for i in range(100, 110)],
+           "ids": list(range(100, 115)), "total": 15}
+    new = {"occurrences": [{"id": 200, "kinds": ["time_changed"],
+                            "old_start": "2026-11-13T18:00:00Z", "new_start": "2026-11-13T19:00:00Z"}],
+           "ids": [200], "total": 1}
+    merged = alerts._merge_details(old, new, keep_id=200)
+    assert merged["total"] == 16 and len(merged["ids"]) == 16
+    assert len(merged["occurrences"]) == alerts.MAX_DETAIL_OCCURRENCES
+    assert [o["id"] for o in merged["occurrences"]][-1] == 200  # keep_id survives the cap
+    # Legacy rows (no ledger) keep the safe lower bound: unknowable overlap.
+    legacy = {"occurrences": old["occurrences"], "total": 15}
+    assert alerts._merge_details(legacy, new, keep_id=200)["total"] == 15
+    # The push carries the exact count.
+    db, occ = cal["db"], cal["occ"]["ga"]
+    live = db.get(EventOccurrence, occ.id)
+    db.add(alerts._new_delivery(delivery_key="push-union", kind="change", notif_type="calendar_change",
+                                user_id=uid(cal, "alice"), event_id=occ.event_id, occurrence_id=live.id,
+                                details=merged, expires_at=datetime.utcnow() + timedelta(days=1),
+                                now=datetime.utcnow()))
+    db.commit()
+    payload = alerts.push_payload(db, deliveries(cal, delivery_key="push-union")[0])
+    assert payload["body"].endswith("+15 more")
+
+
+def test_push_body_counts_sessions_around_a_partial_cancellation(cal):
+    """One cancelled session inside a multi-session alert still shows how many
+    sessions are affected; only an event-wide cancellation omits the count."""
+    db, occ = cal["db"], cal["occ"]["ga"]
+    live = db.get(EventOccurrence, occ.id)
+    other_id = live.id + 1
+    partial = {"occurrences": [
+        {"id": live.id, "kinds": ["cancelled"]},
+        {"id": other_id, "kinds": ["time_changed"], "old_start": live.starts_at.isoformat() + "Z",
+         "new_start": live.starts_at.isoformat() + "Z"},
+    ], "total": 2, "ids": [live.id, other_id], "event_cancelled": False}
+    db.add(alerts._new_delivery(delivery_key="push-partial-cancel", kind="cancellation",
+                                notif_type="calendar_change", user_id=uid(cal, "alice"),
+                                event_id=occ.event_id, occurrence_id=live.id, details=partial,
+                                expires_at=datetime.utcnow() + timedelta(days=1), now=datetime.utcnow()))
+    event_wide = {"occurrences": [{"id": live.id, "kinds": ["cancelled"]},
+                                  {"id": other_id, "kinds": ["cancelled"]},
+                                  {"id": other_id + 1, "kinds": ["cancelled"]}],
+                  "total": 3, "ids": [live.id, other_id, other_id + 1], "event_cancelled": True}
+    db.add(alerts._new_delivery(delivery_key="push-event-cancel", kind="cancellation",
+                                notif_type="calendar_change", user_id=uid(cal, "bob"),
+                                event_id=occ.event_id, occurrence_id=live.id, details=event_wide,
+                                expires_at=datetime.utcnow() + timedelta(days=1), now=datetime.utcnow()))
+    db.commit()
+    partial_push = alerts.push_payload(db, deliveries(cal, delivery_key="push-partial-cancel")[0])
+    assert "Cancelled" in partial_push["body"] and partial_push["body"].endswith("+1 more")
+    wide_push = alerts.push_payload(db, deliveries(cal, delivery_key="push-event-cancel")[0])
+    assert "Cancelled" in wide_push["body"] and "+2 more" not in wide_push["body"]
+
+
 def test_push_body_renders_all_day_moves_as_dates(cal):
     """All-day sessions have no real time (local dates define them): a move
     renders 'Moved from Sun 15 Nov to Mon 16 Nov', never a '00:00'."""

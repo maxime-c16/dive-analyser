@@ -72,6 +72,10 @@ MAX_BATCH = 500
 MAX_RECIPIENTS = 2000
 MAX_DETAIL_OCCURRENCES = 10
 MAX_AFFECTED_OCCURRENCES = 400
+# Identity ledger of an alert's affected sessions (exact union count on
+# merge). Bounded far above any real event's occurrence count; past it the
+# total degrades to the safe lower bound.
+MAX_UNION_IDS = 1000
 STALE_WORKER = timedelta(minutes=int(os.getenv("CALENDAR_ALERTS_STALE_MINUTES", "15")))
 SCHEMA_TABLES = ("calendar_alert_outbox", "calendar_alert_deliveries", "calendar_worker_state")
 
@@ -332,13 +336,16 @@ def _details_from_logs(logs: List[CalendarChangeLog]) -> tuple:
 def _merge_details(old: dict, new: dict, keep_id: Optional[int] = None) -> dict:
     """Combine a superseded pending alert with the newer one: kinds union,
     the oldest 'old_start' and the newest 'new_start' per occurrence.
-    The merged list is capped by occurrence id, except `keep_id` — the
+    The rendered list is capped by occurrence id, except `keep_id` — the
     surviving delivery's own session — which the cap never drops: the push
-    and the read row are keyed to that session. `total` stays the larger of
-    the two counts (or the union of listed items): two alerts about two
-    sessions must never merge into an alert that admits only one."""
-    merged = {o["id"]: dict(o) for o in (old.get("occurrences") or [])}
-    for item in new.get("occurrences") or []:
+    and the read row are keyed to that session. The `ids` ledger keeps the
+    union of both alerts' sessions, so `total` is the exact session count
+    whenever both sides carry the ledger (only legacy rows lack it, or a
+    past-MAX_UNION_IDS union degrades to the safe lower bound)."""
+    old_occ = old.get("occurrences") or []
+    new_occ = new.get("occurrences") or []
+    merged = {o["id"]: dict(o) for o in old_occ}
+    for item in new_occ:
         prev = merged.get(item["id"])
         if prev is None:
             merged[item["id"]] = dict(item)
@@ -349,16 +356,22 @@ def _merge_details(old: dict, new: dict, keep_id: Optional[int] = None) -> dict:
             if prev.get("old_start") is None:
                 prev["old_start"] = item.get("old_start")
             prev["new_start"] = item["new_start"]
+    known = set(merged)  # the ids ledger keys: the union of listed sessions
+    for side in (old.get("ids"), new.get("ids")):
+        if isinstance(side, list):
+            known.update(i for i in side if isinstance(i, int))
+    ordered_ids = sorted(known)[:MAX_UNION_IDS]
+    exact = (isinstance(old.get("ids"), list) and isinstance(new.get("ids"), list)
+             and len(known) <= MAX_UNION_IDS)
     out = dict(new)
+    out["ids"] = ordered_ids
+    out["total"] = max(old.get("total") or 0, new.get("total") or 0,
+                       len(ordered_ids))  # TEMP-PROOF: lower bound only
     capped = sorted(merged.values(), key=lambda o: o["id"])[:MAX_DETAIL_OCCURRENCES]
     if keep_id is not None and keep_id in merged and all(o["id"] != keep_id for o in capped):
         capped = sorted(capped[:MAX_DETAIL_OCCURRENCES - 1] + [merged[keep_id]],
                         key=lambda o: o["id"])
     out["occurrences"] = capped
-    # The merged alert represents the union of both alerts' sessions: keep the
-    # larger total (best effort — capped lists can hide overlaps, so the exact
-    # union is unknowable, but 1+1 must never read as 1).
-    out["total"] = max(old.get("total") or 0, new.get("total") or 0, len(merged))
     out["event_cancelled"] = bool(old.get("event_cancelled") or new.get("event_cancelled"))
     out["event_venue"] = bool(old.get("event_venue") or new.get("event_venue"))
     return out
@@ -428,6 +441,7 @@ def expand_one(db: Session, outbox: CalendarAlertOutbox, now: datetime) -> int:
             cancelled = event_cancelled or any("cancelled" in i["kinds"] for i in items)
             kind = "cancellation" if cancelled else "change"
             details = {"occurrences": items[:MAX_DETAIL_OCCURRENCES], "total": len(items),
+                       "ids": [i["id"] for i in items],
                        "event_cancelled": event_cancelled, "event_venue": event_venue}
             # Supersede pending, undelivered change alerts of the same event:
             # one up-to-date alert instead of a stale sequence.
@@ -671,9 +685,10 @@ def _push_body(db: Session, d: CalendarAlertDelivery, event: CalendarEvent) -> s
     when = _push_when(occ, event)
     if when:
         parts.append(when)
-    # Partial change over several sessions: say how many are affected; a full
-    # cancellation already says everything a count would.
-    if not cancelled and (details.get("total") or len(items)) > 1:
+    # Partial change over several sessions: say how many are affected. Only an
+    # event-wide cancellation says everything a count would — one cancelled
+    # occurrence inside a multi-session alert still counts the others.
+    if not details.get("event_cancelled") and (details.get("total") or len(items)) > 1:
         parts.append(f"+{(details.get('total') or len(items)) - 1} more")
     return " · ".join(part for part in parts if part)
 
