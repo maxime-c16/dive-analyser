@@ -555,6 +555,8 @@ describe('Calendar alerts in the inbox (Task05)', () => {
       url: '/calendar/o/12',
       event_title: 'Groupe A training',
       timezone: 'Europe/Paris',
+      calendar_name: 'Groupe A',
+      calendar_kind: 'group',
       starts_at: '2026-10-22T17:00:00Z',
       start_date: null,
       all_day: false,
@@ -584,8 +586,29 @@ describe('Calendar alerts in the inbox (Task05)', () => {
     const text = screen.getByText(/Moved:/).textContent ?? ''
     expect(text).toContain('Place changed: Piscine Maurice Thorez')
     expect(text).toContain('+2 more sessions')
+    expect(text).toContain('Groupe A') // the group calendar's name, not just "something changed"
     expect(text).toMatch(/07:00 PM.*→.*07:00 PM/) // 17:00Z shown in the event timezone (Europe/Paris)
     expect(screen.getByRole('link', { name: 'Open event' })).toHaveAttribute('href', '/calendar/o/12')
+  })
+
+  it('shows where and when on a reminder row', async () => {
+    rows = [{
+      ...moved,
+      id: 10,
+      type: 'calendar_reminder',
+      title: 'Groupe A training',
+      calendar: {
+        ...moved.calendar!,
+        kind: 'reminder',
+        changes: [],
+        total: 0,
+      },
+    }]
+    renderPage()
+    expect(await screen.findByText('Tomorrow · Groupe A training')).toBeInTheDocument()
+    const text = screen.getByText(/Piscine Maurice Thorez/).textContent ?? ''
+    expect(text).toContain('Groupe A · Piscine Maurice Thorez')
+    expect(text).toMatch(/07:00 PM/) // the session's start in the event timezone
   })
 
   it('redacts an alert whose event is no longer visible (no title, no link)', async () => {

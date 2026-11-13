@@ -56,12 +56,16 @@ function eventWhen(iso: string | null, timeZone: string, lang: string, allDay = 
   }
 }
 
-/** Plain-language lines for a calendar alert: what changed, when. */
+/** Plain-language lines for a calendar alert: what changed, where, when. */
 function calendarLines(t: Translate, view: Extract<CalendarNotificationView, { redacted: false }>, lang: string): string[] {
   const lines: string[] = []
   const when = view.all_day
     ? eventWhen(view.start_date, view.timezone, lang, true)
     : eventWhen(view.starts_at, view.timezone, lang)
+  // Who/where: the training group (group calendars only) and the venue, so a
+  // row says more than "something happened in your calendar".
+  const context = [view.calendar_kind === 'group' ? view.calendar_name : null, view.venue_name]
+    .filter(Boolean).join(' · ')
   if (view.status === 'cancelled') lines.push(t('notifications.calendar.eventCancelled'))
   for (const change of view.changes) {
     if (change.kinds.includes('time_changed') && change.old_start && change.new_start) {
@@ -79,7 +83,8 @@ function calendarLines(t: Translate, view: Extract<CalendarNotificationView, { r
   if (view.total > view.changes.length) {
     lines.push(t('notifications.calendar.more', { count: view.total - view.changes.length }))
   }
-  if (lines.length === 0 && when) lines.push(when)
+  if (context) lines.push(context)
+  if (when) lines.push(when)
   return Array.from(new Set(lines))
 }
 

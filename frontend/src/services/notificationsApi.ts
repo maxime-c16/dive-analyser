@@ -33,6 +33,8 @@ export type CalendarNotificationView =
       url: string
       event_title: string
       timezone: string
+      calendar_name: string | null
+      calendar_kind: string | null
       starts_at: string | null
       start_date: string | null
       all_day: boolean

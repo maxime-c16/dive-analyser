@@ -27,8 +27,10 @@ status/health) after MAX_ATTEMPTS.
 
 Read side: calendar inbox rows store only a generic title. The API resolves
 the event at read time for the reader; when the reader can no longer see it
-the row is redacted (no title, details or link). Push previews of
-non-community events are generic.
+the row is redacted (no title, details or link). Push previews carry the real
+details (what/where/group/when): each is built at send time, right after the
+recipient passed the visibility re-check, and Web Push payloads are encrypted
+to the recipient's device.
 """
 import logging
 import os
@@ -78,7 +80,9 @@ CHANGE_INVITATION = ("pending", "accepted")
 
 # Inbox titles are generic on purpose: event details are resolved per reader
 # at read time (redacted once access is lost). English like other inbox rows;
-# the web UI renders localized FR/EN text from the structured payload.
+# the web UI renders localized FR/EN text from the structured payload. Push
+# previews keep these generic titles but carry the real details in their body
+# (push_payload, built at send time behind the visibility re-check).
 GENERIC_TITLES = {
     "invitation": "Calendar invitation",
     "change": "Calendar event changed",
@@ -150,6 +154,30 @@ def _local_to_utc(local: datetime, tz_name: str) -> datetime:
     return local.replace(tzinfo=ZoneInfo(tz_name), fold=0).astimezone(timezone.utc).replace(tzinfo=None)
 
 
+def _push_when(occ: Optional[EventOccurrence], event: CalendarEvent) -> str:
+    """Compact English when in the event's own timezone: 'Fri 14 Nov 18:30'
+    (all-day: 'Fri 14 Nov'). Stored times are naive UTC, like the inbox row."""
+    if occ is None:
+        return ""
+    if occ.is_all_day:
+        return occ.start_date.strftime("%a %d %b") if occ.start_date else ""
+    if not occ.starts_at:
+        return ""
+    local = occ.starts_at.replace(tzinfo=timezone.utc).astimezone(ZoneInfo(event.timezone))
+    return local.strftime("%a %d %b %H:%M")
+
+
+def _push_iso(value, event: CalendarEvent) -> str:
+    """A stored ISO instant ('...Z') rendered like _push_when ('' on garbage)."""
+    try:
+        instant = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        if instant.tzinfo is None:
+            instant = instant.replace(tzinfo=timezone.utc)
+        return instant.astimezone(ZoneInfo(event.timezone)).strftime("%a %d %b %H:%M")
+    except (TypeError, ValueError):
+        return ""
+
+
 def _local_day(occurrence: EventOccurrence, event: CalendarEvent) -> date:
     if occurrence.is_all_day:
         return occurrence.start_date
@@ -161,10 +189,6 @@ def reminder_due(occurrence: EventOccurrence, event: CalendarEvent) -> datetime:
     hour = get_settings().calendar_reminder_hour
     return _local_to_utc(datetime.combine(_local_day(occurrence, event) - timedelta(days=1), time(hour)),
                          event.timezone)
-
-
-def _is_private(event: CalendarEvent, calendar: Optional[Calendar]) -> bool:
-    return event.audience != "community" or (calendar is not None and calendar.kind == "personal")
 
 
 def _occurrence_url(occurrence_id: Optional[int]) -> str:
@@ -578,14 +602,52 @@ def suppression_reason(db: Session, d: CalendarAlertDelivery, now: datetime) -> 
 
 
 def push_payload(db: Session, d: CalendarAlertDelivery) -> dict:
-    event = db.get(CalendarEvent, d.event_id)
-    calendar = db.get(Calendar, event.calendar_id) if event else None
+    """Push preview: the kind label as title, the real details as body.
+
+    Pilot feedback: "Open the app to see the details." conveys nothing on a
+    lock screen. The body carries what/where/group/when, including for
+    non-community events — it is built at send time, right after the
+    recipient passed the visibility re-check (suppression_reason), and Web
+    Push payloads are encrypted to the recipient's device, so no third
+    party reads it in transit. The generic fallback is only for an event
+    that vanished between the inbox commit and this read."""
     title = GENERIC_TITLES[d.kind]
-    if event is None or _is_private(event, calendar):
-        body = PUSH_BODY_PRIVATE
-    else:
-        body = event.title
-    return {"title": title, "body": body, "url": _occurrence_url(d.occurrence_id)}
+    event = db.get(CalendarEvent, d.event_id)
+    if event is None:
+        return {"title": title, "body": PUSH_BODY_PRIVATE, "url": _occurrence_url(d.occurrence_id)}
+    return {"title": title, "body": _push_body(db, d, event), "url": _occurrence_url(d.occurrence_id)}
+
+
+def _push_body(db: Session, d: CalendarAlertDelivery, event: CalendarEvent) -> str:
+    """'What · where · group · when' (plus what changed), ' · '-joined."""
+    occ = db.get(EventOccurrence, d.occurrence_id) if d.occurrence_id else None
+    details = d.details or {}
+    items = details.get("occurrences") or []
+    first = items[0] if items else {}
+    kinds = set(first.get("kinds") or [])
+    cancelled = "cancelled" in kinds or any("cancelled" in (i.get("kinds") or []) for i in items) or bool(
+        details.get("event_cancelled")) or (occ is not None and occ.status == "cancelled")
+    parts: List[str] = [event.title]
+    if cancelled:
+        parts.append("Cancelled")
+    venue = (occ.venue_name if occ is not None else None) or event.venue_name
+    if venue:
+        parts.append(f"New venue: {venue}" if "venue_changed" in kinds else venue)
+    calendar = db.get(Calendar, event.calendar_id)
+    if calendar is not None and calendar.kind == "group" and calendar.name:
+        parts.append(calendar.name)
+    if "time_changed" in kinds:
+        old, new = _push_iso(first.get("old_start"), event), _push_iso(first.get("new_start"), event)
+        if old and new:
+            parts.append(f"Moved from {old} to {new}")
+    when = _push_when(occ, event)
+    if when:
+        parts.append(when)
+    # Partial change over several sessions: say how many are affected; a full
+    # cancellation already says everything a count would.
+    if not cancelled and (details.get("total") or len(items)) > 1:
+        parts.append(f"+{(details.get('total') or len(items)) - 1} more")
+    return " · ".join(part for part in parts if part)
 
 
 def _push(db: Session, delivery_id: int, owner: str, sender, now: datetime, budget=None) -> str:
@@ -843,18 +905,19 @@ def render_for_reader(db: Session, user: AppUser, rows: List[Notification]) -> D
     deliveries = {d.notification_id: d for d in db.query(CalendarAlertDelivery).filter(
         CalendarAlertDelivery.notification_id.in_([r.id for r in cal_rows]))}
     occ_ids = {d.occurrence_id for d in deliveries.values() if d.occurrence_id}
-    visible = {o.id: (o, e) for o, e, _c in access.visible_occurrences(db, user).filter(
+    visible = {o.id: (o, e, c) for o, e, c in access.visible_occurrences(db, user).filter(
         EventOccurrence.id.in_(occ_ids))} if occ_ids else {}
     out = dict(redacted)
     for r in cal_rows:
         d = deliveries.get(r.id)
         if d is None or d.occurrence_id not in visible:
             continue
-        occ, event = visible[d.occurrence_id]
+        occ, event, calendar = visible[d.occurrence_id]
         details = d.details or {}
         out[r.id] = {"title": event.title, "body": None, "calendar": {
             "redacted": False, "kind": d.kind, "event_id": event.id, "occurrence_id": occ.id,
             "url": _occurrence_url(occ.id), "event_title": event.title, "timezone": event.timezone,
+            "calendar_name": calendar.name, "calendar_kind": calendar.kind,
             "starts_at": _iso(occ.starts_at), "start_date": occ.start_date.isoformat() if occ.start_date else None,
             "all_day": bool(occ.is_all_day), "venue_name": occ.venue_name or event.venue_name,
             "status": "cancelled" if "cancelled" in (event.status, occ.status) else "scheduled",

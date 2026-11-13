@@ -155,12 +155,19 @@ def test_change_alerts_participants_once_with_authorized_deep_link(cal):
     assert item["calendar"]["url"] == f"/calendar/o/{occ.id}" and item["calendar"]["kind"] == "change"
     assert item["calendar"]["changes"][0]["kinds"] == ["venue_changed"]
     assert item["calendar"]["venue_name"] == "Piscine Maurice Thorez"
+    assert item["calendar"]["calendar_name"] == "Groupe A" and item["calendar"]["calendar_kind"] == "group"
     # The deep link is authorized for the recipient only.
     assert cal["login"]("alice").get(f"{API}/occurrences/{occ.id}").status_code == 200
     assert cal["login"]("bob").get(f"{API}/occurrences/{occ.id}").status_code == 404
     assert inbox(cal, "bob") == [] and inbox(cal, "coach") == []
-    # Private (group) event: generic push preview, deep link in payload.
-    assert {p["body"] for _u, p in pushes} == {alerts.PUSH_BODY_PRIVATE}
+    # Private (group) event: the push preview still carries the real details
+    # (what/new venue/group/when in the event timezone) plus the deep link.
+    start = cal["db"].get(EventOccurrence, occ.id).starts_at
+    expected_when = start.replace(tzinfo=timezone.utc).astimezone(ZoneInfo("Europe/Paris")).strftime(
+        "%a %d %b %H:%M")
+    assert {p["title"] for _u, p in pushes} == {alerts.GENERIC_TITLES["change"]}
+    assert {p["body"] for _u, p in pushes} == {
+        f"Groupe A training · New venue: Piscine Maurice Thorez · Groupe A · {expected_when}"}
     assert {p["url"] for _u, p in pushes} == {f"/calendar/o/{occ.id}"}
     # Re-running never duplicates: one inbox row per delivery key.
     again = run(cal)
@@ -278,6 +285,15 @@ def test_previous_day_reminder_once_and_never_replayed(cal):
     assert run(cal, now=due + timedelta(minutes=2))["reminders_planned"] == 0
     item = inbox(cal, "alice")[0]
     assert item["calendar"]["kind"] == "reminder" and item["type"] == "calendar_reminder"
+    assert item["calendar"]["calendar_name"] == "Groupe A"
+    # The reminder push carries the real details: what, group, when (no venue
+    # in this fixture — the pool shows up as soon as the event has one).
+    start = cal["db"].get(EventOccurrence, cal["occ"]["ga"].id).starts_at
+    expected_when = start.replace(tzinfo=timezone.utc).astimezone(ZoneInfo("Europe/Paris")).strftime(
+        "%a %d %b %H:%M")
+    alice_push = next(p for u, p in pushes if u == uid(cal, "alice"))
+    assert alice_push["title"] == alerts.GENERIC_TITLES["reminder"]
+    assert alice_push["body"] == f"Groupe A training · Groupe A · {expected_when}"
     # After downtime past the grace window nothing is replayed.
     db = cal["db"]
     db.query(CalendarAlertDelivery).delete()

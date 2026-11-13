@@ -1,0 +1,8 @@
+{
+  "id": "calendar-notifications-real-details",
+  "date": "2026-11-13",
+  "title": "Calendar notifications now show the session details",
+  "body": "Push and inbox calendar alerts carry the real information: the event, the pool, your training group and the date and time (event timezone) — instead of \"Open the app to see the details\".",
+  "audience": "all",
+  "components": ["frontend", "backend"]
+}
