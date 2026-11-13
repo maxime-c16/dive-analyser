@@ -1026,15 +1026,18 @@ def requeue_dead(db: Session, table: str, row_id: Optional[int] = None, now: Opt
 
 # --- Read side --------------------------------------------------------------------------------------------------------------
 
-def _read_changes(details: dict, occ: EventOccurrence) -> list:
-    """Per-item change view for the reader; a venue_changed kind that did not
-    change this session's effective venue is dropped from the item."""
+def _read_changes(db: Session, details: dict, occ: EventOccurrence) -> list:
+    """Per-item change view for the reader. The effective-venue test is per
+    item: an event-level venue-name change reaches the sessions that inherit
+    the event venue, not those with their own override — the delivery
+    session's shape says nothing about the other sessions."""
     out = []
     for item in details.get("occurrences", []):
         kinds = list(item.get("kinds", []))
-        if ("venue_changed" in kinds and item.get("venue") is None
-                and not _event_venue_reaches(details, occ)):
-            kinds.remove("venue_changed")
+        if "venue_changed" in kinds and item.get("venue") is None:
+            item_occ = db.get(EventOccurrence, item["id"]) if item.get("id") else None
+            if not _event_venue_reaches(details, item_occ or occ):
+                kinds.remove("venue_changed")
         out.append({"kinds": kinds, "old_start": item.get("old_start"),
                     "new_start": item.get("new_start"),
                     "old_all_day": bool(item.get("old_all_day", occ.is_all_day)),
@@ -1074,7 +1077,7 @@ def render_for_reader(db: Session, user: AppUser, rows: List[Notification]) -> D
             "all_day": bool(occ.is_all_day), "venue_name": occ.venue_name or event.venue_name,
             "status": "cancelled" if occ.status == "cancelled" else "scheduled",
             "event_cancelled": bool(details.get("event_cancelled")),
-            "changes": _read_changes(details, occ),
+            "changes": _read_changes(db, details, occ),
             "total": details.get("total", 0),
             "total_exact": bool(details.get("total_exact", True))}}
     return out

@@ -456,15 +456,19 @@ def test_push_body_announces_only_changed_venues(cal):
 
 def test_read_side_strips_uneffective_venue_changes(cal):
     """The read row drops a venue_changed kind that did not change the
-    session's effective venue instead of claiming 'Place changed'."""
+    session's effective venue instead of claiming 'Place changed' — judged
+    per occurrence, so a session that inherits the event venue keeps its
+    line even when the delivery session has its own override."""
+    from tests.test_calendar_domain import _occ
     db, occ = cal["db"], cal["occ"]["ga"]
     live = db.get(EventOccurrence, occ.id)
-    live.venue_name = "Bassin A"  # own override
+    live.venue_name = "Bassin A"  # the delivery session's own override
+    other = _occ(db, db.get(type(cal["events"]["ga"]), occ.event_id), "ga-2", 2)  # inherits
     db.commit()
+    items = [{"id": live.id, "kinds": ["venue_changed"]}, {"id": other.id, "kinds": ["venue_changed"]}]
     for key, event_venue_name in (("read-address-only", False), ("read-override", True)):
-        details = {"occurrences": [{"id": live.id, "kinds": ["venue_changed"]}],
-                   "total": 1, "ids": [live.id], "event_venue": True,
-                   "event_venue_name": event_venue_name, "total_exact": True}
+        details = {"occurrences": items, "total": len(items), "ids": [live.id, other.id],
+                   "event_venue": True, "event_venue_name": event_venue_name, "total_exact": True}
         row = alerts.notification_service.stage(db, user_id=uid(cal, "alice"), type="calendar_change",
                                                 title=alerts.GENERIC_TITLES["change"])
         db.add(alerts._new_delivery(delivery_key=key, kind="change", notif_type="calendar_change",
@@ -473,11 +477,11 @@ def test_read_side_strips_uneffective_venue_changes(cal):
                                     expires_at=datetime.utcnow() + timedelta(days=1), now=datetime.utcnow()))
     db.commit()
     reader = db.get(AppUser, uid(cal, "alice"))
-    for key in ("read-address-only", "read-override"):
+    for key, expected in (("read-address-only", [[], []]), ("read-override", [[], ["venue_changed"]])):
         delivery_row = deliveries(cal, delivery_key=key)[0]
         notification = db.get(Notification, delivery_row.notification_id)
         view = alerts.render_for_reader(db, reader, [notification])[notification.id]
-        assert view["calendar"]["changes"][0]["kinds"] == []
+        assert [c["kinds"] for c in view["calendar"]["changes"]] == expected
 
 
 def test_merged_details_stay_inexact_after_a_legacy_merge():
