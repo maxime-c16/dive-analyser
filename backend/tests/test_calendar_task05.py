@@ -237,6 +237,32 @@ def test_merged_details_never_drop_the_delivery_occurrence():
     assert 50 not in [o["id"] for o in alerts._merge_details(old, new)["occurrences"]]
 
 
+def test_merged_details_count_every_represented_session(cal):
+    """Two pending alerts about two different sessions merge into one alert
+    whose total counts both (push '+1 more', read row '+N more sessions') —
+    a 1+1 merge must never read as 1."""
+    old = {"occurrences": [{"id": 7, "kinds": ["venue_changed"]}], "total": 1}
+    new = {"occurrences": [{"id": 9, "kinds": ["time_changed"],
+                            "old_start": "2026-11-13T18:00:00Z", "new_start": "2026-11-13T19:00:00Z"}],
+           "total": 1}
+    merged = alerts._merge_details(old, new, keep_id=9)
+    assert merged["total"] == 2 and len(merged["occurrences"]) == 2
+    # A capped union still reports the larger total, not the capped list.
+    big_old = {"occurrences": [{"id": i, "kinds": ["venue_changed"]} for i in range(1, 12)],
+               "total": 15}
+    assert alerts._merge_details(big_old, new, keep_id=9)["total"] == 15
+    # The push carries the same count.
+    db, occ = cal["db"], cal["occ"]["ga"]
+    live = db.get(EventOccurrence, occ.id)
+    db.add(alerts._new_delivery(delivery_key="push-merge-count", kind="change", notif_type="calendar_change",
+                                user_id=uid(cal, "alice"), event_id=occ.event_id, occurrence_id=live.id,
+                                details=merged, expires_at=datetime.utcnow() + timedelta(days=1),
+                                now=datetime.utcnow()))
+    db.commit()
+    payload = alerts.push_payload(db, deliveries(cal, delivery_key="push-merge-count")[0])
+    assert payload["body"].endswith("· +1 more")
+
+
 def test_push_body_omits_change_strings_without_the_delivery_occurrence(cal):
     """Rows written before the cap kept the delivery's session (or any row
     whose item went missing) degrade to what/where/group/when: another

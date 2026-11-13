@@ -331,7 +331,9 @@ def _merge_details(old: dict, new: dict, keep_id: Optional[int] = None) -> dict:
     the oldest 'old_start' and the newest 'new_start' per occurrence.
     The merged list is capped by occurrence id, except `keep_id` — the
     surviving delivery's own session — which the cap never drops: the push
-    and the read row are keyed to that session."""
+    and the read row are keyed to that session. `total` stays the larger of
+    the two counts (or the union of listed items): two alerts about two
+    sessions must never merge into an alert that admits only one."""
     merged = {o["id"]: dict(o) for o in (old.get("occurrences") or [])}
     for item in new.get("occurrences") or []:
         prev = merged.get(item["id"])
@@ -350,6 +352,10 @@ def _merge_details(old: dict, new: dict, keep_id: Optional[int] = None) -> dict:
         capped = sorted(capped[:MAX_DETAIL_OCCURRENCES - 1] + [merged[keep_id]],
                         key=lambda o: o["id"])
     out["occurrences"] = capped
+    # The merged alert represents the union of both alerts' sessions: keep the
+    # larger total (best effort — capped lists can hide overlaps, so the exact
+    # union is unknowable, but 1+1 must never read as 1).
+    out["total"] = max(old.get("total") or 0, new.get("total") or 0, len(merged))
     out["event_cancelled"] = bool(old.get("event_cancelled") or new.get("event_cancelled"))
     out["event_venue"] = bool(old.get("event_venue") or new.get("event_venue"))
     return out
