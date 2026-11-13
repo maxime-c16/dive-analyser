@@ -562,6 +562,7 @@ describe('Calendar alerts in the inbox (Task05)', () => {
       all_day: false,
       venue_name: 'Piscine Maurice Thorez',
       status: 'scheduled',
+      event_cancelled: false,
       changes: [
         { kinds: ['time_changed', 'venue_changed'], old_start: '2026-10-21T17:00:00Z', new_start: '2026-10-22T17:00:00Z' },
       ],
@@ -620,6 +621,51 @@ describe('Calendar alerts in the inbox (Task05)', () => {
     const text = screen.getByText(/Moved:/).textContent ?? ''
     expect(text).toContain('and more sessions') // no fake "+2" — the merge could not count the union
     expect(text).not.toContain('+2 more sessions')
+  })
+
+  it('keeps cancellation wording to its true scope', async () => {
+    // One session of the event cancelled: the row is about that session.
+    rows = [{
+      ...moved,
+      id: 12,
+      type: 'calendar_change',
+      title: 'Groupe A training',
+      calendar: {
+        ...moved.calendar!,
+        kind: 'cancellation',
+        status: 'cancelled',
+        event_cancelled: false,
+        changes: [],
+        total: 0,
+      },
+    }]
+    renderPage()
+    expect(await screen.findByText('Cancelled · Groupe A training')).toBeInTheDocument()
+    const text = screen.getByText(/Session cancelled/).textContent ?? ''
+    expect(text).toContain('Session cancelled') // the session, not "This event is cancelled."
+    expect(text).not.toContain('This event is cancelled')
+  })
+
+  it('downgrades a partial cancellation whose own session is still on', async () => {
+    rows = [{
+      ...moved,
+      id: 13,
+      type: 'calendar_change',
+      title: 'Groupe A training',
+      calendar: {
+        ...moved.calendar!,
+        kind: 'cancellation',
+        status: 'scheduled',
+        event_cancelled: false,
+        changes: [{ kinds: ['time_changed'], old_start: '2026-10-21T17:00:00Z', new_start: '2026-10-22T17:00:00Z' }],
+        total: 2,
+      },
+    }]
+    renderPage()
+    expect(await screen.findByText('Event changed · Groupe A training')).toBeInTheDocument()
+    const text = screen.getByText(/Moved:/).textContent ?? ''
+    expect(text).not.toContain('Session cancelled')
+    expect(text).not.toContain('This event is cancelled')
   })
 
   it('redacts an alert whose event is no longer visible (no title, no link)', async () => {

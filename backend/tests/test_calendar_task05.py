@@ -329,8 +329,61 @@ def test_push_body_counts_sessions_around_a_partial_cancellation(cal):
     db.commit()
     partial_push = alerts.push_payload(db, deliveries(cal, delivery_key="push-partial-cancel")[0])
     assert "Cancelled" in partial_push["body"] and partial_push["body"].endswith("+1 more")
+    assert partial_push["title"] == alerts.GENERIC_TITLES["change"]  # one session, not the event
     wide_push = alerts.push_payload(db, deliveries(cal, delivery_key="push-event-cancel")[0])
     assert "Cancelled" in wide_push["body"] and "+2 more" not in wide_push["body"]
+    assert wide_push["title"] == alerts.GENERIC_TITLES["cancellation"]  # the whole event
+
+
+def test_push_title_and_marker_follow_the_delivery_occurrence(cal):
+    """Cancellation wording is scoped: another session's cancellation is a
+    plain change for this row; the row's own cancelled session says so."""
+    db, occ = cal["db"], cal["occ"]["ga"]
+    live = db.get(EventOccurrence, occ.id)
+    other_id = live.id + 1
+    # Another session was cancelled; this delivery's session stays scheduled.
+    elsewhere = {"occurrences": [
+        {"id": live.id, "kinds": ["time_changed"], "old_start": live.starts_at.isoformat() + "Z",
+         "new_start": live.starts_at.isoformat() + "Z"},
+        {"id": other_id, "kinds": ["cancelled"]},
+    ], "total": 2, "ids": [live.id, other_id], "event_cancelled": False}
+    db.add(alerts._new_delivery(delivery_key="push-other-cancel", kind="cancellation",
+                                notif_type="calendar_change", user_id=uid(cal, "alice"),
+                                event_id=occ.event_id, occurrence_id=live.id, details=elsewhere,
+                                expires_at=datetime.utcnow() + timedelta(days=1), now=datetime.utcnow()))
+    db.commit()
+    elsewhere_push = alerts.push_payload(db, deliveries(cal, delivery_key="push-other-cancel")[0])
+    assert elsewhere_push["title"] == alerts.GENERIC_TITLES["change"]
+    assert "Cancelled" not in elsewhere_push["body"] and elsewhere_push["body"].endswith("+1 more")
+    # This delivery's own session is the cancelled one.
+    live.status, live.cancelled_at = "cancelled", datetime.utcnow()
+    own = {"occurrences": [{"id": live.id, "kinds": ["cancelled"]}],
+           "total": 1, "ids": [live.id], "event_cancelled": False}
+    db.add(alerts._new_delivery(delivery_key="push-own-cancel", kind="cancellation",
+                                notif_type="calendar_change", user_id=uid(cal, "bob"),
+                                event_id=occ.event_id, occurrence_id=live.id, details=own,
+                                expires_at=datetime.utcnow() + timedelta(days=1), now=datetime.utcnow()))
+    db.commit()
+    own_push = alerts.push_payload(db, deliveries(cal, delivery_key="push-own-cancel")[0])
+    assert own_push["title"] == alerts.PUSH_TITLE_SESSION_CANCELLED
+    assert "Cancelled" in own_push["body"]
+
+
+def test_merged_details_stay_inexact_after_a_legacy_merge():
+    """A false total_exact survives later merges: a legacy side's unlisted
+    sessions are missing from every future union, whatever the ledgers."""
+    legacy = {"occurrences": [{"id": i, "kinds": ["venue_changed"]} for i in range(100, 110)], "total": 15}
+    first = alerts._merge_details(legacy, {"occurrences": [{"id": 200, "kinds": ["time_changed"],
+                                                            "old_start": "2026-11-13T18:00:00Z",
+                                                            "new_start": "2026-11-13T19:00:00Z"}],
+                                           "ids": [200], "total": 1}, keep_id=200)
+    assert first["total_exact"] is False and first["total"] == 15
+    second = alerts._merge_details(first, {"occurrences": [{"id": 300, "kinds": ["time_changed"],
+                                                            "old_start": "2026-11-13T18:00:00Z",
+                                                            "new_start": "2026-11-13T19:00:00Z"}],
+                                           "ids": [300], "total": 1}, keep_id=200)
+    # Still the lower bound, never presented as an exact 12.
+    assert second["total_exact"] is False and second["total"] == 15
 
 
 def test_push_body_renders_all_day_moves_as_dates(cal):
@@ -397,7 +450,10 @@ def test_cancellation_and_publication_alerts(cal):
     assert coach.post(f"{API}/events/{detail['id']}/cancel", json={"expected_version": detail["version"]}).status_code == 200
     run(cal)
     items = inbox(cal, "alice")
-    assert [i["calendar"]["kind"] for i in items] == ["cancellation"] and items[0]["calendar"]["status"] == "cancelled"
+    # The whole event was cancelled: the row's session is still "scheduled"
+    # (cancel_event leaves occurrences untouched) and event_cancelled says so.
+    assert [i["calendar"]["kind"] for i in items] == ["cancellation"]
+    assert items[0]["calendar"]["event_cancelled"] is True and items[0]["calendar"]["status"] == "scheduled"
 
 
 def test_invitations_wait_for_publication_and_revocation_suppresses(cal):

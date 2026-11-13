@@ -96,6 +96,7 @@ GENERIC_TITLES = {
 }
 PUSH_BODY_PRIVATE = "Open the app to see the details."
 PUSH_MORE_UNCOUNTED = "and more sessions"
+PUSH_TITLE_SESSION_CANCELLED = "Calendar session cancelled"
 REDACTED_TITLE = "Calendar update"
 
 
@@ -362,8 +363,12 @@ def _merge_details(old: dict, new: dict, keep_id: Optional[int] = None) -> dict:
         if isinstance(side, list):
             known.update(i for i in side if isinstance(i, int))
     ordered_ids = sorted(known)[:MAX_UNION_IDS]
+    # Exactness must survive merges: a side whose history is already inexact
+    # (legacy rows, a past bound) keeps every later union inexact too, even
+    # when both sides carry an ids ledger.
     exact = (isinstance(old.get("ids"), list) and isinstance(new.get("ids"), list)
-             and len(known) <= MAX_UNION_IDS)
+             and len(known) <= MAX_UNION_IDS
+             and old.get("total_exact", True) and new.get("total_exact", True))
     out = dict(new)
     out["ids"] = ordered_ids
     # A legacy side (no ledger) hides its unlisted sessions: the count is a
@@ -649,7 +654,23 @@ def push_payload(db: Session, d: CalendarAlertDelivery) -> dict:
     event = db.get(CalendarEvent, d.event_id)
     if event is None:
         return {"title": title, "body": PUSH_BODY_PRIVATE, "url": _occurrence_url(d.occurrence_id)}
-    return {"title": title, "body": _push_body(db, d, event), "url": _occurrence_url(d.occurrence_id)}
+    return {"title": _push_title(db, d, event), "body": _push_body(db, d, event),
+            "url": _occurrence_url(d.occurrence_id)}
+
+
+def _push_title(db: Session, d: CalendarAlertDelivery, event: CalendarEvent) -> str:
+    """Cancellation wording follows its true scope: the whole event
+    (event_cancelled), the recipient's own session (its occurrence is
+    cancelled), or a plain change when another session was the cancelled
+    one — models/EventOccurrence carries cancellation per occurrence."""
+    if d.kind != "cancellation":
+        return GENERIC_TITLES[d.kind]
+    if (d.details or {}).get("event_cancelled"):
+        return GENERIC_TITLES["cancellation"]
+    occ = db.get(EventOccurrence, d.occurrence_id) if d.occurrence_id else None
+    if occ is not None and occ.status == "cancelled":
+        return PUSH_TITLE_SESSION_CANCELLED
+    return GENERIC_TITLES["change"]
 
 
 def _push_body(db: Session, d: CalendarAlertDelivery, event: CalendarEvent) -> str:
@@ -667,8 +688,10 @@ def _push_body(db: Session, d: CalendarAlertDelivery, event: CalendarEvent) -> s
     if own is None and items and d.occurrence_id is not None:
         own = {}
     kinds = set((own or {}).get("kinds") or [])
-    cancelled = "cancelled" in kinds or any("cancelled" in (i.get("kinds") or []) for i in items) or bool(
-        details.get("event_cancelled")) or (occ is not None and occ.status == "cancelled")
+    # "Cancelled" describes this delivery's session, or a whole-event
+    # cancellation — another session's cancellation never labels this row.
+    cancelled = ("cancelled" in kinds or (occ is not None and occ.status == "cancelled")
+                 or bool(details.get("event_cancelled")))
     parts: List[str] = [event.title]
     if cancelled:
         parts.append("Cancelled")
@@ -970,7 +993,8 @@ def render_for_reader(db: Session, user: AppUser, rows: List[Notification]) -> D
             "calendar_name": calendar.name, "calendar_kind": calendar.kind,
             "starts_at": _iso(occ.starts_at), "start_date": occ.start_date.isoformat() if occ.start_date else None,
             "all_day": bool(occ.is_all_day), "venue_name": occ.venue_name or event.venue_name,
-            "status": "cancelled" if "cancelled" in (event.status, occ.status) else "scheduled",
+            "status": "cancelled" if occ.status == "cancelled" else "scheduled",
+            "event_cancelled": bool(details.get("event_cancelled")),
             "changes": [{"kinds": i.get("kinds", []), "old_start": i.get("old_start"),
                          "new_start": i.get("new_start")} for i in details.get("occurrences", [])],
             "total": details.get("total", 0),

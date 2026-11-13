@@ -40,6 +40,8 @@ export type CalendarNotificationView =
       all_day: boolean
       venue_name: string | null
       status: 'scheduled' | 'cancelled'
+      /** The whole event is cancelled, not just the row's session. */
+      event_cancelled: boolean
       changes: { kinds: string[]; old_start: string | null; new_start: string | null }[]
       total: number
       /** False only when a merge could not compute the exact session count

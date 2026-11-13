@@ -68,7 +68,8 @@ function calendarLines(t: Translate, view: Extract<CalendarNotificationView, { r
   const venueChanged = view.changes.some(change => change.kinds.includes('venue_changed'))
   const context = [view.calendar_kind === 'group' ? view.calendar_name : null, venueChanged ? null : view.venue_name]
     .filter(Boolean).join(' · ')
-  if (view.status === 'cancelled') lines.push(t('notifications.calendar.eventCancelled'))
+  if (view.event_cancelled) lines.push(t('notifications.calendar.eventCancelled'))
+  else if (view.status === 'cancelled') lines.push(t('notifications.calendar.sessionCancelled', { when }))
   for (const change of view.changes) {
     if (change.kinds.includes('time_changed') && change.old_start && change.new_start) {
       lines.push(t('notifications.calendar.moved', {
@@ -106,10 +107,16 @@ function NotificationRow({
   const lang = i18n.resolvedLanguage?.startsWith('fr') ? 'fr' : 'en'
   const calendar = item.calendar
   const calendarView = calendar && !calendar.redacted ? calendar : null
+  // A partial cancellation (one session of a multi-session event cancelled,
+  // the row's own session still on) is a change alert, not "Cancelled".
+  const displayKind = calendarView
+    ? (calendarView.kind === 'cancellation' && !calendarView.event_cancelled && calendarView.status !== 'cancelled'
+        ? 'change' : calendarView.kind)
+    : null
   const generated = notificationText(item, t)
   const title = calendar
     ? calendarView
-      ? `${t(`notifications.calendar.${calendarView.kind}`)} · ${calendarView.event_title}`
+      ? `${t(`notifications.calendar.${displayKind}`)} · ${calendarView.event_title}`
       : typeLabel(t, item.type)
     : generated.title
   const body = calendar
