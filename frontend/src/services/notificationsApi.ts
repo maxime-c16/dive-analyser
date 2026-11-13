@@ -33,13 +33,33 @@ export type CalendarNotificationView =
       url: string
       event_title: string
       timezone: string
+      calendar_name: string | null
+      calendar_kind: string | null
       starts_at: string | null
       start_date: string | null
       all_day: boolean
       venue_name: string | null
       status: 'scheduled' | 'cancelled'
-      changes: { kinds: string[]; old_start: string | null; new_start: string | null }[]
+      /** The whole event is cancelled, not just the row's session. */
+      event_cancelled: boolean
+      changes: {
+        occurrence_id?: number
+        kinds: string[]
+        old_start: string | null
+        new_start: string | null
+        /** Each endpoint's all-day shape: a form change formats its two ends
+         * independently (an old local midnight is a date, not "00:00"). */
+        old_all_day?: boolean
+        new_all_day?: boolean
+        /** The session's own new venue: a merged alert can mix venue changes
+         * across sessions; absent means the delivery session's venue. */
+        venue?: string | null
+      }[]
       total: number
+      /** False only when a merge could not compute the exact session count
+       * (a legacy pending alert hid its unlisted sessions): "+N more" would
+       * undercount, so the row says "and more sessions" instead. */
+      total_exact: boolean
     }
 
 export type AppNotification = {

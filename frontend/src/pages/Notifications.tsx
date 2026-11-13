@@ -42,44 +42,66 @@ function sessionDateLabel(item: AppNotification, lang: string): string | null {
 
 type Translate = (key: string, options?: Record<string, unknown>) => string
 
-/** Event time in the event's own timezone (all-day: the local date). */
+/** Event time in the event's own timezone. All-day occurrences are defined
+ * by local dates (models/calendar.py): a date-only value stays on the UTC
+ * calendar (noon keeps the date stable in any zone), while a full instant —
+ * a local midnight stored as UTC, the previous UTC day — renders its date
+ * in the event timezone. */
 function eventWhen(iso: string | null, timeZone: string, lang: string, allDay = false): string {
   if (!iso) return ''
-  const date = new Date(allDay && iso.length === 10 ? `${iso}T12:00:00Z` : iso)
+  const dateOnly = allDay && iso.length === 10
+  const date = new Date(dateOnly ? `${iso}T12:00:00Z` : iso)
   if (Number.isNaN(date.getTime())) return ''
   try {
     return date.toLocaleString(lang, allDay
-      ? { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' }
+      ? { weekday: 'short', day: 'numeric', month: 'short', timeZone: dateOnly ? 'UTC' : timeZone }
       : { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone })
   } catch {
     return date.toLocaleString(lang)
   }
 }
 
-/** Plain-language lines for a calendar alert: what changed, when. */
+/** Plain-language lines for a calendar alert: what changed, where, when. */
 function calendarLines(t: Translate, view: Extract<CalendarNotificationView, { redacted: false }>, lang: string): string[] {
   const lines: string[] = []
   const when = view.all_day
     ? eventWhen(view.start_date, view.timezone, lang, true)
     : eventWhen(view.starts_at, view.timezone, lang)
-  if (view.status === 'cancelled') lines.push(t('notifications.calendar.eventCancelled'))
+  // Who/where: the training group (group calendars only) and the venue. The
+  // venue is dropped only when the delivery session's own venue change is
+  // rendered — another session's venue change must not hide this session's
+  // pool (each session's change names its own venue).
+  const deliveryVenueChanged = view.changes.some(change =>
+    change.kinds.includes('venue_changed') && change.occurrence_id === view.occurrence_id)
+  const context = [view.calendar_kind === 'group' ? view.calendar_name : null, deliveryVenueChanged ? null : view.venue_name]
+    .filter(Boolean).join(' · ')
+  if (view.event_cancelled) lines.push(t('notifications.calendar.eventCancelled'))
+  else if (view.status === 'cancelled') lines.push(t('notifications.calendar.sessionCancelled', { when }))
   for (const change of view.changes) {
     if (change.kinds.includes('time_changed') && change.old_start && change.new_start) {
       lines.push(t('notifications.calendar.moved', {
-        from: eventWhen(change.old_start, view.timezone, lang),
-        to: eventWhen(change.new_start, view.timezone, lang),
+        from: eventWhen(change.old_start, view.timezone, lang, change.old_all_day === true),
+        to: eventWhen(change.new_start, view.timezone, lang, change.new_all_day === true),
       }))
     }
     if (change.kinds.includes('venue_changed')) {
-      lines.push(view.venue_name
-        ? t('notifications.calendar.venueChanged', { venue: view.venue_name })
+      // Each session carries its own new venue; the delivery session's venue
+      // is only the fallback (legacy rows, event-wide synthesized items).
+      const venue = change.venue ?? view.venue_name
+      lines.push(venue
+        ? t('notifications.calendar.venueChanged', { venue })
         : t('notifications.calendar.venueChangedNoName'))
     }
   }
-  if (view.total > view.changes.length) {
+  if (!view.total_exact) {
+    // An inexact total is a lower bound: it can even equal the retained
+    // changes, so the uncounted indicator never depends on the comparison.
+    lines.push(t('notifications.calendar.moreMany'))
+  } else if (view.total > view.changes.length) {
     lines.push(t('notifications.calendar.more', { count: view.total - view.changes.length }))
   }
-  if (lines.length === 0 && when) lines.push(when)
+  if (context) lines.push(context)
+  if (when) lines.push(when)
   return Array.from(new Set(lines))
 }
 
@@ -97,10 +119,16 @@ function NotificationRow({
   const lang = i18n.resolvedLanguage?.startsWith('fr') ? 'fr' : 'en'
   const calendar = item.calendar
   const calendarView = calendar && !calendar.redacted ? calendar : null
+  // A partial cancellation (one session of a multi-session event cancelled,
+  // the row's own session still on) is a change alert, not "Cancelled".
+  const displayKind = calendarView
+    ? (calendarView.kind === 'cancellation' && !calendarView.event_cancelled && calendarView.status !== 'cancelled'
+        ? 'change' : calendarView.kind)
+    : null
   const generated = notificationText(item, t)
   const title = calendar
     ? calendarView
-      ? `${t(`notifications.calendar.${calendarView.kind}`)} · ${calendarView.event_title}`
+      ? `${t(`notifications.calendar.${displayKind}`)} · ${calendarView.event_title}`
       : typeLabel(t, item.type)
     : generated.title
   const body = calendar

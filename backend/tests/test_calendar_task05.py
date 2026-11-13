@@ -15,8 +15,8 @@ import pytest
 from sqlalchemy.orm import sessionmaker
 
 from app.models.calendar import (
-    CalendarAlertDelivery, CalendarAlertOutbox, CalendarChangeLog, CalendarSubscription, CalendarWorkerState,
-    EventOccurrence, OccurrenceInterest,
+    CalendarAlertDelivery, CalendarAlertOutbox, CalendarChangeLog, CalendarEvent, CalendarSubscription,
+    CalendarWorkerState, EventOccurrence, OccurrenceInterest,
 )
 from app.models.notification import Notification
 from app.models.user_auth import AppUser
@@ -155,12 +155,21 @@ def test_change_alerts_participants_once_with_authorized_deep_link(cal):
     assert item["calendar"]["url"] == f"/calendar/o/{occ.id}" and item["calendar"]["kind"] == "change"
     assert item["calendar"]["changes"][0]["kinds"] == ["venue_changed"]
     assert item["calendar"]["venue_name"] == "Piscine Maurice Thorez"
+    assert item["calendar"]["changes"][0]["venue"] == "Piscine Maurice Thorez"  # the session's own venue
+    assert item["calendar"]["changes"][0]["occurrence_id"] == occ.id  # changes are per session
+    assert item["calendar"]["calendar_name"] == "Groupe A" and item["calendar"]["calendar_kind"] == "group"
     # The deep link is authorized for the recipient only.
     assert cal["login"]("alice").get(f"{API}/occurrences/{occ.id}").status_code == 200
     assert cal["login"]("bob").get(f"{API}/occurrences/{occ.id}").status_code == 404
     assert inbox(cal, "bob") == [] and inbox(cal, "coach") == []
-    # Private (group) event: generic push preview, deep link in payload.
-    assert {p["body"] for _u, p in pushes} == {alerts.PUSH_BODY_PRIVATE}
+    # Private (group) event: the push preview still carries the real details
+    # (what/new venue/group/when in the event timezone) plus the deep link.
+    start = cal["db"].get(EventOccurrence, occ.id).starts_at
+    expected_when = start.replace(tzinfo=timezone.utc).astimezone(ZoneInfo("Europe/Paris")).strftime(
+        "%a %d %b %H:%M")
+    assert {p["title"] for _u, p in pushes} == {alerts.GENERIC_TITLES["change"]}
+    assert {p["body"] for _u, p in pushes} == {
+        f"Groupe A training · New venue: Piscine Maurice Thorez · Groupe A · {expected_when}"}
     assert {p["url"] for _u, p in pushes} == {f"/calendar/o/{occ.id}"}
     # Re-running never duplicates: one inbox row per delivery key.
     again = run(cal)
@@ -182,6 +191,487 @@ def test_pending_changes_are_merged_into_one_up_to_date_alert(cal):
     expected_utc = datetime.combine(day, time(14), tzinfo=ZoneInfo("Europe/Paris")).astimezone(timezone.utc)
     expected_new = expected_utc.replace(tzinfo=None).isoformat() + "Z"
     assert change["old_start"] == original and change["new_start"] == expected_new
+
+
+def test_push_body_pairs_the_delivery_occurrence_with_its_change_item(cal):
+    """Merged details come back sorted by occurrence id (_merge_details) while
+    the delivery keeps the newest alert's first session: the push must select
+    the change item of its own occurrence, never items[0]."""
+    from tests.test_calendar_domain import _occ
+    db, occ = cal["db"], cal["occ"]["ga"]
+    event = db.get(type(cal["events"]["ga"]), cal["events"]["ga"].id)
+    other = _occ(db, event, "ga-2", 2)
+    live = db.get(EventOccurrence, occ.id)
+    live.venue_name = "Bassin A"
+    db.commit()
+    details = {"occurrences": [
+        {"id": other.id, "kinds": ["time_changed"], "old_start": other.starts_at.isoformat() + "Z",
+         "new_start": other.starts_at.isoformat() + "Z"},
+        {"id": live.id, "kinds": ["venue_changed"]},
+    ], "total": 2}
+    db.add(alerts._new_delivery(delivery_key="push-pair", kind="change", notif_type="calendar_change",
+                                user_id=uid(cal, "alice"), event_id=occ.event_id, occurrence_id=live.id,
+                                details=details, expires_at=datetime.utcnow() + timedelta(days=1),
+                                now=datetime.utcnow()))
+    db.commit()
+    payload = alerts.push_payload(db, deliveries(cal, delivery_key="push-pair")[0])
+    start = live.starts_at
+    expected_when = start.replace(tzinfo=timezone.utc).astimezone(ZoneInfo("Europe/Paris")).strftime(
+        "%a %d %b %H:%M")
+    # This delivery's own change (the venue) is described; the other session's
+    # moved-from/to times are not spliced into this push (+1 more: the merge
+    # affected a second session).
+    assert payload["body"] == f"Groupe A training · New venue: Bassin A · Groupe A · {expected_when} · +1 more"
+
+
+def test_merged_details_never_drop_the_delivery_occurrence():
+    """The cap on merged details keeps the delivery's own session: a merge
+    over more than MAX_DETAIL_OCCURRENCES sessions cannot cut the item the
+    push and the read row are keyed to."""
+    old = {"occurrences": [{"id": i, "kinds": ["venue_changed"]} for i in range(1, 12)],
+           "ids": list(range(1, 12)), "total": 11}
+    new = {"occurrences": [{"id": 50, "kinds": ["time_changed"],
+                            "old_start": "2026-11-13T18:00:00Z", "new_start": "2026-11-13T19:00:00Z"}],
+           "ids": [50], "total": 1}
+    merged = alerts._merge_details(old, new, keep_id=50)
+    ids = [o["id"] for o in merged["occurrences"]]
+    assert len(ids) == alerts.MAX_DETAIL_OCCURRENCES and 50 in ids
+    assert merged["total"] == 12 and merged["total_exact"] is True
+    # Unchanged cap semantics without a keep_id.
+    assert 50 not in [o["id"] for o in alerts._merge_details(old, new)["occurrences"]]
+
+
+def test_merged_details_count_every_represented_session(cal):
+    """Two pending alerts about two different sessions merge into one alert
+    whose total counts both (push '+1 more', read row '+N more sessions') —
+    a 1+1 merge must never read as 1."""
+    old = {"occurrences": [{"id": 7, "kinds": ["venue_changed"]}], "ids": [7], "total": 1}
+    new = {"occurrences": [{"id": 9, "kinds": ["time_changed"],
+                            "old_start": "2026-11-13T18:00:00Z", "new_start": "2026-11-13T19:00:00Z"}],
+           "ids": [9], "total": 1}
+    merged = alerts._merge_details(old, new, keep_id=9)
+    assert merged["total"] == 2 and len(merged["occurrences"]) == 2
+    assert merged["total_exact"] is True
+    # A capped union still reports the larger total, not the capped list.
+    big_old = {"occurrences": [{"id": i, "kinds": ["venue_changed"]} for i in range(1, 12)],
+               "total": 15}
+    assert alerts._merge_details(big_old, new, keep_id=9)["total"] == 15
+    # The push carries the same count.
+    db, occ = cal["db"], cal["occ"]["ga"]
+    live = db.get(EventOccurrence, occ.id)
+    db.add(alerts._new_delivery(delivery_key="push-merge-count", kind="change", notif_type="calendar_change",
+                                user_id=uid(cal, "alice"), event_id=occ.event_id, occurrence_id=live.id,
+                                details=merged, expires_at=datetime.utcnow() + timedelta(days=1),
+                                now=datetime.utcnow()))
+    db.commit()
+    payload = alerts.push_payload(db, deliveries(cal, delivery_key="push-merge-count")[0])
+    assert payload["body"].endswith("· +1 more")
+
+
+def test_merged_details_count_disjoint_sessions_exactly(cal):
+    """The ids ledger makes the union exact across the cap: a capped alert
+    (total 15, 10 listed) merged with a distinct session counts 16 — both in
+    the merged details and in the push."""
+    old = {"occurrences": [{"id": i, "kinds": ["venue_changed"]} for i in range(100, 110)],
+           "ids": list(range(100, 115)), "total": 15}
+    new = {"occurrences": [{"id": 200, "kinds": ["time_changed"],
+                            "old_start": "2026-11-13T18:00:00Z", "new_start": "2026-11-13T19:00:00Z"}],
+           "ids": [200], "total": 1}
+    merged = alerts._merge_details(old, new, keep_id=200)
+    assert merged["total"] == 16 and len(merged["ids"]) == 16
+    assert merged["total_exact"] is True
+    assert len(merged["occurrences"]) == alerts.MAX_DETAIL_OCCURRENCES
+    assert [o["id"] for o in merged["occurrences"]][-1] == 200  # keep_id survives the cap
+    # Legacy rows (no ledger) keep the safe lower bound: unknowable overlap —
+    # and it must not be presented as an exact number.
+    legacy = {"occurrences": old["occurrences"], "total": 15}
+    legacy_merged = alerts._merge_details(legacy, new, keep_id=200)
+    assert legacy_merged["total"] == 15 and legacy_merged["total_exact"] is False
+    # The push carries the exact count when the ledger proves the union…
+    db, occ = cal["db"], cal["occ"]["ga"]
+    live = db.get(EventOccurrence, occ.id)
+    db.add(alerts._new_delivery(delivery_key="push-union", kind="change", notif_type="calendar_change",
+                                user_id=uid(cal, "alice"), event_id=occ.event_id, occurrence_id=live.id,
+                                details=merged, expires_at=datetime.utcnow() + timedelta(days=1),
+                                now=datetime.utcnow()))
+    # …and no fake-precise number when a legacy side hid its sessions.
+    db.add(alerts._new_delivery(delivery_key="push-union-legacy", kind="change", notif_type="calendar_change",
+                                user_id=uid(cal, "bob"), event_id=occ.event_id, occurrence_id=live.id,
+                                details=legacy_merged, expires_at=datetime.utcnow() + timedelta(days=1),
+                                now=datetime.utcnow()))
+    db.commit()
+    assert alerts.push_payload(db, deliveries(cal, delivery_key="push-union")[0])["body"].endswith("+15 more")
+    assert alerts.push_payload(db, deliveries(cal, delivery_key="push-union-legacy")[0])["body"].endswith(
+        alerts.PUSH_MORE_UNCOUNTED)
+
+
+def test_push_body_counts_sessions_around_a_partial_cancellation(cal):
+    """One cancelled session inside a multi-session alert still shows how many
+    sessions are affected; only an event-wide cancellation omits the count."""
+    db, occ = cal["db"], cal["occ"]["ga"]
+    live = db.get(EventOccurrence, occ.id)
+    other_id = live.id + 1
+    partial = {"occurrences": [
+        {"id": live.id, "kinds": ["cancelled"]},
+        {"id": other_id, "kinds": ["time_changed"], "old_start": live.starts_at.isoformat() + "Z",
+         "new_start": live.starts_at.isoformat() + "Z"},
+    ], "total": 2, "ids": [live.id, other_id], "event_cancelled": False}
+    db.add(alerts._new_delivery(delivery_key="push-partial-cancel", kind="cancellation",
+                                notif_type="calendar_change", user_id=uid(cal, "alice"),
+                                event_id=occ.event_id, occurrence_id=live.id, details=partial,
+                                expires_at=datetime.utcnow() + timedelta(days=1), now=datetime.utcnow()))
+    event_wide = {"occurrences": [{"id": live.id, "kinds": ["cancelled"]},
+                                  {"id": other_id, "kinds": ["cancelled"]},
+                                  {"id": other_id + 1, "kinds": ["cancelled"]}],
+                  "total": 3, "ids": [live.id, other_id, other_id + 1], "event_cancelled": True}
+    db.add(alerts._new_delivery(delivery_key="push-event-cancel", kind="cancellation",
+                                notif_type="calendar_change", user_id=uid(cal, "bob"),
+                                event_id=occ.event_id, occurrence_id=live.id, details=event_wide,
+                                expires_at=datetime.utcnow() + timedelta(days=1), now=datetime.utcnow()))
+    db.commit()
+    partial_push = alerts.push_payload(db, deliveries(cal, delivery_key="push-partial-cancel")[0])
+    assert "Cancelled" in partial_push["body"] and partial_push["body"].endswith("+1 more")
+    assert partial_push["title"] == alerts.GENERIC_TITLES["change"]  # one session, not the event
+    wide_push = alerts.push_payload(db, deliveries(cal, delivery_key="push-event-cancel")[0])
+    assert "Cancelled" in wide_push["body"] and "+2 more" not in wide_push["body"]
+    assert wide_push["title"] == alerts.GENERIC_TITLES["cancellation"]  # the whole event
+
+
+def test_push_title_and_marker_follow_the_delivery_occurrence(cal):
+    """Cancellation wording is scoped: another session's cancellation is a
+    plain change for this row; the row's own cancelled session says so."""
+    db, occ = cal["db"], cal["occ"]["ga"]
+    live = db.get(EventOccurrence, occ.id)
+    other_id = live.id + 1
+    # Another session was cancelled; this delivery's session stays scheduled.
+    elsewhere = {"occurrences": [
+        {"id": live.id, "kinds": ["time_changed"], "old_start": live.starts_at.isoformat() + "Z",
+         "new_start": live.starts_at.isoformat() + "Z"},
+        {"id": other_id, "kinds": ["cancelled"]},
+    ], "total": 2, "ids": [live.id, other_id], "event_cancelled": False}
+    db.add(alerts._new_delivery(delivery_key="push-other-cancel", kind="cancellation",
+                                notif_type="calendar_change", user_id=uid(cal, "alice"),
+                                event_id=occ.event_id, occurrence_id=live.id, details=elsewhere,
+                                expires_at=datetime.utcnow() + timedelta(days=1), now=datetime.utcnow()))
+    db.commit()
+    elsewhere_push = alerts.push_payload(db, deliveries(cal, delivery_key="push-other-cancel")[0])
+    assert elsewhere_push["title"] == alerts.GENERIC_TITLES["change"]
+    assert "Cancelled" not in elsewhere_push["body"] and elsewhere_push["body"].endswith("+1 more")
+    # This delivery's own session is the cancelled one.
+    live.status, live.cancelled_at = "cancelled", datetime.utcnow()
+    own = {"occurrences": [{"id": live.id, "kinds": ["cancelled"]}],
+           "total": 1, "ids": [live.id], "event_cancelled": False}
+    db.add(alerts._new_delivery(delivery_key="push-own-cancel", kind="cancellation",
+                                notif_type="calendar_change", user_id=uid(cal, "bob"),
+                                event_id=occ.event_id, occurrence_id=live.id, details=own,
+                                expires_at=datetime.utcnow() + timedelta(days=1), now=datetime.utcnow()))
+    db.commit()
+    own_push = alerts.push_payload(db, deliveries(cal, delivery_key="push-own-cancel")[0])
+    assert own_push["title"] == alerts.PUSH_TITLE_SESSION_CANCELLED
+    assert "Cancelled" in own_push["body"]
+
+
+def test_push_body_formats_form_changes_separately(cal):
+    """A timed <-> all-day change formats each endpoint with its own shape:
+    the old local midnight is a date, a new all-day endpoint keeps its date,
+    a new timed endpoint keeps its time."""
+    db, occ, club = cal["db"], cal["occ"]["ga"], cal["occ"]["club"]
+    live, camp = db.get(EventOccurrence, occ.id), db.get(EventOccurrence, club.id)
+    timed_old = live.starts_at.isoformat() + "Z"  # the previous timed slot
+    # ga: timed -> all-day (Sun 15 Nov); camp: all-day -> timed (Mon 16 Nov 16:00).
+    live.is_all_day, live.starts_at, live.ends_at = True, None, None
+    live.start_date, live.end_date = TODAY + timedelta(days=2), TODAY + timedelta(days=3)
+    live.window_start = datetime.combine(TODAY + timedelta(days=2), time())
+    live.window_end = datetime.combine(TODAY + timedelta(days=3), time())
+    camp.is_all_day, camp.start_date, camp.end_date = False, None, None
+    camp.starts_at = datetime.combine(TODAY + timedelta(days=3), time(15))
+    camp.ends_at = camp.starts_at + timedelta(hours=2)
+    camp.window_start, camp.window_end = camp.starts_at, camp.ends_at
+    ga_details = {"occurrences": [{"id": live.id, "kinds": ["time_changed"], "old_start": timed_old,
+                                   "new_start": live.window_start.isoformat() + "Z",
+                                   "old_all_day": False, "new_all_day": True}],
+                  "total": 1, "ids": [live.id], "total_exact": True}
+    club_details = {"occurrences": [{"id": camp.id, "kinds": ["time_changed"],
+                                     "old_start": (TODAY + timedelta(days=3)).isoformat() + "T00:00:00Z",
+                                     "new_start": camp.starts_at.isoformat() + "Z",
+                                     "old_all_day": True, "new_all_day": False}],
+                    "total": 1, "ids": [camp.id], "total_exact": True}
+    for key, who, details, occ_row in (("push-form-ga", "alice", ga_details, live),
+                                       ("push-form-club", "bob", club_details, camp)):
+        db.add(alerts._new_delivery(delivery_key=key, kind="change", notif_type="calendar_change",
+                                    user_id=uid(cal, who), event_id=occ_row.event_id,
+                                    occurrence_id=occ_row.id,
+                                    details=details, expires_at=datetime.utcnow() + timedelta(days=1),
+                                    now=datetime.utcnow()))
+    db.commit()
+    ga_push = alerts.push_payload(db, deliveries(cal, delivery_key="push-form-ga")[0])
+    assert ga_push["body"] == ("Groupe A training · Groupe A · "
+                               "Moved from Sat 14 Nov 19:00 to Sun 15 Nov · Sun 15 Nov")
+    club_push = alerts.push_payload(db, deliveries(cal, delivery_key="push-form-club")[0])
+    assert club_push["body"] == "Club camp · Moved from Mon 16 Nov to Mon 16 Nov 16:00 · Mon 16 Nov 16:00"
+
+
+def test_push_body_announces_only_changed_venues(cal):
+    """'New venue' fires only when the session's effective venue name changed:
+    an address/map_url-only event edit changes no pool, and an event-level
+    name change never reaches a session with its own venue override."""
+    db, occ = cal["db"], cal["occ"]["ga"]
+    live = db.get(EventOccurrence, occ.id)
+    event_row = db.get(type(cal["events"]["ga"]), occ.event_id)
+    event_row.venue_name = "Piscine X"  # the event's pool, unchanged by edits below
+    synthesized = [{"id": live.id, "kinds": ["venue_changed"]}]
+    db.commit()
+
+    def delivery(key, details):
+        db.add(alerts._new_delivery(delivery_key=key, kind="change", notif_type="calendar_change",
+                                    user_id=uid(cal, "alice"), event_id=occ.event_id, occurrence_id=live.id,
+                                    details=details, expires_at=datetime.utcnow() + timedelta(days=1),
+                                    now=datetime.utcnow()))
+        db.commit()
+        return alerts.push_payload(db, deliveries(cal, delivery_key=key)[0])["body"]
+
+    # Address-only edit: the pool did not change.
+    body = delivery("venue-address-only", {"occurrences": synthesized, "total": 1, "ids": [live.id],
+                                           "event_venue": True, "event_venue_name": False,
+                                           "total_exact": True})
+    assert "New venue" not in body and "Piscine X" in body
+    # Event-level name change, the session has its own override: unchanged.
+    live.venue_name = "Bassin A"
+    db.commit()
+    body = delivery("venue-override", {"occurrences": synthesized, "total": 1, "ids": [live.id],
+                                       "event_venue": True, "event_venue_name": True,
+                                       "total_exact": True})
+    assert "New venue" not in body and "Bassin A" in body
+    # Event-level name change, the session inherits the event venue: changed.
+    live.venue_name = None
+    db.commit()
+    body = delivery("venue-inherited", {"occurrences": synthesized, "total": 1, "ids": [live.id],
+                                        "event_venue": True, "event_venue_name": True,
+                                        "total_exact": True})
+    assert "New venue: Piscine X" in body
+    # Legacy rows (no flag) keep the previous behavior.
+    assert "New venue" in delivery("venue-legacy", {"occurrences": synthesized, "total": 1,
+                                                    "ids": [live.id], "event_venue": True,
+                                                    "total_exact": True})
+
+
+def test_push_shows_the_uncounted_marker_for_a_bound_of_one(cal):
+    """An inexact total is a lower bound: even a bound of 1 may hide other
+    affected sessions, so the uncounted marker still shows."""
+    db, occ = cal["db"], cal["occ"]["ga"]
+    live = db.get(EventOccurrence, occ.id)
+    details = {"occurrences": [{"id": live.id, "kinds": ["time_changed"],
+                                "old_start": live.starts_at.isoformat() + "Z",
+                                "new_start": live.starts_at.isoformat() + "Z"}],
+               "total": 1, "total_exact": False}
+    db.add(alerts._new_delivery(delivery_key="push-bound-one", kind="change", notif_type="calendar_change",
+                                user_id=uid(cal, "alice"), event_id=occ.event_id, occurrence_id=live.id,
+                                details=details, expires_at=datetime.utcnow() + timedelta(days=1),
+                                now=datetime.utcnow()))
+    db.commit()
+    body = alerts.push_payload(db, deliveries(cal, delivery_key="push-bound-one")[0])["body"]
+    assert body.endswith(alerts.PUSH_MORE_UNCOUNTED)
+
+
+def test_read_side_strips_uneffective_venue_changes(cal):
+    """The read row drops a venue_changed kind that did not change the
+    session's effective venue instead of claiming 'Place changed' — judged
+    per occurrence, so a session that inherits the event venue keeps its
+    line even when the delivery session has its own override."""
+    from tests.test_calendar_domain import _occ
+    db, occ = cal["db"], cal["occ"]["ga"]
+    live = db.get(EventOccurrence, occ.id)
+    live.venue_name = "Bassin A"  # the delivery session's own override
+    other = _occ(db, db.get(type(cal["events"]["ga"]), occ.event_id), "ga-2", 2)  # inherits
+    db.commit()
+    items = [{"id": live.id, "kinds": ["venue_changed"]}, {"id": other.id, "kinds": ["venue_changed"]}]
+    for key, event_venue_name in (("read-address-only", False), ("read-override", True)):
+        details = {"occurrences": items, "total": len(items), "ids": [live.id, other.id],
+                   "event_venue": True, "event_venue_name": event_venue_name, "total_exact": True}
+        row = alerts.notification_service.stage(db, user_id=uid(cal, "alice"), type="calendar_change",
+                                                title=alerts.GENERIC_TITLES["change"])
+        db.add(alerts._new_delivery(delivery_key=key, kind="change", notif_type="calendar_change",
+                                    user_id=uid(cal, "alice"), event_id=occ.event_id, occurrence_id=live.id,
+                                    details=details, notification_id=row.id,
+                                    expires_at=datetime.utcnow() + timedelta(days=1), now=datetime.utcnow()))
+    db.commit()
+    reader = db.get(AppUser, uid(cal, "alice"))
+    for key, expected in (("read-address-only", [[], []]), ("read-override", [[], ["venue_changed"]])):
+        delivery_row = deliveries(cal, delivery_key=key)[0]
+        notification = db.get(Notification, delivery_row.notification_id)
+        view = alerts.render_for_reader(db, reader, [notification])[notification.id]
+        assert [c["kinds"] for c in view["calendar"]["changes"]] == expected
+
+
+def test_expansion_cap_marks_totals_inexact(cal):
+    """The source occurrence query caps at MAX_AFFECTED_OCCURRENCES: totals
+    built from it are lower bounds and never presented as exact."""
+    db, occ = cal["db"], cal["occ"]["ga"]
+    event_id = db.get(type(cal["events"]["ga"]), occ.event_id).id
+    live = db.get(EventOccurrence, occ.id)
+    base = datetime.utcnow() + timedelta(days=1)
+    db.add_all([EventOccurrence(event_id=event_id, occurrence_key=f"cap-{i}",
+                                starts_at=start, ends_at=start + timedelta(hours=1),
+                                window_start=start, window_end=start + timedelta(hours=1))
+                for i, start in enumerate(base + timedelta(days=i)
+                                           for i in range(alerts.MAX_AFFECTED_OCCURRENCES))])
+    db.commit()
+    detail = cal["login"]("coach").get(f"{API}/events/{event_id}").json()
+    # An event-wide venue change (not a cancellation: its count is omitted).
+    assert cal["login"]("coach").patch(f"{API}/events/{event_id}",
+                                       json={"expected_version": detail["version"],
+                                             "venue_name": "Piscine X"}).status_code == 200
+    pushes = Pushes()
+    run(cal, pushes=pushes)
+    delivery = deliveries(cal, user_id=uid(cal, "alice"), kind="change")[0]
+    assert delivery.details["total"] == alerts.MAX_AFFECTED_OCCURRENCES
+    assert delivery.details["total_exact"] is False
+    body = next(p for u, p in pushes if u == uid(cal, "alice"))["body"]
+    assert "and more sessions" in body and "+399 more" not in body
+
+
+def test_venue_override_cleared_still_announces(cal):
+    """An override cleared back to the event venue (venue_name -> None) is a
+    logged venue change: the push names the new effective venue and the read
+    row keeps its 'Place changed' line, even next to an event-level edit that
+    changes no venue name."""
+    db, occ = cal["db"], cal["occ"]["ga"]
+    live = db.get(EventOccurrence, occ.id)
+    live.venue_name = "Bassin A"
+    db.commit()
+    event_id = db.get(type(cal["events"]["ga"]), occ.event_id).id
+    event_row = db.get(CalendarEvent, event_id)
+    event_row.venue_name = "Piscine X"
+    # The override is cleared back to the event venue: the log records a
+    # venue change whose new value is None.
+    live.venue_name = None
+    db.commit()
+    log = CalendarChangeLog(event_id=event_id, occurrence_id=live.id, event_version=1,
+                            change_kind="venue_changed", changes={"venue_name": ("Bassin A", None)})
+    per, _cancelled, _venue, _name = alerts._details_from_logs([log])
+    assert per[live.id]["venue_logged"] is True and per[live.id]["venue"] is None
+    cleared = {"id": live.id, "kinds": ["venue_changed"], "venue": None}
+    for key, extra in (("venue-cleared-plain", {}), ("venue-cleared-mixed", {"event_venue_name": False})):
+        details = {"occurrences": [cleared], "total": 1, "ids": [live.id],
+                   "event_venue": True, "total_exact": True, **extra}
+        db.add(alerts._new_delivery(delivery_key=f"push-{key}", kind="change", notif_type="calendar_change",
+                                    user_id=uid(cal, "alice"), event_id=occ.event_id, occurrence_id=live.id,
+                                    details=details, expires_at=datetime.utcnow() + timedelta(days=1),
+                                    now=datetime.utcnow()))
+        row = alerts.notification_service.stage(db, user_id=uid(cal, "alice"), type="calendar_change",
+                                                title=alerts.GENERIC_TITLES["change"])
+        db.add(alerts._new_delivery(delivery_key=key, kind="change", notif_type="calendar_change",
+                                    user_id=uid(cal, "alice"), event_id=occ.event_id, occurrence_id=live.id,
+                                    details=details, notification_id=row.id,
+                                    expires_at=datetime.utcnow() + timedelta(days=1), now=datetime.utcnow()))
+    db.commit()
+    reader = db.get(AppUser, uid(cal, "alice"))
+    for key in ("venue-cleared-plain", "venue-cleared-mixed"):
+        body = alerts.push_payload(db, deliveries(cal, delivery_key=f"push-{key}")[0])["body"]
+        assert "New venue: Piscine X" in body  # the new effective venue
+        delivery_row = deliveries(cal, delivery_key=key)[0]
+        notification = db.get(Notification, delivery_row.notification_id)
+        view = alerts.render_for_reader(db, reader, [notification])[notification.id]
+        change = view["calendar"]["changes"][0]
+        assert change["kinds"] == ["venue_changed"] and change["venue"] is None
+
+
+def test_read_changes_bulk_load_detail_occurrences(cal):
+    """The reader resolves every detail occurrence in the same bounded
+    visibility query, not with one db.get per item (a page can carry ten
+    items per row)."""
+    from sqlalchemy import event as sa_event
+    from tests.test_calendar_domain import _occ
+    db, occ = cal["db"], cal["occ"]["ga"]
+    event_row = db.get(type(cal["events"]["ga"]), occ.event_id)
+    event_row.venue_name = "Piscine X"
+    live = db.get(EventOccurrence, occ.id)
+    ids = [live.id] + [_occ(db, event_row, f"ga-bulk-{i}", i + 1).id for i in range(9)]
+    db.commit()
+    details = {"occurrences": [{"id": i, "kinds": ["venue_changed"]} for i in ids],
+               "total": len(ids), "ids": ids, "event_venue": True, "event_venue_name": True,
+               "total_exact": True}
+    row = alerts.notification_service.stage(db, user_id=uid(cal, "alice"), type="calendar_change",
+                                            title=alerts.GENERIC_TITLES["change"])
+    db.add(alerts._new_delivery(delivery_key="read-bulk", kind="change", notif_type="calendar_change",
+                                user_id=uid(cal, "alice"), event_id=occ.event_id, occurrence_id=live.id,
+                                details=details, notification_id=row.id,
+                                expires_at=datetime.utcnow() + timedelta(days=1), now=datetime.utcnow()))
+    db.commit()
+    delivery_row = deliveries(cal, delivery_key="read-bulk")[0]
+    notification = db.get(Notification, delivery_row.notification_id)
+    reader = db.get(AppUser, uid(cal, "alice"))
+    count = {"n": 0}
+
+    def counting(*_args, **_kw):
+        count["n"] += 1
+
+    sa_event.listens_for(db.get_bind(), "before_cursor_execute")(counting)
+    try:
+        view = alerts.render_for_reader(db, reader, [notification])[notification.id]
+    finally:
+        sa_event.remove(db.get_bind(), "before_cursor_execute", counting)
+    assert all(c["kinds"] == ["venue_changed"] for c in view["calendar"]["changes"])
+    assert count["n"] <= 12  # no per-item gets: reverted, the ten items add ~10 more
+
+
+def test_merged_details_stay_inexact_after_a_legacy_merge():
+    """A false total_exact survives later merges: a legacy side's unlisted
+    sessions are missing from every future union, whatever the ledgers."""
+    legacy = {"occurrences": [{"id": i, "kinds": ["venue_changed"]} for i in range(100, 110)], "total": 15}
+    first = alerts._merge_details(legacy, {"occurrences": [{"id": 200, "kinds": ["time_changed"],
+                                                            "old_start": "2026-11-13T18:00:00Z",
+                                                            "new_start": "2026-11-13T19:00:00Z"}],
+                                           "ids": [200], "total": 1}, keep_id=200)
+    assert first["total_exact"] is False and first["total"] == 15
+    second = alerts._merge_details(first, {"occurrences": [{"id": 300, "kinds": ["time_changed"],
+                                                            "old_start": "2026-11-13T18:00:00Z",
+                                                            "new_start": "2026-11-13T19:00:00Z"}],
+                                           "ids": [300], "total": 1}, keep_id=200)
+    # Still the lower bound, never presented as an exact 12.
+    assert second["total_exact"] is False and second["total"] == 15
+
+
+def test_push_body_renders_all_day_moves_as_dates(cal):
+    """All-day sessions have no real time (local dates define them): a move
+    renders 'Moved from Sun 15 Nov to Mon 16 Nov', never a '00:00'."""
+    db, occ = cal["db"], cal["occ"]["club"]
+    live = db.get(EventOccurrence, occ.id)
+    details = {"occurrences": [{"id": live.id, "kinds": ["time_changed"],
+                                "old_start": (TODAY + timedelta(days=2)).isoformat() + "T00:00:00Z",
+                                "new_start": (TODAY + timedelta(days=3)).isoformat() + "T00:00:00Z"}],
+               "total": 1}
+    db.add(alerts._new_delivery(delivery_key="push-allday-move", kind="change", notif_type="calendar_change",
+                                user_id=uid(cal, "alice"), event_id=live.event_id, occurrence_id=live.id,
+                                details=details, expires_at=datetime.utcnow() + timedelta(days=1),
+                                now=datetime.utcnow()))
+    db.commit()
+    payload = alerts.push_payload(db, deliveries(cal, delivery_key="push-allday-move")[0])
+    assert payload["body"] == "Club camp · Moved from Sun 15 Nov to Mon 16 Nov · Mon 16 Nov"
+    assert "00:00" not in payload["body"]
+
+
+def test_push_body_omits_change_strings_without_the_delivery_occurrence(cal):
+    """Rows written before the cap kept the delivery's session (or any row
+    whose item went missing) degrade to what/where/group/when: another
+    session's moved-from/to is never paired with this session's date."""
+    db, occ = cal["db"], cal["occ"]["ga"]
+    live = db.get(EventOccurrence, occ.id)
+    live.venue_name = "Bassin A"
+    db.commit()
+    details = {"occurrences": [{"id": live.id + 100, "kinds": ["time_changed"],
+                                "old_start": live.starts_at.isoformat() + "Z",
+                                "new_start": live.starts_at.isoformat() + "Z"}], "total": 2}
+    db.add(alerts._new_delivery(delivery_key="push-noitem", kind="change", notif_type="calendar_change",
+                                user_id=uid(cal, "alice"), event_id=occ.event_id, occurrence_id=live.id,
+                                details=details, expires_at=datetime.utcnow() + timedelta(days=1),
+                                now=datetime.utcnow()))
+    db.commit()
+    payload = alerts.push_payload(db, deliveries(cal, delivery_key="push-noitem")[0])
+    start = live.starts_at
+    expected_when = start.replace(tzinfo=timezone.utc).astimezone(ZoneInfo("Europe/Paris")).strftime(
+        "%a %d %b %H:%M")
+    assert payload["body"] == f"Groupe A training · Bassin A · Groupe A · {expected_when} · +1 more"
 
 
 def test_cancellation_and_publication_alerts(cal):
@@ -206,7 +696,10 @@ def test_cancellation_and_publication_alerts(cal):
     assert coach.post(f"{API}/events/{detail['id']}/cancel", json={"expected_version": detail["version"]}).status_code == 200
     run(cal)
     items = inbox(cal, "alice")
-    assert [i["calendar"]["kind"] for i in items] == ["cancellation"] and items[0]["calendar"]["status"] == "cancelled"
+    # The whole event was cancelled: the row's session is still "scheduled"
+    # (cancel_event leaves occurrences untouched) and event_cancelled says so.
+    assert [i["calendar"]["kind"] for i in items] == ["cancellation"]
+    assert items[0]["calendar"]["event_cancelled"] is True and items[0]["calendar"]["status"] == "scheduled"
 
 
 def test_invitations_wait_for_publication_and_revocation_suppresses(cal):
@@ -278,6 +771,15 @@ def test_previous_day_reminder_once_and_never_replayed(cal):
     assert run(cal, now=due + timedelta(minutes=2))["reminders_planned"] == 0
     item = inbox(cal, "alice")[0]
     assert item["calendar"]["kind"] == "reminder" and item["type"] == "calendar_reminder"
+    assert item["calendar"]["calendar_name"] == "Groupe A"
+    # The reminder push carries the real details: what, group, when (no venue
+    # in this fixture — the pool shows up as soon as the event has one).
+    start = cal["db"].get(EventOccurrence, cal["occ"]["ga"].id).starts_at
+    expected_when = start.replace(tzinfo=timezone.utc).astimezone(ZoneInfo("Europe/Paris")).strftime(
+        "%a %d %b %H:%M")
+    alice_push = next(p for u, p in pushes if u == uid(cal, "alice"))
+    assert alice_push["title"] == alerts.GENERIC_TITLES["reminder"]
+    assert alice_push["body"] == f"Groupe A training · Groupe A · {expected_when}"
     # After downtime past the grace window nothing is replayed.
     db = cal["db"]
     db.query(CalendarAlertDelivery).delete()
