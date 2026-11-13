@@ -668,6 +668,27 @@ describe('Calendar alerts in the inbox (Task05)', () => {
     expect(text).not.toContain('This event is cancelled')
   })
 
+  it('renders each session venue change with its own venue', async () => {
+    rows = [{
+      ...moved,
+      id: 16,
+      calendar: {
+        ...moved.calendar!,
+        kind: 'change',
+        changes: [
+          { kinds: ['venue_changed'], old_start: null, new_start: null, venue: 'Piscine Maurice Thorez' },
+          { kinds: ['venue_changed'], old_start: null, new_start: null, venue: 'Piscine Georges Vallerey' },
+        ],
+        total: 2,
+      },
+    }]
+    renderPage()
+    expect(await screen.findByText(/Event changed · Groupe A training/)).toBeInTheDocument()
+    const text = screen.getByText(/Place changed: Piscine Maurice Thorez/).textContent ?? ''
+    expect(text).toContain('Place changed: Piscine Maurice Thorez')
+    expect(text).toContain('Place changed: Piscine Georges Vallerey') // not collapsed into one line
+  })
+
   it('keeps a date-only all-day value on the UTC calendar in any timezone', async () => {
     rows = [{
       ...moved,

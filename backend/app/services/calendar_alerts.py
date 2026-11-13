@@ -335,7 +335,17 @@ def _details_from_logs(logs: List[CalendarChangeLog]) -> tuple:
                 entry["old_all_day"], entry["new_all_day"] = bool(shapes[0]), bool(shapes[1])
         elif kind == "venue_changed":
             if log.occurrence_id:
-                per.setdefault(log.occurrence_id, {"kinds": set()})["kinds"].add("venue_changed")
+                entry = per.setdefault(log.occurrence_id, {"kinds": set()})
+                entry["kinds"].add("venue_changed")
+                # The session's own new venue: a merged alert can mix venue
+                # changes across sessions, and the delivery session's venue is
+                # not theirs. Writers record ("old", "new"); event-level
+                # synthesized items fall back to the delivery venue.
+                new_venue = (log.changes or {}).get("venue_name")
+                if isinstance(new_venue, (list, tuple)) and len(new_venue) == 2:
+                    entry["venue"] = new_venue[1]
+                elif isinstance(new_venue, str):
+                    entry["venue"] = new_venue
             else:
                 event_venue = True
     return per, event_cancelled, event_venue
@@ -370,6 +380,8 @@ def _merge_details(old: dict, new: dict, keep_id: Optional[int] = None) -> dict:
             prev.setdefault("old_all_day", item["old_all_day"])
         if "new_all_day" in item:
             prev["new_all_day"] = item["new_all_day"]
+        if item.get("venue") is not None:
+            prev["venue"] = item["venue"]
     known = set(merged)  # the ids ledger keys: the union of listed sessions
     for side in (old.get("ids"), new.get("ids")):
         if isinstance(side, list):
@@ -464,6 +476,8 @@ def expand_one(db: Session, outbox: CalendarAlertOutbox, now: datetime) -> int:
                 shape_now = bool(occurrences[oid].is_all_day)
                 item["old_all_day"] = bool(info.get("old_all_day", shape_now))
                 item["new_all_day"] = bool(info.get("new_all_day", shape_now))
+                if info.get("venue") is not None:
+                    item["venue"] = info["venue"]
                 items.append(item)
             cancelled = event_cancelled or any("cancelled" in i["kinds"] for i in items)
             kind = "cancellation" if cancelled else "change"
@@ -1018,7 +1032,8 @@ def render_for_reader(db: Session, user: AppUser, rows: List[Notification]) -> D
             "changes": [{"kinds": i.get("kinds", []), "old_start": i.get("old_start"),
                          "new_start": i.get("new_start"),
                          "old_all_day": bool(i.get("old_all_day", occ.is_all_day)),
-                         "new_all_day": bool(i.get("new_all_day", occ.is_all_day))}
+                         "new_all_day": bool(i.get("new_all_day", occ.is_all_day)),
+                         "venue": i.get("venue")}
                         for i in details.get("occurrences", [])],
             "total": details.get("total", 0),
             "total_exact": bool(details.get("total_exact", True))}}

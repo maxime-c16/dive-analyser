@@ -83,8 +83,11 @@ function calendarLines(t: Translate, view: Extract<CalendarNotificationView, { r
       }))
     }
     if (change.kinds.includes('venue_changed')) {
-      lines.push(view.venue_name
-        ? t('notifications.calendar.venueChanged', { venue: view.venue_name })
+      // Each session carries its own new venue; the delivery session's venue
+      // is only the fallback (legacy rows, event-wide synthesized items).
+      const venue = change.venue ?? view.venue_name
+      lines.push(venue
+        ? t('notifications.calendar.venueChanged', { venue })
         : t('notifications.calendar.venueChangedNoName'))
     }
   }

@@ -155,6 +155,7 @@ def test_change_alerts_participants_once_with_authorized_deep_link(cal):
     assert item["calendar"]["url"] == f"/calendar/o/{occ.id}" and item["calendar"]["kind"] == "change"
     assert item["calendar"]["changes"][0]["kinds"] == ["venue_changed"]
     assert item["calendar"]["venue_name"] == "Piscine Maurice Thorez"
+    assert item["calendar"]["changes"][0]["venue"] == "Piscine Maurice Thorez"  # the session's own venue
     assert item["calendar"]["calendar_name"] == "Groupe A" and item["calendar"]["calendar_kind"] == "group"
     # The deep link is authorized for the recipient only.
     assert cal["login"]("alice").get(f"{API}/occurrences/{occ.id}").status_code == 200

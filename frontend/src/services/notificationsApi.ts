@@ -50,6 +50,9 @@ export type CalendarNotificationView =
          * independently (an old local midnight is a date, not "00:00"). */
         old_all_day?: boolean
         new_all_day?: boolean
+        /** The session's own new venue: a merged alert can mix venue changes
+         * across sessions; absent means the delivery session's venue. */
+        venue?: string | null
       }[]
       total: number
       /** False only when a merge could not compute the exact session count
