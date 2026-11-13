@@ -83,7 +83,9 @@ function calendarLines(t: Translate, view: Extract<CalendarNotificationView, { r
     }
   }
   if (view.total > view.changes.length) {
-    lines.push(t('notifications.calendar.more', { count: view.total - view.changes.length }))
+    lines.push(view.total_exact
+      ? t('notifications.calendar.more', { count: view.total - view.changes.length })
+      : t('notifications.calendar.moreMany'))
   }
   if (context) lines.push(context)
   if (when) lines.push(when)

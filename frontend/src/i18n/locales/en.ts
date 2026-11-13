@@ -546,6 +546,7 @@ const en = {
       sessionCancelled: 'Session cancelled: {{when}}',
       eventCancelled: 'This event is cancelled.',
       more: '+{{count}} more sessions',
+      moreMany: 'and more sessions',
       openEvent: 'Open event',
       redacted: 'This calendar notification is no longer available to you.',
     },

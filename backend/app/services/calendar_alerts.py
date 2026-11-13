@@ -95,6 +95,7 @@ GENERIC_TITLES = {
     "new_event": "New event in a calendar you follow",
 }
 PUSH_BODY_PRIVATE = "Open the app to see the details."
+PUSH_MORE_UNCOUNTED = "and more sessions"
 REDACTED_TITLE = "Calendar update"
 
 
@@ -365,8 +366,11 @@ def _merge_details(old: dict, new: dict, keep_id: Optional[int] = None) -> dict:
              and len(known) <= MAX_UNION_IDS)
     out = dict(new)
     out["ids"] = ordered_ids
-    out["total"] = max(old.get("total") or 0, new.get("total") or 0,
-                       len(ordered_ids))  # TEMP-PROOF: lower bound only
+    # A legacy side (no ledger) hides its unlisted sessions: the count is a
+    # safe lower bound and consumers must not present it as exact.
+    out["total_exact"] = exact
+    out["total"] = len(known) if exact else max(old.get("total") or 0, new.get("total") or 0,
+                                                len(ordered_ids))
     capped = sorted(merged.values(), key=lambda o: o["id"])[:MAX_DETAIL_OCCURRENCES]
     if keep_id is not None and keep_id in merged and all(o["id"] != keep_id for o in capped):
         capped = sorted(capped[:MAX_DETAIL_OCCURRENCES - 1] + [merged[keep_id]],
@@ -441,7 +445,7 @@ def expand_one(db: Session, outbox: CalendarAlertOutbox, now: datetime) -> int:
             cancelled = event_cancelled or any("cancelled" in i["kinds"] for i in items)
             kind = "cancellation" if cancelled else "change"
             details = {"occurrences": items[:MAX_DETAIL_OCCURRENCES], "total": len(items),
-                       "ids": [i["id"] for i in items],
+                       "ids": [i["id"] for i in items], "total_exact": True,
                        "event_cancelled": event_cancelled, "event_venue": event_venue}
             # Supersede pending, undelivered change alerts of the same event:
             # one up-to-date alert instead of a stale sequence.
@@ -687,9 +691,12 @@ def _push_body(db: Session, d: CalendarAlertDelivery, event: CalendarEvent) -> s
         parts.append(when)
     # Partial change over several sessions: say how many are affected. Only an
     # event-wide cancellation says everything a count would — one cancelled
-    # occurrence inside a multi-session alert still counts the others.
-    if not details.get("event_cancelled") and (details.get("total") or len(items)) > 1:
-        parts.append(f"+{(details.get('total') or len(items)) - 1} more")
+    # occurrence inside a multi-session alert still counts the others. A
+    # non-exact total (a legacy side hides its unlisted sessions) is a lower
+    # bound: say "more sessions" instead of a fake-precise number.
+    total = details.get("total") or len(items)
+    if not details.get("event_cancelled") and total > 1:
+        parts.append(f"+{total - 1} more" if details.get("total_exact", True) else PUSH_MORE_UNCOUNTED)
     return " · ".join(part for part in parts if part)
 
 
@@ -966,5 +973,6 @@ def render_for_reader(db: Session, user: AppUser, rows: List[Notification]) -> D
             "status": "cancelled" if "cancelled" in (event.status, occ.status) else "scheduled",
             "changes": [{"kinds": i.get("kinds", []), "old_start": i.get("old_start"),
                          "new_start": i.get("new_start")} for i in details.get("occurrences", [])],
-            "total": details.get("total", 0)}}
+            "total": details.get("total", 0),
+            "total_exact": bool(details.get("total_exact", True))}}
     return out

@@ -42,6 +42,10 @@ export type CalendarNotificationView =
       status: 'scheduled' | 'cancelled'
       changes: { kinds: string[]; old_start: string | null; new_start: string | null }[]
       total: number
+      /** False only when a merge could not compute the exact session count
+       * (a legacy pending alert hid its unlisted sessions): "+N more" would
+       * undercount, so the row says "and more sessions" instead. */
+      total_exact: boolean
     }
 
 export type AppNotification = {

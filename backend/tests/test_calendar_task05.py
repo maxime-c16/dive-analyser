@@ -226,13 +226,15 @@ def test_merged_details_never_drop_the_delivery_occurrence():
     """The cap on merged details keeps the delivery's own session: a merge
     over more than MAX_DETAIL_OCCURRENCES sessions cannot cut the item the
     push and the read row are keyed to."""
-    old = {"occurrences": [{"id": i, "kinds": ["venue_changed"]} for i in range(1, 12)]}
+    old = {"occurrences": [{"id": i, "kinds": ["venue_changed"]} for i in range(1, 12)],
+           "ids": list(range(1, 12)), "total": 11}
     new = {"occurrences": [{"id": 50, "kinds": ["time_changed"],
                             "old_start": "2026-11-13T18:00:00Z", "new_start": "2026-11-13T19:00:00Z"}],
-           "total": 12}
+           "ids": [50], "total": 1}
     merged = alerts._merge_details(old, new, keep_id=50)
     ids = [o["id"] for o in merged["occurrences"]]
     assert len(ids) == alerts.MAX_DETAIL_OCCURRENCES and 50 in ids
+    assert merged["total"] == 12 and merged["total_exact"] is True
     # Unchanged cap semantics without a keep_id.
     assert 50 not in [o["id"] for o in alerts._merge_details(old, new)["occurrences"]]
 
@@ -241,12 +243,13 @@ def test_merged_details_count_every_represented_session(cal):
     """Two pending alerts about two different sessions merge into one alert
     whose total counts both (push '+1 more', read row '+N more sessions') —
     a 1+1 merge must never read as 1."""
-    old = {"occurrences": [{"id": 7, "kinds": ["venue_changed"]}], "total": 1}
+    old = {"occurrences": [{"id": 7, "kinds": ["venue_changed"]}], "ids": [7], "total": 1}
     new = {"occurrences": [{"id": 9, "kinds": ["time_changed"],
                             "old_start": "2026-11-13T18:00:00Z", "new_start": "2026-11-13T19:00:00Z"}],
-           "total": 1}
+           "ids": [9], "total": 1}
     merged = alerts._merge_details(old, new, keep_id=9)
     assert merged["total"] == 2 and len(merged["occurrences"]) == 2
+    assert merged["total_exact"] is True
     # A capped union still reports the larger total, not the capped list.
     big_old = {"occurrences": [{"id": i, "kinds": ["venue_changed"]} for i in range(1, 12)],
                "total": 15}
@@ -274,21 +277,30 @@ def test_merged_details_count_disjoint_sessions_exactly(cal):
            "ids": [200], "total": 1}
     merged = alerts._merge_details(old, new, keep_id=200)
     assert merged["total"] == 16 and len(merged["ids"]) == 16
+    assert merged["total_exact"] is True
     assert len(merged["occurrences"]) == alerts.MAX_DETAIL_OCCURRENCES
     assert [o["id"] for o in merged["occurrences"]][-1] == 200  # keep_id survives the cap
-    # Legacy rows (no ledger) keep the safe lower bound: unknowable overlap.
+    # Legacy rows (no ledger) keep the safe lower bound: unknowable overlap —
+    # and it must not be presented as an exact number.
     legacy = {"occurrences": old["occurrences"], "total": 15}
-    assert alerts._merge_details(legacy, new, keep_id=200)["total"] == 15
-    # The push carries the exact count.
+    legacy_merged = alerts._merge_details(legacy, new, keep_id=200)
+    assert legacy_merged["total"] == 15 and legacy_merged["total_exact"] is False
+    # The push carries the exact count when the ledger proves the union…
     db, occ = cal["db"], cal["occ"]["ga"]
     live = db.get(EventOccurrence, occ.id)
     db.add(alerts._new_delivery(delivery_key="push-union", kind="change", notif_type="calendar_change",
                                 user_id=uid(cal, "alice"), event_id=occ.event_id, occurrence_id=live.id,
                                 details=merged, expires_at=datetime.utcnow() + timedelta(days=1),
                                 now=datetime.utcnow()))
+    # …and no fake-precise number when a legacy side hid its sessions.
+    db.add(alerts._new_delivery(delivery_key="push-union-legacy", kind="change", notif_type="calendar_change",
+                                user_id=uid(cal, "bob"), event_id=occ.event_id, occurrence_id=live.id,
+                                details=legacy_merged, expires_at=datetime.utcnow() + timedelta(days=1),
+                                now=datetime.utcnow()))
     db.commit()
-    payload = alerts.push_payload(db, deliveries(cal, delivery_key="push-union")[0])
-    assert payload["body"].endswith("+15 more")
+    assert alerts.push_payload(db, deliveries(cal, delivery_key="push-union")[0])["body"].endswith("+15 more")
+    assert alerts.push_payload(db, deliveries(cal, delivery_key="push-union-legacy")[0])["body"].endswith(
+        alerts.PUSH_MORE_UNCOUNTED)
 
 
 def test_push_body_counts_sessions_around_a_partial_cancellation(cal):

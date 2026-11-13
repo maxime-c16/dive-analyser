@@ -566,6 +566,7 @@ describe('Calendar alerts in the inbox (Task05)', () => {
         { kinds: ['time_changed', 'venue_changed'], old_start: '2026-10-21T17:00:00Z', new_start: '2026-10-22T17:00:00Z' },
       ],
       total: 3,
+      total_exact: true,
     },
   }
   const redacted: Row = {
@@ -610,6 +611,15 @@ describe('Calendar alerts in the inbox (Task05)', () => {
     const text = screen.getByText(/Piscine Maurice Thorez/).textContent ?? ''
     expect(text).toContain('Groupe A · Piscine Maurice Thorez')
     expect(text).toMatch(/07:00 PM/) // the session's start in the event timezone
+  })
+
+  it('never presents an undercounted merge as an exact number', async () => {
+    rows = [{ ...moved, id: 11, calendar: { ...moved.calendar!, total_exact: false } }]
+    renderPage()
+    expect(await screen.findByText(/Event changed · Groupe A training/)).toBeInTheDocument()
+    const text = screen.getByText(/Moved:/).textContent ?? ''
+    expect(text).toContain('and more sessions') // no fake "+2" — the merge could not count the union
+    expect(text).not.toContain('+2 more sessions')
   })
 
   it('redacts an alert whose event is no longer visible (no title, no link)', async () => {

@@ -546,6 +546,7 @@ const fr = {
       sessionCancelled: 'Séance annulée : {{when}}',
       eventCancelled: 'Cet événement est annulé.',
       more: '+{{count}} autres séances',
+      moreMany: 'et d’autres séances',
       openEvent: 'Ouvrir l’événement',
       redacted: 'Cette notification d’agenda ne vous est plus accessible.',
     },
