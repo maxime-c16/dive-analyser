@@ -348,8 +348,12 @@ def _details_from_logs(logs: List[CalendarChangeLog]) -> tuple:
                 # synthesized items fall back to the delivery venue.
                 new_venue = (log.changes or {}).get("venue_name")
                 if isinstance(new_venue, (list, tuple)) and len(new_venue) == 2:
+                    # The field was logged even when the new value is None (an
+                    # override cleared back to the event venue).
+                    entry["venue_logged"] = True
                     entry["venue"] = new_venue[1]
                 elif isinstance(new_venue, str):
+                    entry["venue_logged"] = True
                     entry["venue"] = new_venue
             else:
                 event_venue = True
@@ -387,8 +391,8 @@ def _merge_details(old: dict, new: dict, keep_id: Optional[int] = None) -> dict:
             prev.setdefault("old_all_day", item["old_all_day"])
         if "new_all_day" in item:
             prev["new_all_day"] = item["new_all_day"]
-        if item.get("venue") is not None:
-            prev["venue"] = item["venue"]
+        if "venue" in item:
+            prev["venue"] = item["venue"]  # an explicit None: the override was cleared
     known = set(merged)  # the ids ledger keys: the union of listed sessions
     for side in (old.get("ids"), new.get("ids")):
         if isinstance(side, list):
@@ -441,6 +445,9 @@ def expand_one(db: Session, outbox: CalendarAlertOutbox, now: datetime) -> int:
     occurrences = {o.id: o for o in db.query(EventOccurrence).filter(
         EventOccurrence.event_id == event.id, EventOccurrence.window_end > now).order_by(
         EventOccurrence.window_start).limit(MAX_AFFECTED_OCCURRENCES)}
+    # At the cap the loaded set may be shorter than the event's upcoming
+    # sessions: totals built from it are lower bounds, never exact.
+    cap_reached = len(occurrences) >= MAX_AFFECTED_OCCURRENCES
     affected = {oid: info for oid, info in per.items() if oid in occurrences}
     if event_cancelled or event_venue:
         for oid in occurrences:
@@ -484,13 +491,16 @@ def expand_one(db: Session, outbox: CalendarAlertOutbox, now: datetime) -> int:
                 shape_now = bool(occurrences[oid].is_all_day)
                 item["old_all_day"] = bool(info.get("old_all_day", shape_now))
                 item["new_all_day"] = bool(info.get("new_all_day", shape_now))
-                if info.get("venue") is not None:
-                    item["venue"] = info["venue"]
+                if info.get("venue_logged"):
+                    # The venue field was logged even when the new value is
+                    # None (an override cleared back to the event venue): the
+                    # key's presence, not its value, marks a recorded change.
+                    item["venue"] = info.get("venue")
                 items.append(item)
             cancelled = event_cancelled or any("cancelled" in i["kinds"] for i in items)
             kind = "cancellation" if cancelled else "change"
             details = {"occurrences": items[:MAX_DETAIL_OCCURRENCES], "total": len(items),
-                       "ids": [i["id"] for i in items], "total_exact": True,
+                       "ids": [i["id"] for i in items], "total_exact": not cap_reached,
                        "event_cancelled": event_cancelled, "event_venue": event_venue,
                        "event_venue_name": event_venue_name}
             # Supersede pending, undelivered change alerts of the same event:
@@ -756,7 +766,7 @@ def _push_body(db: Session, d: CalendarAlertDelivery, event: CalendarEvent) -> s
         # event-level change reaches only sessions without their own override
         # and never an address/map_url-only edit.
         new_venue = "venue_changed" in kinds and (
-            (own or {}).get("venue") is not None or _event_venue_reaches(details, occ))
+            "venue" in (own or {}) or _event_venue_reaches(details, occ))
         parts.append(f"New venue: {venue}" if new_venue else venue)
     calendar = db.get(Calendar, event.calendar_id)
     if calendar is not None and calendar.kind == "group" and calendar.name:
@@ -1035,7 +1045,7 @@ def _read_changes(occurrences: Dict[int, EventOccurrence], details: dict, occ: E
     out = []
     for item in details.get("occurrences", []):
         kinds = list(item.get("kinds", []))
-        if "venue_changed" in kinds and item.get("venue") is None:
+        if "venue_changed" in kinds and "venue" not in item:
             item_occ = occurrences.get(item.get("id")) or occ
             if not _event_venue_reaches(details, item_occ):
                 kinds.remove("venue_changed")

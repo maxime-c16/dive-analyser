@@ -93,10 +93,12 @@ function calendarLines(t: Translate, view: Extract<CalendarNotificationView, { r
         : t('notifications.calendar.venueChangedNoName'))
     }
   }
-  if (view.total > view.changes.length) {
-    lines.push(view.total_exact
-      ? t('notifications.calendar.more', { count: view.total - view.changes.length })
-      : t('notifications.calendar.moreMany'))
+  if (!view.total_exact) {
+    // An inexact total is a lower bound: it can even equal the retained
+    // changes, so the uncounted indicator never depends on the comparison.
+    lines.push(t('notifications.calendar.moreMany'))
+  } else if (view.total > view.changes.length) {
+    lines.push(t('notifications.calendar.more', { count: view.total - view.changes.length }))
   }
   if (context) lines.push(context)
   if (when) lines.push(when)

@@ -15,8 +15,8 @@ import pytest
 from sqlalchemy.orm import sessionmaker
 
 from app.models.calendar import (
-    CalendarAlertDelivery, CalendarAlertOutbox, CalendarChangeLog, CalendarSubscription, CalendarWorkerState,
-    EventOccurrence, OccurrenceInterest,
+    CalendarAlertDelivery, CalendarAlertOutbox, CalendarChangeLog, CalendarEvent, CalendarSubscription,
+    CalendarWorkerState, EventOccurrence, OccurrenceInterest,
 )
 from app.models.notification import Notification
 from app.models.user_auth import AppUser
@@ -483,6 +483,79 @@ def test_read_side_strips_uneffective_venue_changes(cal):
         notification = db.get(Notification, delivery_row.notification_id)
         view = alerts.render_for_reader(db, reader, [notification])[notification.id]
         assert [c["kinds"] for c in view["calendar"]["changes"]] == expected
+
+
+def test_expansion_cap_marks_totals_inexact(cal):
+    """The source occurrence query caps at MAX_AFFECTED_OCCURRENCES: totals
+    built from it are lower bounds and never presented as exact."""
+    db, occ = cal["db"], cal["occ"]["ga"]
+    event_id = db.get(type(cal["events"]["ga"]), occ.event_id).id
+    live = db.get(EventOccurrence, occ.id)
+    base = datetime.utcnow() + timedelta(days=1)
+    db.add_all([EventOccurrence(event_id=event_id, occurrence_key=f"cap-{i}",
+                                starts_at=start, ends_at=start + timedelta(hours=1),
+                                window_start=start, window_end=start + timedelta(hours=1))
+                for i, start in enumerate(base + timedelta(days=i)
+                                           for i in range(alerts.MAX_AFFECTED_OCCURRENCES))])
+    db.commit()
+    detail = cal["login"]("coach").get(f"{API}/events/{event_id}").json()
+    # An event-wide venue change (not a cancellation: its count is omitted).
+    assert cal["login"]("coach").patch(f"{API}/events/{event_id}",
+                                       json={"expected_version": detail["version"],
+                                             "venue_name": "Piscine X"}).status_code == 200
+    pushes = Pushes()
+    run(cal, pushes=pushes)
+    delivery = deliveries(cal, user_id=uid(cal, "alice"), kind="change")[0]
+    assert delivery.details["total"] == alerts.MAX_AFFECTED_OCCURRENCES
+    assert delivery.details["total_exact"] is False
+    body = next(p for u, p in pushes if u == uid(cal, "alice"))["body"]
+    assert "and more sessions" in body and "+399 more" not in body
+
+
+def test_venue_override_cleared_still_announces(cal):
+    """An override cleared back to the event venue (venue_name -> None) is a
+    logged venue change: the push names the new effective venue and the read
+    row keeps its 'Place changed' line, even next to an event-level edit that
+    changes no venue name."""
+    db, occ = cal["db"], cal["occ"]["ga"]
+    live = db.get(EventOccurrence, occ.id)
+    live.venue_name = "Bassin A"
+    db.commit()
+    event_id = db.get(type(cal["events"]["ga"]), occ.event_id).id
+    event_row = db.get(CalendarEvent, event_id)
+    event_row.venue_name = "Piscine X"
+    # The override is cleared back to the event venue: the log records a
+    # venue change whose new value is None.
+    live.venue_name = None
+    db.commit()
+    log = CalendarChangeLog(event_id=event_id, occurrence_id=live.id, event_version=1,
+                            change_kind="venue_changed", changes={"venue_name": ("Bassin A", None)})
+    per, _cancelled, _venue, _name = alerts._details_from_logs([log])
+    assert per[live.id]["venue_logged"] is True and per[live.id]["venue"] is None
+    cleared = {"id": live.id, "kinds": ["venue_changed"], "venue": None}
+    for key, extra in (("venue-cleared-plain", {}), ("venue-cleared-mixed", {"event_venue_name": False})):
+        details = {"occurrences": [cleared], "total": 1, "ids": [live.id],
+                   "event_venue": True, "total_exact": True, **extra}
+        db.add(alerts._new_delivery(delivery_key=f"push-{key}", kind="change", notif_type="calendar_change",
+                                    user_id=uid(cal, "alice"), event_id=occ.event_id, occurrence_id=live.id,
+                                    details=details, expires_at=datetime.utcnow() + timedelta(days=1),
+                                    now=datetime.utcnow()))
+        row = alerts.notification_service.stage(db, user_id=uid(cal, "alice"), type="calendar_change",
+                                                title=alerts.GENERIC_TITLES["change"])
+        db.add(alerts._new_delivery(delivery_key=key, kind="change", notif_type="calendar_change",
+                                    user_id=uid(cal, "alice"), event_id=occ.event_id, occurrence_id=live.id,
+                                    details=details, notification_id=row.id,
+                                    expires_at=datetime.utcnow() + timedelta(days=1), now=datetime.utcnow()))
+    db.commit()
+    reader = db.get(AppUser, uid(cal, "alice"))
+    for key in ("venue-cleared-plain", "venue-cleared-mixed"):
+        body = alerts.push_payload(db, deliveries(cal, delivery_key=f"push-{key}")[0])["body"]
+        assert "New venue: Piscine X" in body  # the new effective venue
+        delivery_row = deliveries(cal, delivery_key=key)[0]
+        notification = db.get(Notification, delivery_row.notification_id)
+        view = alerts.render_for_reader(db, reader, [notification])[notification.id]
+        change = view["calendar"]["changes"][0]
+        assert change["kinds"] == ["venue_changed"] and change["venue"] is None
 
 
 def test_read_changes_bulk_load_detail_occurrences(cal):

@@ -709,6 +709,25 @@ describe('Calendar alerts in the inbox (Task05)', () => {
     expect(text).toContain('Place changed: Piscine Georges Vallerey') // not collapsed into one line
   })
 
+  it('shows the uncounted indicator even when the bound matches the changes', async () => {
+    rows = [{
+      ...moved,
+      id: 18,
+      calendar: {
+        ...moved.calendar!,
+        kind: 'change',
+        changes: [{ occurrence_id: 12, kinds: ['venue_changed'], venue: 'Piscine Maurice Thorez' }],
+        total: 1, // an inexact lower bound equal to the retained changes
+        total_exact: false,
+      },
+    }]
+    renderPage()
+    expect(await screen.findByText(/Event changed · Groupe A training/)).toBeInTheDocument()
+    const text = screen.getByText(/Place changed: Piscine Maurice Thorez/).textContent ?? ''
+    expect(text).toContain('and more sessions')
+    expect(text).not.toContain('+0 more sessions')
+  })
+
   it('keeps a date-only all-day value on the UTC calendar in any timezone', async () => {
     rows = [{
       ...moved,
