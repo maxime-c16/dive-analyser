@@ -62,9 +62,11 @@ function calendarLines(t: Translate, view: Extract<CalendarNotificationView, { r
   const when = view.all_day
     ? eventWhen(view.start_date, view.timezone, lang, true)
     : eventWhen(view.starts_at, view.timezone, lang)
-  // Who/where: the training group (group calendars only) and the venue, so a
-  // row says more than "something happened in your calendar".
-  const context = [view.calendar_kind === 'group' ? view.calendar_name : null, view.venue_name]
+  // Who/where: the training group (group calendars only) and the venue. A
+  // venue change line already names the new place, so the context drops the
+  // venue then instead of printing it twice ("Place changed: Pool · Pool ·").
+  const venueChanged = view.changes.some(change => change.kinds.includes('venue_changed'))
+  const context = [view.calendar_kind === 'group' ? view.calendar_name : null, venueChanged ? null : view.venue_name]
     .filter(Boolean).join(' · ')
   if (view.status === 'cancelled') lines.push(t('notifications.calendar.eventCancelled'))
   for (const change of view.changes) {

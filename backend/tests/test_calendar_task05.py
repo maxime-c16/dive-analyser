@@ -191,6 +191,37 @@ def test_pending_changes_are_merged_into_one_up_to_date_alert(cal):
     assert change["old_start"] == original and change["new_start"] == expected_new
 
 
+def test_push_body_pairs_the_delivery_occurrence_with_its_change_item(cal):
+    """Merged details come back sorted by occurrence id (_merge_details) while
+    the delivery keeps the newest alert's first session: the push must select
+    the change item of its own occurrence, never items[0]."""
+    from tests.test_calendar_domain import _occ
+    db, occ = cal["db"], cal["occ"]["ga"]
+    event = db.get(type(cal["events"]["ga"]), cal["events"]["ga"].id)
+    other = _occ(db, event, "ga-2", 2)
+    live = db.get(EventOccurrence, occ.id)
+    live.venue_name = "Bassin A"
+    db.commit()
+    details = {"occurrences": [
+        {"id": other.id, "kinds": ["time_changed"], "old_start": other.starts_at.isoformat() + "Z",
+         "new_start": other.starts_at.isoformat() + "Z"},
+        {"id": live.id, "kinds": ["venue_changed"]},
+    ], "total": 2}
+    db.add(alerts._new_delivery(delivery_key="push-pair", kind="change", notif_type="calendar_change",
+                                user_id=uid(cal, "alice"), event_id=occ.event_id, occurrence_id=live.id,
+                                details=details, expires_at=datetime.utcnow() + timedelta(days=1),
+                                now=datetime.utcnow()))
+    db.commit()
+    payload = alerts.push_payload(db, deliveries(cal, delivery_key="push-pair")[0])
+    start = live.starts_at
+    expected_when = start.replace(tzinfo=timezone.utc).astimezone(ZoneInfo("Europe/Paris")).strftime(
+        "%a %d %b %H:%M")
+    # This delivery's own change (the venue) is described; the other session's
+    # moved-from/to times are not spliced into this push (+1 more: the merge
+    # affected a second session).
+    assert payload["body"] == f"Groupe A training · New venue: Bassin A · Groupe A · {expected_when} · +1 more"
+
+
 def test_cancellation_and_publication_alerts(cal):
     db = cal["db"]
     # A follower of the club calendar hears about a newly published event; the

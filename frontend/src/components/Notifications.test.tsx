@@ -585,6 +585,7 @@ describe('Calendar alerts in the inbox (Task05)', () => {
     expect(await screen.findByText('Event changed · Groupe A training')).toBeInTheDocument()
     const text = screen.getByText(/Moved:/).textContent ?? ''
     expect(text).toContain('Place changed: Piscine Maurice Thorez')
+    expect((text.match(/Piscine Maurice Thorez/g) ?? []).length).toBe(1) // named once, not repeated by the context line
     expect(text).toContain('+2 more sessions')
     expect(text).toContain('Groupe A') // the group calendar's name, not just "something changed"
     expect(text).toMatch(/07:00 PM.*→.*07:00 PM/) // 17:00Z shown in the event timezone (Europe/Paris)

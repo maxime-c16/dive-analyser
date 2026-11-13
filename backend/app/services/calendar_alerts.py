@@ -623,7 +623,13 @@ def _push_body(db: Session, d: CalendarAlertDelivery, event: CalendarEvent) -> s
     occ = db.get(EventOccurrence, d.occurrence_id) if d.occurrence_id else None
     details = d.details or {}
     items = details.get("occurrences") or []
-    first = items[0] if items else {}
+    # d.occurrence_id is the newest alert's first affected session, but merged
+    # details are sorted by occurrence id (_merge_details): select the change
+    # item of the delivery's own session, so its moved-from/to times are never
+    # paired with another session's date. items[0] only as a capped-list
+    # fallback (a merged alert keeps at most MAX_DETAIL_OCCURRENCES items).
+    first = next((item for item in items if item.get("id") == d.occurrence_id),
+                 items[0] if items else {})
     kinds = set(first.get("kinds") or [])
     cancelled = "cancelled" in kinds or any("cancelled" in (i.get("kinds") or []) for i in items) or bool(
         details.get("event_cancelled")) or (occ is not None and occ.status == "cancelled")
