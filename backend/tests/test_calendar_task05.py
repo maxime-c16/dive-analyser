@@ -222,6 +222,44 @@ def test_push_body_pairs_the_delivery_occurrence_with_its_change_item(cal):
     assert payload["body"] == f"Groupe A training · New venue: Bassin A · Groupe A · {expected_when} · +1 more"
 
 
+def test_merged_details_never_drop_the_delivery_occurrence():
+    """The cap on merged details keeps the delivery's own session: a merge
+    over more than MAX_DETAIL_OCCURRENCES sessions cannot cut the item the
+    push and the read row are keyed to."""
+    old = {"occurrences": [{"id": i, "kinds": ["venue_changed"]} for i in range(1, 12)]}
+    new = {"occurrences": [{"id": 50, "kinds": ["time_changed"],
+                            "old_start": "2026-11-13T18:00:00Z", "new_start": "2026-11-13T19:00:00Z"}],
+           "total": 12}
+    merged = alerts._merge_details(old, new, keep_id=50)
+    ids = [o["id"] for o in merged["occurrences"]]
+    assert len(ids) == alerts.MAX_DETAIL_OCCURRENCES and 50 in ids
+    # Unchanged cap semantics without a keep_id.
+    assert 50 not in [o["id"] for o in alerts._merge_details(old, new)["occurrences"]]
+
+
+def test_push_body_omits_change_strings_without_the_delivery_occurrence(cal):
+    """Rows written before the cap kept the delivery's session (or any row
+    whose item went missing) degrade to what/where/group/when: another
+    session's moved-from/to is never paired with this session's date."""
+    db, occ = cal["db"], cal["occ"]["ga"]
+    live = db.get(EventOccurrence, occ.id)
+    live.venue_name = "Bassin A"
+    db.commit()
+    details = {"occurrences": [{"id": live.id + 100, "kinds": ["time_changed"],
+                                "old_start": live.starts_at.isoformat() + "Z",
+                                "new_start": live.starts_at.isoformat() + "Z"}], "total": 2}
+    db.add(alerts._new_delivery(delivery_key="push-noitem", kind="change", notif_type="calendar_change",
+                                user_id=uid(cal, "alice"), event_id=occ.event_id, occurrence_id=live.id,
+                                details=details, expires_at=datetime.utcnow() + timedelta(days=1),
+                                now=datetime.utcnow()))
+    db.commit()
+    payload = alerts.push_payload(db, deliveries(cal, delivery_key="push-noitem")[0])
+    start = live.starts_at
+    expected_when = start.replace(tzinfo=timezone.utc).astimezone(ZoneInfo("Europe/Paris")).strftime(
+        "%a %d %b %H:%M")
+    assert payload["body"] == f"Groupe A training · Bassin A · Groupe A · {expected_when} · +1 more"
+
+
 def test_cancellation_and_publication_alerts(cal):
     db = cal["db"]
     # A follower of the club calendar hears about a newly published event; the

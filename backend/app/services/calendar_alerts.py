@@ -326,9 +326,12 @@ def _details_from_logs(logs: List[CalendarChangeLog]) -> tuple:
     return per, event_cancelled, event_venue
 
 
-def _merge_details(old: dict, new: dict) -> dict:
+def _merge_details(old: dict, new: dict, keep_id: Optional[int] = None) -> dict:
     """Combine a superseded pending alert with the newer one: kinds union,
-    the oldest 'old_start' and the newest 'new_start' per occurrence."""
+    the oldest 'old_start' and the newest 'new_start' per occurrence.
+    The merged list is capped by occurrence id, except `keep_id` — the
+    surviving delivery's own session — which the cap never drops: the push
+    and the read row are keyed to that session."""
     merged = {o["id"]: dict(o) for o in (old.get("occurrences") or [])}
     for item in new.get("occurrences") or []:
         prev = merged.get(item["id"])
@@ -342,7 +345,11 @@ def _merge_details(old: dict, new: dict) -> dict:
                 prev["old_start"] = item.get("old_start")
             prev["new_start"] = item["new_start"]
     out = dict(new)
-    out["occurrences"] = sorted(merged.values(), key=lambda o: o["id"])[:MAX_DETAIL_OCCURRENCES]
+    capped = sorted(merged.values(), key=lambda o: o["id"])[:MAX_DETAIL_OCCURRENCES]
+    if keep_id is not None and keep_id in merged and all(o["id"] != keep_id for o in capped):
+        capped = sorted(capped[:MAX_DETAIL_OCCURRENCES - 1] + [merged[keep_id]],
+                        key=lambda o: o["id"])
+    out["occurrences"] = capped
     out["event_cancelled"] = bool(old.get("event_cancelled") or new.get("event_cancelled"))
     out["event_venue"] = bool(old.get("event_venue") or new.get("event_venue"))
     return out
@@ -420,7 +427,7 @@ def expand_one(db: Session, outbox: CalendarAlertOutbox, now: datetime) -> int:
                     CalendarAlertDelivery.kind.in_(("change", "cancellation")),
                     CalendarAlertDelivery.status == "pending",
                     or_(CalendarAlertDelivery.lease_until.is_(None), CalendarAlertDelivery.lease_until < now)):
-                details = _merge_details(old.details or {}, details)
+                details = _merge_details(old.details or {}, details, keep_id=items[0]["id"])
                 old.status, old.suppressed_reason = "suppressed", "superseded"
             if details.get("event_cancelled") or any("cancelled" in i["kinds"] for i in details["occurrences"]):
                 kind = "cancellation"
@@ -624,13 +631,15 @@ def _push_body(db: Session, d: CalendarAlertDelivery, event: CalendarEvent) -> s
     details = d.details or {}
     items = details.get("occurrences") or []
     # d.occurrence_id is the newest alert's first affected session, but merged
-    # details are sorted by occurrence id (_merge_details): select the change
-    # item of the delivery's own session, so its moved-from/to times are never
-    # paired with another session's date. items[0] only as a capped-list
-    # fallback (a merged alert keeps at most MAX_DETAIL_OCCURRENCES items).
-    first = next((item for item in items if item.get("id") == d.occurrence_id),
-                 items[0] if items else {})
-    kinds = set(first.get("kinds") or [])
+    # details are sorted by occurrence id: select the change item of the
+    # delivery's own session, so its moved-from/to times are never paired with
+    # another session's date. If that session is absent from the list (legacy
+    # rows written before _merge_details kept it under the cap), degrade to
+    # what/where/group/when only — any change string would mispair.
+    own = next((item for item in items if item.get("id") == d.occurrence_id), None)
+    if own is None and items and d.occurrence_id is not None:
+        own = {}
+    kinds = set((own or {}).get("kinds") or [])
     cancelled = "cancelled" in kinds or any("cancelled" in (i.get("kinds") or []) for i in items) or bool(
         details.get("event_cancelled")) or (occ is not None and occ.status == "cancelled")
     parts: List[str] = [event.title]
@@ -643,7 +652,7 @@ def _push_body(db: Session, d: CalendarAlertDelivery, event: CalendarEvent) -> s
     if calendar is not None and calendar.kind == "group" and calendar.name:
         parts.append(calendar.name)
     if "time_changed" in kinds:
-        old, new = _push_iso(first.get("old_start"), event), _push_iso(first.get("new_start"), event)
+        old, new = _push_iso((own or {}).get("old_start"), event), _push_iso((own or {}).get("new_start"), event)
         if old and new:
             parts.append(f"Moved from {old} to {new}")
     when = _push_when(occ, event)
