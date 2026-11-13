@@ -786,12 +786,15 @@ def _push_body(db: Session, d: CalendarAlertDelivery, event: CalendarEvent) -> s
         parts.append(when)
     # Partial change over several sessions: say how many are affected. Only an
     # event-wide cancellation says everything a count would — one cancelled
-    # occurrence inside a multi-session alert still counts the others. A
-    # non-exact total (a legacy side hides its unlisted sessions) is a lower
-    # bound: say "more sessions" instead of a fake-precise number.
+    # occurrence inside a multi-session alert still counts the others. An
+    # inexact total is a lower bound: even a bound of 1 may hide other
+    # affected sessions, so the uncounted marker never depends on the number.
     total = details.get("total") or len(items)
-    if not details.get("event_cancelled") and total > 1:
-        parts.append(f"+{total - 1} more" if details.get("total_exact", True) else PUSH_MORE_UNCOUNTED)
+    if not details.get("event_cancelled"):
+        if not details.get("total_exact", True):
+            parts.append(PUSH_MORE_UNCOUNTED)
+        elif total > 1:
+            parts.append(f"+{total - 1} more")
     return " · ".join(part for part in parts if part)
 
 

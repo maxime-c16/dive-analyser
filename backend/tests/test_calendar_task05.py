@@ -455,6 +455,24 @@ def test_push_body_announces_only_changed_venues(cal):
                                                     "total_exact": True})
 
 
+def test_push_shows_the_uncounted_marker_for_a_bound_of_one(cal):
+    """An inexact total is a lower bound: even a bound of 1 may hide other
+    affected sessions, so the uncounted marker still shows."""
+    db, occ = cal["db"], cal["occ"]["ga"]
+    live = db.get(EventOccurrence, occ.id)
+    details = {"occurrences": [{"id": live.id, "kinds": ["time_changed"],
+                                "old_start": live.starts_at.isoformat() + "Z",
+                                "new_start": live.starts_at.isoformat() + "Z"}],
+               "total": 1, "total_exact": False}
+    db.add(alerts._new_delivery(delivery_key="push-bound-one", kind="change", notif_type="calendar_change",
+                                user_id=uid(cal, "alice"), event_id=occ.event_id, occurrence_id=live.id,
+                                details=details, expires_at=datetime.utcnow() + timedelta(days=1),
+                                now=datetime.utcnow()))
+    db.commit()
+    body = alerts.push_payload(db, deliveries(cal, delivery_key="push-bound-one")[0])["body"]
+    assert body.endswith(alerts.PUSH_MORE_UNCOUNTED)
+
+
 def test_read_side_strips_uneffective_venue_changes(cal):
     """The read row drops a venue_changed kind that did not change the
     session's effective venue instead of claiming 'Place changed' — judged
