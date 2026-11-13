@@ -156,6 +156,7 @@ def test_change_alerts_participants_once_with_authorized_deep_link(cal):
     assert item["calendar"]["changes"][0]["kinds"] == ["venue_changed"]
     assert item["calendar"]["venue_name"] == "Piscine Maurice Thorez"
     assert item["calendar"]["changes"][0]["venue"] == "Piscine Maurice Thorez"  # the session's own venue
+    assert item["calendar"]["changes"][0]["occurrence_id"] == occ.id  # changes are per session
     assert item["calendar"]["calendar_name"] == "Groupe A" and item["calendar"]["calendar_kind"] == "group"
     # The deep link is authorized for the recipient only.
     assert cal["login"]("alice").get(f"{API}/occurrences/{occ.id}").status_code == 200
@@ -482,6 +483,45 @@ def test_read_side_strips_uneffective_venue_changes(cal):
         notification = db.get(Notification, delivery_row.notification_id)
         view = alerts.render_for_reader(db, reader, [notification])[notification.id]
         assert [c["kinds"] for c in view["calendar"]["changes"]] == expected
+
+
+def test_read_changes_bulk_load_detail_occurrences(cal):
+    """The reader resolves every detail occurrence in the same bounded
+    visibility query, not with one db.get per item (a page can carry ten
+    items per row)."""
+    from sqlalchemy import event as sa_event
+    from tests.test_calendar_domain import _occ
+    db, occ = cal["db"], cal["occ"]["ga"]
+    event_row = db.get(type(cal["events"]["ga"]), occ.event_id)
+    event_row.venue_name = "Piscine X"
+    live = db.get(EventOccurrence, occ.id)
+    ids = [live.id] + [_occ(db, event_row, f"ga-bulk-{i}", i + 1).id for i in range(9)]
+    db.commit()
+    details = {"occurrences": [{"id": i, "kinds": ["venue_changed"]} for i in ids],
+               "total": len(ids), "ids": ids, "event_venue": True, "event_venue_name": True,
+               "total_exact": True}
+    row = alerts.notification_service.stage(db, user_id=uid(cal, "alice"), type="calendar_change",
+                                            title=alerts.GENERIC_TITLES["change"])
+    db.add(alerts._new_delivery(delivery_key="read-bulk", kind="change", notif_type="calendar_change",
+                                user_id=uid(cal, "alice"), event_id=occ.event_id, occurrence_id=live.id,
+                                details=details, notification_id=row.id,
+                                expires_at=datetime.utcnow() + timedelta(days=1), now=datetime.utcnow()))
+    db.commit()
+    delivery_row = deliveries(cal, delivery_key="read-bulk")[0]
+    notification = db.get(Notification, delivery_row.notification_id)
+    reader = db.get(AppUser, uid(cal, "alice"))
+    count = {"n": 0}
+
+    def counting(*_args, **_kw):
+        count["n"] += 1
+
+    sa_event.listens_for(db.get_bind(), "before_cursor_execute")(counting)
+    try:
+        view = alerts.render_for_reader(db, reader, [notification])[notification.id]
+    finally:
+        sa_event.remove(db.get_bind(), "before_cursor_execute", counting)
+    assert all(c["kinds"] == ["venue_changed"] for c in view["calendar"]["changes"])
+    assert count["n"] <= 12  # no per-item gets: reverted, the ten items add ~10 more
 
 
 def test_merged_details_stay_inexact_after_a_legacy_merge():

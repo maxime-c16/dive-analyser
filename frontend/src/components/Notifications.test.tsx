@@ -564,7 +564,7 @@ describe('Calendar alerts in the inbox (Task05)', () => {
       status: 'scheduled',
       event_cancelled: false,
       changes: [
-        { kinds: ['time_changed', 'venue_changed'], old_start: '2026-10-21T17:00:00Z', new_start: '2026-10-22T17:00:00Z' },
+        { occurrence_id: 12, kinds: ['time_changed', 'venue_changed'], old_start: '2026-10-21T17:00:00Z', new_start: '2026-10-22T17:00:00Z' },
       ],
       total: 3,
       total_exact: true,
@@ -668,8 +668,28 @@ describe('Calendar alerts in the inbox (Task05)', () => {
     expect(text).not.toContain('This event is cancelled')
   })
 
-  it('renders each session venue change with its own venue', async () => {
+  it('keeps the delivery session venue when another session changed venue', async () => {
     rows = [{
+      ...moved,
+      id: 17,
+      calendar: {
+        ...moved.calendar!,
+        kind: 'change',
+        changes: [
+          { occurrence_id: 12, kinds: ['time_changed'], old_start: '2026-10-21T17:00:00Z', new_start: '2026-10-22T17:00:00Z' },
+          { occurrence_id: 99, kinds: ['venue_changed'], venue: 'Piscine Georges Vallerey' },
+        ],
+        total: 2,
+      },
+    }]
+    renderPage()
+    expect(await screen.findByText(/Event changed · Groupe A training/)).toBeInTheDocument()
+    const text = screen.getByText(/Place changed: Piscine Georges Vallerey/).textContent ?? ''
+    expect(text).toContain('Place changed: Piscine Georges Vallerey') // the other session's venue
+    expect((text.match(/Piscine Maurice Thorez/g) ?? []).length).toBe(1) // this session's pool still shows
+  })
+
+  it('renders each session venue change with its own venue', async () => {    rows = [{
       ...moved,
       id: 16,
       calendar: {

@@ -1026,19 +1026,21 @@ def requeue_dead(db: Session, table: str, row_id: Optional[int] = None, now: Opt
 
 # --- Read side --------------------------------------------------------------------------------------------------------------
 
-def _read_changes(db: Session, details: dict, occ: EventOccurrence) -> list:
+def _read_changes(occurrences: Dict[int, EventOccurrence], details: dict, occ: EventOccurrence) -> list:
     """Per-item change view for the reader. The effective-venue test is per
-    item: an event-level venue-name change reaches the sessions that inherit
-    the event venue, not those with their own override — the delivery
-    session's shape says nothing about the other sessions."""
+    item against its own (bulk-loaded) occurrence: an event-level venue-name
+    change reaches the sessions that inherit the event venue, not those with
+    their own override — the delivery session's shape says nothing about the
+    other sessions."""
     out = []
     for item in details.get("occurrences", []):
         kinds = list(item.get("kinds", []))
         if "venue_changed" in kinds and item.get("venue") is None:
-            item_occ = db.get(EventOccurrence, item["id"]) if item.get("id") else None
-            if not _event_venue_reaches(details, item_occ or occ):
+            item_occ = occurrences.get(item.get("id")) or occ
+            if not _event_venue_reaches(details, item_occ):
                 kinds.remove("venue_changed")
-        out.append({"kinds": kinds, "old_start": item.get("old_start"),
+        out.append({"occurrence_id": item.get("id"), "kinds": kinds,
+                    "old_start": item.get("old_start"),
                     "new_start": item.get("new_start"),
                     "old_all_day": bool(item.get("old_all_day", occ.is_all_day)),
                     "new_all_day": bool(item.get("new_all_day", occ.is_all_day)),
@@ -1060,8 +1062,13 @@ def render_for_reader(db: Session, user: AppUser, rows: List[Notification]) -> D
     deliveries = {d.notification_id: d for d in db.query(CalendarAlertDelivery).filter(
         CalendarAlertDelivery.notification_id.in_([r.id for r in cal_rows]))}
     occ_ids = {d.occurrence_id for d in deliveries.values() if d.occurrence_id}
+    for d in deliveries.values():
+        for item in (d.details or {}).get("occurrences", []):
+            if item.get("id"):
+                occ_ids.add(item["id"])  # one bounded query for every session a row may describe
     visible = {o.id: (o, e, c) for o, e, c in access.visible_occurrences(db, user).filter(
         EventOccurrence.id.in_(occ_ids))} if occ_ids else {}
+    occurrences_by_id = {o.id: o for o, _e, _c in visible.values()}
     out = dict(redacted)
     for r in cal_rows:
         d = deliveries.get(r.id)
@@ -1077,7 +1084,7 @@ def render_for_reader(db: Session, user: AppUser, rows: List[Notification]) -> D
             "all_day": bool(occ.is_all_day), "venue_name": occ.venue_name or event.venue_name,
             "status": "cancelled" if occ.status == "cancelled" else "scheduled",
             "event_cancelled": bool(details.get("event_cancelled")),
-            "changes": _read_changes(db, details, occ),
+            "changes": _read_changes(occurrences_by_id, details, occ),
             "total": details.get("total", 0),
             "total_exact": bool(details.get("total_exact", True))}}
     return out

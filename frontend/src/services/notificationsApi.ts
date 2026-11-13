@@ -43,6 +43,7 @@ export type CalendarNotificationView =
       /** The whole event is cancelled, not just the row's session. */
       event_cancelled: boolean
       changes: {
+        occurrence_id?: number
         kinds: string[]
         old_start: string | null
         new_start: string | null
