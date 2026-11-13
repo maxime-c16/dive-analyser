@@ -42,16 +42,19 @@ function sessionDateLabel(item: AppNotification, lang: string): string | null {
 
 type Translate = (key: string, options?: Record<string, unknown>) => string
 
-/** Event time in the event's own timezone. All-day: the local date — for a
- * full instant that is the event-timezone date (a local midnight stored as
- * UTC is the previous UTC day), so no UTC rendering here. */
+/** Event time in the event's own timezone. All-day occurrences are defined
+ * by local dates (models/calendar.py): a date-only value stays on the UTC
+ * calendar (noon keeps the date stable in any zone), while a full instant —
+ * a local midnight stored as UTC, the previous UTC day — renders its date
+ * in the event timezone. */
 function eventWhen(iso: string | null, timeZone: string, lang: string, allDay = false): string {
   if (!iso) return ''
-  const date = new Date(allDay && iso.length === 10 ? `${iso}T12:00:00Z` : iso)
+  const dateOnly = allDay && iso.length === 10
+  const date = new Date(dateOnly ? `${iso}T12:00:00Z` : iso)
   if (Number.isNaN(date.getTime())) return ''
   try {
     return date.toLocaleString(lang, allDay
-      ? { weekday: 'short', day: 'numeric', month: 'short', timeZone }
+      ? { weekday: 'short', day: 'numeric', month: 'short', timeZone: dateOnly ? 'UTC' : timeZone }
       : { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone })
   } catch {
     return date.toLocaleString(lang)

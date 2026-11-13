@@ -668,8 +668,31 @@ describe('Calendar alerts in the inbox (Task05)', () => {
     expect(text).not.toContain('This event is cancelled')
   })
 
-  it('formats each endpoint of a timed <-> all-day move with its own shape', async () => {
+  it('keeps a date-only all-day value on the UTC calendar in any timezone', async () => {
     rows = [{
+      ...moved,
+      id: 15,
+      type: 'calendar_reminder',
+      title: 'Club camp',
+      calendar: {
+        ...moved.calendar!,
+        kind: 'reminder',
+        event_title: 'Club camp',
+        timezone: 'Pacific/Kiritimati', // UTC+14: noon UTC is already tomorrow there
+        starts_at: null,
+        start_date: '2026-10-22',
+        all_day: true,
+        changes: [],
+        total: 0,
+      },
+    }]
+    renderPage()
+    expect(await screen.findByText(/Club camp/)).toBeInTheDocument()
+    const text = screen.getByText(/Piscine Maurice Thorez/).textContent ?? ''
+    expect(text).toContain('Thu, Oct 22') // the local date, never shifted to Fri, Oct 23
+  })
+
+  it('formats each endpoint of a timed <-> all-day move with its own shape', async () => {    rows = [{
       ...moved,
       id: 14,
       calendar: {
