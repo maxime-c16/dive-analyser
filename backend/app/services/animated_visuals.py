@@ -12,7 +12,7 @@ import shutil
 import subprocess
 import tempfile
 import time
-from sqlalchemy import and_, exists, select
+from sqlalchemy import and_, exists, or_, select
 from sqlalchemy.orm import Session, aliased
 from sqlalchemy.exc import IntegrityError
 from app.config import get_settings
@@ -26,47 +26,73 @@ MAX_BYTES = 80_000
 _LADDER = ((360, 50), (320, 45), (288, 40), (240, 35))
 _FAILED_FILE = '.animated-failed.json'
 _FAILED_CAP = 2000
+# Smallest subprocess quantum worth starting: below this the tick budget is
+# effectively spent, so generation yields instead of scheduling doomed ffmpeg.
+_MIN_QUANTUM = 1.0
 
 
-def _duration(path):
+class Deferred(Exception):
+    """Transient capacity deferral (disk floor). Retryable, never a failure."""
+
+
+class BudgetExceeded(Exception):
+    """Shared tick deadline expired mid-generation. Remaining rows wait a tick."""
+
+
+def _timeout(deadline, cap):
+    if deadline is None:
+        return cap
+    remaining = deadline - time.monotonic()
+    if remaining < _MIN_QUANTUM:
+        raise BudgetExceeded()
+    return min(cap, remaining)
+
+
+def _duration(path, timeout):
     out = subprocess.run(['ffprobe', '-v', 'error', '-show_entries', 'format=duration',
-        '-of', 'default=nw=1:nk=1', str(path)], check=True, timeout=15,
+        '-of', 'default=nw=1:nk=1', str(path)], check=True, timeout=timeout,
         capture_output=True, text=True).stdout.strip()
     return max(float(out or 0), 0.0)
 
 
-def _frames(path, temp):
+def _frames(path, temp, deadline):
     from PIL import Image
-    duration = _duration(path)
+    duration = _duration(path, _timeout(deadline, 15))
     frames = []
     for index in range(STOP_MOTION_FRAMES):
         still = Path(temp) / f'{index}.png'
         # -ss before -i: a keyframe seek per still, never a full decode.
+        # Each seek is bounded by the time left on the shared tick deadline.
         subprocess.run(['nice', '-n', '15', 'ffmpeg', '-v', 'error', '-nostdin',
             '-threads', '1', '-filter_threads', '1',
             '-ss', f'{duration * (index + .5) / STOP_MOTION_FRAMES:.3f}', '-i', str(path),
             '-frames:v', '1', '-an', '-vf', "scale='min(360,iw)':-2", '-y', str(still)],
-            check=True, timeout=30, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            check=True, timeout=_timeout(deadline, 30),
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         if still.is_file():  # a seek past the last keyframe yields nothing; skip it
             with Image.open(still) as image:
                 frames.append(image.convert('RGB'))
     return frames
 
 
-def generate(source):
+def generate(source, deadline=None):
     root = Path(get_settings().media_cache_root).resolve()
     path = Path(source).resolve()
     path.relative_to(root)
-    if not path.is_file() or shutil.disk_usage(root).free < MIN_FREE_BYTES + 1024**2:
+    if not path.is_file():
         return None
+    if shutil.disk_usage(root).free < MIN_FREE_BYTES + 1024**2:
+        raise Deferred()
     with tempfile.TemporaryDirectory(dir=root) as temp:
-        frames = _frames(path, temp)
+        frames = _frames(path, temp, deadline)
         if len(frames) < 2:
             return None
         output = Path(temp) / 'animated.webp'
         # Ten distinct stills compress worse than a one-second burst: shrink
         # before giving up. Real 720p portrait proxies land near 288 px / 60 KB.
         for width, quality in _LADDER:
+            if deadline is not None and time.monotonic() > deadline:
+                raise BudgetExceeded()
             sized = [f if f.width <= width else f.resize((width, max(2, round(f.height * width / f.width / 2) * 2)))
                      for f in frames]
             sized[0].save(output, format='WEBP', quality=quality, method=4,
@@ -77,7 +103,7 @@ def generate(source):
             return None  # Hard cap; static is preferable to a heavy tile.
         data = output.read_bytes()
         if shutil.disk_usage(root).free < MIN_FREE_BYTES + len(data):
-            return None
+            raise Deferred()
         checksum = hashlib.sha256(data).hexdigest()
         directory = root / 'animated' / checksum[:2]
         directory.mkdir(parents=True, exist_ok=True)
@@ -114,6 +140,7 @@ def pending_proxies(db, limit, exclude=()):
     proxy = MediaCacheEntry
     tile = aliased(MediaCacheEntry)
     better = aliased(MediaCacheEntry)
+    newer = aliased(MediaCacheEntry)
     query = select(proxy.id, proxy.photos_asset_id, proxy.storage_path, proxy.checksum_sha256).where(
         proxy.status == 'ready', proxy.rendition.in_(('proxy_720p', 'proxy_360p')),
         proxy.checksum_sha256.is_not(None),
@@ -124,6 +151,14 @@ def pending_proxies(db, limit, exclude=()):
         ~and_(proxy.rendition == 'proxy_360p', exists().where(and_(
             better.photos_asset_id == proxy.photos_asset_id,
             better.rendition == 'proxy_720p', better.status == 'ready'))),
+        # One current proxy per asset: a row superseded by a newer ready
+        # generation yields to it (720p wins over 360p regardless of age),
+        # so one batch never tiles an older generation over the newer one.
+        ~exists().where(and_(
+            newer.photos_asset_id == proxy.photos_asset_id,
+            newer.status == 'ready', newer.checksum_sha256.is_not(None),
+            newer.id > proxy.id,
+            or_(newer.rendition == 'proxy_720p', newer.rendition == proxy.rendition))),
     )
     if exclude:
         query = query.where(proxy.id.not_in(sorted(exclude)[-_FAILED_CAP:]))
@@ -147,7 +182,7 @@ def backfill(db, limit=4, time_budget=40.0):
         if time.monotonic() > deadline:
             break
         try:
-            result = generate(row.storage_path)
+            result = generate(row.storage_path, deadline)
             if result is None:
                 _record_failed(failed_ids, row.id)
                 failed += 1
@@ -174,6 +209,10 @@ def backfill(db, limit=4, time_budget=40.0):
                 mark_thumbnail_referenced(path)
                 session.commit()
                 generated += 1
+        except (Deferred, BudgetExceeded):
+            # Transient: disk will recover, budget renews next tick. The proxy
+            # stays selectable so a later tick retries it; nothing is fenced.
+            break
         except (OSError, ValueError, subprocess.SubprocessError, IntegrityError):
             _record_failed(failed_ids, row.id)
             failed += 1

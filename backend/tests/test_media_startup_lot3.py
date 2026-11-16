@@ -40,8 +40,8 @@ def test_real_ffmpeg_bounded_webp_and_backfill(test_db, root, monkeypatch):
     from app.services import poster_visuals
     import os
     generate = av.generate
-    def previously_orphaned(path):
-        result = generate(path)
+    def previously_orphaned(path, deadline=None):
+        result = generate(path, deadline)
         if result:
             marker = poster_visuals.orphan_marker(result[0])
             marker.touch()
@@ -109,7 +109,7 @@ def test_tick_selection_replaces_old_tiles_and_skips_failures(test_db, root, mon
     # One proxy per asset (720p preferred), newest first; v1 tiles don't count.
     assert [row.id for row in av.pending_proxies(test_db, 16)] == [broken.id, low.id, hq.id]
     test_db.rollback()
-    def generate(source):
+    def generate(source, deadline=None):
         if source.endswith('broken-proxy_720p.mp4'):
             return None
         checksum = hashlib.sha256(source.encode()).hexdigest()
@@ -126,12 +126,98 @@ def test_tick_selection_replaces_old_tiles_and_skips_failures(test_db, root, mon
     assert av.backfill(test_db, 4)['scanned'] == 0
 
 
+def test_tick_selects_only_newest_proxy_generation(test_db, root, monkeypatch):
+    asset = PhotosAsset(video_uuid='regen')
+    test_db.add(asset)
+    test_db.flush()
+    old = MediaCacheEntry(photos_asset_id=asset.id, media_key='regen-720p-old',
+        rendition='proxy_720p', storage_path=str(root / 'regen-old.mp4'), size_bytes=10,
+        checksum_sha256='e' * 64, status='ready')
+    new = MediaCacheEntry(photos_asset_id=asset.id, media_key='regen-720p-new',
+        rendition='proxy_720p', storage_path=str(root / 'regen-new.mp4'), size_bytes=10,
+        checksum_sha256='f' * 64, status='ready')
+    legacy = PhotosAsset(video_uuid='regen-prefers-hq')
+    test_db.add(legacy)
+    test_db.flush()
+    legacy_low = MediaCacheEntry(photos_asset_id=legacy.id, media_key='regen-hq-old',
+        rendition='proxy_720p', storage_path=str(root / 'regen-hq-old.mp4'), size_bytes=10,
+        checksum_sha256='10' * 32, status='ready')
+    legacy_new_low = MediaCacheEntry(photos_asset_id=legacy.id, media_key='regen-low-new',
+        rendition='proxy_360p', storage_path=str(root / 'regen-low-new.mp4'), size_bytes=10,
+        checksum_sha256='11' * 32, status='ready')
+    test_db.add_all([old, new, legacy_low, legacy_new_low])
+    test_db.commit()
+    # One row per asset: the newest 720p generation; 720p still wins over a
+    # newer 360p. Batching both generations would tile the older over the newer.
+    rows = {row.photos_asset_id: row for row in av.pending_proxies(test_db, 16)}
+    assert rows[asset.id].id == new.id
+    assert rows[legacy.id].id == legacy_low.id
+    test_db.rollback()
+    seen = []
+    def generate(source, deadline=None):
+        seen.append(source)
+        checksum = hashlib.sha256(source.encode()).hexdigest()
+        path = root / 'animated' / checksum[:2] / f'{checksum}.webp'
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(b'x' * 10)
+        return str(path), checksum, 10
+    monkeypatch.setattr(av, 'generate', generate)
+    assert av.backfill(test_db, 4) == dict(scanned=2, generated=2, failed=0)
+    # Newest first: the 720p-over-newer-360p asset (higher ids) tiles first.
+    assert seen == [str(root / 'regen-hq-old.mp4'), str(root / 'regen-new.mp4')]
+    tiles = {t.photos_asset_id: t for t in test_db.query(MediaCacheEntry).filter_by(rendition='animated')}
+    assert tiles[asset.id].source_blob_sha256 == 'f' * 64
+    assert tiles[legacy.id].source_blob_sha256 == '10' * 32
+
+
+def test_generate_honours_expired_deadline(root, monkeypatch):
+    import time
+    path = root / 'proxy.mp4'
+    path.touch()
+    monkeypatch.setattr(av.subprocess, 'run', lambda *a, **k: pytest.fail('ffmpeg after deadline'))
+    with pytest.raises(av.BudgetExceeded):
+        av.generate(path, time.monotonic() - 1)
+    # Less than one quantum left also yields instead of starting doomed ffmpeg.
+    with pytest.raises(av.BudgetExceeded):
+        av.generate(path, time.monotonic() + 0.1)
+
+
+def test_backfill_expired_budget_defers_without_fencing(test_db, root, monkeypatch):
+    _, proxy = _proxy(test_db, root, 'expired', 'proxy_720p', 'a' * 64)
+    monkeypatch.setattr(av.subprocess, 'run', lambda *a, **k: pytest.fail('ffmpeg after deadline'))
+    assert av.backfill(test_db, 4, time_budget=0) == dict(scanned=1, generated=0, failed=0)
+    assert [row.id for row in av.pending_proxies(test_db, 16)] == [proxy.id]
+    test_db.rollback()
+
+
+def test_disk_deferral_is_retried_after_recovery(test_db, root, monkeypatch):
+    _, proxy = _proxy(test_db, root, 'deferred', 'proxy_720p', 'a' * 64)
+    (root / 'deferred-proxy_720p.mp4').touch()
+    monkeypatch.setattr(av.shutil, 'disk_usage', lambda _: SimpleNamespace(free=av.MIN_FREE_BYTES))
+    assert av.backfill(test_db, 4) == dict(scanned=1, generated=0, failed=0)
+    # Deferred, not fenced: the proxy is still selectable on the next tick.
+    assert [row.id for row in av.pending_proxies(test_db, 16)] == [proxy.id]
+    test_db.rollback()
+    monkeypatch.setattr(av.shutil, 'disk_usage', lambda _: SimpleNamespace(free=100 * 1024**3))
+    def generate(source, deadline=None):
+        checksum = hashlib.sha256(source.encode()).hexdigest()
+        path = root / 'animated' / checksum[:2] / f'{checksum}.webp'
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(b'x' * 10)
+        return str(path), checksum, 10
+    monkeypatch.setattr(av, 'generate', generate)
+    assert av.backfill(test_db, 4) == dict(scanned=1, generated=1, failed=0)
+
+
 def test_disk_floor_and_path_confinement(root, monkeypatch):
     path = root / 'proxy.mp4'
     path.touch()
     monkeypatch.setattr(av.shutil, 'disk_usage', lambda _: SimpleNamespace(free=av.MIN_FREE_BYTES))
     monkeypatch.setattr(av.subprocess, 'run', lambda *a, **k: pytest.fail('ffmpeg below floor'))
-    assert av.generate(path) is None
+    with pytest.raises(av.Deferred):
+        av.generate(path)
+    # A vanished source is a permanent per-proxy failure, not a deferral.
+    assert av.generate(root / 'missing.mp4') is None
     with pytest.raises(ValueError):
         av.generate(root.parent / 'outside.mp4')
 
@@ -148,7 +234,7 @@ def test_backfill_releases_connection_and_fences_changed_proxy(test_db, root, mo
     entry_id = entry.id
     test_db.rollback()
     bind = test_db.get_bind()
-    def generate(_):
+    def generate(_, deadline=None):
         assert not test_db.in_transaction()
         with Session(bind=bind) as other:
             source = other.get(MediaCacheEntry, entry_id)
