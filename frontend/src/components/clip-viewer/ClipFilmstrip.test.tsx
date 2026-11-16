@@ -16,3 +16,9 @@ it('keeps the ordinary Library filmstrip scoped to the same day',()=>{
  render(<ClipFilmstrip attempt={attempts[0]} attempts={attempts} onSelect={vi.fn()}/>);
  expect(screen.getAllByText('Thumbnail')).toHaveLength(2)
 })
+it('distinguishes same-time clips by their ordinal in a selected session',()=>{
+ render(<ClipFilmstrip attempt={attempts[0]} attempts={attempts.slice(0,2)} onSelect={vi.fn()} history={{sessionLabel:'21 Apr 2026',total:2,previous:false,next:false,loading:false,onPrevious:vi.fn(),onNext:vi.fn()}} />)
+ expect(screen.getByText('Dive 1')).toBeInTheDocument()
+ expect(screen.getByText('Dive 2')).toBeInTheDocument()
+ expect(screen.getByRole('button',{name:/Dive 2/})).toHaveAccessibleName('21 Apr 2026 · 10:02 · Dive 2')
+})

@@ -31,7 +31,7 @@ it('opens on the timeline, keeping forms and bulk controls out of the reading jo
 it('reviews before saving and uses the immutable selected attempt instead of its display date', async () => {
   render(<TechniqueHistory diver={1} context={context} />)
   await screen.findByText('Later initiation')
-  fireEvent.click(screen.getByRole('button', { name: 'Record technique change' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Manage history' })); fireEvent.click(screen.getByRole('button', { name: 'Enter a date' }))
   const dialog = await screen.findByRole('dialog')
   fireEvent.change(within(dialog).getByLabelText('What changed?'), { target: { value: 'New cue' } })
   fireEvent.change(within(dialog).getByLabelText('Starting attempt'), { target: { value: '11' } })
@@ -56,7 +56,7 @@ it('compares two explicitly named periods and returns to the timeline', async ()
 it('cancels a change without writing it', async () => {
   render(<TechniqueHistory diver={1} context={context} />)
   await screen.findByText('Later initiation')
-  fireEvent.click(screen.getByRole('button', { name: 'Record technique change' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Manage history' })); fireEvent.click(screen.getByRole('button', { name: 'Enter a date' }))
   fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Cancel' }))
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   expect(post.mock.calls.some(([url]) => url.endsWith('/changes'))).toBe(false)
@@ -89,6 +89,6 @@ it('preserves the saved identity until a different technique is explicitly selec
 
 it('defaults a newly recorded context to the viewed position and individual/synchronized condition',async()=>{
  setupProps.mockClear();render(<TechniqueHistory diver={1} context={context}/>);await screen.findByText('Later initiation')
- fireEvent.click(screen.getByRole('button',{name:'Find my technique changes'}));await screen.findByText('Setup open')
+ fireEvent.click(screen.getByRole('button',{name:'Fill in my history'}));await screen.findByText('Setup open')
  expect(setupProps).toHaveBeenLastCalledWith(expect.objectContaining({constrainPosition:true,constrainSync:true,context:expect.objectContaining({sync:false,position:'D'})}))
 })

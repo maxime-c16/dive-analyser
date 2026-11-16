@@ -20,6 +20,6 @@ export default function TechniqueWorkspace({ viewer, code, height }: { viewer: n
   const key = JSON.stringify(current)
   return <div>
     {(candidates.length > 1 || after || next) && <div className="th-context"><label><span className="th-context-label">{t('technique.divesToView')}</span><select value={key} onChange={e => setSelected(e.target.value)}>{candidates.map(c => <option key={JSON.stringify(c)} value={JSON.stringify(c)}>{c.diver_name} · {c.height} · {t(c.apparatus === 'platform' ? 'technique.platform' : 'technique.springboard')}{c.sync ? ' · SYNC' : ''}{c.position ? ` · ${c.position}` : ''}</option>)}</select></label><div className="th-pagination">{after && <button onClick={() => setAfter('')}>{t('common.back')}</button>}{next && <button onClick={() => setAfter(next)}>{t('technique.moreContexts')}</button>}</div></div>}
-    <TechniqueHistory key={`${viewer}-${key}`} diver={current.diver_id} context={{ code: current.code, apparatus: current.apparatus, height: current.height, position: current.position, sync: current.sync }} />
+    <TechniqueHistory viewer={viewer} key={`${viewer}-${key}`} diver={current.diver_id} context={{ code: current.code, apparatus: current.apparatus, height: current.height, position: current.position, sync: current.sync }} />
   </div>
 }

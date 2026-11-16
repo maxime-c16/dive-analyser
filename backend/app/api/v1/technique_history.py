@@ -137,6 +137,35 @@ def attempts(diver: int, track: int, body: ReadInput, request: Request, db: Sess
     return {'revision': row.revision, 'items': [dict(r) for r in rows[:50]], 'previous': rows[0]['id'] if body.after and rows else None, 'next': rows[49]['id'] if len(rows)>50 else None}
 
 
+class SessionBrowse(ContextInput):
+    after:int = Field(default=0,ge=0)
+    month:str = Field(default='',max_length=7,pattern=r'^(|[0-9]{4}-(0[1-9]|1[0-2]))$')
+
+
+@router.post('/{diver}/{track}/browse-sessions')
+def browse_sessions(diver:int,track:int,body:SessionBrowse,request:Request,db:Session=Depends(get_db)):
+    owner(request,db,diver);row=track_for(db,diver,track)
+    # Full-scope aggregation precedes the bounded page. No per-session query loop.
+    params=dict(body.model_dump(),diver=diver,track=track)
+    sql=RESOLVED+""", session_groups AS (
+      SELECT session_id,min(history_occurred_at) first_at,max(history_occurred_at) last_at,
+      count(*) attempts,count(rating) scored,percentile_cont(.5) WITHIN GROUP(ORDER BY rating) median,
+      count(DISTINCT coalesce(intended_id,0)) techniques,min(intended_id) intended_id
+      FROM resolved GROUP BY session_id
+    ), page AS (SELECT * FROM session_groups g
+    WHERE (:month='' OR to_char(g.first_at,'YYYY-MM')=:month)
+    AND (:after=0 OR (g.first_at,g.session_id)<(SELECT first_at,session_id FROM session_groups WHERE session_id=:after))
+    ORDER BY first_at DESC,session_id DESC LIMIT 25)
+    SELECT g.*,a.id first_id,a.video_uuid,s.location,t.label technique_label FROM page g
+    JOIN LATERAL (SELECT id,video_uuid FROM eligible e WHERE e.session_id=g.session_id ORDER BY history_occurred_at,id LIMIT 1) a ON true
+    LEFT JOIN sessions s ON s.id=g.session_id
+    LEFT JOIN techniques t ON t.id=g.intended_id AND t.track_id=:track AND g.techniques=1
+    ORDER BY first_at DESC,session_id DESC"""
+    rows=db.execute(text(sql),params).mappings().all()
+    months=db.execute(text(RESOLVED+" SELECT to_char(first_at,'YYYY-MM') AS month,count(*) sessions FROM (SELECT session_id,min(history_occurred_at) first_at FROM resolved GROUP BY session_id) g GROUP BY 1 ORDER BY 1 DESC LIMIT 120"),params).mappings().all()
+    return {'revision':row.revision,'items':[dict(r) for r in rows[:24]],'months':[dict(m) for m in months], 'next':rows[23]['session_id'] if len(rows)>24 else None}
+
+
 @router.get('/{diver}/{track}/episodes')
 def episodes(diver: int, track: int, request: Request, after: int = 0, db: Session = Depends(get_db)):
     owner(request, db, diver); row=track_for(db, diver, track)
@@ -314,7 +343,10 @@ def _apply_change(diver,track,body,request,db,commit=True):
             technique=db.scalar(select(Technique).where(Technique.id==body.technique_id,Technique.track_id==track))
             if technique is None: raise HTTPException(404,'Technique unavailable')
         elif body.label.strip():
-            technique=Technique(track_id=track,label=body.label.strip()); db.add(technique); db.flush()
+            matches=db.scalars(select(Technique).where(Technique.track_id==track,func.lower(func.trim(Technique.label))==body.label.strip().lower()).order_by(Technique.id).limit(2)).all()
+            if len(matches)>1:raise HTTPException(422,'Choose the existing technique identity')
+            technique=matches[0] if matches else Technique(track_id=track,label=body.label.strip())
+            if not matches:db.add(technique);db.flush()
         else: raise HTTPException(422,'Technique label required')
     before={'previous':snapshot(previous) if previous else None,'episode':snapshot(editing) if editing else None}
     if previous and (previous.end_at is None or (previous.end_at,previous.end_id)>(body.start_at,body.start_id) or (editing and same_scope and (previous.end_at,previous.end_id)==(editing.start_at,editing.start_id))):

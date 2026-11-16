@@ -14,7 +14,7 @@ def pg():
     engine=create_engine(url)
     with engine.begin() as c:
         c.execute(text('DROP SCHEMA public CASCADE'));c.execute(text('CREATE SCHEMA public'))
-        c.execute(text('''CREATE TABLE divers(id serial primary key,display_name text DEFAULT 'Test diver'); CREATE TABLE sessions(id serial primary key);
+        c.execute(text('''CREATE TABLE divers(id serial primary key,display_name text DEFAULT 'Test diver'); CREATE TABLE sessions(id serial primary key,location text);
         CREATE TABLE app_users(id serial primary key);
         CREATE TABLE dives(id serial primary key,session_id int,diver_id int,dive_code text,
         platform_type text,height text,position text,is_sync boolean,performance text,dive_datetime timestamp,video_uuid text,phase1_performance text,phase2_performance text,created_at timestamp DEFAULT CURRENT_TIMESTAMP);
@@ -484,3 +484,43 @@ def test_setup_save_rolls_back_first_boundary_identity_and_audit_when_later_writ
         assert db.scalar(text('SELECT revision FROM technique_tracks WHERE id=1'))==0
         for table in ('technique_episodes','techniques','technique_revisions'):
             assert db.scalar(text(f'SELECT count(*) FROM {table}'))==0
+
+def test_session_browse_pages_full_history_and_filters_exact_context(pg,monkeypatch):
+    from types import SimpleNamespace
+    from sqlalchemy.orm import Session
+    from app.api.v1 import technique_history as api
+    monkeypatch.setattr(api,'owner',lambda *a:SimpleNamespace(id=1))
+    with pg.begin() as c:
+        c.execute(text("""INSERT INTO technique_tracks(id,diver_id,name,revision) VALUES(1,1,'General',0);
+        INSERT INTO sessions(id,location) SELECT n,'Pool' FROM generate_series(2,30) n;
+        INSERT INTO dives(session_id,diver_id,dive_code,platform_type,height,position,is_sync,performance,dive_datetime)
+        SELECT n,1,'103','springboard','3','B',false,'G',timestamp '2026-01-01'+n*interval '1 day' FROM generate_series(2,30) n;
+        INSERT INTO dives(session_id,diver_id,dive_code,platform_type,height,position,is_sync,performance,dive_datetime)
+        VALUES(30,1,'103','springboard','1','B',false,'P','2026-03-01'),(30,2,'103','springboard','3','B',false,'P','2026-03-01');"""))
+    with Session(pg) as db:
+        args=dict(code='103',apparatus='springboard',height='3',position='B',sync=False)
+        first=api.browse_sessions(1,1,api.SessionBrowse(**args),None,db)
+        assert len(first['items'])==24 and first['next']==7
+        assert first['items'][0]['session_id']==30 and first['items'][0]['attempts']==1
+        second=api.browse_sessions(1,1,api.SessionBrowse(**args,after=first['next']),None,db)
+        assert [r['session_id'] for r in second['items']]==[6,5,4,3,2,1]
+        assert second['next'] is None
+        assert {r['session_id'] for r in first['items']}.isdisjoint(r['session_id'] for r in second['items'])
+        assert first['months']==[{'month':'2026-01','sessions':30}]
+        assert api.browse_sessions(1,1,api.SessionBrowse(**args,month='2026-02'),None,db)['items']==[]
+
+def test_same_label_reuses_identity_without_merging_episodes(pg,monkeypatch):
+    from types import SimpleNamespace
+    from datetime import datetime
+    from sqlalchemy.orm import Session
+    from app.api.v1 import technique_history as api
+    monkeypatch.setattr(api,'owner',lambda *a:SimpleNamespace(id=1))
+    with pg.begin() as c:c.execute(text("INSERT INTO app_users VALUES(1); INSERT INTO technique_tracks(id,diver_id,name,revision) VALUES(1,1,'General',0)"))
+    with Session(pg) as db:
+        def body(rev,day,label):return api.Change(code='103',scope='103',apparatus='springboard',height='3',position='B',revision=rev,start_at=datetime(2026,1,day),label=label)
+        a=api.change(1,1,body(0,1,'Original'),None,db)
+        api.change(1,1,body(1,2,'Later'),None,db)
+        again=api.change(1,1,body(2,3,' original '),None,db)
+        assert a['episode']['technique_id']==again['episode']['technique_id']
+        assert a['episode']['id']!=again['episode']['id']
+        assert db.scalar(text('SELECT count(*) FROM techniques'))==2

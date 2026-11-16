@@ -6,6 +6,26 @@
  */
 const en = {
   technique: {
+    fillHistory: "Fill in my history",
+    chooseSession: "Choose a session",
+    month: "Month",
+    allMonths: "All months",
+    sessionDiveCount_one: "{{count}} dive",
+    sessionDiveCount_other: "{{count}} dives",
+    severalTechniques: "Several techniques",
+    fromSessionStart: "From this session",
+    findExactDive: "Find the exact dive",
+    aroundSession: "Around this session",
+    olderSessions: "Earlier sessions",
+    chooseAnotherSession: "Choose another session",
+    whichTechnique: "Which technique?",
+    addChange: "Add this change",
+    draftKept: "Draft saved on this device",
+    discardName: "Discard the name you are typing?",
+    reusingTechnique: "Reuse “{{name}}”",
+    periodsNotDives: "A change marks a period: you do not need to edit every dive.",
+    useDateInstead: "Enter a date",
+
     codeHistory: "Dive code history",
     loadedClips: "{{loaded}} / {{total}} clips loaded",
     earlierClips: "Load earlier clips",
@@ -64,7 +84,7 @@ const en = {
 
     checkingChanges: 'Checking changes…',
     recheckHistory: 'Refresh and check again',
-    setupEntry: "Find my technique changes",
+    setupEntry: "Fill in my history",
     setupTitle: "Technique changes",
     setupBrowseHint: "Browse the clips. Mark where you started using a different usual technique.",
     markStart: "New technique starts here",

@@ -6,6 +6,26 @@
  */
 const fr = {
   technique: {
+    fillHistory: "Renseigner mon historique",
+    chooseSession: "Choisir une séance",
+    month: "Mois",
+    allMonths: "Tous les mois",
+    sessionDiveCount_one: "{{count}} plongeon",
+    sessionDiveCount_other: "{{count}} plongeons",
+    severalTechniques: "Plusieurs techniques",
+    fromSessionStart: "Dès cette séance",
+    findExactDive: "Trouver le plongeon exact",
+    aroundSession: "Autour de cette séance",
+    olderSessions: "Séances précédentes",
+    chooseAnotherSession: "Choisir une autre séance",
+    whichTechnique: "Quelle technique ?",
+    addChange: "Ajouter ce changement",
+    draftKept: "Brouillon conservé sur cet appareil",
+    discardName: "Abandonner le nom en cours de saisie ?",
+    reusingTechnique: "Réutiliser « {{name}} »",
+    periodsNotDives: "Un changement délimite une période : inutile de modifier chaque plongeon.",
+    useDateInstead: "Renseigner une date",
+
     codeHistory: "Historique du code",
     loadedClips: "{{loaded}} / {{total}} clips affichés",
     earlierClips: "Afficher les clips précédents",
@@ -64,7 +84,7 @@ const fr = {
 
     checkingChanges: 'Vérification des changements…',
     recheckHistory: 'Actualiser et vérifier à nouveau',
-    setupEntry: "Retrouver mes changements",
+    setupEntry: "Renseigner mon historique",
     setupTitle: "Changements de technique",
     setupBrowseHint: "Parcourez les clips. Marquez le début d’un changement de technique habituelle.",
     markStart: "Nouvelle technique à partir d’ici",

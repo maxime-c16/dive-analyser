@@ -191,7 +191,7 @@ export default function ClipViewer({
   onUpdate?: (attempt: Attempt) => void;
   onDelete?: () => void;
   onAnalyse?: (attempt: Attempt) => void;
-  workflow?: { title: string; backLabel: string; content: React.ReactNode; navigationDisabled?: boolean; positionLabel?: string; history?: { total: number; previous: boolean; next: boolean; loading: boolean; onPrevious: () => void; onNext: () => void } };
+  workflow?: { title: string; backLabel: string; content: React.ReactNode; navigationDisabled?: boolean; positionLabel?: string; history?: { sessionLabel?: string; total: number; previous: boolean; next: boolean; loading: boolean; onPrevious: () => void; onNext: () => void } };
 }) {
   const { t, i18n } = useTranslation();
   const navigationBlocked = Boolean(workflow?.navigationDisabled);

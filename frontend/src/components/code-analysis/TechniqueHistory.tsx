@@ -17,7 +17,7 @@ type Episode = { anchor_id?: number | null; notes?: string; apparatus?: string; 
 type Attempt = { session_index?: number; session_total?: number; session_id?: number; recorded_episode_deleted?: boolean; recorded_episode_id?: number; late_import?: boolean; use_label?: string; video_uuid?: string; dive_code: string; id: number; dive_datetime: string; history_occurred_at: string; state: string; source: string; episode_id: number | null }
 type Context = { code: string; apparatus: string; height: string; position: string; sync: boolean }
 
-export default function TechniqueHistory({ diver, context }: { diver: number; context: Context }) {
+export default function TechniqueHistory({ diver, context, viewer }: { viewer?: string|number; diver: number; context: Context }) {
   const { t } = useTranslation()
   const [trackAfter, setTrackAfter] = useState(0)
   const [chartActive, setChartActive] = useState(true)
@@ -41,6 +41,7 @@ export default function TechniqueHistory({ diver, context }: { diver: number; co
   const [panel, setPanel] = useState<'change' | 'manage' | 'log' | 'share' | null>(null)
   const [comparing, setComparing] = useState(false)
   const [notice, setNotice] = useState('')
+  const [setupReady,setSetupReady]=useState(false)
   const [setup, setSetup] = useState(false)
   const [setupEpisode, setSetupEpisode] = useState<SetupEpisode | undefined>()
   const { i18n } = useTranslation()
@@ -66,9 +67,9 @@ export default function TechniqueHistory({ diver, context }: { diver: number; co
   const base = `/api/v1/technique-history/${diver}`
   useEffect(() => {
     const g = ++generation.current
-    setSetup(false); setPanel(null); setComparing(false); setNotice(''); setLabel(''); setIdentity(null); setEdit(null); setDateStart(''); setUncertainUntil(''); setAnchor(null); setCopyPreview(null); setBusy(false); setPair([]); setAfter(0); setEpisodeAfter(0); setTrackAfter(0); setTracks([]); setTrack(null); setEpisodes([]); setAttempts([]); setSelected([]); setPreview(null); setError('')
+    setSetupReady(false); setSetup(false); setPanel(null); setComparing(false); setNotice(''); setLabel(''); setIdentity(null); setEdit(null); setDateStart(''); setUncertainUntil(''); setAnchor(null); setCopyPreview(null); setBusy(false); setPair([]); setAfter(0); setEpisodeAfter(0); setTrackAfter(0); setTracks([]); setTrack(null); setEpisodes([]); setAttempts([]); setSelected([]); setPreview(null); setError('')
     api.get('/api/v1/technique-history/preferences').then(({ data }) => { if (g === generation.current) setTimezone(data.timezone) }).catch(() => {})
-    api.get(`${base}/tracks`).then(({ data }) => { if (g === generation.current) { setTrackNext(data.next); setTracks(data.items); setTrack(data.items[0]?.id ?? null) } }).catch(() => { if (g === generation.current) setError(t('technique.unavailable')) })
+    api.get(`${base}/tracks`).then(({ data }) => { if (g === generation.current) { setTrackNext(data.next); setTracks(data.items); setTrack(data.items[0]?.id ?? null);if(!data.items.length)setSetupReady(true) } }).catch(() => { if (g === generation.current) setError(t('technique.unavailable')) })
     return () => { generation.current++ }
   }, [base, contextKey, t])
   useEffect(() => {
@@ -78,7 +79,7 @@ export default function TechniqueHistory({ diver, context }: { diver: number; co
     Promise.all([api.get(`${base}/${track}/episodes?after=${episodeAfter}`), api.post(`${base}/${track}/attempts`, { ...context, after, session_id: sessionFilter ? Number(sessionFilter) : null, timezone, from_date: fromFilter || null, to_date: toFilter || null })]).then(([e, a]) => {
       if (g !== generation.current) return
       if (e.data.revision !== a.data.revision) { setError(t('technique.conflict')); return }
-      setEpisodeNext(e.data.next); setEpisodes(e.data.items); setRevision(e.data.revision); setAttempts(a.data.items); setNext(a.data.next)
+      setEpisodeNext(e.data.next); setEpisodes(e.data.items); setRevision(e.data.revision); setAttempts(a.data.items); setNext(a.data.next);setSetupReady(true)
     }).catch(() => { if (g === generation.current) setError(t('technique.unavailable')) })
     return () => { generation.current++ }
   }, [base, track, contextKey, after, episodeAfter, sessionFilter, fromFilter, toFilter, reload, t])
@@ -139,7 +140,7 @@ export default function TechniqueHistory({ diver, context }: { diver: number; co
     </header>
     {error && !panel && <p className="th-error" role="alert">{error}</p>}
     {notice && <p className="th-notice" role="status"><Check size={15} />{notice}</p>}
-    <div className="th-setup-entry"><button className="th-primary" disabled={busy} onClick={() => void startSetup()}><ListChecks size={17} />{t('technique.setupEntry')}</button><button className="th-text-button th-record" disabled={busy} onClick={() => void newChange()}><Plus size={15} />{t('technique.enable')}</button></div>
+    <div className="th-setup-entry"><button className="th-primary" disabled={busy||!setupReady} onClick={() => void startSetup()}><ListChecks size={17} />{t('technique.setupEntry')}</button></div>
     {!!tracks.length && <div className="th-toolbar">
       {tracks.length > 1 ? <select className="th-track-select" aria-label={t('technique.track')} value={track ?? ''} onChange={e => { setTrack(Number(e.target.value)); setPair([]); setComparing(false); setAfter(0); setEpisodeAfter(0); setBusy(false) }}>{tracks.map(r => <option key={r.id} value={r.id}>{r.name === 'General' ? t('technique.general') : r.name}</option>)}</select> : <span className="th-track-name">{tracks[0].name === 'General' ? t('technique.general') : tracks[0].name}</span>}
       {compatible.length >= 2 && <button className="th-text-button" aria-pressed={comparing} onClick={() => { setComparing(v => !v); setPair(comparing ? [] : compatible.slice(-2).map(e => e.id)) }}><ArrowLeftRight size={15} />{comparing ? t('technique.done') : t('technique.compare')}</button>}
@@ -149,18 +150,18 @@ export default function TechniqueHistory({ diver, context }: { diver: number; co
       <div className="th-compare-pickers">{[0, 1].map(index => <label className="th-field" key={index}>{t(index ? 'technique.after' : 'technique.before')}<select value={pair[index] ?? ''} onChange={e => setPair(p => { const n = [...p]; n[index] = Number(e.target.value); return chronologicalPair(n) })}>{compatible.filter(e => e.id !== pair[1 - index]).map(e => <option key={e.id} value={e.id}>{e.label} — {visibleEpisodes.some(other => other.id !== e.id && other.start_at.slice(0,10) === e.start_at.slice(0,10)) ? techniqueDateTime(e.start_at,i18n.language) : date(e.start_at)}</option>)}</select></label>)}</div>
       <TechniqueComparison onTrack={(id, name) => { setTracks(p => p.some(t => t.id === id) ? p : [...p, { id, name: name ?? t('technique.general'), revision: 0 }]); setTrack(id); setPair([]); setComparing(false); setAfter(0); setEpisodeAfter(0) }} base={`${base}/${track}`} context={context} pair={pair} revision={revision} />
     </div> : <>
-      {!visibleEpisodes.length && <div className="th-empty"><span className="th-empty-line" aria-hidden="true"><i /><i /><i /></span><h3>{t('technique.emptyTitle')}</h3></div>}
+      {!visibleEpisodes.length && <div className="th-empty"><span className="th-empty-line" aria-hidden="true"><i /><i /><i /></span><h3>{t('technique.emptyTitle')}</h3><p>{t('technique.periodsNotDives')}</p></div>}
       <ol className="th-timeline">{[...visibleEpisodes].reverse().map(e => <li key={e.id} className={pair[0] === e.id ? 'is-selected' : ''}>
         <button className="th-episode" aria-pressed={pair[0] === e.id} onClick={() => setPair(p => p[0] === e.id ? [] : [e.id])}>
           <span className="th-timeline-dot" aria-hidden="true" />
           <span className="th-episode-copy"><span className="th-episode-name">{e.label ?? t('technique.unknown')}{e.id === currentEpisode?.id && <span className="th-current">{t('technique.current')}</span>}</span><span className="th-date">{periodDate(e.start_at,e.end_at)}{e.end_at ? ` – ${periodDate(e.end_at,e.start_at)}` : ` – ${t('technique.now')}`}{e.uncertain_until ? ` ≈ ${date(e.uncertain_until)}` : ''}</span></span><ChevronRight size={16} aria-hidden="true" />
         </button>
-        <div className={`th-episode-reveal${pair[0] === e.id ? ' is-open' : ''}`} aria-hidden={pair[0] !== e.id} ref={node => node?.toggleAttribute('inert', pair[0] !== e.id)}><div className="th-episode-clip"><div className="th-episode-actions">{e.anchor_id && e.scope === context.code && !e.gap && <button onClick={() => void startSetup(e)}>{t('technique.adjustInPlayer')}</button>}<button onClick={() => editEpisode(e)}><Pencil size={14} />{t('technique.edit')}</button><button onClick={() => { setCopyPreview(null); setPanel('share') }}><Share2 size={14} />{t('technique.share')}</button><button onClick={() => setPanel('log')}><ListChecks size={14} />{t('technique.tagDives')}</button></div></div></div>
+        <div className={`th-episode-reveal${pair[0] === e.id ? ' is-open' : ''}`} aria-hidden={pair[0] !== e.id} ref={node => node?.toggleAttribute('inert', pair[0] !== e.id)}><div className="th-episode-clip"><div className="th-episode-actions">{e.anchor_id && e.scope === context.code && !e.gap && <button onClick={() => void startSetup(e)}>{t('technique.adjustInPlayer')}</button>}<button onClick={() => editEpisode(e)}><Pencil size={14} />{t('technique.edit')}</button><button onClick={() => { setCopyPreview(null); setPanel('share') }}><Share2 size={14} />{t('technique.share')}</button></div></div></div>
       </li>)}</ol>
     </>}
     {(episodeAfter > 0 || episodeNext != null) && <div className="th-pagination">{episodeAfter > 0 && <button onClick={() => setEpisodeAfter(0)}>{t('common.back')}</button>}{episodeNext != null && <button onClick={() => setEpisodeAfter(episodeNext!)}>{t('technique.nextPeriods')}</button>}</div>}
 
-    {setup && track != null && createPortal(<TechniqueSetup key={`${base}/${track}/${contextKey}/${setupEpisode?.id ?? 'new'}`} onAdjust={episode => setSetupEpisode(episode)} base={`${base}/${track}`} context={context} revision={revision} timezone={timezone} initialEpisode={setupEpisode} constrainPosition={setupEpisode ? setupEpisode.position != null : true} constrainSync={setupEpisode ? setupEpisode.sync != null : true} onClose={() => setSetup(false)} onDone={() => { setSetup(false); setReload(n => n + 1); setNotice(t('technique.saved')) }} />, document.body)}
+    {setup && track != null && createPortal(<TechniqueSetup viewer={viewer} key={`${base}/${track}/${contextKey}/${setupEpisode?.id ?? 'new'}`} onAdjust={episode => setSetupEpisode(episode)} base={`${base}/${track}`} context={context} revision={revision} timezone={timezone} initialEpisode={setupEpisode} constrainPosition={setupEpisode ? setupEpisode.position != null : true} constrainSync={setupEpisode ? setupEpisode.sync != null : true} onClose={() => setSetup(false)} onDone={() => { setSetup(false); setReload(n => n + 1); setNotice(t('technique.saved')) }} />, document.body)}
 
     {panel === 'change' && <TechniqueDialog title={t(preview ? 'technique.reviewChange' : edit ? 'technique.editChange' : 'technique.enable')} onClose={requestClosePanel}>
       {error && <p className="th-error" role="alert">{error}</p>}
@@ -191,7 +192,7 @@ export default function TechniqueHistory({ diver, context }: { diver: number; co
 
     {panel === 'manage' && <TechniqueDialog title={t('technique.manage')} onClose={requestClosePanel}>
       {error && <p className="th-error" role="alert">{error}</p>}
-      <div className="th-form"><h3>{t('technique.topics')}</h3><div className="th-topic-list">{tracks.map(r => <button key={r.id} className={track === r.id ? 'is-selected' : ''} onClick={() => { setTrack(r.id); setPair([]); setComparing(false); setAfter(0); setEpisodeAfter(0); closePanel() }}>{r.name === 'General' ? t('technique.general') : r.name}{track === r.id && <Check size={16} />}</button>)}</div>
+      <div className="th-form"><button className="th-text-button" onClick={()=>void newChange()}>{t('technique.useDateInstead')}</button><h3>{t('technique.topics')}</h3><div className="th-topic-list">{tracks.map(r => <button key={r.id} className={track === r.id ? 'is-selected' : ''} onClick={() => { setTrack(r.id); setPair([]); setComparing(false); setAfter(0); setEpisodeAfter(0); closePanel() }}>{r.name === 'General' ? t('technique.general') : r.name}{track === r.id && <Check size={16} />}</button>)}</div>
       {(trackAfter > 0 || trackNext != null) && <div className="th-pagination">{trackAfter > 0 && <button onClick={async () => { const g = generation.current; const { data } = await api.get(`${base}/tracks`); if (g === generation.current) { setTrackAfter(0); setTracks(data.items); setTrackNext(data.next) } }}>{t('common.back')}</button>}{trackNext != null && <button onClick={async () => { const g = generation.current; const { data } = await api.get(`${base}/tracks?after=${trackNext}`); if (g === generation.current) { setTrackAfter(trackNext!); setTracks(data.items); setTrackNext(data.next) } }}>{t('technique.moreTracks')}</button>}</div>}
       <form className="th-inline-form" onSubmit={async e => { e.preventDefault(); const g = generation.current; try { const { data } = await api.post(`${base}/tracks`, { name: trackName }); if (g === generation.current) { setTracks(p => [...p, data]); setTrack(data.id); setTrackName(''); setPair([]); setComparing(false); closePanel() } } catch { if (g === generation.current) setError(t('technique.conflict')) } }}><label className="th-field">{t('technique.newTopic')}<input required maxLength={80} value={trackName} placeholder={t('technique.topicExample')} onChange={e => setTrackName(e.target.value)} /></label><button className="th-secondary">{t('technique.add')}</button></form>
       {!!tracks.length && <button className="th-secondary" onClick={() => { setChartActive(v => !v); setPair([]); setComparing(false); closePanel() }}>{t(chartActive ? 'technique.showAllScores' : 'technique.showTechniqueScores')}</button>}

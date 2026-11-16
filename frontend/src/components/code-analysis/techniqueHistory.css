@@ -186,3 +186,22 @@
 }
 .clip-filmstrip-controls { display:flex; flex-wrap:wrap; gap:8px; }
 @media (max-width:1023px) { .clip-viewer.is-workflow .clip-filmstrip.is-history { max-height:170px; overflow-y:auto; } }
+
+.th-session-browser { display: grid; gap: 18px; }
+.th-session-browser-head { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; }
+.th-session-browser-head h3 { margin:0; }
+.th-session-cards { padding:0; margin:0; list-style:none; display:grid; gap:12px; }
+.th-session-cards h4 { color:var(--app-muted); margin:20px 0 12px; text-transform:capitalize; }
+.th-session-cards li:first-child h4 { margin-top:0; }
+.th-session-card { width:100%; padding:12px; display:flex; gap:14px; align-items:center; text-align:left; border:1px solid var(--app-border); border-radius:14px; background:var(--app-panel); color:inherit; cursor:pointer; }
+.th-session-card[aria-expanded=true] { border-color:var(--app-accent); }
+.th-session-card > span:last-child { display:grid; gap:6px; min-width:0; }
+.th-session-card strong { font-size:1rem; }
+.th-session-card small { color:var(--app-muted); overflow-wrap:anywhere; }
+.th-session-poster { width:62px; height:76px; flex-shrink:0; overflow:hidden; border-radius:8px; }
+.th-session-poster > * { width:100%; height:100%; }
+.th-session-choices { display:grid; gap:10px; padding:12px 0; }
+.th-session-choices > button { min-height:44px; }
+.th-draft-summary { border-top:1px solid var(--app-border); margin-top:20px; padding-top:16px; }
+.th-draft-summary ul { padding-left:20px; }
+.th-draft-summary li { padding:6px 0; overflow-wrap:anywhere; }
