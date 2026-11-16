@@ -5,6 +5,7 @@ A tile is STOP_MOTION_FRAMES stills sampled evenly across the whole clip
 constants (session_images.extract_images) so every grid tile animates alike.
 """
 import hashlib
+import io
 from itertools import zip_longest
 import os
 from pathlib import Path
@@ -24,8 +25,8 @@ FRAME_MS = 220
 TRANSFORM_VERSION = 'stop-motion-v2'
 MAX_BYTES = 80_000
 # Worst-case scratch under the cache root: one still at most 360x720 RGB PNG
-# (< 0.8 MB, deleted once loaded) plus the encoded tile (<= MAX_BYTES during
-# the size ladder, a few attempts). Checked against the disk floor up front.
+# (< 0.8 MB, deleted once loaded) plus the accepted tile (<= MAX_BYTES; ladder
+# attempts are encoded in memory). Checked against the disk floor up front.
 SCRATCH_RESERVE = 4 * 1024**2
 _LADDER = ((360, 50), (320, 45), (288, 40), (240, 35))
 _FAILED_DIR = '.animated-failed'
@@ -112,23 +113,27 @@ def generate(source, deadline=None):
         frames = _frames(path, temp, deadline)
         if len(frames) < 2:
             return None
-        output = Path(temp) / 'animated.webp'
         # Ten distinct stills compress worse than a one-second burst: shrink
         # before giving up. Real 720p portrait proxies land near 288 px / 60 KB.
+        # Attempts are encoded in memory; only an accepted tile touches disk.
+        data = None
         for width, quality in _LADDER:
             if deadline is not None and time.monotonic() > deadline:
                 raise BudgetExceeded()
             sized = [f if f.width <= width else f.resize((width, max(2, round(f.height * width / f.width / 2) * 2)))
                      for f in frames]
-            sized[0].save(output, format='WEBP', quality=quality, method=4,
+            buffer = io.BytesIO()
+            sized[0].save(buffer, format='WEBP', quality=quality, method=4,
                 save_all=True, append_images=sized[1:], duration=FRAME_MS, loop=0)
-            if output.stat().st_size <= MAX_BYTES:
+            if buffer.tell() <= MAX_BYTES:
+                data = buffer.getvalue()
                 break
-        if output.stat().st_size > MAX_BYTES:
+        if data is None:
             return None  # Hard cap; static is preferable to a heavy tile.
-        data = output.read_bytes()
         if shutil.disk_usage(root).free < MIN_FREE_BYTES + len(data):
             raise Deferred()
+        output = Path(temp) / 'animated.webp'
+        output.write_bytes(data)
         checksum = hashlib.sha256(data).hexdigest()
         directory = root / 'animated' / checksum[:2]
         directory.mkdir(parents=True, exist_ok=True)
