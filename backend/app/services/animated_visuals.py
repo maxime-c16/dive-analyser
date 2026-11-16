@@ -12,7 +12,7 @@ import shutil
 import subprocess
 import tempfile
 import time
-from sqlalchemy import and_, exists, func, or_, select
+from sqlalchemy import and_, exists, or_, select
 from sqlalchemy.orm import Session, aliased
 from sqlalchemy.exc import IntegrityError
 from app.config import get_settings
@@ -26,11 +26,6 @@ MAX_BYTES = 80_000
 _LADDER = ((360, 50), (320, 45), (288, 40), (240, 35))
 _FAILED_FILE = '.animated-failed.json'
 _FAILED_CAP = 2000
-# Progress probe for the per-minute tick: the highest ready-proxy id seen and
-# whether the last tick left work unprocessed (deferral/budget). A drained
-# tick skips the correlated candidate scan on this alone; a new proxy id or
-# pending retry always triggers the full scan, so coverage is eventual.
-_SCAN_FILE = '.animated-scan.json'
 # Smallest subprocess quantum worth starting: below this the tick budget is
 # effectively spent, so generation yields instead of scheduling doomed ffmpeg.
 _MIN_QUANTUM = 1.0
@@ -152,25 +147,6 @@ def _record_failed(failed, proxy_id):
         pass
 
 
-def _scan_path():
-    return Path(get_settings().media_cache_root) / _SCAN_FILE
-
-
-def _load_scan():
-    try:
-        state = json.loads(_scan_path().read_text())
-        return int(state.get('max_id', 0)), bool(state.get('retry', True))
-    except (OSError, ValueError, TypeError, AttributeError):
-        return 0, True
-
-
-def _save_scan(max_id, retry):
-    try:
-        _scan_path().write_text(json.dumps({'max_id': max_id, 'retry': retry}))
-    except OSError:
-        pass
-
-
 def pending_proxies(db, limit, exclude=()):
     """Ready proxies without a current-version tile, newest first, one per asset.
 
@@ -210,30 +186,15 @@ def backfill(db, limit=4, time_budget=40.0):
     Idempotent and cursor-free: each call picks proxies still missing a
     current tile. Publishing a tile drops the asset's older tiles so the
     reference-aware cleanup reclaims their files after its grace period.
-
-    Drained ticks stay cheap: a bounded max(id) probe over ready proxies
-    skips the correlated candidate scan unless a new proxy arrived or the
-    previous tick left work unprocessed (deferral/budget), so stragglers
-    are still retried and new work is always picked up.
     """
     bind = db.get_bind()
     failed_ids = _load_failed()
-    max_id = db.execute(select(func.max(MediaCacheEntry.id)).where(
-        MediaCacheEntry.status == 'ready',
-        MediaCacheEntry.rendition.in_(('proxy_720p', 'proxy_360p')),
-        MediaCacheEntry.checksum_sha256.is_not(None))).scalar() or 0
-    last_max, retry = _load_scan()
-    if max_id <= last_max and not retry:
-        db.rollback()
-        return dict(scanned=0, generated=0, failed=0)
     rows = pending_proxies(db, limit, failed_ids)
     db.rollback()
     generated = failed = 0
-    exhausted = False
     deadline = time.monotonic() + time_budget
     for row in rows:
         if time.monotonic() > deadline:
-            exhausted = True
             break
         try:
             result = generate(row.storage_path, deadline)
@@ -266,10 +227,8 @@ def backfill(db, limit=4, time_budget=40.0):
         except (Deferred, BudgetExceeded):
             # Transient: disk will recover, budget renews next tick. The proxy
             # stays selectable so a later tick retries it; nothing is fenced.
-            exhausted = True
             break
         except (OSError, ValueError, subprocess.SubprocessError, IntegrityError):
             _record_failed(failed_ids, row.id)
             failed += 1
-    _save_scan(max_id, exhausted)
     return dict(scanned=len(rows), generated=generated, failed=failed)
