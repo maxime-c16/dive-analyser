@@ -242,3 +242,35 @@ it('keeps a cancelled name and restores an accidentally removed marker',async()=
  fireEvent.click(screen.getByRole('button',{name:'Restore removed marker'}))
  expect(screen.getByText('Keep this name')).toBeInTheDocument()
 })
+
+it('adds independent adjustments at the same dive without ending one another',async()=>{
+ const independent={base:'/api/v1/technique-adjustments/1',revision:5,choices:[]}
+ const impl=post.getMockImplementation()!
+ post.mockImplementation((url:string,body:any,...rest:any[])=>url===`${independent.base}/preview`?Promise.resolve({data:{items:body.changes.map((c:any)=>({draft_key:c.draft_key,anchor_id:c.anchor_id,end_at:null,counts:{affected:3,explicit_preserved:0}}))}}):impl(url,body,...rest))
+ render(<TechniqueSetup {...props} independent={independent}/>);await screen.findByText('Viewing clip 1')
+ fireEvent.click(screen.getByRole('button',{name:'Add an adjustment here'}))
+ fireEvent.change(screen.getByLabelText('What changes?'),{target:{value:'Less pike'}})
+ expect(screen.getByRole('combobox',{name:/This adjustment/})).toHaveValue('')
+ fireEvent.click(screen.getByRole('button',{name:'Keep this marker'}))
+ fireEvent.click(screen.getByRole('button',{name:'Add another adjustment here'}))
+ fireEvent.change(screen.getByLabelText('What changes?'),{target:{value:'Earlier twist'}})
+ fireEvent.click(screen.getByRole('button',{name:'Keep this marker'}))
+ fireEvent.click(screen.getByRole('button',{name:'Review markers (2)'}))
+ await screen.findByRole('button',{name:'Save changes'})
+ const [,body]=post.mock.calls.find(([url])=>url===`${independent.base}/preview`)!
+ expect(body.revision).toBe(5)
+ expect(body.changes.map((c:any)=>c.anchor_id)).toEqual([1,1])
+ expect(new Set(body.changes.map((c:any)=>c.draft_key)).size).toBe(2)
+ expect(body.changes.every((c:any)=>!c.replace_episode_id&&!c.replace_draft_key)).toBe(true)
+})
+it('sends an explicit replacement only when the diver selects an adjustment',async()=>{
+ const choice={id:12,track_id:4,technique_id:8,label:'Deeper pike',scope:'5132D',start_at:'2026-06-01T10:00:00',end_at:null}
+ const independent={base:'/api/v1/technique-adjustments/1',revision:5,choices:[choice]}
+ const impl=post.getMockImplementation()!
+ post.mockImplementation((url:string,body:any,...rest:any[])=>url===`${independent.base}/preview`?Promise.resolve({data:{items:body.changes.map((c:any)=>({draft_key:c.draft_key,anchor_id:c.anchor_id,end_at:null,counts:{affected:3,explicit_preserved:0},replaces:choice.label}))}}):impl(url,body,...rest))
+ render(<TechniqueSetup {...props} independent={independent}/>);await screen.findByText('Viewing clip 1')
+ fireEvent.click(screen.getByRole('button',{name:'Add an adjustment here'}));fireEvent.change(screen.getByLabelText('What changes?'),{target:{value:'Less pike'}})
+ fireEvent.change(screen.getByRole('combobox',{name:/This adjustment/}),{target:{value:'episode:12'}})
+ fireEvent.click(screen.getByRole('button',{name:'Keep this marker'}));fireEvent.click(screen.getByRole('button',{name:'Review markers (1)'}))
+ await waitFor(()=>expect(post).toHaveBeenCalledWith(`${independent.base}/preview`,{revision:5,changes:[expect.objectContaining({replace_episode_id:12})]}))
+})

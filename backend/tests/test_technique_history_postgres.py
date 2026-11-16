@@ -528,3 +528,142 @@ def test_same_label_reuses_identity_without_merging_episodes(pg,monkeypatch):
         assert a['episode']['technique_id']==again['episode']['technique_id']
         assert a['episode']['id']!=again['episode']['id']
         assert db.scalar(text('SELECT count(*) FROM techniques'))==2
+
+def test_independent_adjustments_overlap_replace_one_and_preserve_legacy(pg,monkeypatch):
+    from types import SimpleNamespace
+    from sqlalchemy.orm import Session
+    from app.api.v1 import technique_adjustments as api
+    monkeypatch.setattr(api,'owner',lambda *a,**kw:SimpleNamespace(id=1))
+    with pg.begin() as c:
+        c.execute(text("INSERT INTO app_users VALUES(1); INSERT INTO technique_tracks(id,diver_id,name,revision) VALUES(1,1,'General',0); SELECT setval('technique_tracks_id_seq',1);"))
+        c.execute(text("INSERT INTO dives(id,session_id,diver_id,dive_code,platform_type,height,position,is_sync,performance,dive_datetime) VALUES(2,1,1,'103','springboard','3','B',false,'G','2026-01-02'),(3,1,1,'103','springboard','3','B',false,'P','2026-01-03')"))
+    args=dict(code='103',scope='103',apparatus='springboard',height='3',position='B',sync=False,revision=0,start_at='2026-01-01T00:00:00',precision='attempt')
+    with Session(pg) as db:
+        initial=api.revision(db,1)
+        body=api.Batch(revision=initial,changes=[api.AdjustmentChange(**args,label='Less pike',anchor_id=1,draft_key='a'),api.AdjustmentChange(**args,label='Earlier twist',anchor_id=1,draft_key='b')])
+        preview=api.preview(1,body,None,db)
+        assert [i['end_at'] for i in preview['items']]==[None,None]
+        assert all(i['counts']['affected']==3 for i in preview['items'])
+        assert db.scalar(text('SELECT count(*) FROM technique_episodes'))==0
+        saved=api.save(1,body,None,db);a,b=saved['episodes']
+        assert a['track_id']!=b['track_id'] and a['end_at'] is None and b['end_at'] is None
+        replaced=api.save(1,api.Batch(revision=saved['revision'],changes=[api.AdjustmentChange(**args,label='Deeper pike',anchor_id=2,draft_key='c',replace_episode_id=a['id'])]),None,db)
+        assert db.scalar(text('SELECT end_at FROM technique_episodes WHERE id=:id'),{'id':a['id']}) is not None
+        assert db.scalar(text('SELECT end_at FROM technique_episodes WHERE id=:id'),{'id':b['id']}) is None
+        listing=api.listing(1,api.Browse(code='103',apparatus='springboard',height='3',position='B',sync=False),None,db)
+        assert len(listing['items'])==3
+        assert sum(e['end_at'] is None for e in listing['items'])==2
+        delete=api.Remove(code='103',apparatus='springboard',height='3',position='B',sync=False,revision=listing['revision'],episode_id=replaced['episodes'][0]['id'])
+        api.remove(1,delete,None,db)
+        assert not db.scalar(text('SELECT deleted FROM technique_episodes WHERE id=:id'),{'id':delete.episode_id})
+        delete.commit=True;api.remove(1,delete,None,db)
+        assert db.scalar(text('SELECT deleted FROM technique_episodes WHERE id=:id'),{'id':delete.episode_id})
+        assert db.scalar(text('SELECT end_at FROM technique_episodes WHERE id=:id'),{'id':b['id']}) is None
+        with pytest.raises(Exception):api.save(1,body,None,db)
+        db.rollback()
+
+def test_independent_batch_replacement_and_atomic_rollback(pg,monkeypatch):
+    from types import SimpleNamespace
+    from sqlalchemy.orm import Session
+    from app.api.v1 import technique_adjustments as api
+    monkeypatch.setattr(api,'owner',lambda *a,**kw:SimpleNamespace(id=1))
+    with pg.begin() as c:
+        c.execute(text("INSERT INTO app_users VALUES(1);INSERT INTO dives(id,session_id,diver_id,dive_code,platform_type,height,position,is_sync,performance,dive_datetime) VALUES(2,1,1,'103','springboard','3','B',false,'G','2026-01-02')"))
+    args=dict(code='103',scope='103',apparatus='springboard',height='3',position='B',sync=False,revision=0,start_at='2026-01-01T00:00:00')
+    with Session(pg) as db:
+        batch=api.Batch(revision=0,changes=[api.AdjustmentChange(**args,label='A',anchor_id=1,draft_key='a'),api.AdjustmentChange(**args,label='B',anchor_id=2,draft_key='b',replace_draft_key='a')])
+        p=api.preview(1,batch,None,db)
+        assert p['items'][0]['end_at'] is not None and p['items'][1]['end_at'] is None
+        original=api.record
+        calls=[]
+        def fail(*args):
+            calls.append(1)
+            if len(calls)==2:raise RuntimeError('second record failed')
+            return original(*args)
+        monkeypatch.setattr(api,'record',fail)
+        with pytest.raises(RuntimeError):api.save(1,batch,None,db)
+        assert db.scalar(text('SELECT count(*) FROM technique_tracks'))==0
+        assert db.scalar(text('SELECT count(*) FROM technique_episodes'))==0
+        monkeypatch.setattr(api,'record',original)
+        result=api.save(1,batch,None,db)
+        assert result['episodes'][0]['end_at'] is not None
+
+def test_remove_legacy_end_is_explicit_and_keeps_other_adjustments_and_records(pg,monkeypatch):
+    from types import SimpleNamespace
+    from datetime import datetime
+    from sqlalchemy.orm import Session
+    from app.api.v1 import technique_adjustments as api
+    from app.api.v1 import technique_history as legacy
+    monkeypatch.setattr(api,'owner',lambda *a,**kw:SimpleNamespace(id=1))
+    monkeypatch.setattr(legacy,'owner',lambda *a,**kw:SimpleNamespace(id=1))
+    with pg.begin() as c:c.execute(text("INSERT INTO app_users VALUES(1); INSERT INTO technique_tracks(id,diver_id,name,revision) VALUES(1,1,'General',0); SELECT setval('technique_tracks_id_seq',1)"))
+    with Session(pg) as db:
+        args=dict(code='103',scope='103',apparatus='springboard',height='3',position='B')
+        a=legacy.change(1,1,legacy.Change(**args,revision=0,label='Pike',start_at=datetime(2025,1,1)),None,db)['episode']
+        b=legacy.change(1,1,legacy.Change(**args,revision=1,label='Twist',start_at=datetime(2026,1,1)),None,db)['episode']
+        db.execute(text("INSERT INTO technique_assignments(track_id,dive_id,diver_id,code,apparatus,height,position,sync,state,technique_id,episode_id) VALUES(1,1,1,'103','springboard','3','B',false,'technique',:tech,:episode)"),{'tech':a['technique_id'],'episode':a['id']});db.commit()
+        context=dict(code='103',apparatus='springboard',height='3',position='B',sync=False)
+        before=api.listing(1,api.Browse(**context),None,db)
+        assert next(e for e in before['items'] if e['id']==a['id'])['end_at'] is not None
+        body=api.End(**context,revision=before['revision'],episode_id=a['id'],resume=True)
+        api.end(1,body,None,db)
+        assert db.scalar(text('SELECT end_at FROM technique_episodes WHERE id=:id'),{'id':a['id']}) is not None
+        body.commit=True;api.end(1,body,None,db)
+        a_track=db.scalar(text('SELECT track_id FROM technique_episodes WHERE id=:id'),{'id':a['id']})
+        assert a_track!=b['track_id']
+        assert db.scalar(text('SELECT end_at FROM technique_episodes WHERE id=:id'),{'id':a['id']}) is None
+        assert db.scalar(text('SELECT end_at FROM technique_episodes WHERE id=:id'),{'id':b['id']}) is None
+        assert db.scalar(text('SELECT count(*) FROM technique_assignments WHERE track_id=:track AND episode_id=:id'),{'track':a_track,'id':a['id']})==1
+
+def test_adjustment_inventory_is_paged_and_cannot_replace_another_divers_episode(pg,monkeypatch):
+    from types import SimpleNamespace
+    from sqlalchemy.orm import Session
+    from fastapi import HTTPException
+    from app.api.v1 import technique_adjustments as api
+    monkeypatch.setattr(api,'owner',lambda *a,**kw:SimpleNamespace(id=1))
+    with pg.begin() as c:
+        c.execute(text("""INSERT INTO app_users VALUES(1); INSERT INTO divers VALUES(2);
+        INSERT INTO technique_tracks(id,diver_id,name,revision) SELECT n,1,'adjustment-'||n,0 FROM generate_series(1,52) n;
+        INSERT INTO technique_tracks(id,diver_id,name,revision) VALUES(100,2,'Private',0);
+        INSERT INTO techniques(id,track_id,label,created_at) SELECT n,n,'Action '||n,now() FROM generate_series(1,52) n;
+        INSERT INTO techniques(id,track_id,label,created_at) VALUES(100,100,'Private',now());
+        INSERT INTO technique_episodes(id,track_id,technique_id,scope,apparatus,height,position,sync,start_at,start_id,precision,timezone,gap,notes,deleted)
+        SELECT n,n,n,'103','springboard','3','B',false,'2025-01-01'::timestamp+n*interval '1 day',0,'date','UTC',false,'',false FROM generate_series(1,52) n;
+        INSERT INTO technique_episodes(id,track_id,technique_id,scope,apparatus,height,position,sync,start_at,start_id,precision,timezone,gap,notes,deleted)
+        VALUES(100,100,100,'103','springboard','3','B',false,'2025-01-01',0,'date','UTC',false,'',false);"""))
+    with Session(pg) as db:
+        args=dict(code='103',apparatus='springboard',height='3',position='B',sync=False)
+        first=api.listing(1,api.Browse(**args),None,db)
+        assert len(first['items'])==50 and first['next'] is not None
+        second=api.listing(1,api.Browse(**args,after=first['next']),None,db)
+        assert len(second['items'])==2 and second['next'] is None
+        assert {e['id'] for e in first['items']}.isdisjoint(e['id'] for e in second['items'])
+        bad=api.Batch(revision=first['revision'],changes=[api.AdjustmentChange(**args,scope='103',revision=0,start_at='2026-01-01T00:00:00',anchor_id=1,label='Bad',draft_key='a',replace_episode_id=100)])
+        with pytest.raises(HTTPException) as error:api.save(1,bad,None,db)
+        assert error.value.status_code==404
+        assert db.scalar(text('SELECT count(*) FROM technique_episodes'))==53
+
+def test_copying_adjustment_elsewhere_never_closes_others_or_duplicates_source_family(pg,monkeypatch):
+    from types import SimpleNamespace
+    from sqlalchemy.orm import Session
+    from app.api.v1 import technique_adjustments as api
+    monkeypatch.setattr(api,'owner',lambda *a,**kw:SimpleNamespace(id=1))
+    with pg.begin() as c:
+        c.execute(text("INSERT INTO app_users VALUES(1); INSERT INTO dives(id,session_id,diver_id,dive_code,platform_type,height,position,is_sync,performance,dive_datetime) VALUES(2,1,1,'105','springboard','3','B',false,'G','2026-01-02')"))
+    with Session(pg) as db:
+        context=dict(code='103',apparatus='springboard',height='3',position='B',sync=False)
+        source=api.save(1,api.Batch(revision=0,changes=[api.AdjustmentChange(**context,scope='103',revision=0,start_at='2025-01-01T00:00:00',label='Hurdle',draft_key='a')]),None,db)
+        episode=source['episodes'][0]
+        body=api.Copy(**context,revision=source['revision'],episode_id=episode['id'],targets=[dict(scope='1',apparatus='springboard',height='3')])
+        api.copy(1,body,None,db)
+        assert db.scalar(text('SELECT count(*) FROM technique_episodes'))==1
+        body.commit=True;result=api.copy(1,body,None,db)
+        copy=result['episodes'][0]
+        assert copy['end_at'] is None and copy['track_id']!=episode['track_id']
+        own=api.listing(1,api.Browse(**context),None,db)
+        assert len(own['items'])==1
+        other=api.listing(1,api.Browse(**dict(context,code='105')),None,db)
+        assert len(other['items'])==1 and other['items'][0]['id']==copy['id']
+        params=dict(context,diver=1,track=copy['track_id'])
+        assert db.scalar(text(RESOLVED+' SELECT count(*) FROM resolved WHERE episode_id IS NOT NULL'),params)==0
+        assert db.scalar(text(RESOLVED+' SELECT count(*) FROM resolved WHERE episode_id IS NOT NULL'),dict(params,code='105'))==1

@@ -5,6 +5,34 @@
  * screenshots stay byte-stable.
  */
 const en = {
+  adjustments: {
+    firstPage: "Back to recent adjustments",
+    removeConfirm: "Remove this adjustment from history? Other adjustments and dive annotations are kept.",
+    whatChanges: "What changes?",
+    markHere: "Add an adjustment here",
+
+    existingEnds: "Previously saved ends are kept. If an adjustment is still in use, open it and choose “Remove the end date”.",
+    "title": "Technique adjustments",
+    "add": "Add an adjustment",
+    "behavior": "This adjustment…",
+    "adds": "Adds to the others",
+    "replaces": "Replaces “{{name}}”",
+    "active": "Ongoing",
+    "ended": "Ended",
+    "noEnd": "no end date",
+    "stop": "Stop this adjustment",
+    "removeEnd": "Remove the end date",
+    "endDate": "Stop from",
+    "continues": "Continues until you stop it.",
+    "continueConfirm": "This adjustment will count as still in use since {{date}}. Other adjustments stay unchanged.",
+    "stopsOnlyThis": "Only this adjustment will stop at the selected date.",
+    "rule": "Adjustments can overlap. Each continues until you stop or replace it.",
+    "empty": "Record what changes: less pike, an earlier twist…",
+    "more": "Show more adjustments",
+    "context": "Technique adjustments",
+    "anotherHere": "Add another adjustment here",
+    "copyOnce": "independent copy, only where you choose"
+},
   technique: {
     resumeHistory: "Resume my history",
     adjustFollowing: "Adjust the existing period start",

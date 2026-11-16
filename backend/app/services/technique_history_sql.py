@@ -35,6 +35,9 @@ WITH eligible AS (
  AND e.apparatus=d.platform_type AND e.height=d.height
  AND (e.scope=d.dive_code OR e.scope=CASE WHEN left(d.dive_code,1)='5' THEN left(d.dive_code,2)
  WHEN left(d.dive_code,1) IN ('1','2','3','4') THEN left(d.dive_code,1) ELSE NULL END)
+ AND NOT EXISTS(SELECT 1 FROM technique_tracks copied_track JOIN technique_episodes original_copy ON original_copy.id=e.source_episode_id
+ WHERE copied_track.id=e.track_id AND copied_track.name LIKE 'adjustment-copy-%'
+ AND original_copy.scope=d.dive_code AND original_copy.apparatus=d.platform_type AND original_copy.height=d.height)
  AND (e.position IS NULL OR e.position=d.position) AND (e.sync IS NULL OR e.sync=d.is_sync)
  AND (e.start_at,e.start_id)<=(d.history_occurred_at,d.id)
  AND (e.end_at IS NULL OR (d.history_occurred_at,d.id)<(e.end_at,e.end_id))

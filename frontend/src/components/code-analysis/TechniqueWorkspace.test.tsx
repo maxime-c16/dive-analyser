@@ -4,7 +4,7 @@ import { api } from '../../services/api'
 import TechniqueWorkspace from './TechniqueWorkspace'
 import '../../i18n'
 
-vi.mock('./TechniqueHistory', () => ({
+vi.mock('./TechniqueAdjustments', () => ({
   default: ({ diver }: { diver: number }) => <div>Technique history for diver {diver}</div>,
 }))
 

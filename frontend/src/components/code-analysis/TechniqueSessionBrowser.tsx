@@ -4,7 +4,7 @@ import { api } from '../../services/api'
 import DiveThumbnail from '../DiveThumbnail'
 import { techniqueDate } from './techniqueDates'
 export type TechniqueSession = { session_id:number; first_id:number; first_at:string; last_at:string; video_uuid:string|null; attempts:number; scored:number; median:number|null; location:string|null; technique_label:string|null; techniques:number }
-export default function TechniqueSessionBrowser({base,context,revision,onChoose,onReview,count,initialPage,onPageChange,onRevision,exactOnly=false}:{base:string;context:object;revision:number;onChoose:(session:TechniqueSession,exact:boolean,approximate?:boolean)=>void;onReview:()=>void;count:number;exactOnly?:boolean;initialPage?:{month:string;after:number};onPageChange?:(page:{month:string;after:number})=>void;onRevision?:(revision:number)=>void}) {
+export default function TechniqueSessionBrowser({base,context,revision,onChoose,onReview,count,initialPage,onPageChange,onRevision,exactOnly=false,hideTechnique=false}:{base:string;context:object;revision:number;onChoose:(session:TechniqueSession,exact:boolean,approximate?:boolean)=>void;onReview:()=>void;count:number;hideTechnique?:boolean;exactOnly?:boolean;initialPage?:{month:string;after:number};onPageChange?:(page:{month:string;after:number})=>void;onRevision?:(revision:number)=>void}) {
  const {t,i18n}=useTranslation()
  const [items,setItems]=useState<TechniqueSession[]>([]),[months,setMonths]=useState<{month:string;sessions:number}[]>([])
  const [month,setMonth]=useState(initialPage?.month??''),[after,setAfter]=useState(initialPage?.after??0),[next,setNext]=useState<number|null>(null),[selected,setSelected]=useState<number|null>(null)
@@ -29,7 +29,7 @@ export default function TechniqueSessionBrowser({base,context,revision,onChoose,
    {(index===0||items[index-1].first_at.slice(0,7)!==s.first_at.slice(0,7))&&<h4>{new Intl.DateTimeFormat(i18n.language,{month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(s.first_at+'Z'))}</h4>}
    <button className="th-session-card" aria-expanded={selected===s.session_id} onClick={()=>setSelected(selected===s.session_id?null:s.session_id)}>
     <span className="th-session-poster"><DiveThumbnail dive={{dive_code:(context as {code:string}).code,video_uuid:s.video_uuid}} compact/></span>
-    <span><strong>{techniqueDate(s.first_at,i18n.language)}</strong><small>{t('technique.sessionDiveCount',{count:s.attempts})}{s.location?` · ${s.location}`:''}</small><small>{s.techniques>1?t('technique.severalTechniques'):s.technique_label??t('technique.unrecorded')}</small></span>
+    <span><strong>{techniqueDate(s.first_at,i18n.language)}</strong><small>{t('technique.sessionDiveCount',{count:s.attempts})}{s.location?` · ${s.location}`:''}</small>{!hideTechnique&&<small>{s.techniques>1?t('technique.severalTechniques'):s.technique_label??t('technique.unrecorded')}</small>}</span>
    </button>
    {selected===s.session_id&&<div className="th-session-choices">{!exactOnly&&<button className="th-primary" onClick={()=>onChoose(s,false)}>{t('technique.fromSessionStart')}</button>}<button className="th-secondary" onClick={()=>onChoose(s,true)}>{t('technique.findExactDive')}</button>{!exactOnly&&<button className="th-text-button" onClick={()=>onChoose(s,false,true)}>{t('technique.aroundSession')}</button>}</div>}
   </li>)}</ol>

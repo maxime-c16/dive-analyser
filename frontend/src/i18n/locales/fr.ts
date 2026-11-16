@@ -5,6 +5,34 @@
  * vrille, tremplin, plateforme.
  */
 const fr = {
+  adjustments: {
+    firstPage: "Revenir aux ajustements récents",
+    removeConfirm: "Retirer cet ajustement de l’historique ? Les autres ajustements et les annotations des plongeons sont conservés.",
+    whatChanges: "Que changez-vous ?",
+    markHere: "Ajouter un ajustement ici",
+
+    existingEnds: "Les fins déjà enregistrées sont conservées. Si un ajustement continue, ouvrez-le et choisissez « Retirer la date de fin ».",
+    "title": "Ajustements techniques",
+    "add": "Ajouter un ajustement",
+    "behavior": "Cet ajustement…",
+    "adds": "S’ajoute aux autres",
+    "replaces": "Remplace « {{name}} »",
+    "active": "En cours",
+    "ended": "Terminés",
+    "noEnd": "sans date de fin",
+    "stop": "Arrêter cet ajustement",
+    "removeEnd": "Retirer la date de fin",
+    "endDate": "Arrêter à partir du",
+    "continues": "Continue tant que vous ne l’arrêtez pas.",
+    "continueConfirm": "Cet ajustement sera considéré comme toujours utilisé depuis le {{date}}. Les autres ajustements restent inchangés.",
+    "stopsOnlyThis": "Seul cet ajustement sera arrêté à la date choisie.",
+    "rule": "Les ajustements se cumulent. Chacun continue jusqu’à ce que vous l’arrêtiez ou le remplaciez.",
+    "empty": "Notez ce que vous changez : carper moins, vriller plus tôt…",
+    "more": "Afficher d’autres ajustements",
+    "context": "Ajustements techniques",
+    "anotherHere": "Ajouter un autre ajustement ici",
+    "copyOnce": "copie indépendante, uniquement sur votre choix"
+},
   technique: {
     resumeHistory: "Reprendre mon historique",
     adjustFollowing: "Ajuster le début de la période existante",

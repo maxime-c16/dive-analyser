@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api } from '../../services/api'
-import TechniqueHistory from './TechniqueHistory'
+import TechniqueHistory from './TechniqueAdjustments'
 
 type Context = { diver_name?: string; diver_id: number; code: string; apparatus: string; height: string; position: string; sync: boolean; eligible: number }
 export default function TechniqueWorkspace({ viewer, code, height }: { viewer: number; code: string; height: string | null }) {
