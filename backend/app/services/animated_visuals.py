@@ -12,7 +12,7 @@ import shutil
 import subprocess
 import tempfile
 import time
-from sqlalchemy import and_, exists, or_, select
+from sqlalchemy import and_, exists, func, or_, select
 from sqlalchemy.orm import Session, aliased
 from sqlalchemy.exc import IntegrityError
 from app.config import get_settings
@@ -25,7 +25,10 @@ TRANSFORM_VERSION = 'stop-motion-v2'
 MAX_BYTES = 80_000
 _LADDER = ((360, 50), (320, 45), (288, 40), (240, 35))
 _FAILED_FILE = '.animated-failed.json'
-_FAILED_CAP = 2000
+# Each tick inspects at most two id windows of this size: the newest ids (new
+# uploads tile within a minute) and one window rotating with the clock, so
+# work per tick is bounded and every id is revisited every ceil(max_id/W) min.
+SCAN_WINDOW = 512
 # Smallest subprocess quantum worth starting: below this the tick budget is
 # effectively spent, so generation yields instead of scheduling doomed ffmpeg.
 _MIN_QUANTUM = 1.0
@@ -133,30 +136,35 @@ def _failed_path():
 
 
 def _load_failed():
+    """{proxy id: checksum} of generations that cannot yield a tile."""
     try:
-        return set(json.loads(_failed_path().read_text()))
-    except (OSError, ValueError, TypeError):
-        return set()
+        data = json.loads(_failed_path().read_text())
+        return {int(k): str(v) for k, v in data.items()} if isinstance(data, dict) else {}
+    except (OSError, ValueError, TypeError, AttributeError):
+        return {}
 
 
-def _record_failed(failed, proxy_id):
-    failed.add(int(proxy_id))
+def _save_failed(failed):
     try:
-        _failed_path().write_text(json.dumps(sorted(failed)[-_FAILED_CAP:]))
+        _failed_path().write_text(json.dumps({str(k): v for k, v in sorted(failed.items())}))
     except OSError:
         pass
 
 
-def pending_proxies(db, limit, exclude=()):
-    """Ready proxies without a current-version tile, newest first, one per asset.
+def pending_proxies(db, limit, low=0, high=None):
+    """Ready proxies in ids (low, high] without a current-version tile, newest first.
 
-    720p is preferred; a 360p is only used when the asset has no ready 720p.
+    One per asset: 720p is preferred; a 360p is only used when the asset has
+    no ready 720p. The id range is capped at SCAN_WINDOW so the anti-joins
+    never walk the whole inventory.
     """
+    high = low + SCAN_WINDOW if high is None else min(high, low + SCAN_WINDOW)
     proxy = MediaCacheEntry
     tile = aliased(MediaCacheEntry)
     better = aliased(MediaCacheEntry)
     newer = aliased(MediaCacheEntry)
     query = select(proxy.id, proxy.photos_asset_id, proxy.storage_path, proxy.checksum_sha256).where(
+        proxy.id > low, proxy.id <= high,
         proxy.status == 'ready', proxy.rendition.in_(('proxy_720p', 'proxy_360p')),
         proxy.checksum_sha256.is_not(None),
         ~exists().where(and_(tile.photos_asset_id == proxy.photos_asset_id,
@@ -175,22 +183,61 @@ def pending_proxies(db, limit, exclude=()):
             newer.id > proxy.id,
             or_(newer.rendition == 'proxy_720p', newer.rendition == proxy.rendition))),
     )
-    if exclude:
-        query = query.where(proxy.id.not_in(sorted(exclude)[-_FAILED_CAP:]))
-    return db.execute(query.order_by(proxy.id.desc()).limit(max(1, min(limit, 16)))).all()
+    return db.execute(query.order_by(proxy.id.desc()).limit(max(1, min(limit, SCAN_WINDOW)))).all()
+
+
+def _windows(max_id, now):
+    """(low, high] id ranges: the newest window plus one clock-rotating window.
+
+    The rotating window advances SCAN_WINDOW ids per minute modulo the id
+    space and wraps around 0, so consecutive minutes tile every id exactly
+    once per cycle. Total ids inspected per tick <= 2 x SCAN_WINDOW.
+    """
+    ranges = [(max(0, max_id - SCAN_WINDOW), max_id)]
+    span = max_id + 1
+    if span <= SCAN_WINDOW:
+        return ranges
+    start = (int(now // 60) * SCAN_WINDOW) % span
+    end = start + SCAN_WINDOW
+    ranges.append((start - 1, min(end, span) - 1))
+    if end > span:
+        ranges.append((-1, end - span - 1))
+    return ranges
+
+
+def _candidates(db, limit, failed, now):
+    """Bounded scan: at most 2 x SCAN_WINDOW ids, failure markers pruned in-window."""
+    max_id = db.execute(select(func.max(MediaCacheEntry.id))).scalar() or 0
+    for proxy_id in [k for k in failed if k > max_id]:
+        del failed[proxy_id]
+    rows = []
+    for low, high in _windows(max_id, now):
+        pending = pending_proxies(db, SCAN_WINDOW, low, high)
+        current = {row.id: row.checksum_sha256 for row in pending}
+        # A marker stays only while its exact generation is still pending;
+        # gone, replaced or since-tiled proxies drop out of the file.
+        for proxy_id in [k for k in failed if low < k <= high]:
+            if current.get(proxy_id) != failed[proxy_id]:
+                del failed[proxy_id]
+        rows += [row for row in pending if failed.get(row.id) != row.checksum_sha256
+                 and row.id not in {r.id for r in rows}]
+    return rows[:max(1, min(limit, 16))]
 
 
 def backfill(db, limit=4, time_budget=40.0):
     """Generate up to `limit` tiles; connections are returned before ffmpeg.
 
-    Idempotent and cursor-free: each call picks proxies still missing a
-    current tile. Publishing a tile drops the asset's older tiles so the
+    Idempotent and cursor-free: each call scans the newest id window and one
+    clock-rotating window (see _windows) for proxies still missing a tile. Publishing a tile drops the asset's older tiles so the
     reference-aware cleanup reclaims their files after its grace period.
     """
     bind = db.get_bind()
     failed_ids = _load_failed()
-    rows = pending_proxies(db, limit, failed_ids)
+    before = dict(failed_ids)
+    rows = _candidates(db, limit, failed_ids, time.time())
     db.rollback()
+    if failed_ids != before:
+        _save_failed(failed_ids)
     generated = failed = 0
     deadline = time.monotonic() + time_budget
     for row in rows:
@@ -199,7 +246,8 @@ def backfill(db, limit=4, time_budget=40.0):
         try:
             result = generate(row.storage_path, deadline)
             if result is None:
-                _record_failed(failed_ids, row.id)
+                failed_ids[row.id] = row.checksum_sha256
+                _save_failed(failed_ids)
                 failed += 1
                 continue
             path, checksum, size = result
@@ -229,6 +277,7 @@ def backfill(db, limit=4, time_budget=40.0):
             # stays selectable so a later tick retries it; nothing is fenced.
             break
         except (OSError, ValueError, subprocess.SubprocessError, IntegrityError):
-            _record_failed(failed_ids, row.id)
+            failed_ids[row.id] = row.checksum_sha256
+            _save_failed(failed_ids)
             failed += 1
     return dict(scanned=len(rows), generated=generated, failed=failed)

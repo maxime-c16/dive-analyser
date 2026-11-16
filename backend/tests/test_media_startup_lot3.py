@@ -494,3 +494,31 @@ def test_trim_keeps_deferred_animation_bytes_in_quota(test_db, root, references)
     assert marker.exists()
     os.utime(marker, (0, 0))
     assert cleanup_cache(test_db, max_bytes=150) == (0, 100, 0)
+
+
+@pytest.mark.parametrize('max_id', [1, 511, 512, 513, 1000, 3077, 10_000])
+def test_tick_windows_are_bounded_and_cover_every_id(max_id):
+    covered = set()
+    cycle = -(-(max_id + 1) // av.SCAN_WINDOW)
+    for minute in range(cycle):
+        ranges = av._windows(max_id, minute * 60)
+        assert sum(high - low for low, high in ranges) <= 2 * av.SCAN_WINDOW
+        for low, high in ranges:
+            covered.update(range(low + 1, high + 1))
+    assert set(range(1, max_id + 1)) <= covered
+
+
+def test_tick_scan_skips_old_ids_outside_windows_and_prunes_stale_failures(test_db, root, monkeypatch):
+    _, old = _proxy(test_db, root, 'old', 'proxy_720p', 'e' * 64)
+    _, recent = _proxy(test_db, root, 'recent', 'proxy_720p', 'f' * 64)
+    monkeypatch.setattr(av, 'SCAN_WINDOW', 1)
+    # Only the newest id and the rotating window are inspected per tick.
+    minute_for_recent = av._windows(recent.id, 0)
+    assert all(high - low <= 1 for low, high in minute_for_recent)
+    failed = {old.id: 'stale-generation', recent.id: 'f' * 64, 999_999: 'gone'}
+    ids = set()
+    for minute in range(recent.id + 1):
+        ids.update(row.id for row in av._candidates(test_db, 16, failed, minute * 60))
+    # The current failure stays fenced; the replaced generation is pruned and retried.
+    assert ids == {old.id}
+    assert failed == {recent.id: 'f' * 64}

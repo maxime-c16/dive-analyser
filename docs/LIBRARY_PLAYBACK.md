@@ -78,9 +78,14 @@ viewport visibility. A tile is a stop-motion of the whole clip: 10 stills
 sampled evenly from start to end, 220 ms each (session videos use the same
 constants), at most 80 KB (width steps down 360 → 240 px to fit). The
 per-minute media tick (`scripts/media_migration.py tick`) builds up to 4 tiles
-for local proxies still missing a `stop-motion-v2` tile, newest first, one per
-asset (720p preferred), and drops the asset's older tile so orphan cleanup
-reclaims it. Proxies that cannot produce a tile are remembered in
-`.animated-failed.json` under the cache root and not retried. Assets without a
+for local proxies still missing a `stop-motion-v2` tile, one per asset (720p
+preferred), and drops the asset's older tile so orphan cleanup reclaims it.
+Each tick inspects at most two 512-id windows: the newest ids (new uploads
+tile within a minute) and one window rotating with the clock, which covers
+every id once per `ceil(max_id / 512)` minutes. Proxy generations that cannot
+produce a tile are remembered as `{id: checksum}` in `.animated-failed.json`
+under the cache root and not retried; a marker is dropped when its window
+sees the proxy gone, replaced or tiled. Disk-floor and tick-budget stops are
+transient and retried. Assets without a
 local proxy have no tile. Disk floor and the original lot design:
 [audit lot 3](audits/media-startup-opus/lot3-result.md).
