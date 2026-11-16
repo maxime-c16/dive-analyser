@@ -83,9 +83,10 @@ preferred), and drops the asset's older tile so orphan cleanup reclaims it.
 Each tick inspects at most two 512-id windows: the newest ids (new uploads
 tile within a minute) and one window rotating with the clock, which covers
 every id once per `ceil(max_id / 512)` minutes. Proxy generations that cannot
-produce a tile are remembered as `{id: checksum}` in `.animated-failed.json`
-under the cache root and not retried; a marker is dropped when its window
-sees the proxy gone, replaced or tiled. Disk-floor and tick-budget stops are
-transient and retried. Assets without a
+produce a tile get an empty marker file `.animated-failed/<id // 512>/<id>.<checksum>`
+under the cache root and are not retried; a tick reads only the shards of the
+windows it scans and drops markers whose proxy is gone, replaced or tiled. A
+disk-floor stop is transient. A tick-budget stop is retried next tick, unless
+the proxy had the whole budget to itself, in which case it is marked failed. Assets without a
 local proxy have no tile. Disk floor and the original lot design:
 [audit lot 3](audits/media-startup-opus/lot3-result.md).

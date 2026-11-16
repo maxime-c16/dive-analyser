@@ -5,7 +5,6 @@ A tile is STOP_MOTION_FRAMES stills sampled evenly across the whole clip
 constants (session_images.extract_images) so every grid tile animates alike.
 """
 import hashlib
-import json
 import os
 from pathlib import Path
 import shutil
@@ -24,7 +23,7 @@ FRAME_MS = 220
 TRANSFORM_VERSION = 'stop-motion-v2'
 MAX_BYTES = 80_000
 _LADDER = ((360, 50), (320, 45), (288, 40), (240, 35))
-_FAILED_FILE = '.animated-failed.json'
+_FAILED_DIR = '.animated-failed'
 # Each tick inspects at most two id windows of this size: the newest ids (new
 # uploads tile within a minute) and one window rotating with the clock, so
 # work per tick is bounded and every id is revisited every ceil(max_id/W) min.
@@ -131,22 +130,40 @@ def generate(source, deadline=None):
         return str(dest), checksum, len(data)
 
 
-def _failed_path():
-    return Path(get_settings().media_cache_root) / _FAILED_FILE
+def _failed_dir(window):
+    return Path(get_settings().media_cache_root) / _FAILED_DIR / str(int(window))
 
 
-def _load_failed():
-    """{proxy id: checksum} of generations that cannot yield a tile."""
+def _load_failed(low, high):
+    """{proxy id: checksum} markers for ids in (low, high]: at most two shards read."""
+    failed = {}
+    for window in range(max(0, low + 1) // SCAN_WINDOW, high // SCAN_WINDOW + 1):
+        try:
+            names = os.listdir(_failed_dir(window))
+        except OSError:
+            continue
+        for name in names[:SCAN_WINDOW]:
+            proxy_id, _, checksum = name.partition('.')
+            if proxy_id.isdigit() and low < int(proxy_id) <= high:
+                failed[int(proxy_id)] = checksum
+    return failed
+
+
+def _mark_failed(proxy_id, checksum):
+    """One empty file per failed generation, sharded by SCAN_WINDOW: O(1) write."""
+    directory = _failed_dir(int(proxy_id) // SCAN_WINDOW)
     try:
-        data = json.loads(_failed_path().read_text())
-        return {int(k): str(v) for k, v in data.items()} if isinstance(data, dict) else {}
-    except (OSError, ValueError, TypeError, AttributeError):
-        return {}
+        directory.mkdir(parents=True, exist_ok=True)
+        for old in directory.glob(f'{int(proxy_id)}.*'):
+            old.unlink(missing_ok=True)
+        (directory / f'{int(proxy_id)}.{checksum}').touch()
+    except OSError:
+        pass
 
 
-def _save_failed(failed):
+def _unmark_failed(proxy_id, checksum):
     try:
-        _failed_path().write_text(json.dumps({str(k): v for k, v in sorted(failed.items())}))
+        (_failed_dir(int(proxy_id) // SCAN_WINDOW) / f'{int(proxy_id)}.{checksum}').unlink(missing_ok=True)
     except OSError:
         pass
 
@@ -205,22 +222,25 @@ def _windows(max_id, now):
     return ranges
 
 
-def _candidates(db, limit, failed, now):
-    """Bounded scan: at most 2 x SCAN_WINDOW ids, failure markers pruned in-window."""
+def _candidates(db, limit, now):
+    """Bounded scan: at most 2 x SCAN_WINDOW ids and their marker shards.
+
+    A failure marker stays only while its exact generation is still pending;
+    markers of gone, replaced or since-tiled proxies are removed in-window.
+    """
     max_id = db.execute(select(func.max(MediaCacheEntry.id))).scalar() or 0
-    for proxy_id in [k for k in failed if k > max_id]:
-        del failed[proxy_id]
-    rows = []
+    rows, seen = [], set()
     for low, high in _windows(max_id, now):
         pending = pending_proxies(db, SCAN_WINDOW, low, high)
         current = {row.id: row.checksum_sha256 for row in pending}
-        # A marker stays only while its exact generation is still pending;
-        # gone, replaced or since-tiled proxies drop out of the file.
-        for proxy_id in [k for k in failed if low < k <= high]:
-            if current.get(proxy_id) != failed[proxy_id]:
-                del failed[proxy_id]
-        rows += [row for row in pending if failed.get(row.id) != row.checksum_sha256
-                 and row.id not in {r.id for r in rows}]
+        failed = _load_failed(low, high)
+        for proxy_id, checksum in failed.items():
+            if current.get(proxy_id) != checksum:
+                _unmark_failed(proxy_id, checksum)
+        for row in pending:
+            if row.id not in seen and failed.get(row.id) != row.checksum_sha256:
+                seen.add(row.id)
+                rows.append(row)
     return rows[:max(1, min(limit, 16))]
 
 
@@ -232,22 +252,17 @@ def backfill(db, limit=4, time_budget=40.0):
     reference-aware cleanup reclaims their files after its grace period.
     """
     bind = db.get_bind()
-    failed_ids = _load_failed()
-    before = dict(failed_ids)
-    rows = _candidates(db, limit, failed_ids, time.time())
+    rows = _candidates(db, limit, time.time())
     db.rollback()
-    if failed_ids != before:
-        _save_failed(failed_ids)
     generated = failed = 0
     deadline = time.monotonic() + time_budget
-    for row in rows:
+    for index, row in enumerate(rows):
         if time.monotonic() > deadline:
             break
         try:
             result = generate(row.storage_path, deadline)
             if result is None:
-                failed_ids[row.id] = row.checksum_sha256
-                _save_failed(failed_ids)
+                _mark_failed(row.id, row.checksum_sha256)
                 failed += 1
                 continue
             path, checksum, size = result
@@ -272,12 +287,16 @@ def backfill(db, limit=4, time_budget=40.0):
                 mark_thumbnail_referenced(path)
                 session.commit()
                 generated += 1
-        except (Deferred, BudgetExceeded):
-            # Transient: disk will recover, budget renews next tick. The proxy
-            # stays selectable so a later tick retries it; nothing is fenced.
-            break
+        except Deferred:
+            break  # Disk floor: global and transient; nothing is fenced.
+        except BudgetExceeded:
+            if index == 0:
+                # It had the whole tick budget to itself and still ran out:
+                # fence it, or it would head every tick and starve the rest.
+                _mark_failed(row.id, row.checksum_sha256)
+                failed += 1
+            break  # Otherwise earlier work spent the budget; retry next tick.
         except (OSError, ValueError, subprocess.SubprocessError, IntegrityError):
-            failed_ids[row.id] = row.checksum_sha256
-            _save_failed(failed_ids)
+            _mark_failed(row.id, row.checksum_sha256)
             failed += 1
     return dict(scanned=len(rows), generated=generated, failed=failed)

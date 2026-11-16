@@ -209,18 +209,26 @@ def test_disk_deferral_is_retried_after_recovery(test_db, root, monkeypatch):
     assert av.backfill(test_db, 4) == dict(scanned=1, generated=1, failed=0)
 
 
-def test_budget_bound_timeout_defers_without_fencing(test_db, root, monkeypatch):
-    import time
-    _, proxy = _proxy(test_db, root, 'slow-budget', 'proxy_720p', 'a' * 64)
-    (root / 'slow-budget-proxy_720p.mp4').touch()
-    def slow_run(*args, **kwargs):
-        raise subprocess.TimeoutExpired(cmd=args[0], timeout=kwargs.get('timeout'))
-    monkeypatch.setattr(av.subprocess, 'run', slow_run)
-    # 5 s left on the tick: ffprobe gets a 5 s budget-bound timeout, so the
-    # proxy waits for the next tick instead of being fenced as broken.
-    assert av.backfill(test_db, 4, time_budget=5.0) == dict(scanned=1, generated=0, failed=0)
-    assert [row.id for row in av.pending_proxies(test_db, 16)] == [proxy.id]
+def test_budget_exhaustion_defers_later_rows_but_fences_a_proxy_that_had_it_all(test_db, root, monkeypatch):
+    _, slow = _proxy(test_db, root, 'slow-budget', 'proxy_720p', 'a' * 64)
+    _, fast = _proxy(test_db, root, 'fast', 'proxy_720p', 'c' * 64)
+    def generate(source, deadline=None):
+        if 'fast' in source:  # newest first: spends the budget, then succeeds
+            checksum = hashlib.sha256(source.encode()).hexdigest()
+            path = root / 'animated' / checksum[:2] / f'{checksum}.webp'
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(b'x' * 10)
+            return str(path), checksum, 10
+        raise av.BudgetExceeded()
+    monkeypatch.setattr(av, 'generate', generate)
+    # Budget spent by earlier work: the slow proxy waits for the next tick.
+    assert av.backfill(test_db, 4) == dict(scanned=2, generated=1, failed=0)
+    assert [row.id for row in av.pending_proxies(test_db, 16)] == [slow.id]
     test_db.rollback()
+    # Next tick it heads the batch with the full budget and still runs out:
+    # fenced, so it cannot head every later tick and starve the rest.
+    assert av.backfill(test_db, 4) == dict(scanned=1, generated=0, failed=1)
+    assert av.backfill(test_db, 4)['scanned'] == 0
 
 
 def test_full_cap_timeout_still_fences(test_db, root, monkeypatch):
@@ -515,10 +523,12 @@ def test_tick_scan_skips_old_ids_outside_windows_and_prunes_stale_failures(test_
     # Only the newest id and the rotating window are inspected per tick.
     minute_for_recent = av._windows(recent.id, 0)
     assert all(high - low <= 1 for low, high in minute_for_recent)
-    failed = {old.id: 'stale-generation', recent.id: 'f' * 64, 999_999: 'gone'}
+    av._mark_failed(old.id, 'stale-generation')
+    av._mark_failed(recent.id, 'f' * 64)
     ids = set()
     for minute in range(recent.id + 1):
-        ids.update(row.id for row in av._candidates(test_db, 16, failed, minute * 60))
+        ids.update(row.id for row in av._candidates(test_db, 16, minute * 60))
     # The current failure stays fenced; the replaced generation is pruned and retried.
     assert ids == {old.id}
-    assert failed == {recent.id: 'f' * 64}
+    markers = {p.name for p in (root / '.animated-failed').rglob('*') if p.is_file()}
+    assert markers == {f"{recent.id}.{'f' * 64}"}
