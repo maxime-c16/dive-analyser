@@ -23,6 +23,10 @@ STOP_MOTION_FRAMES = 10
 FRAME_MS = 220
 TRANSFORM_VERSION = 'stop-motion-v2'
 MAX_BYTES = 80_000
+# Worst-case scratch under the cache root: one still at most 360x720 RGB PNG
+# (< 0.8 MB, deleted once loaded) plus the encoded tile (<= MAX_BYTES during
+# the size ladder, a few attempts). Checked against the disk floor up front.
+SCRATCH_RESERVE = 4 * 1024**2
 _LADDER = ((360, 50), (320, 45), (288, 40), (240, 35))
 _FAILED_DIR = '.animated-failed'
 # Each tick inspects at most two id windows of this size: the newest ids (new
@@ -85,11 +89,14 @@ def _frames(path, temp, deadline):
         _run_bounded(['nice', '-n', '15', 'ffmpeg', '-v', 'error', '-nostdin',
             '-threads', '1', '-filter_threads', '1',
             '-ss', f'{duration * (index + .5) / STOP_MOTION_FRAMES:.3f}', '-i', str(path),
-            '-frames:v', '1', '-an', '-vf', "scale='min(360,iw)':-2", '-y', str(still)],
+            '-frames:v', '1', '-an', '-vf',
+            "scale='min(360,iw)':'min(720,ih)':force_original_aspect_ratio=decrease:force_divisible_by=2",
+            '-y', str(still)],
             deadline, 30, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         if still.is_file():  # a seek past the last keyframe yields nothing; skip it
             with Image.open(still) as image:
                 frames.append(image.convert('RGB'))
+            still.unlink()  # one intermediate on disk at a time (see SCRATCH_RESERVE)
     return frames
 
 
@@ -99,7 +106,7 @@ def generate(source, deadline=None):
     path.relative_to(root)
     if not path.is_file():
         return None
-    if shutil.disk_usage(root).free < MIN_FREE_BYTES + 1024**2:
+    if shutil.disk_usage(root).free < MIN_FREE_BYTES + SCRATCH_RESERVE:
         raise Deferred()
     with tempfile.TemporaryDirectory(dir=root) as temp:
         frames = _frames(path, temp, deadline)

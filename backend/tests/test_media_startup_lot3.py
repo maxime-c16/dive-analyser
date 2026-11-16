@@ -71,6 +71,8 @@ def test_real_ffmpeg_bounded_webp_and_backfill(test_db, root, monkeypatch):
     def record(command, **kwargs):
         if command[0] == 'nice':
             seeks.append(float(command[command.index('-ss') + 1]))
+            # Scratch stays within SCRATCH_RESERVE: earlier stills are gone.
+            assert not list(Path(command[-1]).parent.glob('*.png'))
         return real_run(command, **kwargs)
     monkeypatch.setattr(av.subprocess, 'run', record)
     assert av.generate(path)
@@ -246,7 +248,8 @@ def test_full_cap_timeout_still_fences(test_db, root, monkeypatch):
 def test_disk_floor_and_path_confinement(root, monkeypatch):
     path = root / 'proxy.mp4'
     path.touch()
-    monkeypatch.setattr(av.shutil, 'disk_usage', lambda _: SimpleNamespace(free=av.MIN_FREE_BYTES))
+    monkeypatch.setattr(av.shutil, 'disk_usage',
+        lambda _: SimpleNamespace(free=av.MIN_FREE_BYTES + av.SCRATCH_RESERVE - 1))
     monkeypatch.setattr(av.subprocess, 'run', lambda *a, **k: pytest.fail('ffmpeg below floor'))
     with pytest.raises(av.Deferred):
         av.generate(path)
