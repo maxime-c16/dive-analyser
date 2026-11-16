@@ -235,6 +235,34 @@ def test_full_cap_timeout_still_fences(test_db, root, monkeypatch):
     assert av.backfill(test_db, 4)['scanned'] == 0
 
 
+def test_drained_tick_proves_no_work_with_bounded_probe(test_db, root, monkeypatch):
+    from sqlalchemy import event
+    _proxy(test_db, root, 'drained', 'proxy_720p', 'a' * 64)
+    def generate(source, deadline=None):
+        checksum = hashlib.sha256(source.encode()).hexdigest()
+        path = root / 'animated' / checksum[:2] / f'{checksum}.webp'
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(b'x' * 10)
+        return str(path), checksum, 10
+    monkeypatch.setattr(av, 'generate', generate)
+    assert av.backfill(test_db, 4) == dict(scanned=1, generated=1, failed=0)
+    statements = []
+    def record(conn, cursor, statement, *args, **kwargs):
+        statements.append(statement)
+    bind = test_db.get_bind()
+    event.listen(bind, 'before_cursor_execute', record)
+    try:
+        assert av.backfill(test_db, 4) == dict(scanned=0, generated=0, failed=0)
+    finally:
+        event.remove(bind, 'before_cursor_execute', record)
+    # Only the bounded max(id) probe runs: no candidate scan with its
+    # correlated per-row checks once the backlog is drained.
+    assert len(statements) == 1 and 'max(' in statements[0].lower()
+    # A new arrival retriggers the full scan and gets its tile.
+    _proxy(test_db, root, 'arrival', 'proxy_720p', 'b' * 64)
+    assert av.backfill(test_db, 4) == dict(scanned=1, generated=1, failed=0)
+
+
 def test_disk_floor_and_path_confinement(root, monkeypatch):
     path = root / 'proxy.mp4'
     path.touch()

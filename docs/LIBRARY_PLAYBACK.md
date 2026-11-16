@@ -80,7 +80,9 @@ constants), at most 80 KB (width steps down 360 → 240 px to fit). The
 per-minute media tick (`scripts/media_migration.py tick`) builds up to 4 tiles
 for local proxies still missing a `stop-motion-v2` tile, newest first, one per
 asset (720p preferred), and drops the asset's older tile so orphan cleanup
-reclaims it. Proxies that cannot produce a tile are remembered in
+reclaims it. Drained ticks stay cheap: a bounded max(id) probe over ready
+proxies skips the candidate scan unless a new proxy arrived or the previous
+tick left deferred work, so stragglers are still retried. Proxies that cannot produce a tile are remembered in
 `.animated-failed.json` under the cache root and not retried. Assets without a
 local proxy have no tile. Disk floor and the original lot design:
 [audit lot 3](audits/media-startup-opus/lot3-result.md).
