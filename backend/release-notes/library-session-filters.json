@@ -1,0 +1,8 @@
+{
+  "id": "library-session-filters",
+  "date": "2026-11-16",
+  "title": "Library sessions respect your filters",
+  "body": "Searching for a dive now hides full-session recordings. Date filters also apply to sessions in both grid and list views.",
+  "audience": "all",
+  "components": ["frontend"]
+}

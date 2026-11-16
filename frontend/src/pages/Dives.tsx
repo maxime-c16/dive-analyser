@@ -924,6 +924,12 @@ function DiveLibrary() {
     deferredQuery,
     period,
   ].filter(Boolean).length;
+  // Full recordings have no dive code, height or performance metadata.
+  // They belong in the browsing timeline, but cannot match a dive search.
+  const visibleSessions = useMemo(() => {
+    if (query.trim() || heightFilter || contextFilter || performanceFilter || modifiers.length) return [];
+    return sharedSessions.filter(session => !periodFrom || session.date >= periodFrom.slice(0, 10));
+  }, [sharedSessions, query, heightFilter, contextFilter, performanceFilter, modifiers.join(","), periodFrom]);
   const reset = () =>
     update({
       q: null,
@@ -1195,7 +1201,7 @@ function DiveLibrary() {
       )}
       {!loading && (!error || dives.length > 0) && (
         <section className="mt-3 border-t border-app pt-3 sm:mt-5 sm:pt-5">
-          {filtered.length === 0 && !sharedSessions.length ? (
+          {filtered.length === 0 && !visibleSessions.length ? (
             <div className="border-b border-app py-16 text-center" role="status">
               <p className="font-medium text-app-text">
                 {t("dives.noMatches")}
@@ -1227,10 +1233,10 @@ function DiveLibrary() {
             ) : (
               <>
                 {view === "grid" ? (
-                  <LibraryCardGrid sessions={sharedSessions} attempts={visible} onOpen={openClip} showDiver={scope === "all"} />
+                  <LibraryCardGrid sessions={visibleSessions} attempts={visible} onOpen={openClip} showDiver={scope === "all"} />
                 ) : (
                   <div className="border border-app bg-app-panel">
-                    {mergeSessionsAndDives(sharedSessions, visible).map((entry) => (
+                    {mergeSessionsAndDives(visibleSessions, visible).map((entry) => (
                       entry.kind === "session" ? (
                         <SessionRow key={`session-${entry.session.session_id}`} session={entry.session} />
                       ) : (
@@ -1262,7 +1268,7 @@ function DiveLibrary() {
           )}
         </section>
       )}
-      {sessionsCursor && (
+      {sessionsCursor && !query.trim() && !heightFilter && !contextFilter && !performanceFilter && !modifiers.length && (
         <div className="mt-5 text-center">
           <button
             type="button"
