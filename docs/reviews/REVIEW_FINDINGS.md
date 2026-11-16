@@ -248,3 +248,9 @@ run `43902679724` at `5e646085`); grouped by invariant, not separate defects.
 Validation: backend PostgreSQL/rules/scoring checks, frontend session/setup
 and locale parity tests, TypeScript and production bundle (see current CI for
 complete-head results). No production history annotations changed.
+
+## PR #212 — authentication-disabled route contract (2026-11-16)
+
+- R80 confirmed: [OpenCode review](https://github.com/maxime-c16/dive-analyser/actions/runs/43919898118), reviewed head `6d7d719daeea33f7fb04abc491b9d7fc4f3fdfbd`. With account authentication disabled, technique ownership routes returned 403 and preferences/context routes returned 401, contrary to the private-route 404 contract in `auth.get_current_user`.
+- Fix: a shared authentication-enabled dependency on both technique routers rejects disabled requests before handler database access, including preferences, context inventory, and all adjustment reads/writes. Enabled-mode session/ownership checks are retained.
+- Validation: HTTP regressions enumerate every route/method on both routers, require 404 without any database dependency executing, and verify enabled-mode anonymous preferences/contexts still return 401 and owned history returns 403. Existing PostgreSQL and attribution rules also run; fixed SHA is this record's introducing commit.

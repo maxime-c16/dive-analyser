@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select, text, func
 from sqlalchemy.orm import Session, load_only
 from app.database import get_db
+from app.config import get_settings
 from app.models.diver import Diver
 from app.models.dive import Dive
 from app.models.technique_history import TechniqueTrack, Technique, TechniqueEpisode, TechniqueRevision
@@ -14,7 +15,13 @@ from app.services.user_access import user_has_diver_access
 from app.services.technique_history import FAMILIES
 from app.services.technique_history_sql import RESOLVED, comparison_sql
 
-router = APIRouter(prefix='/technique-history', tags=['technique-history'])
+def require_technique_auth_enabled():
+    if not get_settings().user_auth_enabled:
+        raise HTTPException(404, 'Not found')
+
+
+router = APIRouter(prefix='/technique-history', tags=['technique-history'],
+                   dependencies=[Depends(require_technique_auth_enabled)])
 
 
 def owner(request, db, diver, lock=False):

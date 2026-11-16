@@ -9,9 +9,10 @@ from app.database import get_db
 from app.models.dive import Dive
 from app.models.technique_history import TechniqueTrack, Technique, TechniqueEpisode, TechniqueRevision
 from app.services.technique_history import FAMILIES
-from .technique_history import ContextInput, Change, owner, snapshot, local_boundary
+from .technique_history import ContextInput, Change, owner, snapshot, local_boundary, require_technique_auth_enabled
 
-router=APIRouter(prefix='/technique-adjustments',tags=['technique-history'])
+router=APIRouter(prefix='/technique-adjustments',tags=['technique-history'],
+                 dependencies=[Depends(require_technique_auth_enabled)])
 
 def revision(db,diver):
     return int(db.scalar(select(func.coalesce(func.sum(TechniqueTrack.revision),0)+func.count()).where(TechniqueTrack.diver_id==diver)))
