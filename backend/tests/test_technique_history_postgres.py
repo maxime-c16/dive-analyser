@@ -173,6 +173,8 @@ def test_sql_rating_preserves_app_phase_weighting_and_missing_values(pg):
         p=dict(diver=1,track=1,code='103',apparatus='springboard',height='3',position='B',sync=False)
         assert float(c.scalar(text(RESOLVED+' SELECT rating FROM resolved'),p))==pytest.approx(attempt_score_10('G','G','P'))
         c.execute(text('UPDATE dives SET performance=NULL WHERE id=1'))
+        assert float(c.scalar(text(RESOLVED+' SELECT rating FROM resolved'),p))==pytest.approx(attempt_score_10(None,'G','P'))
+        c.execute(text('UPDATE dives SET phase1_performance=NULL,phase2_performance=NULL WHERE id=1'))
         assert c.scalar(text(RESOLVED+' SELECT rating FROM resolved'),p) is None
 
 def test_copy_is_independent_and_preserves_target_upcoming_boundary(pg,monkeypatch):
@@ -723,3 +725,35 @@ def test_track_names_cannot_shadow_internal_adjustment_prefix(pg,monkeypatch):
         track=api.create_track(1,api.TrackInput(name='General'),None,db)
         assert track['name']=='General'
         assert db.scalar(text('SELECT count(*) FROM technique_tracks'))==1
+
+
+def test_technique_ratings_use_the_shared_nullable_scoring_expression(pg):
+    from app.services.performance_scoring import recorded_score_10_expression
+    from app.models.dive import Dive
+    from sqlalchemy import select
+    with pg.begin() as c:
+        c.execute(text("INSERT INTO dives(id,session_id,diver_id,dive_code,platform_type,height,position,is_sync,performance,phase1_performance,phase2_performance,dive_datetime) SELECT row_number() OVER()+1,1,1,'103','springboard','3','B',false,'G',a,b,'2026-01-01' FROM unnest(ARRAY['F','B','M','G','P']) a CROSS JOIN unnest(ARRAY['F','B','M','G','P']) b"))
+        c.execute(text("INSERT INTO dives(id,session_id,diver_id,dive_code,platform_type,height,position,is_sync,performance,phase1_performance,phase2_performance,dive_datetime) VALUES(100,1,1,'103','springboard','3','B',false,NULL,'g','p','2026-01-01'),(101,1,1,'103','springboard','3','B',false,'m','unknown','G','2026-01-01')"))
+        expected=dict(c.execute(select(Dive.id,recorded_score_10_expression())).all())
+        actual=dict(c.execute(text(RESOLVED+' SELECT id,rating FROM resolved'),dict(diver=1,track=0,code='103',apparatus='springboard',height='3',position='B',sync=False)).all())
+        assert actual.keys()==expected.keys()
+        for key,value in expected.items():assert float(actual[key])==pytest.approx(float(value)) if value is not None else actual[key] is None
+
+
+def test_session_browser_paginates_month_inventory_beyond_ten_years(pg,monkeypatch):
+    from types import SimpleNamespace
+    from sqlalchemy.orm import Session
+    from app.api.v1 import technique_history as api
+    monkeypatch.setattr(api,'owner',lambda *a,**kw:SimpleNamespace(id=1))
+    with pg.begin() as c:
+        c.execute(text("INSERT INTO technique_tracks(id,diver_id,name,revision) VALUES(1,1,'General',0); INSERT INTO sessions(id) SELECT n FROM generate_series(2,122) n; INSERT INTO dives(id,session_id,diver_id,dive_code,platform_type,height,position,is_sync,performance,dive_datetime) SELECT n,n,1,'103','springboard','3','B',false,'G','2000-01-01'::timestamp+n*interval '1 month' FROM generate_series(2,122) n"))
+    with Session(pg) as db:
+        args=dict(code='103',apparatus='springboard',height='3',position='B',sync=False)
+        first=api.browse_sessions(1,1,api.SessionBrowse(**args),None,db)
+        assert len(first['months'])==120 and first['months_next']
+        second=api.browse_sessions(1,1,api.SessionBrowse(**args,months_after=first['months_next']),None,db)
+        assert len(second['months'])==2 and second['months_next'] is None
+        assert len({m['month'] for m in first['months']+second['months']})==122
+        oldest=second['months'][-1]['month']
+        filtered=api.browse_sessions(1,1,api.SessionBrowse(**args,month=oldest),None,db)
+        assert len(filtered['items'])==1 and filtered['items'][0]['first_at'].strftime('%Y-%m')==oldest

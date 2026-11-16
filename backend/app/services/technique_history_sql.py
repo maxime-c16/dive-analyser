@@ -3,14 +3,14 @@
 Bounded details use LIMIT 51. Aggregates deliberately scan all eligible rows.
 All parameters are bound and authorization is performed before this SQL runs.
 """
-from app.services.performance_scoring import ATHLETE_SCORE_10
+from sqlalchemy.dialects import postgresql
+from sqlalchemy.orm import aliased
+from app.models.dive import Dive
+from app.services.performance_scoring import recorded_score_10_expression
 
-
-def _rating(column):
-    return 'CASE ' + column + ' ' + ' '.join(f"WHEN '{key}' THEN {value}" for key,value in ATHLETE_SCORE_10.items()) + ' END'
-
-
-RATING = f"CASE WHEN d.performance IS NULL THEN NULL WHEN d.phase1_performance IS NOT NULL AND d.phase2_performance IS NOT NULL THEN 0.45 * ({_rating('d.phase1_performance')}) + 0.55 * ({_rating('d.phase2_performance')}) ELSE ({_rating('d.performance')}) END"
+# Compile the scoring owner's nullable expression for the raw-SQL dive alias.
+RATING = str(recorded_score_10_expression(aliased(Dive, name='d')).compile(
+    dialect=postgresql.dialect(), compile_kwargs={'literal_binds': True}))
 
 RESOLVED = """
 WITH eligible AS (

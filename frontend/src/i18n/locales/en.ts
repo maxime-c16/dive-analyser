@@ -39,6 +39,8 @@ const en = {
     "copyOnce": "independent copy, only where you choose"
 },
   technique: {
+    earlierMonths: "Earlier months",
+    recentMonths: "Recent months",
     resumeHistory: "Resume my history",
     adjustFollowing: "Adjust the existing period start",
     switchToAdjustment: "Switch to adjusting this period? Your draft will be kept.",

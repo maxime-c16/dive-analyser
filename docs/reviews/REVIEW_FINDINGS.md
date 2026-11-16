@@ -216,3 +216,27 @@ backfills from `dive_datetime`), new backend requires it first; parent applies
 it manually before deploy. Residual risks: production backfill/index build time
 on the `dives` volume (schedule + backup per implementation record); no
 physical iPhone/Safari/VoiceOver validation claimed.
+
+## PR #212 — hosted review follow-up (2026-11-16)
+
+Source: [OpenCode review](https://github.com/maxime-c16/dive-analyser/actions/runs/43905181641),
+reviewed head `a0cf602ed2389dc6904687c257b125103c19534d` (repeats
+run `43902679724` at `5e646085`); grouped by invariant, not separate defects.
+
+- R78 confirmed: technique SQL duplicated phase weights and discarded valid
+  phase-only ratings. `recorded_score_10_expression` now accepts an optional
+  mapped alias; technique SQL compiles that shared expression for `d` using
+  bound-owner literals. PostgreSQL checks compare all 25 phase combinations,
+  lowercase/missing values and fallback against the scoring owner's SQL result.
+  The existing missing-note test now distinguishes missing overall letter from
+  missing all three rating fields, matching the maintained scoring contract.
+- R79 confirmed: the month selector silently dropped inventory beyond 120
+  months. Added a 120-month page plus sentinel/continuation cursor and visible
+  earlier/recent month controls. Session pages remain bounded independently;
+  a selected month stays selectable while paging the inventory. PostgreSQL
+  coverage spans 122 distinct months and retrieves the oldest month's session;
+  a frontend regression covers paging while preserving the selected month.
+
+Validation: backend PostgreSQL/rules/scoring checks, frontend session/setup
+and locale parity tests, TypeScript and production bundle (see current CI for
+complete-head results). No production history annotations changed.

@@ -7,6 +7,7 @@ export type TechniqueSession = { session_id:number; first_id:number; first_at:st
 export default function TechniqueSessionBrowser({base,context,revision,onChoose,onReview,count,initialPage,onPageChange,onRevision,exactOnly=false,hideTechnique=false}:{base:string;context:object;revision:number;onChoose:(session:TechniqueSession,exact:boolean,approximate?:boolean)=>void;onReview:()=>void;count:number;hideTechnique?:boolean;exactOnly?:boolean;initialPage?:{month:string;after:number};onPageChange?:(page:{month:string;after:number})=>void;onRevision?:(revision:number)=>void}) {
  const {t,i18n}=useTranslation()
  const [items,setItems]=useState<TechniqueSession[]>([]),[months,setMonths]=useState<{month:string;sessions:number}[]>([])
+ const [monthsAfter,setMonthsAfter]=useState(''),[monthsNext,setMonthsNext]=useState<string|null>(null)
  const [month,setMonth]=useState(initialPage?.month??''),[after,setAfter]=useState(initialPage?.after??0),[next,setNext]=useState<number|null>(null),[selected,setSelected]=useState<number|null>(null)
  const [loading,setLoading]=useState(true),[error,setError]=useState(''),[retry,setRetry]=useState(0)
  const key=JSON.stringify(context)
@@ -14,16 +15,17 @@ export default function TechniqueSessionBrowser({base,context,revision,onChoose,
  useEffect(()=>{onPageChange?.({month,after})},[month,after,onPageChange])
  useEffect(()=>{
   let current=true;const controller=new AbortController();setLoading(true);setError('');setSelected(null)
-  api.post(`${base}/browse-sessions`,{...context,after,month},{signal:controller.signal}).then(({data})=>{
+  api.post(`${base}/browse-sessions`,{...context,after,month,months_after:monthsAfter},{signal:controller.signal}).then(({data})=>{
    if(!current)return
    if(data.revision!==expectedRevision){setError(t('technique.conflict'));return}
-   setItems(data.items);setMonths(data.months);setNext(data.next)
+   setItems(data.items);setMonths(data.months);setMonthsNext(data.months_next??null);setNext(data.next)
   }).catch(()=>{if(current&&!controller.signal.aborted)setError(t('technique.unavailable'))}).finally(()=>{if(current)setLoading(false)})
   return()=>{current=false;controller.abort()}
- },[base,key,expectedRevision,after,month,retry,t])
+ },[base,key,expectedRevision,after,month,monthsAfter,retry,t])
  return <div className="th-session-browser">
   <div className="th-session-browser-head"><h3>{t('technique.chooseSession')}</h3>{count>0&&<button className="th-primary" onClick={onReview}>{t('technique.reviewMarkers',{count})}</button>}</div>
-  <label className="th-field">{t('technique.month')}<select value={month} onChange={e=>{setMonth(e.target.value);setAfter(0)}}><option value="">{t('technique.allMonths')}</option>{months.map(m=><option key={m.month} value={m.month}>{new Intl.DateTimeFormat(i18n.language,{month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(m.month+'-01T12:00:00Z'))}</option>)}</select></label>
+  <label className="th-field">{t('technique.month')}<select value={month} onChange={e=>{setMonth(e.target.value);setAfter(0)}}><option value="">{t('technique.allMonths')}</option>{(month&&!months.some(m=>m.month===month)?[{month,sessions:0},...months]:months).map(m=><option key={m.month} value={m.month}>{new Intl.DateTimeFormat(i18n.language,{month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(m.month+'-01T12:00:00Z'))}</option>)}</select></label>
+  {(monthsAfter||monthsNext)&&<div className="th-pagination">{monthsAfter&&<button disabled={loading} onClick={()=>setMonthsAfter('')}>{t('technique.recentMonths')}</button>}{monthsNext&&<button disabled={loading} onClick={()=>setMonthsAfter(monthsNext)}>{t('technique.earlierMonths')}</button>}</div>}
   {error?<div><p role="alert" className="th-error">{error}</p><button className="th-secondary" onClick={async()=>{try{const {data}=await api.get(`${base}/revisions`);setExpectedRevision(data.revision);onRevision?.(data.revision);setRetry(n=>n+1)}catch{setError(t('technique.unavailable'))}}}>{t('technique.retry')}</button></div>:loading?<p role="status">{t('technique.loadingClips')}</p>:<>
   <ol className="th-session-cards">{items.map((s,index)=><li key={s.session_id}>
    {(index===0||items[index-1].first_at.slice(0,7)!==s.first_at.slice(0,7))&&<h4>{new Intl.DateTimeFormat(i18n.language,{month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(s.first_at+'Z'))}</h4>}

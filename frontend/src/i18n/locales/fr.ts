@@ -39,6 +39,8 @@ const fr = {
     "copyOnce": "copie indépendante, uniquement sur votre choix"
 },
   technique: {
+    earlierMonths: "Mois précédents",
+    recentMonths: "Mois récents",
     resumeHistory: "Reprendre mon historique",
     adjustFollowing: "Ajuster le début de la période existante",
     switchToAdjustment: "Passer à l’ajustement de cette période ? Votre brouillon sera conservé.",

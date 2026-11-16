@@ -140,6 +140,7 @@ def attempts(diver: int, track: int, body: ReadInput, request: Request, db: Sess
 
 
 class SessionBrowse(ContextInput):
+    months_after:str = Field(default='',max_length=7,pattern=r'^(|[0-9]{4}-(0[1-9]|1[0-2]))$')
     after:int = Field(default=0,ge=0)
     month:str = Field(default='',max_length=7,pattern=r'^(|[0-9]{4}-(0[1-9]|1[0-2]))$')
 
@@ -164,8 +165,8 @@ def browse_sessions(diver:int,track:int,body:SessionBrowse,request:Request,db:Se
     LEFT JOIN techniques t ON t.id=g.intended_id AND t.track_id=:track AND g.techniques=1
     ORDER BY first_at DESC,session_id DESC"""
     rows=db.execute(text(sql),params).mappings().all()
-    months=db.execute(text(RESOLVED+" SELECT to_char(first_at,'YYYY-MM') AS month,count(*) sessions FROM (SELECT session_id,min(history_occurred_at) first_at FROM resolved GROUP BY session_id) g GROUP BY 1 ORDER BY 1 DESC LIMIT 120"),params).mappings().all()
-    return {'revision':row.revision,'items':[dict(r) for r in rows[:24]],'months':[dict(m) for m in months], 'next':rows[23]['session_id'] if len(rows)>24 else None}
+    months=db.execute(text(RESOLVED+" SELECT to_char(first_at,'YYYY-MM') AS month,count(*) sessions FROM (SELECT session_id,min(history_occurred_at) first_at FROM resolved GROUP BY session_id) g WHERE (:months_after='' OR to_char(first_at,'YYYY-MM')<:months_after) GROUP BY 1 ORDER BY 1 DESC LIMIT 121"),params).mappings().all()
+    return {'revision':row.revision,'items':[dict(r) for r in rows[:24]],'months':[dict(m) for m in months[:120]], 'months_next':months[119]['month'] if len(months)>120 else None, 'next':rows[23]['session_id'] if len(rows)>24 else None}
 
 
 @router.get('/{diver}/{track}/episodes')
