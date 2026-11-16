@@ -294,6 +294,19 @@ deploy that ships it (additive partial index on the unread keyset probes;
 wrapper; idempotent). The previous backend keeps working with or without it.
 Details: docs/audits/ux-fixes/feedback-reliability.md.
 
+### Technique history
+
+Apply `backend/migrations/add_technique_history.sql` **before** deploying the
+backend and frontend for this feature (the new backend selects
+`dives.history_occurred_at`, which only the migration provides). The file is
+additive and idempotent: it backfills the immutable occurrence key once from
+the existing occurrence date, adds one context index, creates the private
+history/preference tables, and installs an INSERT/UPDATE trigger so later
+display-date edits cannot silently reorder history. No Mac service, nginx
+change or automatic migration is required. On backout, restore the previous
+images and keep all additive tables, keys, trigger and revision records.
+Details: [implementation](design/TECHNIQUE_HISTORY_IMPLEMENTATION.md).
+
 ### Two-phase letters follow the score
 
 Apply `backend/migrations/backfill_two_phase_composite_grade.sql` **after**

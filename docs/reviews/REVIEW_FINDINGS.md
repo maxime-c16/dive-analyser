@@ -186,3 +186,33 @@ Maxime requested corrections after Opus, then explicitly stopped further council
 | One-off close / fast repeated Next / background wheel | Unresolved isolated observations, not established regressions. | Retain existing shared overlay/animation guards; no speculative player rewrite. No claim of physical Safari, tactile or VoiceOver validation. |
 
 Validation: 1,012 frontend tests/124 files, 26 PostgreSQL tests plus8 attribution rules; production TypeScript/build passed. Real-media browser smoke: immediate existing-boundary action, visible scoped draft/review, interval pluralization and stationary footer at320px; drafts discarded, history unchanged. Full release catalog still has the pre-existing origin/master missing-note divergence already documented. No push, PR or production deployment, no additional council delegates.
+
+## PR #212 — independent review at 5e646085 (2026-11-16)
+
+Reviewer: sub-agent (Muse Spark 1.3 Contributor xhigh), shared checkout,
+branch `t3/section-modifiers-history`, head `5e646085`. Contracts:
+`docs/design/TECHNIQUE_ADJUSTMENTS.md` (overrides the earlier exclusive-period
+default), `TECHNIQUE_HISTORY_PROPOSAL.md` (unchanged: DB/HU/SD stay opaque
+modifier sets, official dive groups never auto-transfer, family/copy scopes
+explicit). GitHub CI + OpenCode review runs were `in_progress` at inspection
+(single check, no polling); verdict below rests on local evidence, not on
+workflow status.
+
+| ID | Source / SHA examiné | Décision et chemins | Correction / preuve |
+| --- | --- | --- | --- |
+| R75 | Current head `5e646085` — reserved server track prefixes | `confirmed` : `POST .../tracks` accepted any name, so an owner-typed `adjustment-copy-*` track had its episodes excluded from its own exact-code context in both `technique-adjustments/listing` and `RESOLVED` (both filter `adjustment-copy-%`), with no track-rename path to recover visibility | `technique_history.create_track` rejects `adjustment-*` with 422 (server-generated `adjustment-`/`adjustment-copy-` prefixes unaffected). New `test_track_names_cannot_shadow_internal_adjustment_prefix` fails without the guard, passes with it |
+| R76 | Current head `5e646085` — deploy authority gap | `confirmed` (docs) : `add_technique_history.sql` must run before the backend deploy, but `docs/REPO_WORKFLOW.md` listed no technique-history rollout step | Added `### Technique history` subsection (migration first, retain on backout, pointer to implementation record). No product behavior change |
+| R77 | Current head `5e646085` — dead legacy history UI | Noted, not fixed : `TechniqueHistory.tsx` (+ test) is unrendered — `CodeAnalysis` → `TechniqueWorkspace` → `TechniqueAdjustments`. Kept intentionally: it is the legacy exact-code journey with passing tests, not user-visible. Remove in a dedicated cleanup, not in this feature PR | — |
+| — | Current head `5e646085` — rejected candidates | `rejected` with evidence: (a) conflicting-technique assignments dropped by `detach`'s `INSERT…SELECT` — forced by track-scoped identities, covered by `test_remove_legacy_end…` preserving the matching record; (b) `technique-adjustments/preview` taking the diver lock — safe serialization, no write; (c) ScoreChart touch-tap selection change — intended per component contract, covered by `ScoreChart.test.tsx`; (d) mid-mutation context switch — `TechniqueDialog` is a modal `showModal()`, background unreachable | Existing tests, no change |
+
+Validation for this pass (disposable `calendar_test_review_212` only;
+`technique_real_20261110` untouched): 44 backend checks
+(`test_technique_history_rules.py` 8 + `test_technique_history_postgres.py` 36
+incl. R75) pass; focused frontend 108 tests across the 10 technique/clip/score
+files pass; `parity.test.ts` (en/fr) passes; `tsc --noEmit` and the production
+bundle pass. `backend/migrations/add_technique_history.sql` reviewed for
+compatibility: additive/idempotent, old backend keeps working (trigger
+backfills from `dive_datetime`), new backend requires it first; parent applies
+it manually before deploy. Residual risks: production backfill/index build time
+on the `dives` volume (schedule + backup per implementation record); no
+physical iPhone/Safari/VoiceOver validation claimed.

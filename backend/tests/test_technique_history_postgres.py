@@ -706,3 +706,20 @@ def test_independent_stop_validation_stale_revision_and_sequential_resume(pg,mon
             resumed=api.end(1,api.End(**context,revision=stopped['revision'],episode_id=episode['id'],resume=True,commit=True),None,db)
             current=resumed['revision']
         assert db.scalar(text('SELECT count(*) FROM technique_episodes WHERE end_at IS NULL'))==2
+
+
+def test_track_names_cannot_shadow_internal_adjustment_prefix(pg,monkeypatch):
+    from types import SimpleNamespace
+    from sqlalchemy.orm import Session
+    from fastapi import HTTPException
+    from app.api.v1 import technique_history as api
+    monkeypatch.setattr(api,'owner',lambda *a,**kw:SimpleNamespace(id=1))
+    with Session(pg) as db:
+        for reserved in ('adjustment-foo','adjustment-copy-foo'):
+            with pytest.raises(HTTPException) as failure:
+                api.create_track(1,api.TrackInput(name=reserved),None,db)
+            assert failure.value.status_code==422
+            db.rollback()
+        track=api.create_track(1,api.TrackInput(name='General'),None,db)
+        assert track['name']=='General'
+        assert db.scalar(text('SELECT count(*) FROM technique_tracks'))==1

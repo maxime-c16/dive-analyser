@@ -54,6 +54,8 @@ def tracks(diver: int, request: Request, after: int = 0, db: Session = Depends(g
 @router.post('/{diver}/tracks')
 def create_track(diver: int, body: TrackInput, request: Request, db: Session = Depends(get_db)):
     owner(request, db, diver, True)
+    if body.name.startswith('adjustment-'):
+        raise HTTPException(422, 'Reserved track prefix')
     if db.scalar(select(TechniqueTrack.id).where(TechniqueTrack.diver_id==diver, TechniqueTrack.name==body.name)):
         raise HTTPException(409, 'Track name exists')
     row = TechniqueTrack(diver_id=diver, name=body.name)
