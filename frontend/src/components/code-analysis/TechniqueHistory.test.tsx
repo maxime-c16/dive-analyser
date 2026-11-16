@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, expect, it, vi } from 'vitest'
 import TechniqueHistory from './TechniqueHistory'
 import '../../i18n'
@@ -91,4 +91,35 @@ it('defaults a newly recorded context to the viewed position and individual/sync
  setupProps.mockClear();render(<TechniqueHistory diver={1} context={context}/>);await screen.findByText('Later initiation')
  fireEvent.click(screen.getByRole('button',{name:'Fill in my history'}));await screen.findByText('Setup open')
  expect(setupProps).toHaveBeenLastCalledWith(expect.objectContaining({constrainPosition:true,constrainSync:true,context:expect.objectContaining({sync:false,position:'D'})}))
+})
+
+
+it('uses delayed account timezone after existing history has loaded', async () => {
+  const originalGet = get.getMockImplementation()!
+  let resolvePreference!: (value: unknown) => void
+  get.mockImplementation((url: string) => url.endsWith('/preferences')
+    ? new Promise(resolve => { resolvePreference = resolve }) : originalGet(url))
+  render(<TechniqueHistory diver={1} viewer={1} context={context} />)
+  await screen.findByText('Later initiation')
+  await act(async () => { resolvePreference({ data: { timezone: 'Europe/Paris' } }) })
+  await waitFor(() => expect(post).toHaveBeenCalledWith('/api/v1/technique-history/1/7/attempts', expect.objectContaining({ timezone: 'Europe/Paris' })))
+  fireEvent.click(screen.getByRole('button', { name: 'Fill in my history' }))
+  await screen.findByText('Setup open')
+  expect(setupProps).toHaveBeenLastCalledWith(expect.objectContaining({ timezone: 'Europe/Paris' }))
+})
+
+it('ignores the previous viewer timezone arriving after an account switch', async () => {
+  const originalGet = get.getMockImplementation()!
+  let resolveOldPreference!: (value: unknown) => void
+  let preferences = 0
+  get.mockImplementation((url: string) => url.endsWith('/preferences') && preferences++ === 0
+    ? new Promise(resolve => { resolveOldPreference = resolve }) : originalGet(url))
+  const { rerender } = render(<TechniqueHistory diver={1} viewer={1} context={context} />)
+  await screen.findByText('Later initiation')
+  rerender(<TechniqueHistory diver={1} viewer={2} context={context} />)
+  await screen.findByText('Later initiation')
+  await act(async () => { resolveOldPreference({ data: { timezone: 'Europe/Paris' } }) })
+  fireEvent.click(screen.getByRole('button', { name: 'Fill in my history' }))
+  await screen.findByText('Setup open')
+  expect(setupProps).toHaveBeenLastCalledWith(expect.objectContaining({ timezone: 'UTC' }))
 })

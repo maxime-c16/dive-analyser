@@ -67,9 +67,16 @@ export default function TechniqueHistory({ diver, context, viewer }: { viewer?: 
   const uniqueTechniques = episodes.filter((e, i, all) => e.technique_id && all.findIndex(other => other.technique_id === e.technique_id) === i)
   const base = `/api/v1/technique-history/${diver}`
   useEffect(() => {
+    let cancelled = false
+    setTimezone('UTC')
+    api.get('/api/v1/technique-history/preferences').then(({ data }) => {
+      if (!cancelled) setTimezone(data.timezone)
+    }).catch(() => {})
+    return () => { cancelled = true }
+  }, [base, viewer])
+  useEffect(() => {
     const g = ++generation.current
     setSetupReady(false); setSetup(false); setPanel(null); setComparing(false); setNotice(''); setLabel(''); setIdentity(null); setEdit(null); setDateStart(''); setUncertainUntil(''); setAnchor(null); setCopyPreview(null); setBusy(false); setPair([]); setAfter(0); setEpisodeAfter(0); setTrackAfter(0); setTracks([]); setTrack(null); setEpisodes([]); setAttempts([]); setSelected([]); setPreview(null); setError('')
-    api.get('/api/v1/technique-history/preferences').then(({ data }) => { if (g === generation.current) setTimezone(data.timezone) }).catch(() => {})
     api.get(`${base}/tracks`).then(({ data }) => { if (g === generation.current) { setTrackNext(data.next); setTracks(data.items); setTrack(data.items[0]?.id ?? null);if(!data.items.length)setSetupReady(true) } }).catch(() => { if (g === generation.current) setError(t('technique.unavailable')) })
     return () => { generation.current++ }
   }, [base, contextKey, t])
@@ -83,7 +90,7 @@ export default function TechniqueHistory({ diver, context, viewer }: { viewer?: 
       setEpisodeNext(e.data.next); setEpisodes(e.data.items); setRevision(e.data.revision); setAttempts(a.data.items); setNext(a.data.next);setSetupReady(true)
     }).catch(() => { if (g === generation.current) setError(t('technique.unavailable')) })
     return () => { generation.current++ }
-  }, [base, track, contextKey, after, episodeAfter, sessionFilter, fromFilter, toFilter, reload, t])
+  }, [base, track, contextKey, after, episodeAfter, sessionFilter, fromFilter, toFilter, timezone, reload, t])
   async function mutate(path: string, body: unknown) {
     const g = generation.current
     setBusy(true); setError('')
