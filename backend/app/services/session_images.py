@@ -175,7 +175,7 @@ def publish_images(target, staged):
 
 
 def cleanup_session_images(db, limit=100, entry_budget=200):
-    """Bounded unlink of derivatives no live video can serve.
+    """Bounded unlink of derivatives and retry markers for non-live videos.
 
     Posters/animations are regenerable derivatives (~0.5 MB per video), but
     nothing regenerates them on demand, so only files for deleted videos or
@@ -247,9 +247,9 @@ def cleanup_session_images(db, limit=100, entry_budget=200):
                      if not item.is_symlink() and item.is_file(follow_symlinks=False)]
         except FileNotFoundError:
             continue
-        for kind in ('poster', 'animated'):
-            if f'{kind}.webp' in names:
-                files.append((video_id, video_dir / f'{kind}.webp'))
+        for name in ('poster.webp', 'animated.webp', '.image-retry'):
+            if name in names:
+                files.append((video_id, video_dir / name))
         if not names and now - video_dir.stat().st_mtime > _EMPTY_DIR_GRACE_SECONDS:
             try:
                 video_dir.rmdir()
@@ -273,6 +273,12 @@ def cleanup_session_images(db, limit=100, entry_budget=200):
                     freed += path.stat().st_size
                     path.unlink()
                     removed += 1
+                    # Includes marker-only directories; rmdir preserves any
+                    # in-flight staging or unrelated files by failing safely.
+                    try:
+                        path.parent.rmdir()
+                    except OSError:
+                        pass
                 except FileNotFoundError:
                     pass
     return freed
@@ -303,15 +309,15 @@ def extract_images(video):
         target.mkdir(parents=True, exist_ok=True)
         url = presign_get(video.bucket, video.object_key, 600)
         hdr = video.color_transfer in ('arib-std-b67', 'smpte2084')
-        vf = ('zscale=t=linear:npl=100,format=gbrpf32le,zscale=p=bt709,tonemap=mobius,'
-              'zscale=t=bt709:m=bt709:r=tv,format=yuv420p,' if hdr else '') + 'scale=360:-2'
+        vf = 'scale=360:-2,' + ('zscale=t=linear:npl=100,format=gbrpf32le,zscale=p=bt709,tonemap=mobius,'
+              'zscale=t=bt709:m=bt709:r=tv,format=yuv420p' if hdr else 'null')
         with range_source(url) as (source, stats), tempfile.TemporaryDirectory(prefix='session-frames-') as tmp:
             frames = []
             for index in range(10):
                 path = Path(tmp) / f'{index}.png'
                 # -ss BEFORE -i is essential: demuxer seeks over HTTP, never
                 # decodes the preceding 30 minutes. No stdout/stderr URLs.
-                command = ['ffmpeg', '-v', 'error', '-nostdin', '-rw_timeout', '15000000',
+                command = ['ffmpeg', '-v', 'error', '-nostdin', '-threads', '2', '-filter_threads', '1', '-rw_timeout', '15000000',
                     '-ss', str((video.duration_seconds or 1) * (index + .5) / 10),
                     '-i', source, '-frames:v', '1', '-an', '-vf', vf, '-y', str(path)]
                 try:
@@ -319,6 +325,15 @@ def extract_images(video):
                                    timeout=45, check=True)
                     with Image.open(path) as image:
                         frames.append(image.convert('RGB'))
+                    if index == 0:
+                        # Publish a still immediately. An animation failure must
+                        # not discard the usable thumbnail already extracted.
+                        staging = target / f'poster.{os.getpid()}.tmp'
+                        try:
+                            frames[0].save(staging, format='WEBP', quality=78)
+                            publish_images(target, {'poster': staging})
+                        finally:
+                            staging.unlink(missing_ok=True)
                 except (subprocess.SubprocessError, OSError):
                     raise RuntimeError('Session image extraction failed') from None
             publish_saved_frames(frames, target)
@@ -335,3 +350,58 @@ def publish_saved_frames(frames, target):
         staged = {}
     finally:
         discard_staged(staged)
+
+
+_retry_cursor = 0
+_retry_lock = threading.Lock()
+RETRY_COOLDOWN_SECONDS = 1800
+
+
+def retry_missing_images(db, *, scan_limit=50, attempt_limit=2):
+    """Rotate a bounded page of ready videos; persist cooldown across restarts.
+
+    Called by the reconciler's background thread, never an API request.
+    Existing images are left alone; failed animation retries retain the poster.
+    """
+    global _retry_cursor
+    from time import time
+    from types import SimpleNamespace
+    from sqlalchemy import select
+    from app.models.session_video import SessionVideo
+    import logging
+    if not _retry_lock.acquire(blocking=False):
+        return 0
+    try:
+        rows = db.execute(select(
+            SessionVideo.id, SessionVideo.bucket, SessionVideo.object_key,
+            SessionVideo.duration_seconds, SessionVideo.color_transfer,
+        ).where(SessionVideo.status == 'ready', SessionVideo.deleted_at.is_(None),
+                SessionVideo.id > _retry_cursor).order_by(SessionVideo.id).limit(scan_limit)).mappings().all()
+        db.rollback()  # no database connection held during remote reads
+        attempted = 0
+        for row in rows:
+            _retry_cursor = row['id']
+            marker = image_path(row['id'], 'poster').parent / '.image-retry'
+            if all(image_path(row['id'], kind).is_file() for kind in ('poster', 'animated')):
+                marker.unlink(missing_ok=True)
+                continue
+            if marker.exists() and time() - marker.stat().st_mtime < RETRY_COOLDOWN_SECONDS:
+                continue
+            marker.parent.mkdir(parents=True, exist_ok=True)
+            marker.touch()
+            attempted += 1
+            try:
+                extract_images(SimpleNamespace(**row))
+                if all(image_path(row['id'], kind).is_file() for kind in ('poster', 'animated')):
+                    marker.unlink(missing_ok=True)
+            except Exception as exc:
+                # Never log signed URLs or arbitrary exception messages.
+                logging.getLogger(__name__).warning('Session image retry failed video=%s error=%s', row['id'], type(exc).__name__)
+            if attempted >= attempt_limit:
+                break
+        else:
+            if len(rows) < scan_limit:
+                _retry_cursor = 0
+        return attempted
+    finally:
+        _retry_lock.release()

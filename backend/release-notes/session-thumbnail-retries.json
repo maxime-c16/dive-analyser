@@ -1,0 +1,1 @@
+{"id":"session-thumbnail-retries","date":"2026-11-16","title":"Session thumbnails recover automatically","body":"Missing session thumbnails are retried in the background without interrupting playback.","audience":"all","components":["backend"]}

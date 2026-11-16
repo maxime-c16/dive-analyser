@@ -1,0 +1,8 @@
+{
+  "id": "mobile-player-stable-previews",
+  "date": "2026-11-16",
+  "title": "Easier session playback on mobile",
+  "body": "Session videos stay centered with larger controls and a full-width timeline. Clip and session cards keep a consistent size while previews load, and pending clip thumbnails refresh while visible.",
+  "audience": "all",
+  "components": ["frontend"]
+}
