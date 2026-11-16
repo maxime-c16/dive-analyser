@@ -315,7 +315,6 @@
 .eval-request-identity:hover strong { color:var(--app-accent); }
 .eval-request-thumb { display:block; flex:none; width:44px; height:44px; overflow:hidden; border-radius:6px; }
 .eval-request-date { font-size:12px; color:var(--app-muted); }
-.eval-library-thumb:has([data-preview-state=missing]) { height:40px; }
 .eval-library-thumb [data-preview-state=missing] > div { flex-direction:row; gap:6px; padding:4px; }
 .eval-library-thumb [data-preview-state=missing] svg { width:16px; height:16px; }
 .eval-library-thumb [data-preview-state=missing] span { font-size:11px; }

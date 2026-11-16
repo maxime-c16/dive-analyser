@@ -1,5 +1,5 @@
 import React from 'react'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, expect, it, vi } from 'vitest'
 import DiveThumbnail from './DiveThumbnail'
 import type { Attempt } from '../utils/attemptPresentation'
@@ -9,7 +9,7 @@ vi.mock('../utils/mediaPreview', () => ({
   getPreview: vi.fn(),
 }))
 
-import { cachedPreview } from '../utils/mediaPreview'
+import { cachedPreview, getPreview } from '../utils/mediaPreview'
 
 const dive = {
   id: 2901,
@@ -159,4 +159,29 @@ it('explains absent previews instead of presenting a blank media card', () => {
   const { container } = render(<DiveThumbnail dive={dive} compact />)
   expect(screen.getByText('Preview unavailable')).toBeVisible()
   expect(container.querySelector('video')).toBeNull()
+})
+
+
+it('refreshes a visible pending preview and stops after the poster arrives', async () => {
+  vi.useFakeTimers()
+  const oldObserver = window.IntersectionObserver
+  window.IntersectionObserver = class {
+    constructor(private cb: IntersectionObserverCallback) {}
+    observe() { this.cb([{ isIntersecting: true } as IntersectionObserverEntry], this as unknown as IntersectionObserver) }
+    disconnect() {}
+  } as unknown as typeof IntersectionObserver
+  vi.mocked(cachedPreview).mockReturnValue({ posterUrl: null, videoThumbUrl: null, playbackUrl: null, ready: false })
+  vi.mocked(getPreview).mockResolvedValue({ posterUrl: '/new-poster.webp', videoThumbUrl: null, playbackUrl: null, ready: true })
+  const { unmount } = render(<DiveThumbnail dive={dive} />)
+  try {
+    await act(async () => { await vi.advanceTimersByTimeAsync(10_000) })
+    expect(screen.getByRole('img')).toHaveAttribute('src', '/new-poster.webp')
+    const calls = vi.mocked(getPreview).mock.calls.length
+    await act(async () => { await vi.advanceTimersByTimeAsync(30_000) })
+    expect(getPreview).toHaveBeenCalledTimes(calls)
+  } finally {
+    unmount()
+    window.IntersectionObserver = oldObserver
+    vi.useRealTimers()
+  }
 })

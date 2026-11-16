@@ -479,3 +479,58 @@ def test_session_image_cleanup_removes_only_dead_videos(sessions_env,tmp_path,mo
     assert image_path(live.id,'poster').is_file() and image_path(live.id,'animated').is_file()
     assert not image_path(dead.id,'poster').exists() and not image_path(dead.id,'animated').exists()
     assert not ghost.exists()
+
+
+def test_image_retry_rotates_and_cools_down(sessions_env, monkeypatch, tmp_path):
+    from app.services import session_images as images
+    db, *_ = sessions_env
+    videos = [service.ingest_object(db, KEY)]
+    # Same source row suffices to prove failure is retried without re-ingestion.
+    monkeypatch.setattr(images, '_retry_cursor', 0)
+    monkeypatch.setattr(images, '_session_root', lambda: tmp_path)
+    calls = []
+    def fail(video):
+        calls.append(video.id)
+        raise RuntimeError('failure')
+    monkeypatch.setattr(images, 'extract_images', fail)
+    assert images.retry_missing_images(db, attempt_limit=1) == 1
+    assert images.retry_missing_images(db, attempt_limit=1) == 0  # wrap
+    assert images.retry_missing_images(db, attempt_limit=1) == 0  # cooldown persists
+    marker = images.image_path(videos[0].id, 'poster').parent / '.image-retry'
+    import os
+    os.utime(marker, (0, 0))
+    def succeed(video):
+        calls.append(video.id)
+        for kind in ('poster', 'animated'):
+            images.image_path(video.id, kind).write_bytes(b'webp')
+    monkeypatch.setattr(images, 'extract_images', succeed)
+    assert images.retry_missing_images(db, attempt_limit=1) == 1
+    images.retry_missing_images(db)
+    assert images.retry_missing_images(db) == 0
+    assert calls == [videos[0].id, videos[0].id]
+
+
+def test_still_survives_animation_extraction_failure(monkeypatch, tmp_path):
+    from app.services import session_images as images
+    from contextlib import contextmanager
+    from types import SimpleNamespace
+    from PIL import Image
+    import subprocess
+    monkeypatch.setattr(images, '_session_root', lambda: tmp_path)
+    monkeypatch.setattr(images, 'presign_get', lambda *a: 'unused')
+    @contextmanager
+    def source(url):
+        yield 'http://127.0.0.1/source', {}
+    monkeypatch.setattr(images, 'range_source', source)
+    calls = []
+    def run(command, **kwargs):
+        calls.append(command)
+        if len(calls) > 1:
+            raise subprocess.TimeoutExpired(command, 45)
+        Image.new('RGB', (36, 64), 'blue').save(command[-1])
+    monkeypatch.setattr(images.subprocess, 'run', run)
+    with pytest.raises(RuntimeError, match='extraction failed'):
+        images.extract_images(SimpleNamespace(id=55, bucket='test', object_key='test', duration_seconds=60, color_transfer=None))
+    with Image.open(images.image_path(55, 'poster')) as poster:
+        assert poster.size == (36, 64)
+    assert not images.image_path(55, 'animated').exists()

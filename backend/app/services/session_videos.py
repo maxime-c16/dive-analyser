@@ -520,7 +520,14 @@ def start_reconciler() -> Optional[threading.Event]:
                 logger.error("shared sessions: reconciliation failed (%s)", type(exc).__name__)
             finally:
                 db.rollback()
-                db.close()
+                try:
+                    from app.services.session_images import retry_missing_images
+                    retry_missing_images(db)
+                except Exception as exc:
+                    logger.warning("Session image retries skipped (%s)", type(exc).__name__)
+                finally:
+                    db.rollback()
+                    db.close()
             if stop.wait(max(60, settings.sessions_reconcile_seconds)):
                 return
 
