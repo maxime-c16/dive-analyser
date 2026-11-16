@@ -378,7 +378,7 @@ def test_push_body_formats_form_changes_separately(cal):
     db, occ, club = cal["db"], cal["occ"]["ga"], cal["occ"]["club"]
     live, camp = db.get(EventOccurrence, occ.id), db.get(EventOccurrence, club.id)
     timed_old = live.starts_at.isoformat() + "Z"  # the previous timed slot
-    # ga: timed -> all-day (Sun 15 Nov); camp: all-day -> timed (Mon 16 Nov 16:00).
+    # ga: timed -> all-day; camp: all-day -> timed, relative to the fixture date.
     live.is_all_day, live.starts_at, live.ends_at = True, None, None
     live.start_date, live.end_date = TODAY + timedelta(days=2), TODAY + timedelta(days=3)
     live.window_start = datetime.combine(TODAY + timedelta(days=2), time())
@@ -405,10 +405,15 @@ def test_push_body_formats_form_changes_separately(cal):
                                     now=datetime.utcnow()))
     db.commit()
     ga_push = alerts.push_payload(db, deliveries(cal, delivery_key="push-form-ga")[0])
+    old_local = datetime.fromisoformat(timed_old.replace("Z", "+00:00")).astimezone(ZoneInfo("Europe/Paris"))
+    new_day = (TODAY + timedelta(days=2)).strftime("%a %d %b")
     assert ga_push["body"] == ("Groupe A training · Groupe A · "
-                               "Moved from Sat 14 Nov 19:00 to Sun 15 Nov · Sun 15 Nov")
+                               f"Moved from {old_local:%a %d %b %H:%M} to {new_day} · {new_day}")
     club_push = alerts.push_payload(db, deliveries(cal, delivery_key="push-form-club")[0])
-    assert club_push["body"] == "Club camp · Moved from Mon 16 Nov to Mon 16 Nov 16:00 · Mon 16 Nov 16:00"
+    camp_day = (TODAY + timedelta(days=3)).strftime("%a %d %b")
+    camp_local = camp.starts_at.replace(tzinfo=timezone.utc).astimezone(ZoneInfo("Europe/Paris"))
+    assert club_push["body"] == (f"Club camp · Moved from {camp_day} to "
+                                 f"{camp_local:%a %d %b %H:%M} · {camp_local:%a %d %b %H:%M}")
 
 
 def test_push_body_announces_only_changed_venues(cal):
@@ -634,7 +639,7 @@ def test_merged_details_stay_inexact_after_a_legacy_merge():
 
 def test_push_body_renders_all_day_moves_as_dates(cal):
     """All-day sessions have no real time (local dates define them): a move
-    renders 'Moved from Sun 15 Nov to Mon 16 Nov', never a '00:00'."""
+    renders a move between calendar dates, never a '00:00'."""
     db, occ = cal["db"], cal["occ"]["club"]
     live = db.get(EventOccurrence, occ.id)
     details = {"occurrences": [{"id": live.id, "kinds": ["time_changed"],
@@ -647,7 +652,9 @@ def test_push_body_renders_all_day_moves_as_dates(cal):
                                 now=datetime.utcnow()))
     db.commit()
     payload = alerts.push_payload(db, deliveries(cal, delivery_key="push-allday-move")[0])
-    assert payload["body"] == "Club camp · Moved from Sun 15 Nov to Mon 16 Nov · Mon 16 Nov"
+    old_day = (TODAY + timedelta(days=2)).strftime("%a %d %b")
+    new_day = (TODAY + timedelta(days=3)).strftime("%a %d %b")
+    assert payload["body"] == f"Club camp · Moved from {old_day} to {new_day} · {new_day}"
     assert "00:00" not in payload["body"]
 
 
