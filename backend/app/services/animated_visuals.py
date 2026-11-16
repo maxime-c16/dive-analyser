@@ -48,27 +48,42 @@ def _timeout(deadline, cap):
     return min(cap, remaining)
 
 
-def _duration(path, timeout):
-    out = subprocess.run(['ffprobe', '-v', 'error', '-show_entries', 'format=duration',
-        '-of', 'default=nw=1:nk=1', str(path)], check=True, timeout=timeout,
+def _run_bounded(args, deadline, cap, **kwargs):
+    """Run a subprocess bounded by the smaller of its cap and the tick budget.
+
+    A timeout imposed by the tick budget is a BudgetExceeded (the proxy stays
+    selectable); hitting the full cap means the proxy itself is stuck, which
+    backfill fences as a genuine per-proxy failure.
+    """
+    timeout = _timeout(deadline, cap)
+    try:
+        return subprocess.run(args, check=True, timeout=timeout, **kwargs)
+    except subprocess.TimeoutExpired:
+        if timeout < cap:
+            raise BudgetExceeded()
+        raise
+
+
+def _duration(path, deadline):
+    out = _run_bounded(['ffprobe', '-v', 'error', '-show_entries', 'format=duration',
+        '-of', 'default=nw=1:nk=1', str(path)], deadline, 15,
         capture_output=True, text=True).stdout.strip()
     return max(float(out or 0), 0.0)
 
 
 def _frames(path, temp, deadline):
     from PIL import Image
-    duration = _duration(path, _timeout(deadline, 15))
+    duration = _duration(path, deadline)
     frames = []
     for index in range(STOP_MOTION_FRAMES):
         still = Path(temp) / f'{index}.png'
         # -ss before -i: a keyframe seek per still, never a full decode.
         # Each seek is bounded by the time left on the shared tick deadline.
-        subprocess.run(['nice', '-n', '15', 'ffmpeg', '-v', 'error', '-nostdin',
+        _run_bounded(['nice', '-n', '15', 'ffmpeg', '-v', 'error', '-nostdin',
             '-threads', '1', '-filter_threads', '1',
             '-ss', f'{duration * (index + .5) / STOP_MOTION_FRAMES:.3f}', '-i', str(path),
             '-frames:v', '1', '-an', '-vf', "scale='min(360,iw)':-2", '-y', str(still)],
-            check=True, timeout=_timeout(deadline, 30),
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            deadline, 30, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         if still.is_file():  # a seek past the last keyframe yields nothing; skip it
             with Image.open(still) as image:
                 frames.append(image.convert('RGB'))

@@ -209,6 +209,32 @@ def test_disk_deferral_is_retried_after_recovery(test_db, root, monkeypatch):
     assert av.backfill(test_db, 4) == dict(scanned=1, generated=1, failed=0)
 
 
+def test_budget_bound_timeout_defers_without_fencing(test_db, root, monkeypatch):
+    import time
+    _, proxy = _proxy(test_db, root, 'slow-budget', 'proxy_720p', 'a' * 64)
+    (root / 'slow-budget-proxy_720p.mp4').touch()
+    def slow_run(*args, **kwargs):
+        raise subprocess.TimeoutExpired(cmd=args[0], timeout=kwargs.get('timeout'))
+    monkeypatch.setattr(av.subprocess, 'run', slow_run)
+    # 5 s left on the tick: ffprobe gets a 5 s budget-bound timeout, so the
+    # proxy waits for the next tick instead of being fenced as broken.
+    assert av.backfill(test_db, 4, time_budget=5.0) == dict(scanned=1, generated=0, failed=0)
+    assert [row.id for row in av.pending_proxies(test_db, 16)] == [proxy.id]
+    test_db.rollback()
+
+
+def test_full_cap_timeout_still_fences(test_db, root, monkeypatch):
+    _, proxy = _proxy(test_db, root, 'hung', 'proxy_720p', 'b' * 64)
+    (root / 'hung-proxy_720p.mp4').touch()
+    def hung_run(*args, **kwargs):
+        raise subprocess.TimeoutExpired(cmd=args[0], timeout=kwargs.get('timeout'))
+    monkeypatch.setattr(av.subprocess, 'run', hung_run)
+    # Full 40 s budget: ffprobe gets its whole 15 s cap, so a hang is the
+    # proxy's fault and the proxy is fenced like any permanent failure.
+    assert av.backfill(test_db, 4)['failed'] == 1
+    assert av.backfill(test_db, 4)['scanned'] == 0
+
+
 def test_disk_floor_and_path_confinement(root, monkeypatch):
     path = root / 'proxy.mp4'
     path.touch()
