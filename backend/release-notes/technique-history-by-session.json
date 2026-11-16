@@ -1,0 +1,8 @@
+{
+  "id": "technique-history-by-session",
+  "date": "2026-11-16",
+  "title": "Find your technique changes by session",
+  "body": "Choose a month and session, then mark a technique change from the session start or find its exact dive in the player. Add several changes together and resume your draft on the same device.",
+  "audience": "all",
+  "components": ["frontend", "backend"]
+}

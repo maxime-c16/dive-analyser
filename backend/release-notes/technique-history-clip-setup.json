@@ -1,0 +1,8 @@
+{
+  "id": "technique-history-clip-setup",
+  "date": "2026-11-09",
+  "title": "Find technique changes while watching your dives",
+  "body": "From a dive code, scroll through your clips, mark where a technique starts, and review your periods before saving.",
+  "audience": "all",
+  "components": ["backend", "frontend"]
+}

@@ -96,3 +96,9 @@ v1_router.include_router(dive_series.router, tags=["dive-series"])
 
 from app.api.v1 import judge_rooms
 v1_router.include_router(judge_rooms.router, tags=["judge-rooms"])
+
+from app.api.v1 import technique_history
+v1_router.include_router(technique_history.router)
+
+from . import technique_adjustments
+v1_router.include_router(technique_adjustments.router)

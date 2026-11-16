@@ -148,6 +148,10 @@ def scope_member_reads(state):
         model = mapper.class_
         if model in (Dive, PhotosAsset, TrainingSession, Diver, Notification, DirectMessage):
             continue
+        if model.__tablename__.startswith('technique_') or model.__tablename__ == 'techniques':
+            # Technique routes authorize the entire diver explicitly, including
+            # date-only and deleted-anchor boundaries. Never infer clip grants.
+            continue
         dive_links = [column for column in mapper.columns if any(fk.target_fullname == "dives.id" for fk in column.foreign_keys)]
         if dive_links:
             criteria.append((model, and_(*[getattr(model, column.key).in_(visible_ids) for column in dive_links])))

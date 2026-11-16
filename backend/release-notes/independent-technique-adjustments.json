@@ -1,0 +1,8 @@
+{
+ "id":"independent-technique-adjustments",
+ "date":"2026-11-16",
+ "title":"Technique adjustments can continue together",
+ "body":"Add a change without ending your other adjustments. Choose explicitly what it replaces, stop each adjustment separately, or remove an old end date when it was still in use. Existing history stays unchanged until you edit it.",
+ "audience":"all",
+ "components":["frontend","backend"]
+}

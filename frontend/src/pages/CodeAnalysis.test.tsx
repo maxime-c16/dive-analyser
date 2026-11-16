@@ -7,6 +7,12 @@ import i18n from '../i18n'
 import CodeAnalysis from './CodeAnalysis'
 import { getCodeAttemptsResult, getCodeSummaries } from '../services/codeSummariesApi'
 
+const auth = vi.hoisted(() => ({ user: null as any }))
+vi.mock('../contexts/AuthContext', () => ({ useAuth: () => auth }))
+vi.mock('../components/code-analysis/TechniqueWorkspace', () => ({
+  default: ({ onSelected }: { onSelected?: (active: boolean) => void }) => <button onClick={() => onSelected?.(true)}>Record test technique</button>,
+}))
+
 vi.mock('../services/codeSummariesApi', () => ({
   getCodeAttempts: vi.fn(), getCodeSummaries: vi.fn(),
   getCodeAttemptsResult: vi.fn(() => Promise.resolve({ items: [], capped: false })),
@@ -34,6 +40,7 @@ function renderPage(entry: string) {
 }
 
 beforeEach(() => {
+  auth.user = null
   vi.mocked(getCodeAttemptsResult).mockResolvedValue({ items: attempts as never, capped: false })
   vi.mocked(getCodeSummaries).mockResolvedValue({ generated_at: day(0), codes: [], activity: {} } as never)
 })
@@ -165,4 +172,14 @@ it('updates chart axis numbers and month labels when the app language changes', 
     expect(labels()).toContain('févr 26')
     expect(labels()).not.toContain('Feb 26')
   } finally { width.mockRestore(); await act(async () => { await i18n.changeLanguage('en') }) }
+})
+
+it('keeps the complete Scores panel when a technique period becomes active', async () => {
+  auth.user = { user_id: 1, display_name: 'Test diver', is_admin: true, divers: [] }
+  renderPage('/dives/analysis/5122D')
+  await screen.findByRole('heading', { name: '5122D' })
+  expect(screen.getByRole('heading', { name: 'Scores' })).toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: 'Record test technique' }))
+  expect(screen.getByRole('heading', { name: 'Scores' })).toBeInTheDocument()
+  expect(screen.getByRole('group', { name: 'Chart view' })).toBeInTheDocument()
 })

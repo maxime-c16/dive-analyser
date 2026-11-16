@@ -1,0 +1,8 @@
+{
+  "id": "technique-history",
+  "date": "2026-11-09",
+  "title": "Keep a history of technique changes",
+  "body": "Record technique changes on Scores, distinguish intended technique from recorded use, and compare ratings within the same dive context.",
+  "audience": "all",
+  "components": ["backend", "frontend"]
+}

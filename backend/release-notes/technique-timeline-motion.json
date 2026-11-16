@@ -1,0 +1,8 @@
+{
+  "id": "technique-timeline-motion",
+  "date": "2026-11-10",
+  "title": "Follow technique changes on a steadier graph",
+  "body": "Switching technique periods now animates the highlighted dates while keeping the graph steady. Mobile taps select a period, scrolling leaves it alone, and All periods returns to the full view.",
+  "audience": "all",
+  "components": ["frontend"]
+}

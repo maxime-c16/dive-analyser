@@ -142,3 +142,127 @@ pas un déploiement. Les liens de PR permettent de suivre le SHA final et la CI.
 - Fix: `animated_visuals.py` ranks to one current proxy per asset in SQL (newer ready generation supersedes; 720p still wins over a newer 360p) before limiting; threads a shared monotonic deadline through ffprobe/seeks/encode with a 1 s minimum quantum (`BudgetExceeded`); raises `Deferred` for disk-floor deferrals which `backfill()` stops on without fencing. Paths: `animated_visuals.py`; `test_media_startup_lot3.py` (+ `test_postgres_media_startup_lot3.py` mock signature).
 - Validation: `test_tick_selects_only_newest_proxy_generation`, `test_generate_honours_expired_deadline`, `test_backfill_expired_budget_defers_without_fencing`, `test_disk_deferral_is_retried_after_recovery` (extended `test_disk_floor_and_path_confinement` pins missing-file-None vs deferral). Three of the four fail on reviewed head `2a284d02` (negative control via temporary revert); all 17 tests in the file pass with the fix. Fixed SHA: this record's introducing commit.
 - Follow-up (same PR, [run 43885815170](https://github.com/maxime-c16/dive-analyser/actions/runs/43885815170), reviewed head `e2cb9091`): Medium — a subprocess timeout derived from the remaining tick budget raised `TimeoutExpired`, which backfill fenced permanently. `confirmed`: fence-on-`None`/exception made no distinction between budget-bound and full-cap timeouts. Fix: `_run_bounded()` compares the timeout actually used against the cap — below-cap expiry becomes `BudgetExceeded` (proxy stays selectable), full-cap expiry still fences. Tests `test_budget_bound_timeout_defers_without_fencing` (fails pre-fix by temporary revert) and `test_full_cap_timeout_still_fences`; full file green. Fixed SHA: this record's introducing commit.
+
+
+## Technique changes — UI council findings at 821cc868 (2026-11-10)
+
+| Finding | Verification and disposition | Correction / evidence |
+| --- | --- | --- |
+| Pager freezes after navigation during naming | Confirmed: optimistic displayed ID advanced while the workflow rejected movement. | Workflow explicitly blocks navigation, cancels in-flight commits and restores the actual displayed ID. Regression exercises blocked swipe then successful navigation. |
+| A → B → A creates duplicate identities | Confirmed in setup payloads. | Paginated owned technique choices plus draft identities; saved IDs reused across successive writes, including partial retries. Tests cover existing identity and same-draft A → B → A. |
+| Cannot move a draft boundary | Confirmed in review controls. | Select Move start, browse neighboring clips, apply the new anchor without recreating the technique. Regression checks new anchor. |
+| Missing temporal and technique context | Confirmed; counter represented the loaded window. | Complete SQL session ordinals/counts and intended labels, proposed draft label, no loaded-window fraction. PostgreSQL test spans 101 attempts. |
+| Setup fails / comparison shows misleading zeros | Sandbox logs showed 401, not a demonstrated database failure. Error-to-empty rendering confirmed. | Exclusive error/loading/empty states; auth recovery and retry; comparisons render coverage only after successful results. Regression checks error then recovery. Sandbox attempts and techniques return 200 after login. |
+| Multi-marker review counts imply final attribution | Confirmed: each independent preview was against saved history. | Remove provisional counts; keep server validation and sequential revisioned saves with visible partial-save state. |
+| Draft cancellation, implicit timezone save, undo | Confirmed. | Protect first unfinished label and dirty secondary forms; persist timezone preference after successful change only; confirm undo. |
+| Same-day period appears duration zero | Display defect confirmed; deleting same-day episodes rejected: distinct attempt anchors are valid. | Show times for same-day boundaries; sandbox renders 10:00–10:03. Duplicate-anchor validation remains server-side. |
+| Raw scopes, session IDs, UTC fields | Confirmed. | Named family choices/chips, date-labeled session choices, attempt ordinals, localized date inputs; timezone-normalized end/correction/filter APIs. DST tests cover summer/winter and nonexistent local times. |
+| Earlier/later pair can be reversed | Confirmed. | Normalize selected pair chronologically. Matching and conflicting assignments visible before medians. |
+
+Validation: 1,002 frontend tests (123 files), 22 disposable PostgreSQL tests plus 8 pure attribution tests passed; typecheck and production build passed. Additional focused setup/comparison tests passed. Browser smoke: authenticated code page and setup load; current technique and session ordinal visible, same-day times visible. No real media, native Safari/VoiceOver or biomechanical recognition validated. Release-note schema validation passes; full catalog check is blocked by a pre-existing branch divergence (origin/master contains session-playback-recovery.json absent from HEAD), unrelated to these edits.
+
+## Technique changes — independent media council at 72c48fb5 (2026-11-10)
+
+| Finding | Disposition and invariant | Fix / validation |
+| --- | --- | --- |
+| Date seek prevents stepping backward (both reviewers) | Confirmed: from_date was retained as a filter. | New seek_at locates one anchor, then loads both sides without a date filter. PostgreSQL regression over 101 attempts and frontend focus regression. Browser: 23 September → Previous → 16 September 10:15. |
+| Mobile crop hides takeoff/entry (Sol) | Confirmed: Library cover zoom reused in analytical workflow. | Workflow starts at contain fit. Browser at 390px: video 276×490 in 390×490 stage, readyState4; complete frame retained. Ordinary Library fit unchanged. |
+| Review/draft ignores existing boundaries (both) | Confirmed; prior independent previews cannot describe the final intervals together. | Read-only joint preview, max16 ordered markers in one context/revision, clips each interval at the earliest existing/draft boundary. Counts cover those intervals; existing next change and replaced recorded period shown. PostgreSQL test verifies ends/counts and zero writes; frontend verifies displayed results. Draft context stops at later recorded boundaries. |
+| Existing period cannot move in player (Opus) | Confirmed; manual selector only holds one page. | Exact-code anchored periods expose Adjust in the player, load around the saved anchor, preserve episode/technique IDs, notes and constraints. Regression checks update payload; browser opens September anchor and previews one-attempt move, no save. Non-anchored/family histories retain the date editor. |
+| Duplicate boundary preview described as partial save (Sol) | Confirmed. | Preview and save errors separated; marker named, duplicate-boundary explanation directs moving or adjusting existing period. Server marks the failing index. |
+| Editing label silently creates identity (Opus) | Confirmed. | Existing edit label read-only until explicit Use a different technique; renaming remains in period settings and retains the identity. Regression checks explicit transition. |
+| Intent/execution vocabulary and conflicting score prominence | Confirmed wording issue; rejected suppressing all period statistics merely because they are inferred (period comparison contract). | Usual technique during this period; conflicting-only median subdued with explicit no-matching-use coverage; overall-rating limitation next to results. |
+| Entry too low; undo wording ambiguous | Confirmed. | Main journey action above chart/timeline; French undo reads Défaire le dernier enregistrement. |
+| Orphan technique names / synthetic history oddities | Demo provenance, not grounds to delete user annotations or identities retained by audit history. | Preserve test annotations; disclose repeated real media and synthetic dates/ratings to reviewers. |
+
+Validation: 1,006 frontend tests across123 files, 24 PostgreSQL tests plus8 pure rules, TypeScript and production build passed. Browser smoke used real H.264 clips in the shared player; no media or private manifests committed, no history saved. Test environment holds10 distinct real5132D clips repeated across108 synthetic attempts. Physical touch/Safari/VoiceOver remain unverified. Full release-note catalog check retains the pre-existing origin/master divergence documented above.
+
+## Final UI council at 402b8c43 — corrections and stop (2026-11-10)
+
+Maxime requested corrections after Opus, then explicitly stopped further council rounds. Both independent reviewers scored this reviewed head7.2/10. Those scores predate the fixes below; no new score or approval is inferred.
+
+| Finding | Disposition | Correction and evidence |
+| --- | --- | --- |
+| Implicit individual/sync propagation (Sol P1) | Confirmed. New setup inherited nullable context constraints. | New periods default to viewed position and sync condition in both entry paths; existing adjustments preserve saved constraints. Scope visible in browsing/review. Frontend regression checks new-period flags. |
+| Partial multi-marker save (Opus) | Confirmed; sequential commits were previously disclosed but could leave an unintended interim period. | setup-save validates at most16 markers under the same revision/track lock, applies the existing writer without intermediate commits and commits once. All exceptions roll back. Draft identities preserve A→B→A; the complete action can be undone. PostgreSQL tests prove second-write failure leaves zero episodes/identities/journal and unchanged revision; success and whole-action undo verified. |
+| Boundary collision and irrelevant refresh recovery (Opus) | Confirmed. | Existing exact-code boundary offers Adjust immediately. An owned, revision-checked episode read preserves metadata. Only stale revision or uncertain transport recovery offers refresh; marker validation errors retain edit/move actions. Frontend tests exercise boundary action and absence of refresh on validation rejection. |
+| Recurrence says Replaces itself | Confirmed redundant claim. | Suppress replaces when identity or label already matches. Existing following boundary remains explicit. |
+| Review footer and comparison truncation (both) | Confirmed. | Review list scrolls independently with a stationary footer; comparison selectors stack below420px. Browser at320×640: footer y498–574, panel ends590, list scrolls above it; no horizontal overflow. |
+| Pluralization / inconsistent French | Confirmed. | Independent plural forms for affected dives, kept tags and session counts, unified French attribution and plongeon wording. Locale tests cover1/2 independently in EN/FR. |
+| Singleton and empty-side comparison (Opus) | Confirmed presentation defects. | Singleton is shown as one rating; API supplies both period labels even if one side has no rows. Frontend regressions verify both. |
+| Hidden clip score | Confirmed CSS override. | Restore standard player score outside naming/saving; retain normal HUD behavior. |
+| One-off close / fast repeated Next / background wheel | Unresolved isolated observations, not established regressions. | Retain existing shared overlay/animation guards; no speculative player rewrite. No claim of physical Safari, tactile or VoiceOver validation. |
+
+Validation: 1,012 frontend tests/124 files, 26 PostgreSQL tests plus8 attribution rules; production TypeScript/build passed. Real-media browser smoke: immediate existing-boundary action, visible scoped draft/review, interval pluralization and stationary footer at320px; drafts discarded, history unchanged. Full release catalog still has the pre-existing origin/master missing-note divergence already documented. No push, PR or production deployment, no additional council delegates.
+
+## PR #212 — independent review at 5e646085 (2026-11-16)
+
+Reviewer: sub-agent (Muse Spark 1.3 Contributor xhigh), shared checkout,
+branch `t3/section-modifiers-history`, head `5e646085`. Contracts:
+`docs/design/TECHNIQUE_ADJUSTMENTS.md` (overrides the earlier exclusive-period
+default), `TECHNIQUE_HISTORY_PROPOSAL.md` (unchanged: DB/HU/SD stay opaque
+modifier sets, official dive groups never auto-transfer, family/copy scopes
+explicit). GitHub CI + OpenCode review runs were `in_progress` at inspection
+(single check, no polling); verdict below rests on local evidence, not on
+workflow status.
+
+| ID | Source / SHA examiné | Décision et chemins | Correction / preuve |
+| --- | --- | --- | --- |
+| R75 | Current head `5e646085` — reserved server track prefixes | `confirmed` : `POST .../tracks` accepted any name, so an owner-typed `adjustment-copy-*` track had its episodes excluded from its own exact-code context in both `technique-adjustments/listing` and `RESOLVED` (both filter `adjustment-copy-%`), with no track-rename path to recover visibility | `technique_history.create_track` rejects `adjustment-*` with 422 (server-generated `adjustment-`/`adjustment-copy-` prefixes unaffected). New `test_track_names_cannot_shadow_internal_adjustment_prefix` fails without the guard, passes with it |
+| R76 | Current head `5e646085` — deploy authority gap | `confirmed` (docs) : `add_technique_history.sql` must run before the backend deploy, but `docs/REPO_WORKFLOW.md` listed no technique-history rollout step | Added `### Technique history` subsection (migration first, retain on backout, pointer to implementation record). No product behavior change |
+| R77 | Current head `5e646085` — dead legacy history UI | Noted, not fixed : `TechniqueHistory.tsx` (+ test) is unrendered — `CodeAnalysis` → `TechniqueWorkspace` → `TechniqueAdjustments`. Kept intentionally: it is the legacy exact-code journey with passing tests, not user-visible. Remove in a dedicated cleanup, not in this feature PR | — |
+| — | Current head `5e646085` — rejected candidates | `rejected` with evidence: (a) conflicting-technique assignments dropped by `detach`'s `INSERT…SELECT` — forced by track-scoped identities, covered by `test_remove_legacy_end…` preserving the matching record; (b) `technique-adjustments/preview` taking the diver lock — safe serialization, no write; (c) ScoreChart touch-tap selection change — intended per component contract, covered by `ScoreChart.test.tsx`; (d) mid-mutation context switch — `TechniqueDialog` is a modal `showModal()`, background unreachable | Existing tests, no change |
+
+Validation for this pass (disposable `calendar_test_review_212` only;
+`technique_real_20261110` untouched): 44 backend checks
+(`test_technique_history_rules.py` 8 + `test_technique_history_postgres.py` 36
+incl. R75) pass; focused frontend 108 tests across the 10 technique/clip/score
+files pass; `parity.test.ts` (en/fr) passes; `tsc --noEmit` and the production
+bundle pass. `backend/migrations/add_technique_history.sql` reviewed for
+compatibility: additive/idempotent, old backend keeps working (trigger
+backfills from `dive_datetime`), new backend requires it first; parent applies
+it manually before deploy. Residual risks: production backfill/index build time
+on the `dives` volume (schedule + backup per implementation record); no
+physical iPhone/Safari/VoiceOver validation claimed.
+
+## PR #212 — hosted review follow-up (2026-11-16)
+
+Source: [OpenCode review](https://github.com/maxime-c16/dive-analyser/actions/runs/43905181641),
+reviewed head `a0cf602ed2389dc6904687c257b125103c19534d` (repeats
+run `43902679724` at `5e646085`); grouped by invariant, not separate defects.
+
+- R78 confirmed: technique SQL duplicated phase weights and discarded valid
+  phase-only ratings. `recorded_score_10_expression` now accepts an optional
+  mapped alias; technique SQL compiles that shared expression for `d` using
+  bound-owner literals. PostgreSQL checks compare all 25 phase combinations,
+  lowercase/missing values and fallback against the scoring owner's SQL result.
+  The existing missing-note test now distinguishes missing overall letter from
+  missing all three rating fields, matching the maintained scoring contract.
+- R79 confirmed: the month selector silently dropped inventory beyond 120
+  months. Added a 120-month page plus sentinel/continuation cursor and visible
+  earlier/recent month controls. Session pages remain bounded independently;
+  a selected month stays selectable while paging the inventory. PostgreSQL
+  coverage spans 122 distinct months and retrieves the oldest month's session;
+  a frontend regression covers paging while preserving the selected month.
+
+Validation: backend PostgreSQL/rules/scoring checks, frontend session/setup
+and locale parity tests, TypeScript and production bundle (see current CI for
+complete-head results). No production history annotations changed.
+
+## PR #212 — authentication-disabled route contract (2026-11-16)
+
+- R80 confirmed: [OpenCode review](https://github.com/maxime-c16/dive-analyser/actions/runs/43919898118), reviewed head `6d7d719daeea33f7fb04abc491b9d7fc4f3fdfbd`. With account authentication disabled, technique ownership routes returned 403 and preferences/context routes returned 401, contrary to the private-route 404 contract in `auth.get_current_user`.
+- Fix: a shared authentication-enabled dependency on both technique routers rejects disabled requests before handler database access, including preferences, context inventory, and all adjustment reads/writes. Enabled-mode session/ownership checks are retained.
+- Validation: HTTP regressions enumerate every route/method on both routers, require 404 without any database dependency executing, and verify enabled-mode anonymous preferences/contexts still return 401 and owned history returns 403. Existing PostgreSQL and attribution rules also run; fixed SHA is this record's introducing commit.
+
+## PR #212 — conflicting recorded use during detach (2026-11-16)
+
+- R81 confirmed: [OpenCode review](https://github.com/maxime-c16/dive-analyser/actions/runs/43920889730), reviewed head `e83b2b9b22368949b9518187fda4f7d57b79f8b6`. This corrects the earlier R77 rejected candidate: track-scoped identities require remapping; they do not justify discarding explicitly conflicting use. `detach` omitted those assignments from the isolated track and therefore replaced recorded attribution with inference.
+- Fix: clone every conflicting identity referenced by this episode's assignments using a server-side ID map, then copy all episode assignments. Equal labels never merge identities. The original track/annotations, episode references, mixed/unknown state and intersecting session flags remain intact. No Python scan or per-assignment query; one additional SQL CTE covers the complete copy under the existing diver lock/transaction.
+- Validation: the PostgreSQL end-removal regression now covers concordant use, two conflicting identities sharing one label, mixed, unknown, and session fallback; asserts resolved recorded conflicts and destination identity ownership. It fails against the reviewed implementation (only three of five assignments survive), and passes with the fix. All 83 technique PostgreSQL/rules/auth-route checks pass. Fixed SHA is this record's introducing commit.
+
+## PR #212 — delayed legacy account timezone (2026-11-16)
+
+- R82 confirmed in retained legacy component: [OpenCode re-review](https://github.com/maxime-c16/dive-analyser/actions/runs/43922269706), reviewed head `1ae9a632b02e05fb37f7b9ef4baff1f9fdc7af29`. `TechniqueWorkspace` currently renders `TechniqueAdjustments`, so this is not the live journey, but `TechniqueHistory` reused its track-read generation for preferences: loading a track invalidated a slower timezone response.
+- Fix: preferences have their own effect/cancellation lifetime, keyed by viewer and diver base, reset on identity changes. Attempt filters reload when the saved timezone arrives. Existing track reads cannot discard preferences, and a previous viewer's delayed preference cannot overwrite the current one.
+- Validation: 10 legacy UI tests pass, including delayed preferences after history loading and a stale response after viewer switch. The delayed-preference regression fails on the reviewed implementation. TypeScript and production build pass. Fixed SHA is this record's introducing commit.

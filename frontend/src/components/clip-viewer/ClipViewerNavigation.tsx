@@ -9,7 +9,11 @@ export default function ClipViewerNavigation({
   total,
   onPrevious,
   onNext,
+  disabled = false,
+  positionLabel,
 }: {
+  disabled?: boolean;
+  positionLabel?: string;
   index: number;
   total: number;
   onPrevious: () => void;
@@ -21,7 +25,7 @@ export default function ClipViewerNavigation({
       <button
         type="button"
         onClick={onPrevious}
-        disabled={index <= 0}
+        disabled={disabled || index <= 0}
         className="clip-hud-button"
         aria-label={t("clipNav.previous")}
         title={`${t("clipNav.previous")} (Shift+←)`}
@@ -29,13 +33,13 @@ export default function ClipViewerNavigation({
         <ChevronLeft size={20} />
       </button>
       <p className="clip-nav-count" aria-live="polite" aria-atomic="true">
-        <span className="sr-only">{t("clipNav.positionAria", { index: index + 1, total })}</span>
-        <span className="clip-nav-fraction" aria-hidden="true"><b>{index + 1}</b> / {total}</span>
+        <span className="sr-only">{positionLabel ?? t("clipNav.positionAria", { index: index + 1, total })}</span>
+        <span className="clip-nav-fraction" aria-hidden="true">{positionLabel ?? <><b>{index + 1}</b> / {total}</>}</span>
       </p>
       <button
         type="button"
         onClick={onNext}
-        disabled={index >= total - 1}
+        disabled={disabled || index >= total - 1}
         className="clip-hud-button"
         aria-label={t("clipNav.next")}
         title={`${t("clipNav.next")} (Shift+→)`}

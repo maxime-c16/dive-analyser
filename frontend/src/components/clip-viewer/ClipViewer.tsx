@@ -27,7 +27,7 @@ import { diveCodeName } from "../../i18n/diveNames";
 import { cachedPreview, getPreview } from "../../utils/mediaPreview";
 import { warmAdjacentClips } from "../../utils/playbackWarming";
 import { useModalOverlay, isTopOverlay } from "../../utils/overlays";
-import type { FeedDragEnd } from "./ImmersiveControls";
+import ImmersiveControls, { type FeedDragEnd } from "./ImmersiveControls";
 import DiveVideoPlayer from "../DiveVideoPlayer";
 import ClipViewerNavigation, { PLAYBACK_RATES } from "./ClipViewerNavigation";
 import ClipFilmstrip from "./ClipFilmstrip";
@@ -181,6 +181,7 @@ export default function ClipViewer({
   onUpdate,
   onDelete,
   onAnalyse,
+  workflow,
 }: {
   attempt: Attempt;
   attempts: Attempt[];
@@ -191,8 +192,13 @@ export default function ClipViewer({
   onUpdate?: (attempt: Attempt) => void;
   onDelete?: () => void;
   onAnalyse?: (attempt: Attempt) => void;
+  workflow?: { title: string; backLabel: string; content: React.ReactNode; navigationDisabled?: boolean; positionLabel?: string; history?: { sessionLabel?: string; total: number; previous: boolean; next: boolean; loading: boolean; onPrevious: () => void; onNext: () => void } };
 }) {
   const { t, i18n } = useTranslation();
+  const navigationBlocked = Boolean(workflow?.navigationDisabled);
+  const navigationBlockedRef = useRef(navigationBlocked);
+  navigationBlockedRef.current = navigationBlocked;
+  const noMediaVideo = useRef<HTMLVideoElement>(null);
   const index = attempts.findIndex((item) => item.id === attempt.id);
   const total = attempts.length;
   const location = useLocation();
@@ -417,7 +423,7 @@ export default function ClipViewer({
    * 1:1 with the pointer. Direct DOM writes only — no React renders, so the
    * gesture stays at pointer-event rate even on low-end phones. */
   const applyDrag = (dy: number) => {
-    if (animatingRef.current || !pagerEnabled) return;
+    if (navigationBlockedRef.current || animatingRef.current || !pagerEnabled) return;
     if (dragHeightRef.current === null) {
       dragHeightRef.current = measureStage();
       viewportRef.current?.classList.add("is-dragging");
@@ -495,6 +501,7 @@ export default function ClipViewer({
 
   /** Snap through to the neighbor, then swap the selection once it lands. */
   const commitPush = (direction: -1 | 1, fromDy: number) => {
+    if (navigationBlockedRef.current) return;
     const target = neighborAttempt(direction);
     if (!target) return;
     const fromId = attempt.id;
@@ -552,7 +559,7 @@ export default function ClipViewer({
       setFrameTransform(nextFrameRef.current, null);
       // An external selection change (Back button, filter) wins over a
       // still-pending commit: never clobber it with a stale target.
-      if (!pending || displayedIdRef.current !== pending.fromId) return;
+      if (navigationBlockedRef.current || !pending || displayedIdRef.current !== pending.fromId) return;
       // The list itself may have changed under the commit (filter, refresh,
       // removal): only land on the neighbor if it is still the neighbor.
       const live = attemptsRef.current;
@@ -565,8 +572,21 @@ export default function ClipViewer({
     }, FEED_PUSH_DURATION_MS);
   };
 
+  useEffect(() => {
+    if (!navigationBlocked) return;
+    clearCommitTimer();
+    pendingCommitRef.current = null;
+    animatingRef.current = false;
+    cancelFrameAnimations();
+    setFrameTransform(currentRef.current, null);
+    setFrameTransform(prevFrameRef.current, null);
+    setFrameTransform(nextFrameRef.current, null);
+    displayedIdRef.current = attempt.id;
+    viewportRef.current?.classList.remove("is-dragging");
+  }, [navigationBlocked]);
+
   const navigate = (direction: -1 | 1) => {
-    if (animatingRef.current) return;
+    if (navigationBlockedRef.current || animatingRef.current) return;
     const next = attempts[index + direction];
     if (!next) return;
     // Buttons/keys take the same push the finger takes, minus the drag.
@@ -860,29 +880,30 @@ export default function ClipViewer({
         aria-modal="true"
         aria-labelledby="clip-viewer-title"
         data-testid="clip-viewer"
-        className={`clip-viewer${studio ? " is-studio" : ""}${cleanView ? " is-clean" : ""}${pinching ? " is-pinching" : ""}${hudVisible ? "" : " is-hud-hidden"}`}
+        className={`clip-viewer${workflow ? ` is-workflow${workflow.navigationDisabled ? " is-workflow-editing" : ""}` : ""}${studio ? " is-studio" : ""}${cleanView ? " is-clean" : ""}${pinching ? " is-pinching" : ""}${hudVisible ? "" : " is-hud-hidden"}`}
       >
         <header className="clip-header">
           <button
             type="button"
             onClick={onClose}
-            aria-label={t("notFound.backToLibrary")}
+            aria-label={workflow?.backLabel ?? t("notFound.backToLibrary")}
             className="clip-back"
           >
             <ArrowLeft size={20} />
-            <span>{t("nav.dives")}</span>
+            <span>{workflow?.backLabel ?? t("nav.dives")}</span>
           </button>
+          {workflow && <h2 id="clip-viewer-title" className="clip-workflow-title">{workflow.title}</h2>}
           <div className="clip-header-end">
             {studio && speedSelect}
             <span className="clip-counter" aria-live="polite" aria-atomic="true" title={t("clipNav.positionAria", { index: index + 1, total })}>
-              <span className="sr-only">{t("clipNav.positionAria", { index: index + 1, total })}</span>
-              <span className="clip-counter-fraction" aria-hidden="true"><b>{index + 1}</b> / {total}</span>
+              <span className="sr-only">{workflow?.positionLabel ?? t("clipNav.positionAria", { index: index + 1, total })}</span>
+              <span className="clip-counter-fraction" aria-hidden="true">{workflow?.positionLabel ?? <><b>{index + 1}</b> / {total}</>}</span>
             </span>
           </div>
         </header>
         <div className="clip-layout">
-          {studio && (
-            <ClipFilmstrip attempt={attempt} attempts={attempts} onSelect={onMove} />
+          {(studio || workflow?.history) && (
+            <ClipFilmstrip attempt={attempt} attempts={attempts} onSelect={onMove} history={workflow?.history} disabled={navigationBlocked} />
           )}
           <div className="clip-stage-column">
           <div className="clip-stage-row">
@@ -891,7 +912,7 @@ export default function ClipViewer({
               type="button"
               className="clip-step"
               onClick={() => navigate(-1)}
-              disabled={index <= 0}
+              disabled={navigationBlocked || index <= 0}
               aria-label={t("clipNav.previous")}
               title={`${t("clipNav.previous")} (Shift+←)`}
             >
@@ -914,7 +935,7 @@ export default function ClipViewer({
             style={
               {
                 "--clip-aspect": aspectRatio,
-                "--clip-cover-scale": picture.cover,
+                "--clip-cover-scale": workflow ? 1 : picture.cover,
                 ...(picture.width
                   ? {
                       "--clip-pic-w": `${picture.width}px`,
@@ -936,7 +957,7 @@ export default function ClipViewer({
                 onAspectRatioChange={setAspectRatio}
                 onLike={() => void like(true)}
                 onNavigate={navigate}
-                dragEnabled={pagerEnabled}
+                dragEnabled={pagerEnabled && !navigationBlocked}
                 onDragUpdate={applyDrag}
                 onDragEnd={endDrag}
                 onPinchStart={onPinchStart}
@@ -948,6 +969,7 @@ export default function ClipViewer({
             ) : (
               <div className="clip-no-media">
                 {t("clipViewer.noLinkedClip")}
+                {workflow && <ImmersiveControls videoRef={noMediaVideo} playbackRate={playbackRate} mediaPresented={false} onNavigate={navigate} dragEnabled={pagerEnabled && !navigationBlocked} onDragUpdate={applyDrag} onDragEnd={endDrag} />}
               </div>
             )}
             {!studio && (
@@ -1060,7 +1082,7 @@ export default function ClipViewer({
               type="button"
               className="clip-step"
               onClick={() => navigate(1)}
-              disabled={index >= total - 1}
+              disabled={navigationBlocked || index >= total - 1}
               aria-label={t("clipNav.next")}
               title={`${t("clipNav.next")} (Shift+→)`}
             >
@@ -1079,7 +1101,8 @@ export default function ClipViewer({
               onClick={closePanel}
             />
           )}
-          <aside
+          {workflow && <aside className="clip-workflow">{workflow.content}</aside>}
+          {!workflow && <aside
             ref={panelRef}
             tabIndex={-1}
             id="clip-review-panel"
@@ -1217,12 +1240,14 @@ export default function ClipViewer({
                 </div>
               )}
             </div>
-          </aside>
+          </aside>}
         </div>
         {!studio && (
           <footer className="clip-navigation">
             <ClipViewerNavigation
               index={index}
+              disabled={navigationBlocked}
+              positionLabel={workflow?.positionLabel}
               total={total}
               onPrevious={() => navigate(-1)}
               onNext={() => navigate(1)}

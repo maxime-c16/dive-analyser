@@ -1,3 +1,4 @@
+import TechniqueWorkspace from '../components/code-analysis/TechniqueWorkspace'
 import React, { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { loadChunk } from '../utils/chunkLoad'
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
@@ -341,6 +342,7 @@ export default function CodeAnalysis() {
           </div>}
         </section>}
 
+        {user && <TechniqueWorkspace key={`${user.user_id}-${code}`} code={code} viewer={user.user_id} height={height} />}
         <div className="ca-two">
           {analytics && (heightRows.length > 0 || phaseRows.length > 0) && <section className="ca-panel">
             <div className="ca-panel-h"><h2>{t('codeAnalysis.context')}</h2><span>{t('codeAnalysis.median')}</span></div>

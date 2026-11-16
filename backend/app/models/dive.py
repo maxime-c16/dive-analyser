@@ -89,6 +89,7 @@ class Dive(Base):
     synced_at = Column(DateTime, nullable=True, index=True)  # When video was synced from mac-agent
 
     # Timestamps
+    history_occurred_at = Column(DateTime, nullable=False)
     dive_datetime = Column(DateTime, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -121,3 +122,19 @@ class Dive(Base):
 
     def __repr__(self) -> str:
         return f"<Dive(id={self.id}, code={self.dive_code}, performance={self.performance})>"
+
+
+# Every ORM ingest path captures the original occurrence, before any later edit.
+from sqlalchemy import event
+
+@event.listens_for(Dive, 'before_insert')
+def capture_history_order(mapper, connection, target):
+    if target.history_occurred_at is None:
+        target.history_occurred_at = target.dive_datetime
+
+@event.listens_for(Dive.history_occurred_at, 'set', retval=True, active_history=True)
+def preserve_history_order(target, value, oldvalue, initiator):
+    from sqlalchemy.orm.attributes import NO_VALUE, NEVER_SET
+    if oldvalue not in (None, NO_VALUE, NEVER_SET) and value != oldvalue:
+        raise ValueError('History order requires a revisioned correction')
+    return value

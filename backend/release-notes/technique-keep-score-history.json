@@ -1,0 +1,8 @@
+{
+  "id": "technique-keep-score-history",
+  "date": "2026-11-11",
+  "title": "Keep your score history visible",
+  "body": "Recording or selecting a technique change now keeps the complete Scores chart visible alongside your technique periods.",
+  "audience": "all",
+  "components": ["frontend"]
+}

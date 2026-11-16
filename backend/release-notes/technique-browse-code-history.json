@@ -1,0 +1,8 @@
+{
+  "id": "technique-browse-code-history",
+  "date": "2026-11-11",
+  "title": "Find technique changes across all your sessions",
+  "body": "The technique player now shows clips across the selected dive code's history, with dates and explicit controls to load earlier or later clips. The thumbnail strip is available on mobile too.",
+  "audience": "all",
+  "components": ["frontend", "backend"]
+}

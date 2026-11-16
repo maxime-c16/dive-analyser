@@ -5,6 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$SCRIPT_DIR/lib.sh"
 : "${CALENDAR_TEST_DATABASE_URL:?Set a disposable calendar_test_* PostgreSQL URL}"
 export MEDIA_STARTUP_TEST_DATABASE_URL="$CALENDAR_TEST_DATABASE_URL"
+export TECHNIQUE_TEST_DATABASE_URL="$CALENDAR_TEST_DATABASE_URL"
 export AUTO_IMPORT=false DB_TEST=0
 ROOT="$(ci_repo_root)"
 export PYTHONPATH="$ROOT:$ROOT/backend"
@@ -18,6 +19,7 @@ ci_run postgres-pytest "$CI_BACKEND_PYTHON" -m pytest \
     tests/test_postgres_media_startup_lot2.py \
     tests/test_postgres_media_startup_lot3.py \
     tests/test_postgres_activity.py \
+    tests/test_technique_history_postgres.py \
     tests/test_postgres_notifications_unread_index.py \
     tests/test_leaderboard_bounds.py \
     tests/test_postgres_media_cutover.py \

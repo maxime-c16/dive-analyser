@@ -1,0 +1,8 @@
+{
+  "id": "technique-history-atomic-setup",
+  "date": "2026-11-10",
+  "title": "Save technique changes together",
+  "body": "Your technique markers now save together. Existing boundaries can be adjusted directly, the review buttons stay visible on small screens, and each new period starts with the individual or synchronized context you are viewing.",
+  "audience": "all",
+  "components": ["backend", "frontend"]
+}
