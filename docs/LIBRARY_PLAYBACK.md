@@ -73,7 +73,14 @@ qualities remain explicit choices; status revalidation preserves a presented
 local source. No automatic playback swap is attempted. With no local proxy,
 durable playback remains the fallback. Covers prefer local thumbs/posters.
 
-Optional server-generated `animated` WebP tiles respect reduced motion, data
-saving and viewport visibility. Their explicit bounded backfill, disk floor,
-synthetic measurement fixture and deployment order are documented in
+Server-generated `animated` WebP tiles respect reduced motion, data saving and
+viewport visibility. A tile is a stop-motion of the whole clip: 10 stills
+sampled evenly from start to end, 220 ms each (session videos use the same
+constants), at most 80 KB (width steps down 360 → 240 px to fit). The
+per-minute media tick (`scripts/media_migration.py tick`) builds up to 4 tiles
+for local proxies still missing a `stop-motion-v2` tile, newest first, one per
+asset (720p preferred), and drops the asset's older tile so orphan cleanup
+reclaims it. Proxies that cannot produce a tile are remembered in
+`.animated-failed.json` under the cache root and not retried. Assets without a
+local proxy have no tile. Disk floor and the original lot design:
 [audit lot 3](audits/media-startup-opus/lot3-result.md).

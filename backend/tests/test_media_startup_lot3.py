@@ -25,7 +25,7 @@ def test_real_ffmpeg_bounded_webp_and_backfill(test_db, root, monkeypatch):
         pytest.skip('ffmpeg required')
     path = root / 'proxy.mp4'
     subprocess.run(['ffmpeg', '-v', 'error', '-f', 'lavfi', '-i',
-        'testsrc2=size=640x360:rate=30', '-t', '2', '-c:v', 'libx264',
+        'testsrc2=size=640x360:rate=30', '-t', '6', '-g', '15', '-c:v', 'libx264',
         '-pix_fmt', 'yuv420p', str(path)], check=True)
     asset = PhotosAsset(video_uuid='lot3-synthetic')
     test_db.add(asset)
@@ -58,17 +58,72 @@ def test_real_ffmpeg_bounded_webp_and_backfill(test_db, root, monkeypatch):
     assert entry.checksum_sha256 in entry.storage_path
     with Image.open(entry.storage_path) as image:
         assert image.is_animated and image.width <= 360
+        assert image.n_frames == av.STOP_MOTION_FRAMES
         duration = 0
         for i in range(image.n_frames):
             image.seek(i)
             image.load()
             duration += image.info['duration']
-        assert 800 <= duration <= 1100
-    assert av.backfill(test_db, 1)['generated'] == 0
+        assert duration == av.STOP_MOTION_FRAMES * av.FRAME_MS
+    # Stills are sampled across the whole clip, the last near its end.
+    seeks = []
+    real_run = av.subprocess.run
+    def record(command, **kwargs):
+        if command[0] == 'nice':
+            seeks.append(float(command[command.index('-ss') + 1]))
+        return real_run(command, **kwargs)
+    monkeypatch.setattr(av.subprocess, 'run', record)
+    assert av.generate(path)
+    assert len(seeks) == av.STOP_MOTION_FRAMES
+    assert seeks[0] < 0.5 and seeks[-1] > 5.4
+    assert av.backfill(test_db, 1)['scanned'] == 0
     assert _preferred_entry([entry]) is None
     payload = _thumbnail_status_for_entries(test_db, asset.video_uuid, [entry])
     assert payload['status'] == 'ready' and payload['playback_url'] is None
     assert payload['animated_url'].startswith('/media/cache/signed/')
+
+
+def _proxy(db, root, uuid, rendition, checksum):
+    asset = db.query(PhotosAsset).filter_by(video_uuid=uuid).one_or_none()
+    if asset is None:
+        asset = PhotosAsset(video_uuid=uuid)
+        db.add(asset)
+        db.flush()
+    entry = MediaCacheEntry(photos_asset_id=asset.id, media_key=f'{uuid}-{rendition}',
+        rendition=rendition, storage_path=str(root / f'{uuid}-{rendition}.mp4'), size_bytes=10,
+        checksum_sha256=checksum, status='ready')
+    db.add(entry)
+    db.commit()
+    return asset, entry
+
+
+def test_tick_selection_replaces_old_tiles_and_skips_failures(test_db, root, monkeypatch):
+    asset, hq = _proxy(test_db, root, 'both', 'proxy_720p', 'a' * 64)
+    _proxy(test_db, root, 'both', 'proxy_360p', 'b' * 64)
+    _, low = _proxy(test_db, root, 'low-only', 'proxy_360p', 'c' * 64)
+    _, broken = _proxy(test_db, root, 'broken', 'proxy_720p', 'd' * 64)
+    first_second = MediaCacheEntry(photos_asset_id=asset.id, media_key='animated-v1-old',
+        rendition='animated', storage_path=str(root / 'old.webp'), size_bytes=5, status='ready')
+    test_db.add(first_second)
+    test_db.commit()
+    # One proxy per asset (720p preferred), newest first; v1 tiles don't count.
+    assert [row.id for row in av.pending_proxies(test_db, 16)] == [broken.id, low.id, hq.id]
+    test_db.rollback()
+    def generate(source):
+        if source.endswith('broken-proxy_720p.mp4'):
+            return None
+        checksum = hashlib.sha256(source.encode()).hexdigest()
+        path = root / 'animated' / checksum[:2] / f'{checksum}.webp'
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(b'x' * 10)
+        return str(path), checksum, 10
+    monkeypatch.setattr(av, 'generate', generate)
+    assert av.backfill(test_db, 4) == dict(scanned=3, generated=2, failed=1)
+    tiles = test_db.query(MediaCacheEntry).filter_by(rendition='animated').all()
+    assert {t.source_blob_sha256 for t in tiles} == {'a' * 64, 'c' * 64}
+    assert all(t.transform_version == av.TRANSFORM_VERSION for t in tiles)
+    # Nothing left: done assets are fenced, the failure is not retried every tick.
+    assert av.backfill(test_db, 4)['scanned'] == 0
 
 
 def test_disk_floor_and_path_confinement(root, monkeypatch):
