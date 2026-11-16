@@ -925,11 +925,16 @@ function DiveLibrary() {
     period,
   ].filter(Boolean).length;
   // Full recordings have no dive code, height or performance metadata.
-  // They belong in the browsing timeline, but cannot match a dive search.
+  // They belong in the browsing timeline, but cannot match a dive search:
+  // any text query or dive-specific filter hides them, while the period
+  // window still applies to the sessions shown while browsing.
+  const sessionsHiddenBySearch = Boolean(
+    query.trim() || heightFilter || contextFilter || performanceFilter || modifiers.length,
+  );
   const visibleSessions = useMemo(() => {
-    if (query.trim() || heightFilter || contextFilter || performanceFilter || modifiers.length) return [];
+    if (sessionsHiddenBySearch) return [];
     return sharedSessions.filter(session => !periodFrom || session.date >= periodFrom.slice(0, 10));
-  }, [sharedSessions, query, heightFilter, contextFilter, performanceFilter, modifiers.join(","), periodFrom]);
+  }, [sharedSessions, sessionsHiddenBySearch, periodFrom]);
   const reset = () =>
     update({
       q: null,
@@ -1268,7 +1273,7 @@ function DiveLibrary() {
           )}
         </section>
       )}
-      {sessionsCursor && !query.trim() && !heightFilter && !contextFilter && !performanceFilter && !modifiers.length && (
+      {sessionsCursor && !sessionsHiddenBySearch && (
         <div className="mt-5 text-center">
           <button
             type="button"
