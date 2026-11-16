@@ -6,6 +6,14 @@
  */
 const fr = {
   technique: {
+    resumeHistory: "Reprendre mon historique",
+    adjustFollowing: "Ajuster le début de la période existante",
+    switchToAdjustment: "Passer à l’ajustement de cette période ? Votre brouillon sera conservé.",
+    uncertainSession: "Cette séance est incertaine",
+    undoRemove: "Rétablir le repère retiré",
+    endsAtNext: "Se termine au début de « {{name}} ».",
+    sameFollowing: "La période suivante utilise cette même technique.",
+    samePrevious: "Même technique que la période précédente. Ce repère ajoute une frontière.",
     fillHistory: "Renseigner mon historique",
     chooseSession: "Choisir une séance",
     month: "Mois",
@@ -13,9 +21,9 @@ const fr = {
     sessionDiveCount_one: "{{count}} plongeon",
     sessionDiveCount_other: "{{count}} plongeons",
     severalTechniques: "Plusieurs techniques",
-    fromSessionStart: "Dès cette séance",
+    fromSessionStart: "Dès le premier plongeon de cette séance",
     findExactDive: "Trouver le plongeon exact",
-    aroundSession: "Autour de cette séance",
+    aroundSession: "Pendant cette séance (incertain)",
     olderSessions: "Séances précédentes",
     chooseAnotherSession: "Choisir une autre séance",
     whichTechnique: "Quelle technique ?",

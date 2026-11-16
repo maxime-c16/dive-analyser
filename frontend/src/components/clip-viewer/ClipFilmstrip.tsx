@@ -46,11 +46,11 @@ export default function ClipFilmstrip({
               type="button"
               disabled={disabled}
               aria-current={item.id === attempt.id ? 'true' : undefined}
-              aria-label={history ? `${attemptDate(item, 'd MMM yyyy · HH:mm')}${history.sessionLabel ? ` · ${t('technique.diveNumber',{number:(item as Attempt & { session_index?: number }).session_index ?? items.indexOf(item)+1})}` : ''}` : t('clipViewer.openFromStrip', { code: item.dive_code, score: scoreNumber(attemptScore(item), i18n.language) })}
+              aria-label={history ? `${attemptDate(item, 'd MMM yyyy · HH:mm')}${history.sessionLabel || (item as Attempt & {session_index?:number}).session_index ? ` · ${t('technique.diveNumber',{number:(item as Attempt & { session_index?: number }).session_index ?? items.indexOf(item)+1})}` : ''}` : t('clipViewer.openFromStrip', { code: item.dive_code, score: scoreNumber(attemptScore(item), i18n.language) })}
               onClick={() => item.id !== attempt.id && onSelect(item)}
             >
               <span className="clip-filmstrip-thumb"><DiveThumbnail dive={item} compact /></span>
-              <span className="clip-filmstrip-code">{history ? history.sessionLabel ? t('technique.diveNumber',{number:(item as Attempt & { session_index?: number }).session_index ?? items.indexOf(item)+1}) : attemptDate(item, 'd MMM') : item.dive_code}</span>
+              <span className="clip-filmstrip-code">{history ? (item as Attempt & {session_index?:number}).session_index || history.sessionLabel ? t('technique.diveNumber',{number:(item as Attempt & { session_index?: number }).session_index ?? items.indexOf(item)+1}) : attemptDate(item, 'd MMM') : item.dive_code}</span>
               <span className="clip-filmstrip-height">{history ? history.sessionLabel ? '' : attemptDate(item, 'HH:mm') : item.height}</span>
               <span className="clip-filmstrip-score">{scoreNumber(attemptScore(item), i18n.language)}</span>
             </button>

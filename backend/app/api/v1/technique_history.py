@@ -308,8 +308,21 @@ def setup_preview(diver:int, track:int, body:SetupPreview, request:Request, db:S
                 stop=(next_body.start_at,next_body.start_id);following_existing=None
         def label_for(episode):
             return db.scalar(select(Technique.label).where(Technique.id==episode.technique_id,Technique.track_id==track)) if episode and episode.technique_id else None
+        # Advisory only: separate chronological episodes may intentionally reuse an identity.
+        def same_technique(left_id,left_label,right_id,right_label):
+            if left_id and right_id:return left_id==right_id
+            return bool(left_label and right_label and left_label.strip().casefold()==right_label.strip().casefold())
+        preceding_id=previous.technique_id if previous else None
+        preceding_label=label_for(previous)
+        if index and (previous is None or (plans[index-1][0].start_at,plans[index-1][0].start_id)>(previous.start_at,previous.start_id)):
+            preceding_id=plans[index-1][0].technique_id;preceding_label=plans[index-1][0].label
+        next_identity=following_existing.technique_id if following_existing else (plans[index+1][0].technique_id if index+1<len(plans) else None)
+        next_label=label_for(following_existing) if following_existing else (plans[index+1][0].label if index+1<len(plans) else None)
         items.append({'anchor_id':change_body.anchor_id,'start_at':change_body.start_at,'end_at':stop[0],'end_id':stop[1],
                       'counts':preview_counts(db,row,change_body,upcoming,stop_override=stop),
+                      'same_previous':same_technique(change_body.technique_id,change_body.label,preceding_id,preceding_label),
+                      'same_following':same_technique(change_body.technique_id,change_body.label,next_identity,next_label),
+                      'next_label':next_label,
                       'replaces':label_for(previous) if previous and previous.technique_id!=change_body.technique_id and label_for(previous)!=change_body.label and (previous.end_at is None or (previous.end_at,previous.end_id)>(change_body.start_at,change_body.start_id)) else None,
                       'following':{'id':following_existing.id,'label':label_for(following_existing),'start_at':following_existing.start_at} if following_existing else None})
     return {'revision':row.revision,'items':items}

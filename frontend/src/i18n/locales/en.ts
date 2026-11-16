@@ -6,6 +6,14 @@
  */
 const en = {
   technique: {
+    resumeHistory: "Resume my history",
+    adjustFollowing: "Adjust the existing period start",
+    switchToAdjustment: "Switch to adjusting this period? Your draft will be kept.",
+    uncertainSession: "This session is uncertain",
+    undoRemove: "Restore removed marker",
+    endsAtNext: "Ends when “{{name}}” starts.",
+    sameFollowing: "The following period uses this same technique.",
+    samePrevious: "Same technique as the preceding period. This adds another boundary.",
     fillHistory: "Fill in my history",
     chooseSession: "Choose a session",
     month: "Month",
@@ -13,9 +21,9 @@ const en = {
     sessionDiveCount_one: "{{count}} dive",
     sessionDiveCount_other: "{{count}} dives",
     severalTechniques: "Several techniques",
-    fromSessionStart: "From this session",
+    fromSessionStart: "From the first dive of this session",
     findExactDive: "Find the exact dive",
-    aroundSession: "Around this session",
+    aroundSession: "During this session (uncertain)",
     olderSessions: "Earlier sessions",
     chooseAnotherSession: "Choose another session",
     whichTechnique: "Which technique?",

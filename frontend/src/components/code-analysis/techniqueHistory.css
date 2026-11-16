@@ -205,3 +205,9 @@
 .th-draft-summary { border-top:1px solid var(--app-border); margin-top:20px; padding-top:16px; }
 .th-draft-summary ul { padding-left:20px; }
 .th-draft-summary li { padding:6px 0; overflow-wrap:anywhere; }
+/* The workflow has one position announcement and keeps the final action above navigation. */
+.clip-viewer.is-workflow .clip-counter { display:none; }
+@media(max-width:1023px) {
+ .clip-viewer.is-workflow .clip-workflow { padding-bottom:calc(80px + env(safe-area-inset-bottom)); }
+ .clip-viewer.is-workflow .clip-caption { display:none; }
+}

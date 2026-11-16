@@ -448,6 +448,10 @@ def test_joint_setup_preview_preserves_existing_boundaries_and_counts_final_inte
         assert [item['counts']['affected'] for item in result['items']]==[2,3,17]
         assert result['items'][1]['following']['id']==existing['episode']['id']
         assert result['items'][1]['following']['label']=='Saved B'
+        assert result['items'][0]['next_label']=='New D'
+        repeat=api.setup_preview(1,1,api.SetupPreview(changes=[change(2,5,'Old A'),change(2,7,'Saved B')]),None,db)
+        assert repeat['items'][0]['same_previous'] is True
+        assert repeat['items'][1]['same_following'] is True
         assert db.scalar(text('SELECT count(*) FROM technique_episodes'))==2
         assert db.scalar(text('SELECT revision FROM technique_tracks WHERE id=1'))==2
 

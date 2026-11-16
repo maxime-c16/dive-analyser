@@ -41,6 +41,7 @@ export default function TechniqueHistory({ diver, context, viewer }: { viewer?: 
   const [panel, setPanel] = useState<'change' | 'manage' | 'log' | 'share' | null>(null)
   const [comparing, setComparing] = useState(false)
   const [notice, setNotice] = useState('')
+  const [hasDraft,setHasDraft]=useState(false)
   const [setupReady,setSetupReady]=useState(false)
   const [setup, setSetup] = useState(false)
   const [setupEpisode, setSetupEpisode] = useState<SetupEpisode | undefined>()
@@ -99,6 +100,7 @@ export default function TechniqueHistory({ diver, context, viewer }: { viewer?: 
     closePanel()
   }
   function closePanel() { setPanel(null); setPreview(null); setCopyPreview(null); setError('') }
+  useEffect(()=>{try{setHasDraft(Boolean(localStorage.getItem(`technique-draft:${viewer??'local'}:${base}/${track}:${JSON.stringify(context)}:new`)))}catch{setHasDraft(false)}},[setup,viewer,base,track,contextKey])
   async function startSetup(episode?: Episode) {
     setSetupEpisode(episode); setPanel(null)
     setError(''); setNotice('')
@@ -140,7 +142,7 @@ export default function TechniqueHistory({ diver, context, viewer }: { viewer?: 
     </header>
     {error && !panel && <p className="th-error" role="alert">{error}</p>}
     {notice && <p className="th-notice" role="status"><Check size={15} />{notice}</p>}
-    <div className="th-setup-entry"><button className="th-primary" disabled={busy||!setupReady} onClick={() => void startSetup()}><ListChecks size={17} />{t('technique.setupEntry')}</button></div>
+    <div className="th-setup-entry"><button className="th-primary" disabled={busy||!setupReady} onClick={() => void startSetup()}><ListChecks size={17} />{t(hasDraft?'technique.resumeHistory':'technique.setupEntry')}</button></div>
     {!!tracks.length && <div className="th-toolbar">
       {tracks.length > 1 ? <select className="th-track-select" aria-label={t('technique.track')} value={track ?? ''} onChange={e => { setTrack(Number(e.target.value)); setPair([]); setComparing(false); setAfter(0); setEpisodeAfter(0); setBusy(false) }}>{tracks.map(r => <option key={r.id} value={r.id}>{r.name === 'General' ? t('technique.general') : r.name}</option>)}</select> : <span className="th-track-name">{tracks[0].name === 'General' ? t('technique.general') : tracks[0].name}</span>}
       {compatible.length >= 2 && <button className="th-text-button" aria-pressed={comparing} onClick={() => { setComparing(v => !v); setPair(comparing ? [] : compatible.slice(-2).map(e => e.id)) }}><ArrowLeftRight size={15} />{comparing ? t('technique.done') : t('technique.compare')}</button>}
@@ -161,7 +163,7 @@ export default function TechniqueHistory({ diver, context, viewer }: { viewer?: 
     </>}
     {(episodeAfter > 0 || episodeNext != null) && <div className="th-pagination">{episodeAfter > 0 && <button onClick={() => setEpisodeAfter(0)}>{t('common.back')}</button>}{episodeNext != null && <button onClick={() => setEpisodeAfter(episodeNext!)}>{t('technique.nextPeriods')}</button>}</div>}
 
-    {setup && track != null && createPortal(<TechniqueSetup viewer={viewer} key={`${base}/${track}/${contextKey}/${setupEpisode?.id ?? 'new'}`} onAdjust={episode => setSetupEpisode(episode)} base={`${base}/${track}`} context={context} revision={revision} timezone={timezone} initialEpisode={setupEpisode} constrainPosition={setupEpisode ? setupEpisode.position != null : true} constrainSync={setupEpisode ? setupEpisode.sync != null : true} onClose={() => setSetup(false)} onDone={() => { setSetup(false); setReload(n => n + 1); setNotice(t('technique.saved')) }} />, document.body)}
+    {setup && track != null && createPortal(<TechniqueSetup trackName={tracks.find(item=>item.id===track)?.name==='General'?t('technique.general'):tracks.find(item=>item.id===track)?.name} viewer={viewer} key={`${base}/${track}/${contextKey}/${setupEpisode?.id ?? 'new'}`} onAdjust={episode => setSetupEpisode(episode)} base={`${base}/${track}`} context={context} revision={revision} timezone={timezone} initialEpisode={setupEpisode} constrainPosition={setupEpisode ? setupEpisode.position != null : true} constrainSync={setupEpisode ? setupEpisode.sync != null : true} onClose={() => setSetup(false)} onDone={() => { setSetup(false); setReload(n => n + 1); setNotice(t('technique.saved')) }} />, document.body)}
 
     {panel === 'change' && <TechniqueDialog title={t(preview ? 'technique.reviewChange' : edit ? 'technique.editChange' : 'technique.enable')} onClose={requestClosePanel}>
       {error && <p className="th-error" role="alert">{error}</p>}
