@@ -175,7 +175,7 @@ def publish_images(target, staged):
 
 
 def cleanup_session_images(db, limit=100, entry_budget=200):
-    """Bounded unlink of derivatives no live video can serve.
+    """Bounded unlink of derivatives and retry markers for non-live videos.
 
     Posters/animations are regenerable derivatives (~0.5 MB per video), but
     nothing regenerates them on demand, so only files for deleted videos or
@@ -247,9 +247,9 @@ def cleanup_session_images(db, limit=100, entry_budget=200):
                      if not item.is_symlink() and item.is_file(follow_symlinks=False)]
         except FileNotFoundError:
             continue
-        for kind in ('poster', 'animated'):
-            if f'{kind}.webp' in names:
-                files.append((video_id, video_dir / f'{kind}.webp'))
+        for name in ('poster.webp', 'animated.webp', '.image-retry'):
+            if name in names:
+                files.append((video_id, video_dir / name))
         if not names and now - video_dir.stat().st_mtime > _EMPTY_DIR_GRACE_SECONDS:
             try:
                 video_dir.rmdir()
@@ -273,6 +273,12 @@ def cleanup_session_images(db, limit=100, entry_budget=200):
                     freed += path.stat().st_size
                     path.unlink()
                     removed += 1
+                    # Includes marker-only directories; rmdir preserves any
+                    # in-flight staging or unrelated files by failing safely.
+                    try:
+                        path.parent.rmdir()
+                    except OSError:
+                        pass
                 except FileNotFoundError:
                     pass
     return freed
@@ -375,9 +381,10 @@ def retry_missing_images(db, *, scan_limit=50, attempt_limit=2):
         attempted = 0
         for row in rows:
             _retry_cursor = row['id']
-            if all(image_path(row['id'], kind).is_file() for kind in ('poster', 'animated')):
-                continue
             marker = image_path(row['id'], 'poster').parent / '.image-retry'
+            if all(image_path(row['id'], kind).is_file() for kind in ('poster', 'animated')):
+                marker.unlink(missing_ok=True)
+                continue
             if marker.exists() and time() - marker.stat().st_mtime < RETRY_COOLDOWN_SECONDS:
                 continue
             marker.parent.mkdir(parents=True, exist_ok=True)
@@ -385,6 +392,8 @@ def retry_missing_images(db, *, scan_limit=50, attempt_limit=2):
             attempted += 1
             try:
                 extract_images(SimpleNamespace(**row))
+                if all(image_path(row['id'], kind).is_file() for kind in ('poster', 'animated')):
+                    marker.unlink(missing_ok=True)
             except Exception as exc:
                 # Never log signed URLs or arbitrary exception messages.
                 logging.getLogger(__name__).warning('Session image retry failed video=%s error=%s', row['id'], type(exc).__name__)
