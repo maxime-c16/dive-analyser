@@ -66,6 +66,10 @@ backend/logs/audit/audit_*.jsonl
 # Kept on disk for the operator; intentionally not source authority.
 /*.md
 /*.txt
+# ...except the repo's intentional entry-point docs (tracked).
+!README.md
+!AGENTS.md
+!TOOLS.md
 /test-*.sh
 /test-*.py
 /test-*.js

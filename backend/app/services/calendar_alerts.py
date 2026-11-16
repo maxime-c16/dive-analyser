@@ -27,8 +27,10 @@ status/health) after MAX_ATTEMPTS.
 
 Read side: calendar inbox rows store only a generic title. The API resolves
 the event at read time for the reader; when the reader can no longer see it
-the row is redacted (no title, details or link). Push previews of
-non-community events are generic.
+the row is redacted (no title, details or link). Push previews carry the real
+details (what/where/group/when): each is built at send time, right after the
+recipient passed the visibility re-check, and Web Push payloads are encrypted
+to the recipient's device.
 """
 import logging
 import os
@@ -70,6 +72,10 @@ MAX_BATCH = 500
 MAX_RECIPIENTS = 2000
 MAX_DETAIL_OCCURRENCES = 10
 MAX_AFFECTED_OCCURRENCES = 400
+# Identity ledger of an alert's affected sessions (exact union count on
+# merge). Bounded far above any real event's occurrence count; past it the
+# total degrades to the safe lower bound.
+MAX_UNION_IDS = 1000
 STALE_WORKER = timedelta(minutes=int(os.getenv("CALENDAR_ALERTS_STALE_MINUTES", "15")))
 SCHEMA_TABLES = ("calendar_alert_outbox", "calendar_alert_deliveries", "calendar_worker_state")
 
@@ -78,7 +84,9 @@ CHANGE_INVITATION = ("pending", "accepted")
 
 # Inbox titles are generic on purpose: event details are resolved per reader
 # at read time (redacted once access is lost). English like other inbox rows;
-# the web UI renders localized FR/EN text from the structured payload.
+# the web UI renders localized FR/EN text from the structured payload. Push
+# previews keep these generic titles but carry the real details in their body
+# (push_payload, built at send time behind the visibility re-check).
 GENERIC_TITLES = {
     "invitation": "Calendar invitation",
     "change": "Calendar event changed",
@@ -87,6 +95,8 @@ GENERIC_TITLES = {
     "new_event": "New event in a calendar you follow",
 }
 PUSH_BODY_PRIVATE = "Open the app to see the details."
+PUSH_MORE_UNCOUNTED = "and more sessions"
+PUSH_TITLE_SESSION_CANCELLED = "Calendar session cancelled"
 REDACTED_TITLE = "Calendar update"
 
 
@@ -150,6 +160,33 @@ def _local_to_utc(local: datetime, tz_name: str) -> datetime:
     return local.replace(tzinfo=ZoneInfo(tz_name), fold=0).astimezone(timezone.utc).replace(tzinfo=None)
 
 
+def _push_when(occ: Optional[EventOccurrence], event: CalendarEvent) -> str:
+    """Compact English when in the event's own timezone: 'Fri 14 Nov 18:30'
+    (all-day: 'Fri 14 Nov'). Stored times are naive UTC, like the inbox row."""
+    if occ is None:
+        return ""
+    if occ.is_all_day:
+        return occ.start_date.strftime("%a %d %b") if occ.start_date else ""
+    if not occ.starts_at:
+        return ""
+    local = occ.starts_at.replace(tzinfo=timezone.utc).astimezone(ZoneInfo(event.timezone))
+    return local.strftime("%a %d %b %H:%M")
+
+
+def _push_iso(value, event: CalendarEvent, all_day: bool = False) -> str:
+    """A stored ISO instant ('...Z') rendered like _push_when ('' on garbage).
+    All-day moves render as dates only: their window_start is local midnight,
+    and the model defines all-day events by local dates — no real time."""
+    try:
+        instant = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        if instant.tzinfo is None:
+            instant = instant.replace(tzinfo=timezone.utc)
+        local = instant.astimezone(ZoneInfo(event.timezone))
+        return local.strftime("%a %d %b" if all_day else "%a %d %b %H:%M")
+    except (TypeError, ValueError):
+        return ""
+
+
 def _local_day(occurrence: EventOccurrence, event: CalendarEvent) -> date:
     if occurrence.is_all_day:
         return occurrence.start_date
@@ -161,10 +198,6 @@ def reminder_due(occurrence: EventOccurrence, event: CalendarEvent) -> datetime:
     hour = get_settings().calendar_reminder_hour
     return _local_to_utc(datetime.combine(_local_day(occurrence, event) - timedelta(days=1), time(hour)),
                          event.timezone)
-
-
-def _is_private(event: CalendarEvent, calendar: Optional[Calendar]) -> bool:
-    return event.audience != "community" or (calendar is not None and calendar.kind == "personal")
 
 
 def _occurrence_url(occurrence_id: Optional[int]) -> str:
@@ -278,9 +311,14 @@ def _record_failure(db: Session, model, row_id: int, owner: str, now: datetime, 
 # --- Phase 1: outbox expansion ---------------------------------------------------------------------------
 
 def _details_from_logs(logs: List[CalendarChangeLog]) -> tuple:
-    """(per-occurrence changes, event_cancelled, event_venue_changed)."""
+    """(per-occurrence changes, event_cancelled, event_venue, event_venue_name).
+
+    event_venue marks an event-level change of ANY venue field (the writer
+    logs venue_name, venue_address and map_url alike); event_venue_name
+    says whether the venue NAME itself changed — only that reaches the
+    sessions' effective venue."""
     per: Dict[int, dict] = {}
-    event_cancelled = event_venue = False
+    event_cancelled = event_venue = event_venue_name = False
     for log in logs:
         kind = log.change_kind
         if kind == "cancelled":
@@ -294,19 +332,49 @@ def _details_from_logs(logs: List[CalendarChangeLog]) -> tuple:
             old, new = (log.changes or {}).get("window_start", [None, None])
             entry.setdefault("old_start", old)
             entry["new_start"] = new
+            # A form change (all-day <-> timed) carries each endpoint's shape:
+            # the old local midnight must not render as "00:00", and the new
+            # all-day endpoint must not drop its date (latest log wins).
+            shapes = (log.changes or {}).get("is_all_day")
+            if isinstance(shapes, (list, tuple)) and len(shapes) == 2:
+                entry["old_all_day"], entry["new_all_day"] = bool(shapes[0]), bool(shapes[1])
         elif kind == "venue_changed":
             if log.occurrence_id:
-                per.setdefault(log.occurrence_id, {"kinds": set()})["kinds"].add("venue_changed")
+                entry = per.setdefault(log.occurrence_id, {"kinds": set()})
+                entry["kinds"].add("venue_changed")
+                # The session's own new venue: a merged alert can mix venue
+                # changes across sessions, and the delivery session's venue is
+                # not theirs. Writers record ("old", "new"); event-level
+                # synthesized items fall back to the delivery venue.
+                new_venue = (log.changes or {}).get("venue_name")
+                if isinstance(new_venue, (list, tuple)) and len(new_venue) == 2:
+                    # The field was logged even when the new value is None (an
+                    # override cleared back to the event venue).
+                    entry["venue_logged"] = True
+                    entry["venue"] = new_venue[1]
+                elif isinstance(new_venue, str):
+                    entry["venue_logged"] = True
+                    entry["venue"] = new_venue
             else:
                 event_venue = True
-    return per, event_cancelled, event_venue
+                if "venue_name" in (log.changes or {}):
+                    event_venue_name = True
+    return per, event_cancelled, event_venue, event_venue_name
 
 
-def _merge_details(old: dict, new: dict) -> dict:
+def _merge_details(old: dict, new: dict, keep_id: Optional[int] = None) -> dict:
     """Combine a superseded pending alert with the newer one: kinds union,
-    the oldest 'old_start' and the newest 'new_start' per occurrence."""
-    merged = {o["id"]: dict(o) for o in (old.get("occurrences") or [])}
-    for item in new.get("occurrences") or []:
+    the oldest 'old_start' and the newest 'new_start' per occurrence.
+    The rendered list is capped by occurrence id, except `keep_id` — the
+    surviving delivery's own session — which the cap never drops: the push
+    and the read row are keyed to that session. The `ids` ledger keeps the
+    union of both alerts' sessions, so `total` is the exact session count
+    whenever both sides carry the ledger (only legacy rows lack it, or a
+    past-MAX_UNION_IDS union degrades to the safe lower bound)."""
+    old_occ = old.get("occurrences") or []
+    new_occ = new.get("occurrences") or []
+    merged = {o["id"]: dict(o) for o in old_occ}
+    for item in new_occ:
         prev = merged.get(item["id"])
         if prev is None:
             merged[item["id"]] = dict(item)
@@ -317,10 +385,40 @@ def _merge_details(old: dict, new: dict) -> dict:
             if prev.get("old_start") is None:
                 prev["old_start"] = item.get("old_start")
             prev["new_start"] = item["new_start"]
+        # All-day shapes ride along with the times they describe: the oldest
+        # old shape and the newest new shape, like the times themselves.
+        if "old_all_day" in item:
+            prev.setdefault("old_all_day", item["old_all_day"])
+        if "new_all_day" in item:
+            prev["new_all_day"] = item["new_all_day"]
+        if "venue" in item:
+            prev["venue"] = item["venue"]  # an explicit None: the override was cleared
+    known = set(merged)  # the ids ledger keys: the union of listed sessions
+    for side in (old.get("ids"), new.get("ids")):
+        if isinstance(side, list):
+            known.update(i for i in side if isinstance(i, int))
+    ordered_ids = sorted(known)[:MAX_UNION_IDS]
+    # Exactness must survive merges: a side whose history is already inexact
+    # (legacy rows, a past bound) keeps every later union inexact too, even
+    # when both sides carry an ids ledger.
+    exact = (isinstance(old.get("ids"), list) and isinstance(new.get("ids"), list)
+             and len(known) <= MAX_UNION_IDS
+             and old.get("total_exact", True) and new.get("total_exact", True))
     out = dict(new)
-    out["occurrences"] = sorted(merged.values(), key=lambda o: o["id"])[:MAX_DETAIL_OCCURRENCES]
+    out["ids"] = ordered_ids
+    # A legacy side (no ledger) hides its unlisted sessions: the count is a
+    # safe lower bound and consumers must not present it as exact.
+    out["total_exact"] = exact
+    out["total"] = len(known) if exact else max(old.get("total") or 0, new.get("total") or 0,
+                                                len(ordered_ids))
+    capped = sorted(merged.values(), key=lambda o: o["id"])[:MAX_DETAIL_OCCURRENCES]
+    if keep_id is not None and keep_id in merged and all(o["id"] != keep_id for o in capped):
+        capped = sorted(capped[:MAX_DETAIL_OCCURRENCES - 1] + [merged[keep_id]],
+                        key=lambda o: o["id"])
+    out["occurrences"] = capped
     out["event_cancelled"] = bool(old.get("event_cancelled") or new.get("event_cancelled"))
     out["event_venue"] = bool(old.get("event_venue") or new.get("event_venue"))
+    out["event_venue_name"] = bool(old.get("event_venue_name") or new.get("event_venue_name"))
     return out
 
 
@@ -343,10 +441,13 @@ def expand_one(db: Session, outbox: CalendarAlertOutbox, now: datetime) -> int:
     logs = db.query(CalendarChangeLog).filter(CalendarChangeLog.outbox_id == outbox.id).order_by(
         CalendarChangeLog.id).all()
     actor = outbox.actor_user_id
-    per, event_cancelled, event_venue = _details_from_logs(logs)
+    per, event_cancelled, event_venue, event_venue_name = _details_from_logs(logs)
     occurrences = {o.id: o for o in db.query(EventOccurrence).filter(
         EventOccurrence.event_id == event.id, EventOccurrence.window_end > now).order_by(
         EventOccurrence.window_start).limit(MAX_AFFECTED_OCCURRENCES)}
+    # At the cap the loaded set may be shorter than the event's upcoming
+    # sessions: totals built from it are lower bounds, never exact.
+    cap_reached = len(occurrences) >= MAX_AFFECTED_OCCURRENCES
     affected = {oid: info for oid, info in per.items() if oid in occurrences}
     if event_cancelled or event_venue:
         for oid in occurrences:
@@ -383,12 +484,25 @@ def expand_one(db: Session, outbox: CalendarAlertOutbox, now: datetime) -> int:
             items = []
             for oid in sorted(oids, key=lambda i: occurrences[i].window_start):
                 info = affected[oid]
-                items.append({"id": oid, "kinds": sorted(info["kinds"]), "old_start": info.get("old_start"),
-                              "new_start": info.get("new_start")})
+                item = {"id": oid, "kinds": sorted(info["kinds"]), "old_start": info.get("old_start"),
+                        "new_start": info.get("new_start")}
+                # Each endpoint's all-day shape (a form change formats its two
+                # ends independently; the current shape is the fallback).
+                shape_now = bool(occurrences[oid].is_all_day)
+                item["old_all_day"] = bool(info.get("old_all_day", shape_now))
+                item["new_all_day"] = bool(info.get("new_all_day", shape_now))
+                if info.get("venue_logged"):
+                    # The venue field was logged even when the new value is
+                    # None (an override cleared back to the event venue): the
+                    # key's presence, not its value, marks a recorded change.
+                    item["venue"] = info.get("venue")
+                items.append(item)
             cancelled = event_cancelled or any("cancelled" in i["kinds"] for i in items)
             kind = "cancellation" if cancelled else "change"
             details = {"occurrences": items[:MAX_DETAIL_OCCURRENCES], "total": len(items),
-                       "event_cancelled": event_cancelled, "event_venue": event_venue}
+                       "ids": [i["id"] for i in items], "total_exact": not cap_reached,
+                       "event_cancelled": event_cancelled, "event_venue": event_venue,
+                       "event_venue_name": event_venue_name}
             # Supersede pending, undelivered change alerts of the same event:
             # one up-to-date alert instead of a stale sequence.
             for old in db.query(CalendarAlertDelivery).filter(
@@ -396,7 +510,7 @@ def expand_one(db: Session, outbox: CalendarAlertOutbox, now: datetime) -> int:
                     CalendarAlertDelivery.kind.in_(("change", "cancellation")),
                     CalendarAlertDelivery.status == "pending",
                     or_(CalendarAlertDelivery.lease_until.is_(None), CalendarAlertDelivery.lease_until < now)):
-                details = _merge_details(old.details or {}, details)
+                details = _merge_details(old.details or {}, details, keep_id=items[0]["id"])
                 old.status, old.suppressed_reason = "suppressed", "superseded"
             if details.get("event_cancelled") or any("cancelled" in i["kinds"] for i in details["occurrences"]):
                 kind = "cancellation"
@@ -578,14 +692,110 @@ def suppression_reason(db: Session, d: CalendarAlertDelivery, now: datetime) -> 
 
 
 def push_payload(db: Session, d: CalendarAlertDelivery) -> dict:
-    event = db.get(CalendarEvent, d.event_id)
-    calendar = db.get(Calendar, event.calendar_id) if event else None
+    """Push preview: the kind label as title, the real details as body.
+
+    Pilot feedback: "Open the app to see the details." conveys nothing on a
+    lock screen. The body carries what/where/group/when, including for
+    non-community events — it is built at send time, right after the
+    recipient passed the visibility re-check (suppression_reason), and Web
+    Push payloads are encrypted to the recipient's device, so no third
+    party reads it in transit. The generic fallback is only for an event
+    that vanished between the inbox commit and this read."""
     title = GENERIC_TITLES[d.kind]
-    if event is None or _is_private(event, calendar):
-        body = PUSH_BODY_PRIVATE
-    else:
-        body = event.title
-    return {"title": title, "body": body, "url": _occurrence_url(d.occurrence_id)}
+    event = db.get(CalendarEvent, d.event_id)
+    if event is None:
+        return {"title": title, "body": PUSH_BODY_PRIVATE, "url": _occurrence_url(d.occurrence_id)}
+    return {"title": _push_title(db, d, event), "body": _push_body(db, d, event),
+            "url": _occurrence_url(d.occurrence_id)}
+
+
+def _push_title(db: Session, d: CalendarAlertDelivery, event: CalendarEvent) -> str:
+    """Cancellation wording follows its true scope: the whole event
+    (event_cancelled), the recipient's own session (its occurrence is
+    cancelled), or a plain change when another session was the cancelled
+    one — models/EventOccurrence carries cancellation per occurrence."""
+    if d.kind != "cancellation":
+        return GENERIC_TITLES[d.kind]
+    if (d.details or {}).get("event_cancelled"):
+        return GENERIC_TITLES["cancellation"]
+    occ = db.get(EventOccurrence, d.occurrence_id) if d.occurrence_id else None
+    if occ is not None and occ.status == "cancelled":
+        return PUSH_TITLE_SESSION_CANCELLED
+    return GENERIC_TITLES["change"]
+
+
+def _event_venue_reaches(details: dict, occ: Optional[EventOccurrence]) -> bool:
+    """An event-level venue change marks every affected occurrence, but only
+    a venue_NAME change reaches a session's effective venue — and only one
+    without its own venue override. False for address/map_url-only edits
+    (new rows); legacy rows (no flag) keep the previous behavior."""
+    name_changed = details.get("event_venue_name")
+    if name_changed is False:
+        return False
+    if name_changed is True:
+        return occ is not None and occ.venue_name is None
+    return True
+
+
+def _push_body(db: Session, d: CalendarAlertDelivery, event: CalendarEvent) -> str:
+    """'What · where · group · when' (plus what changed), ' · '-joined."""
+    occ = db.get(EventOccurrence, d.occurrence_id) if d.occurrence_id else None
+    details = d.details or {}
+    items = details.get("occurrences") or []
+    # d.occurrence_id is the newest alert's first affected session, but merged
+    # details are sorted by occurrence id: select the change item of the
+    # delivery's own session, so its moved-from/to times are never paired with
+    # another session's date. If that session is absent from the list (legacy
+    # rows written before _merge_details kept it under the cap), degrade to
+    # what/where/group/when only — any change string would mispair.
+    own = next((item for item in items if item.get("id") == d.occurrence_id), None)
+    if own is None and items and d.occurrence_id is not None:
+        own = {}
+    kinds = set((own or {}).get("kinds") or [])
+    # "Cancelled" describes this delivery's session, or a whole-event
+    # cancellation — another session's cancellation never labels this row.
+    cancelled = ("cancelled" in kinds or (occ is not None and occ.status == "cancelled")
+                 or bool(details.get("event_cancelled")))
+    parts: List[str] = [event.title]
+    if cancelled:
+        parts.append("Cancelled")
+    venue = (occ.venue_name if occ is not None else None) or event.venue_name
+    if venue:
+        # "New venue" only when this session's effective venue name actually
+        # changed: an occurrence-level log carries its own new venue, while an
+        # event-level change reaches only sessions without their own override
+        # and never an address/map_url-only edit.
+        new_venue = "venue_changed" in kinds and (
+            "venue" in (own or {}) or _event_venue_reaches(details, occ))
+        parts.append(f"New venue: {venue}" if new_venue else venue)
+    calendar = db.get(Calendar, event.calendar_id)
+    if calendar is not None and calendar.kind == "group" and calendar.name:
+        parts.append(calendar.name)
+    if "time_changed" in kinds:
+        # Each endpoint formats with its own all-day shape (the current shape
+        # is only the fallback): an old local midnight is a date, a new
+        # all-day endpoint keeps its date, a new timed endpoint keeps its time.
+        all_day = bool(occ is not None and occ.is_all_day)
+        old_shape, new_shape = (own or {}).get("old_all_day"), (own or {}).get("new_all_day")
+        old = _push_iso((own or {}).get("old_start"), event, all_day if old_shape is None else old_shape)
+        new = _push_iso((own or {}).get("new_start"), event, all_day if new_shape is None else new_shape)
+        if old and new:
+            parts.append(f"Moved from {old} to {new}")
+    when = _push_when(occ, event)
+    if when:
+        parts.append(when)
+    # Partial change over several sessions: say how many are affected. Only an
+    # event-wide cancellation says everything a count would — one cancelled
+    # occurrence inside a multi-session alert still counts the others. An
+    # inexact total is a lower bound: even a bound of 1 may hide other
+    # affected sessions, so the uncounted marker never depends on the number.
+    total = details.get("total") or len(items)
+    if not details.get("event_cancelled"):
+        if not details.get("total_exact", True):
+            parts.append(PUSH_MORE_UNCOUNTED)
+        elif total > 1:
+            parts.append(f"+{total - 1} more")
+    return " · ".join(part for part in parts if part)
 
 
 def _push(db: Session, delivery_id: int, owner: str, sender, now: datetime, budget=None) -> str:
@@ -829,6 +1039,28 @@ def requeue_dead(db: Session, table: str, row_id: Optional[int] = None, now: Opt
 
 # --- Read side --------------------------------------------------------------------------------------------------------------
 
+def _read_changes(occurrences: Dict[int, EventOccurrence], details: dict, occ: EventOccurrence) -> list:
+    """Per-item change view for the reader. The effective-venue test is per
+    item against its own (bulk-loaded) occurrence: an event-level venue-name
+    change reaches the sessions that inherit the event venue, not those with
+    their own override — the delivery session's shape says nothing about the
+    other sessions."""
+    out = []
+    for item in details.get("occurrences", []):
+        kinds = list(item.get("kinds", []))
+        if "venue_changed" in kinds and "venue" not in item:
+            item_occ = occurrences.get(item.get("id")) or occ
+            if not _event_venue_reaches(details, item_occ):
+                kinds.remove("venue_changed")
+        out.append({"occurrence_id": item.get("id"), "kinds": kinds,
+                    "old_start": item.get("old_start"),
+                    "new_start": item.get("new_start"),
+                    "old_all_day": bool(item.get("old_all_day", occ.is_all_day)),
+                    "new_all_day": bool(item.get("new_all_day", occ.is_all_day)),
+                    "venue": item.get("venue")})
+    return out
+
+
 def render_for_reader(db: Session, user: AppUser, rows: List[Notification]) -> Dict[int, dict]:
     """Per-reader view of calendar inbox rows: {notification_id: overrides}.
 
@@ -843,22 +1075,29 @@ def render_for_reader(db: Session, user: AppUser, rows: List[Notification]) -> D
     deliveries = {d.notification_id: d for d in db.query(CalendarAlertDelivery).filter(
         CalendarAlertDelivery.notification_id.in_([r.id for r in cal_rows]))}
     occ_ids = {d.occurrence_id for d in deliveries.values() if d.occurrence_id}
-    visible = {o.id: (o, e) for o, e, _c in access.visible_occurrences(db, user).filter(
+    for d in deliveries.values():
+        for item in (d.details or {}).get("occurrences", []):
+            if item.get("id"):
+                occ_ids.add(item["id"])  # one bounded query for every session a row may describe
+    visible = {o.id: (o, e, c) for o, e, c in access.visible_occurrences(db, user).filter(
         EventOccurrence.id.in_(occ_ids))} if occ_ids else {}
+    occurrences_by_id = {o.id: o for o, _e, _c in visible.values()}
     out = dict(redacted)
     for r in cal_rows:
         d = deliveries.get(r.id)
         if d is None or d.occurrence_id not in visible:
             continue
-        occ, event = visible[d.occurrence_id]
+        occ, event, calendar = visible[d.occurrence_id]
         details = d.details or {}
         out[r.id] = {"title": event.title, "body": None, "calendar": {
             "redacted": False, "kind": d.kind, "event_id": event.id, "occurrence_id": occ.id,
             "url": _occurrence_url(occ.id), "event_title": event.title, "timezone": event.timezone,
+            "calendar_name": calendar.name, "calendar_kind": calendar.kind,
             "starts_at": _iso(occ.starts_at), "start_date": occ.start_date.isoformat() if occ.start_date else None,
             "all_day": bool(occ.is_all_day), "venue_name": occ.venue_name or event.venue_name,
-            "status": "cancelled" if "cancelled" in (event.status, occ.status) else "scheduled",
-            "changes": [{"kinds": i.get("kinds", []), "old_start": i.get("old_start"),
-                         "new_start": i.get("new_start")} for i in details.get("occurrences", [])],
-            "total": details.get("total", 0)}}
+            "status": "cancelled" if occ.status == "cancelled" else "scheduled",
+            "event_cancelled": bool(details.get("event_cancelled")),
+            "changes": _read_changes(occurrences_by_id, details, occ),
+            "total": details.get("total", 0),
+            "total_exact": bool(details.get("total_exact", True))}}
     return out

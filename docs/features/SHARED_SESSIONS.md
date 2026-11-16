@@ -253,3 +253,13 @@ their dives and export clips — steps 3–4, NOT in scope here).
   uniqueness or run A's backend against multiple same-date sessions; use a
   forward fix or disable the feature while retaining this backend. There is
   no destructive RSVP conversion to reverse.
+
+### Thumbnail recovery
+
+The session reconciler scans at most 50 ready recordings and attempts at most
+2 missing poster/animation pairs per pass, rotating by recording ID. Failed
+attempts have a 30-minute cooldown stored in the persistent session-image
+folder, including across backend restarts. The existing single extraction slot,
+128 MiB input-read budget and 1 GiB derivative quota still apply. Thumbnail
+failure leaves playback ready. No SQL migration or Mac service change is needed;
+deploy the backend through `ci/ship.sh` to enable recovery.

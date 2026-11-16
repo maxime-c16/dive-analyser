@@ -247,7 +247,7 @@ def flags(monkeypatch):
 def fake_presign(monkeypatch):
     calls = []
 
-    def _fake(bucket, object_key, ttl_seconds=None, storage_location_id=None):
+    def _fake(bucket, object_key, ttl_seconds=None, storage_location_id=None, **_extra):
         from app.services.b2_presign import PresignResult, clamp_ttl
 
         effective = clamp_ttl(ttl_seconds)
@@ -411,7 +411,8 @@ def test_authorized_owner_playback_redirect(client, db, fake_presign, caplog):
     assert r.headers["cache-control"] == "private, no-store"
     assert r.headers["referrer-policy"] == "no-referrer"
     assert r.headers["x-content-type-options"] == "nosniff"
-    assert fake_presign[0]["ttl"] == 120
+    # Revision playback grants use their own (longer, still capped) TTL.
+    assert fake_presign[0]["ttl"] == 300
     grant = db.query(MediaPlaybackGrant).one()
     assert grant.outcome == "ALLOWED"
     assert grant.storage_location_id is not None

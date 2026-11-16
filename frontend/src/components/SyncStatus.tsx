@@ -1,3 +1,4 @@
+import { fmtNum } from '../utils/formatNumber'
 import { useTranslation } from 'react-i18next'
 import { milestoneDisplay } from '../i18n/milestones'
 import React from 'react'
@@ -143,7 +144,7 @@ export const SyncStatus: React.FC<{ compact?: boolean }> = ({ compact = false })
             <div className="bg-app-panel-elevated rounded p-2">
               <div className="text-app-muted">{t('sync.duration')}</div>
               <div className="font-bold text-amber-400">
-                {currentSync.duration_seconds.toFixed(1)}s
+                {fmtNum(currentSync.duration_seconds, 1)}s
               </div>
             </div>
           </div>

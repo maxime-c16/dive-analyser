@@ -67,9 +67,12 @@ def require_owner_for_mutation(
         return None
     if not get_settings().user_auth_enabled:
         return None
-    if _valid_machine_api_key(request):
-        # Machine-to-machine call: the route's own verify_api_key still
-        # enforces key authorization; the browser guard steps aside.
+    from app.security import registered_media_key
+    if _valid_machine_api_key(request) or registered_media_key(
+        db, request.scope.get("path", ""), request.headers.get("x-api-key") or ""
+    ):
+        # Worker routes still enforce the key, agent identity and lease;
+        # the browser session guard steps aside.
         return None
     settings = get_settings()
     resolved = sessions.resolve_session(

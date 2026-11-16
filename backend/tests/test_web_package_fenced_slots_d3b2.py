@@ -1256,3 +1256,61 @@ def test_route_correct_pin_happy_path_single_slot(
         assert body["job_ready"] is False
     finally:
         settings.media_cache_root = saved_root
+
+
+def _distinct_agent(db, agent_id):
+    """One registered Mac with its own key (the shared helper reuses one key)."""
+    db.add(MediaAgent(id=agent_id, hostname=f"{agent_id}.local",
+                      api_key_sha256=hashlib.sha256(agent_id.encode() * 8).hexdigest(),
+                      active=True, leasing_enabled=True, capabilities=["web_package"]))
+    db.flush()
+
+
+def test_fleet_package_cap_and_one_package_per_agent(test_db, monkeypatch, _presign):
+    """MEDIA_MAX_ACTIVE_PACKAGES=2: two Macs each hold one package; no third."""
+    from app.services import media_jobs as mj
+
+    settings = get_settings()
+    monkeypatch.setattr(settings, "media_web_packages_enabled", True)
+    monkeypatch.setattr(settings, "media_jobs_require_lease_token", True)
+    monkeypatch.setattr(settings, "media_max_active_packages", 2)
+    for agent_id in ("mac-media-01", "mac-media-02", "mac-media-03"):
+        _distinct_agent(test_db, agent_id)
+    for index in range(4):
+        uuid = f"{index + 3}" * 8 + "-1111-1111-1111-111111111111"
+        asset = _asset(test_db, uuid=uuid)
+        _seed_camera_source(test_db, asset.video_uuid, raw=f"camera-{index}".encode())
+        test_db.add(MediaJob(photos_asset_id=asset.id, media_key=f"{index}" + "0" * 63,
+                             rendition="web_package", status="queued"))
+    test_db.flush()
+
+    def lease(agent_id):
+        jobs = mj.lease_media_jobs(test_db, MediaJobLeaseRequest(
+            agent_id=agent_id, capabilities=["web_package"], max_jobs=2, supports_lease_token=True))
+        return [job for job in jobs if job.rendition == "web_package"]
+
+    assert len(lease("mac-media-01")) == 1
+    assert lease("mac-media-01") == []  # a worker never holds two packages
+    assert len(lease("mac-media-02")) == 1  # a second Mac helps
+    assert lease("mac-media-03") == []  # fleet cap reached
+
+
+def test_fleet_package_cap_defaults_to_one(test_db, monkeypatch, _presign):
+    from app.services import media_jobs as mj
+
+    settings = get_settings()
+    monkeypatch.setattr(settings, "media_web_packages_enabled", True)
+    monkeypatch.setattr(settings, "media_jobs_require_lease_token", True)
+    assert settings.model_fields["media_max_active_packages"].default == 1
+    monkeypatch.setattr(settings, "media_max_active_packages", 1)
+    for agent_id in ("mac-media-01", "mac-media-02"):
+        _distinct_agent(test_db, agent_id)
+    for index in range(2):
+        asset = _asset(test_db, uuid=f"{index + 5}" * 8 + "-1111-1111-1111-111111111111")
+        _seed_camera_source(test_db, asset.video_uuid, raw=f"camera-d{index}".encode())
+        test_db.add(MediaJob(photos_asset_id=asset.id, media_key=f"d{index}" + "0" * 62,
+                             rendition="web_package", status="queued"))
+    test_db.flush()
+    first = mj.lease_media_jobs(test_db, MediaJobLeaseRequest(agent_id="mac-media-01", capabilities=["web_package"], max_jobs=2, supports_lease_token=True))
+    second = mj.lease_media_jobs(test_db, MediaJobLeaseRequest(agent_id="mac-media-02", capabilities=["web_package"], max_jobs=2, supports_lease_token=True))
+    assert len(first) == 1 and second == []

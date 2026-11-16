@@ -99,6 +99,10 @@ class MediaConfig:
     enabled: bool = False
     interval_seconds: int = 300
     max_jobs: int = 1
+    # x264 threads per package output (HQ and Light encode concurrently).
+    # Measured on mac-media-01 (i5, 8 GiB): 1 -> 105 s, 2 -> 76 s, 3 -> 76 s
+    # per 12.5 s HLG clip; peak ffmpeg RSS 729 / 782 / 821 MB.
+    package_threads_per_variant: int = 2
     fail_unimplemented_jobs: bool = True
     allow_original: bool = False
     allow_icloud_download: bool = False
@@ -356,6 +360,7 @@ class Config:
                 enabled=media_data.get('enabled', False),
                 interval_seconds=media_data.get('interval_seconds', 300),
                 max_jobs=media_data.get('max_jobs', 1),
+                package_threads_per_variant=media_data.get('package_threads_per_variant', 2),
                 fail_unimplemented_jobs=media_data.get('fail_unimplemented_jobs', True),
                 allow_original=media_data.get('allow_original', False),
                 allow_icloud_download=media_data.get('allow_icloud_download', False),
@@ -705,6 +710,12 @@ class Config:
         # work for the same source cannot race.
         if self.media.enabled and self.media.max_jobs > 2:
             raise ValueError("production media processing is capped at media.max_jobs = 2")
+        # One package runs two encoders; beyond 3 threads each the single
+        # decode/tone-map thread is the bottleneck and memory only grows.
+        if not 1 <= int(self.media.package_threads_per_variant) <= 3:
+            raise ValueError(
+                f"media.package_threads_per_variant must be between 1 and 3 (got {self.media.package_threads_per_variant})"
+            )
         forbidden = {"original"}.intersection(self.media.capabilities)
         if self.media.enabled and forbidden:
             raise ValueError(f"production media capabilities are forbidden: {sorted(forbidden)}")

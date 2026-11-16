@@ -1,0 +1,8 @@
+{
+  "id": "official-grade-names",
+  "date": "2026-11-12",
+  "title": "One name per rating, aligned with the FFN scale",
+  "body": "Each rating letter now has a single name everywhere in the app: P Parfait, G Bon, M Moyen, B Non satisfaisant, F Manqué. Bon, Non satisfaisant and Manqué follow the official FFN / World Aquatics judging scale for their score.",
+  "audience": "all",
+  "components": ["frontend", "backend"]
+}

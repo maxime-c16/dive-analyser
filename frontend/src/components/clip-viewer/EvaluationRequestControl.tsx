@@ -115,59 +115,50 @@ export default function EvaluationRequestControl({
 
   if (!attempt.video_uuid) return null
   return (
-    <span className="flex flex-wrap items-center gap-2 text-sm">
-      <label className="flex items-center gap-2">
-        <input
-          type="checkbox"
+    <div className="clip-setting-card">
+      <div className="clip-setting-card-row">
+        <span className="clip-setting-card-title">{t('evaluations.label')}</span>
+        <button
+          type="button"
           role="switch"
+          className="clip-switch"
           aria-label={t('evaluations.toggleAria')}
-          checked={!!current?.active}
+          aria-checked={!!current?.active}
           disabled={busy}
-          onChange={(event) => void toggle(event.target.checked)}
-        />
-        {t('evaluations.label')}
-      </label>
+          onClick={() => void toggle(!current?.active)}
+        >
+          <span aria-hidden />
+        </button>
+      </div>
       {mediaPending && (
-        <span role="status" className="text-xs text-app-muted">
+        <p role="status" className="clip-setting-card-copy">
           {t('evaluations.mediaPending')}{' '}
-          <button type="button" className="underline" disabled={checkingMedia} onClick={() => void retryMedia()}>
+          <button type="button" className="clip-inline-link" disabled={checkingMedia} onClick={() => void retryMedia()}>
             {t('evaluations.mediaRetry')}
           </button>
-        </span>
+        </p>
       )}
       {current?.active && (
-        <span className="w-full space-y-1">
-          <label className="block text-xs text-app-muted" htmlFor="evaluation-prompt">
-            {t('evaluations.prompt')}
-          </label>
+        <label className="clip-field">
+          <span className="clip-setting-card-copy">{t('evaluations.prompt')}</span>
           <textarea
             id="evaluation-prompt"
             aria-label={t('evaluations.prompt')}
             maxLength={EVALUATION_PROMPT_MAX}
             rows={2}
-            className="mt-1 block w-full border border-app bg-app-panel-elevated p-2 text-sm"
             value={draft}
             disabled={busy}
             placeholder={t('evaluations.promptPlaceholder')}
             onChange={(event) => setDraft(event.target.value)}
           />
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              className="touch-target border border-app px-2 text-xs"
-              disabled={busy}
-              onClick={() => void savePrompt()}
-            >
-              {t('evaluations.savePrompt')}
-            </button>
-          </div>
-        </span>
+        </label>
       )}
-      {error && (
-        <span role="status" className="text-xs text-red-300">
-          {t('evaluations.error')}
-        </span>
+      {current?.active && (
+        <button type="button" className="clip-secondary" disabled={busy} onClick={() => void savePrompt()}>
+          {t('evaluations.savePrompt')}
+        </button>
       )}
-    </span>
+      {error && <p role="status" className="clip-editor-message is-error">{t('evaluations.error')}</p>}
+    </div>
   )
 }

@@ -224,6 +224,12 @@ tier_agent() {
 # ===========================================================================
 tier_images() {
     ci_step "images: docker build"
+    # The daemon, not the client, is what breaks builds. Preflight fails fast
+    # with a readable message instead of docker-native errors further down.
+    if ! bash "$SCRIPT_DIR/checkhost.sh" --scope images --quiet; then
+        ci_record images FAIL "host preflight failed — build on deb-serv (ci/ship.sh) or fix this host (docker daemon/compose/tools)"
+        return 1
+    fi
     if ! ci_have docker; then ci_record images FAIL "docker not available"; return 1; fi
     local rc=0 tag="ci-build-$(git -C "$ROOT" rev-parse --short HEAD)-$$"
     ci_run proxy-config bash "$SCRIPT_DIR/check-proxies.sh" || return 1

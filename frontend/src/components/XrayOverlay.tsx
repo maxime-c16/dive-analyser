@@ -1,3 +1,4 @@
+import { fmtNum } from '../utils/formatNumber'
 import { useEffect, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
@@ -17,7 +18,7 @@ export function xrayRow(entry: PerformanceResourceTiming, origin: string): XrayR
   } catch { /* Invalid URLs remain anonymous. */ }
   return { label, start: entry.startTime, duration: entry.duration,
     server: (entry.serverTiming || []).filter(t => ['auth', 'db', 'app'].includes(t.name))
-      .map(t => `${t.name} ${t.duration.toFixed(1)} ms`).join(' · ') }
+      .map(t => `${t.name} ${fmtNum(t.duration, 1)} ms`).join(' · ') }
 }
 
 function ActiveXray() {
@@ -58,7 +59,7 @@ function ActiveXray() {
     color: '#f9fafb', padding: 12, border: '1px solid #64748b', borderRadius: 8, font: '12px monospace' }}>
     <details open><summary>Xray · {rows.length} requests</summary><p>{lag}</p>
       {rows.map((row, i) => <div key={i} style={{ marginBottom: 8 }}>
-        <div>{row.label} · +{(row.start - base).toFixed(0)} ms · {row.duration.toFixed(1)} ms {row.server && `· ${row.server}`}</div>
+        <div>{row.label} · +{fmtNum((row.start - base), 0)} ms · {fmtNum(row.duration, 1)} ms {row.server && `· ${row.server}`}</div>
         <div style={{ height: 4, background: '#334155' }}><div style={{ height: 4, background: '#38bdf8',
           marginLeft: `${100 * (row.start - base) / span}%`,
           width: `${Math.max(.3, 100 * row.duration / span)}%` }} /></div>

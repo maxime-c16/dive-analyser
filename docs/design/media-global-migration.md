@@ -71,7 +71,7 @@ charge and source-change count are recorded per item.
 5. Gates (all must pass, otherwise nothing is admitted and the reason is
    in `last_tick.blocked_gates`): run active; `MEDIA_WEB_PACKAGES_ENABLED`;
    current derivative transform == run transform; a healthy package-capable
-   worker; fresh Mac facts (scratch >= 8 GiB, `vm.memory_pressure == 0`;
+   worker; fresh Mac facts (scratch >= 8 GiB, normal `kern.memorystatus_vm_pressure_level == 1` (reported as `memory_pressure="0"`);
    unknown or older than 15 min blocks); server cache >= 25 GiB; package
    breaker closed (two consecutive terminal package failures stop
    everything, including new-ingest packages); budget; admission cap.

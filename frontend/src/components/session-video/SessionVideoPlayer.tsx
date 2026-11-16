@@ -23,6 +23,8 @@ export default function SessionVideoPlayer({ info, playUrl, downloadUrl, reportU
   const reported = useRef(false)
   const refreshes = useRef(0)
   const resumeAt = useRef(0)
+  const playing = useRef(false)
+  const resumePlayback = useRef(false)
 
   const giveUp = (reason: 'unsupported' | 'no_frames' | 'error') => {
     if (!reported.current) { reported.current = true; reportPlaybackIssue(reportUrl, reason) }
@@ -33,6 +35,7 @@ export default function SessionVideoPlayer({ info, playUrl, downloadUrl, reportU
   useEffect(() => {
     let alive = true
     verified.current = false; reported.current = false; refreshes.current = 0; resumeAt.current = 0
+    playing.current = false; resumePlayback.current = false
     setSource(playUrl); setState('checking')
     canDecode(info).then(ok => {
       if (!alive) return
@@ -71,7 +74,18 @@ export default function SessionVideoPlayer({ info, playUrl, downloadUrl, reportU
       poster={info.poster_url}
       preload="none"
       aria-label={t('sessionVideo.videoAria')}
-      onLoadedMetadata={event => { const element = event.currentTarget; if (element.videoWidth && element.videoHeight) setRatio(element.videoWidth / element.videoHeight); if (resumeAt.current) event.currentTarget.currentTime = resumeAt.current }}
+      onLoadedMetadata={event => { const element = event.currentTarget; if (element.videoWidth && element.videoHeight) setRatio(element.videoWidth / element.videoHeight); element.playbackRate = rate; if (resumeAt.current) element.currentTime = resumeAt.current }}
+      onPlay={() => { playing.current = true }}
+      onPause={event => {
+        // A failed load can pause the element before its error handler runs.
+        if (!event.currentTarget.error && !resumePlayback.current) playing.current = false
+      }}
+      onCanPlay={event => {
+        if (!resumePlayback.current) return
+        resumePlayback.current = false
+        // Autoplay policy may reject resuming; the play button remains usable.
+        void event.currentTarget.play().catch(() => {})
+      }}
       onTimeUpdate={event => {
         const element = event.currentTarget
         if (verified.current || element.currentTime < FRAME_CHECK_AFTER_SECONDS) return
@@ -86,6 +100,7 @@ export default function SessionVideoPlayer({ info, playUrl, downloadUrl, reportU
           // for a fresh one and resume where the viewer was.
           refreshes.current += 1
           resumeAt.current = element.currentTime
+          resumePlayback.current = playing.current
           setSource(`${playUrl}${playUrl.includes('?') ? '&' : '?'}r=${refreshes.current}`)
           return
         }

@@ -106,3 +106,28 @@ describe('SessionVideoPlayer', () => {
     expect(api.post).toHaveBeenCalledWith(urls.reportUrl, { reason: 'error' })
   })
 })
+
+it.each([true, false])('restores position and speed after a refresh; playing=%s', async wasPlaying => {
+  stubCapabilities(true)
+  const { container } = render(<SessionVideoPlayer info={info} {...urls} />)
+  await waitFor(() => expect(container.querySelector('video')).not.toBeNull())
+  const video = container.querySelector('video')!
+  const play = vi.spyOn(video, 'play').mockResolvedValue()
+  Object.defineProperty(video, 'currentTime', { value: 600, writable: true })
+  fireEvent.change(screen.getByRole('combobox'), { target: { value: '0.5' } })
+  if (wasPlaying) fireEvent.play(video)
+  Object.defineProperty(video, 'error', { value: { code: 2 }, configurable: true })
+  fireEvent.pause(video)
+  fireEvent.error(video)
+  expect(video).toHaveAttribute('src', `${urls.playUrl}?r=1`)
+  Object.defineProperty(video, 'error', { value: null, configurable: true })
+  fireEvent.pause(video) // Replacing the failed source also pauses the element.
+  video.currentTime = 0
+  video.playbackRate = 1
+  fireEvent.loadedMetadata(video)
+  fireEvent.canPlay(video)
+  fireEvent.canPlay(video)
+  expect(video.currentTime).toBe(600)
+  expect(video.playbackRate).toBe(0.5)
+  expect(play).toHaveBeenCalledTimes(wasPlaying ? 1 : 0)
+})

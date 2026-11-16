@@ -171,12 +171,153 @@ def head_object(bucket: str, object_key: str) -> bool:
     return True
 
 
+def prewarm_client() -> bool:
+    """Build the playback client before any viewer needs it.
+
+    Importing boto3 and building the S3 client costs 2-6 s on deb-serv; done
+    lazily it lands on the first playback grant after every deploy. Runs on
+    a background thread at startup. A grant arriving mid-build waits on the
+    same lock instead of building a second client. Never raises.
+    """
+    if _b2_client_fingerprint() is None:
+        return False
+    try:
+        _b2_client()
+        return True
+    except Exception:
+        return False
+
+
+# Credential probe: a background HEAD of one verified PROD object proves the
+# playback credential can read the bucket right now. While the proof is
+# fresh (two intervals), first grants skip their per-object HEAD; a failed or
+# stale probe drops the proof and clears the HEAD cache, so grants fall back
+# to the per-object HEAD (and its legacy-fallback / 503 policy).
+_credential_proof: dict = {"until": 0.0, "fingerprint": None}
+_credential_proof_lock = threading.Lock()
+
+
+def credential_proven() -> bool:
+    interval = get_settings().media_playback_credential_probe_seconds
+    if interval <= 0:
+        return False
+    fingerprint = _b2_client_fingerprint()
+    with _credential_proof_lock:
+        return (
+            fingerprint is not None
+            and _credential_proof["fingerprint"] == fingerprint
+            and monotonic() < _credential_proof["until"]
+        )
+
+
+def record_credential_probe(ok: bool) -> None:
+    interval = get_settings().media_playback_credential_probe_seconds
+    with _credential_proof_lock:
+        if ok and interval > 0:
+            _credential_proof["until"] = monotonic() + 2 * interval
+            _credential_proof["fingerprint"] = _b2_client_fingerprint()
+            return
+        _credential_proof["until"] = 0.0
+        _credential_proof["fingerprint"] = None
+    with _head_ok_lock:
+        _head_ok_cache.clear()
+
+
+def probe_credential(bucket: str, object_key: str) -> bool:
+    """One provider HEAD that never uses or fills the per-object cache."""
+    try:
+        _b2_client().head_object(Bucket=bucket, Key=object_key)
+    except Exception:
+        record_credential_probe(False)
+        return False
+    record_credential_probe(True)
+    return True
+
+
+def reset_credential_probe() -> None:
+    """Tests only."""
+    with _credential_proof_lock:
+        _credential_proof["until"] = 0.0
+        _credential_proof["fingerprint"] = None
+
+
+def head_is_cached(bucket: str, object_key: str) -> bool:
+    """Whether a recent provider HEAD already proved this object, without I/O.
+
+    Lets the grant route skip the post-network authority refresh when no
+    network call happens at all; a miss still runs the full HEAD path.
+    """
+    ttl = get_settings().media_playback_head_cache_seconds
+    if ttl <= 0 or _presign_client_fingerprint is None:
+        return False
+    with _head_ok_lock:
+        expiry = _head_ok_cache.get((_presign_client_fingerprint, bucket, object_key))
+    return expiry is not None and monotonic() < expiry
+
+
+# Per-viewer playback URL reuse: the same viewer reopening the same revision
+# gets the same signed URL while at least half of its life remains, so the
+# browser can reuse bytes it already holds. Entries are keyed by viewer,
+# revision, exact storage identity and credential fingerprint; they are
+# process-local, bounded, never persisted or logged. Authorization still runs
+# on every request before an entry is returned.
+_PLAYBACK_REUSE_MAX_ENTRIES = 4096
+_playback_reuse: dict = {}
+_playback_reuse_lock = threading.Lock()
+
+
+def presign_playback(
+    *,
+    viewer_id: int,
+    revision_id: int,
+    storage_identity: tuple,
+    bucket: str,
+    object_key: str,
+    storage_location_id: Optional[int] = None,
+) -> tuple[PresignResult, bool]:
+    """Presign one revision for one viewer, reusing a still-fresh URL.
+
+    Returns (result, reused). Raises PresignUnavailable like presign_get.
+    """
+    ttl = clamp_ttl(get_settings().media_playback_grant_ttl_seconds)
+    # Current credential identity: a rotated key never reuses an old URL.
+    key = (viewer_id, revision_id, storage_identity, _b2_client_fingerprint())
+    now = monotonic()
+    with _playback_reuse_lock:
+        entry = _playback_reuse.get(key)
+    if entry is not None and entry[1] - now >= ttl / 2:
+        return PresignResult(url=entry[0], ttl_seconds=max(1, int(entry[1] - now)), storage_location_id=storage_location_id), True
+    signed = presign_get(
+        bucket=bucket,
+        object_key=object_key,
+        ttl_seconds=ttl,
+        storage_location_id=storage_location_id,
+        # Lets the browser reuse fetched bytes for this exact URL; the URL
+        # itself stops working at expiry, so the window is the grant's.
+        response_cache_control=f"private, max-age={ttl}",
+    )
+    url, ttl = signed.url, signed.ttl_seconds
+    with _playback_reuse_lock:
+        _playback_reuse[key] = (url, now + ttl)
+        if len(_playback_reuse) > _PLAYBACK_REUSE_MAX_ENTRIES:
+            for stale in sorted(_playback_reuse, key=lambda k: _playback_reuse[k][1])[: len(_playback_reuse) - _PLAYBACK_REUSE_MAX_ENTRIES]:
+                del _playback_reuse[stale]
+    return PresignResult(url=url, ttl_seconds=ttl, storage_location_id=storage_location_id), False
+
+
+def reset_playback_reuse() -> None:
+    """Drop every reusable playback URL (tests, credential rotation)."""
+    with _playback_reuse_lock:
+        _playback_reuse.clear()
+
+
 def presign_get(
     bucket: str,
     object_key: str,
     ttl_seconds: Optional[int] = None,
     storage_location_id: Optional[int] = None,
     download_filename: Optional[str] = None,
+    response_cache_control: Optional[str] = None,
 ) -> PresignResult:
     """Presign a GET for one object. Returns (url, ttl) — url is transient.
 
@@ -190,6 +331,8 @@ def presign_get(
     if download_filename:
         # Callers supply an ASCII filename, never a raw user-provided name.
         params["ResponseContentDisposition"] = f'attachment; filename="{download_filename}"'
+    if response_cache_control:
+        params["ResponseCacheControl"] = response_cache_control
     url = client.generate_presigned_url(
         "get_object",
         Params=params,
@@ -213,3 +356,35 @@ def open_get_stream(bucket: str, object_key: str):
         if response and response.get('Body') is not None:
             response['Body'].close()
         raise PresignUnavailable('Video stream unavailable') from None
+
+
+def read_object_head(bucket: str, object_key: str, length: int) -> tuple[bytes, Optional[int]]:
+    """First ``length`` bytes of one object and its total size.
+
+    Used to index fragmented packages for HLS. Bounded by the caller; the
+    body is read and closed here. Provider failures raise PresignUnavailable.
+    """
+    if length <= 0:
+        raise ValueError("length must be positive")
+    response = None
+    try:
+        response = _b2_client().get_object(Bucket=bucket, Key=object_key, Range=f"bytes=0-{length - 1}")
+        body = response["Body"]
+        try:
+            data = body.read(length)
+        finally:
+            body.close()
+    except PresignUnavailable:
+        raise
+    except Exception as exc:
+        raise PresignUnavailable(f"package header unavailable: {type(exc).__name__}") from None
+    total = None
+    content_range = response.get("ContentRange") or ""
+    if "/" in content_range:
+        try:
+            total = int(content_range.rsplit("/", 1)[1])
+        except ValueError:
+            total = None
+    if total is None and len(data) < length:
+        total = len(data)
+    return data, total

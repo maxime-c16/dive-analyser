@@ -50,7 +50,7 @@ from app.schemas.media import (
     CatalogPopulationRolloverRequest,
     ResolutionUpgradeStartRequest,
 )
-from app.security import verify_api_key
+from app.security import verify_api_key, verify_media_worker_key
 from app.services.legacy_gate import require_legacy_media_user
 from app.services.user_access import can_user_access_cache_entry
 from app.services.media_cache import (
@@ -129,7 +129,21 @@ from app.services.representative_population import (
 
 from app.services.media_cache import thumb_url
 
-router = APIRouter(prefix="/media", tags=["media"], dependencies=[Depends(require_owner_for_mutation)])
+async def _note_request_host(request: Request) -> None:
+    """Remember the serving host for the HLS hints (B2 CORS is per origin).
+
+    Async on purpose: set in the request's own context, which the threadpool
+    copies into sync endpoints.
+    """
+    from app.services.derivative_read import note_request_host
+
+    note_request_host(request.headers.get("host"))
+
+
+router = APIRouter(
+    prefix="/media", tags=["media"],
+    dependencies=[Depends(require_owner_for_mutation), Depends(_note_request_host)],
+)
 
 
 RENDITION_PREFERENCE = {
@@ -738,7 +752,7 @@ def _advance_background_media_work(db: Session) -> None:
 async def media_agent_heartbeat(
     request: MediaAgentHeartbeatRequest,
     db: Session = Depends(get_db),
-    api_key: dict = Depends(verify_api_key),
+    api_key: dict = Depends(verify_media_worker_key),
 ):
     # Heartbeat bookkeeping, background advancement and the commit form one
     # cancellation-safe unit: cancelling the response mid-advancement must
@@ -760,7 +774,7 @@ async def media_agent_heartbeat(
 def report_media_source(
     request: RecalledSourceReportRequest,
     db: Session = Depends(get_db),
-    api_key: dict = Depends(verify_api_key),
+    api_key: dict = Depends(verify_media_worker_key),
 ):
     try:
         source = report_recalled_source(db, request, api_key["key"])
@@ -887,7 +901,7 @@ def catalog_run_status(run_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/catalog/runs/lease")
-def catalog_run_lease(request: CatalogRunLeaseRequest, api_key: dict = Depends(verify_api_key), db: Session = Depends(get_db)):
+def catalog_run_lease(request: CatalogRunLeaseRequest, api_key: dict = Depends(verify_media_worker_key), db: Session = Depends(get_db)):
     _agent_auth(db, request.agent_id, api_key)
     run = lease_catalog_run(db, request.agent_id)
     db.commit()
@@ -895,7 +909,7 @@ def catalog_run_lease(request: CatalogRunLeaseRequest, api_key: dict = Depends(v
 
 
 @router.post("/catalog/runs/{run_id}/chunks")
-def catalog_run_chunk(run_id: int, request: CatalogChunkRequest, api_key: dict = Depends(verify_api_key), db: Session = Depends(get_db)):
+def catalog_run_chunk(run_id: int, request: CatalogChunkRequest, api_key: dict = Depends(verify_media_worker_key), db: Session = Depends(get_db)):
     _agent_auth(db, request.agent_id, api_key)
     run = db.get(MediaCatalogRun, run_id)
     if not run or run.agent_id != request.agent_id:
@@ -909,7 +923,7 @@ def catalog_run_chunk(run_id: int, request: CatalogChunkRequest, api_key: dict =
 
 
 @router.post("/catalog/runs/{run_id}/complete")
-def catalog_run_complete(run_id: int, request: CatalogCompleteRequest, api_key: dict = Depends(verify_api_key), db: Session = Depends(get_db)):
+def catalog_run_complete(run_id: int, request: CatalogCompleteRequest, api_key: dict = Depends(verify_media_worker_key), db: Session = Depends(get_db)):
     _agent_auth(db, request.agent_id, api_key)
     run = db.get(MediaCatalogRun, run_id)
     if not run or run.agent_id != request.agent_id:
@@ -924,7 +938,7 @@ def catalog_run_complete(run_id: int, request: CatalogCompleteRequest, api_key: 
 
 
 @router.post("/catalog/runs/{run_id}/fail")
-def catalog_run_fail(run_id: int, request: CatalogFailRequest, api_key: dict = Depends(verify_api_key), db: Session = Depends(get_db)):
+def catalog_run_fail(run_id: int, request: CatalogFailRequest, api_key: dict = Depends(verify_media_worker_key), db: Session = Depends(get_db)):
     _agent_auth(db, request.agent_id, api_key)
     run = db.get(MediaCatalogRun, run_id)
     if not run or run.agent_id != request.agent_id:
@@ -1179,7 +1193,72 @@ def get_media_status_batch(
         asset_id = next((aid for aid, uid in uuid_by_asset.items() if uid == video_uuid), None)
         entries = entries_by_asset.get(asset_id, []) if asset_id else []
         result[video_uuid] = _thumbnail_status_for_entries(db, video_uuid, entries, None)
+    _add_start_role_hints(db, result, seen)
     return result
+
+
+# Transform versions whose Light is rate-capped (2.5 Mbps); others are not.
+CAPPED_LIGHT_VERSIONS = frozenset({"ffmpeg-h264-web-v2", "ffmpeg-h264-web-v3", "ffmpeg-h264-web-v4"})
+
+
+def _add_start_role_hints(db: Session, result: dict, video_uuids: list[str]) -> None:
+    """Mark clips whose durable Light is ledger-ready: ``start_role: light``
+    plus ``start_light_version`` (its transform version).
+
+    One bounded query over the already-authorized uuids. A hint only: the
+    role play route still runs the full current-source/storage proof and the
+    player falls back to its status-driven source when that proof fails. No
+    revision id or URL is exposed here, so the tile path still mints nothing.
+    """
+    if not video_uuids:
+        return
+    try:
+        from app.models.media_backbone import MediaDerivative
+        from app.services.derivative_read import _served_transform_versions
+
+        served = _served_transform_versions()
+        rows = db.execute(
+            select(MediaDerivative.video_uuid, MediaDerivative.transform_version).where(
+                MediaDerivative.video_uuid.in_(video_uuids),
+                MediaDerivative.role == "light",
+                MediaDerivative.status == "ready",
+                MediaDerivative.transform_version.in_(served),
+            ).distinct()
+        ).all()
+    except Exception as exc:  # pre-ledger schema: no hints, tiles unchanged
+        from app.services.derivative_read import _is_missing_ledger_table
+
+        if not _is_missing_ledger_table(exc):
+            raise
+        db.rollback()
+        return
+    # Players size the start from the Light's bitrate. This bounded query
+    # does not prove which row the read path will serve (current source,
+    # verified storage), so when a clip has ready Light rows in several
+    # versions, name an uncapped one: the player may overestimate the
+    # bitrate (a cautious start), never underestimate it.
+    best: dict[str, str] = {}
+    from app.services.derivative_read import hls_transform_versions
+
+    hls_versions = hls_transform_versions()
+    # The adaptive hint is independent of the cautious bitrate hint: a ready
+    # Light in an HLS version is what the read path serves first (newest
+    # served version wins), even when an older uncapped row also exists.
+    hls_ready = {video_uuid for video_uuid, version in rows if version in hls_versions}
+    for video_uuid, version in rows:
+        if video_uuid not in best or (best[video_uuid] in CAPPED_LIGHT_VERSIONS and version not in CAPPED_LIGHT_VERSIONS):
+            best[video_uuid] = version
+    from app.services.derivative_read import current_hls_player_mode
+
+    hls_start_mode = current_hls_player_mode()
+    for video_uuid, version in best.items():
+        if video_uuid in result:
+            result[video_uuid]["start_role"] = "light"
+            result[video_uuid]["start_light_version"] = version
+            # Adaptive start: the master playlist route still proves the
+            # current source and storage, and 404s back to progressive.
+            if video_uuid in hls_ready:
+                result[video_uuid]["start_hls"] = hls_start_mode
 
 
 @router.post("/{video_uuid}/request")
@@ -1298,7 +1377,7 @@ def mark_media_viewed(
 def lease_jobs(
     request: MediaJobLeaseRequest,
     db: Session = Depends(get_db),
-    api_key: dict = Depends(verify_api_key),
+    api_key: dict = Depends(verify_media_worker_key),
 ) -> MediaJobLeaseResponse:
     """Lease queued media jobs for a Mac agent."""
     agent = _agent_auth(db, request.agent_id, api_key, leasing=True)
@@ -1324,7 +1403,7 @@ def heartbeat_job(
     job_id: int,
     request: MediaJobHeartbeatRequest,
     db: Session = Depends(get_db),
-    api_key: dict = Depends(verify_api_key),
+    api_key: dict = Depends(verify_media_worker_key),
 ):
     """Update progress for a leased media job."""
     try:
@@ -1344,7 +1423,7 @@ def fail_job(
     job_id: int,
     request: MediaJobFailRequest,
     db: Session = Depends(get_db),
-    api_key: dict = Depends(verify_api_key),
+    api_key: dict = Depends(verify_media_worker_key),
 ):
     """Mark a leased media job failed or unavailable."""
     try:
@@ -1368,7 +1447,7 @@ async def upload_job_artifact(
     file: UploadFile = File(...),
     lease_token: str | None = Form(None),
     db: Session = Depends(get_db),
-    api_key: dict = Depends(verify_api_key),
+    api_key: dict = Depends(verify_media_worker_key),
 ) -> MediaJobUploadResponse:
     """Upload a completed artifact for a leased media job."""
     _agent_auth(db, agent_id, api_key)
@@ -1494,7 +1573,7 @@ async def finalize_job_artifact(
     job_id: int,
     request: MediaJobFinalizeRequest,
     db: Session = Depends(get_db),
-    api_key: dict = Depends(verify_api_key),
+    api_key: dict = Depends(verify_media_worker_key),
 ) -> MediaJobFinalizeResponse:
     """Verify and promote an uploaded job artifact into the media cache."""
     # Keep the request session owned by one worker through guard, commit and
@@ -1634,7 +1713,7 @@ async def publish_package_slot(
     transform_version: str = Form(...),
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    api_key: dict = Depends(verify_api_key),
+    api_key: dict = Depends(verify_media_worker_key),
 ) -> MediaPackageSlotFinalizeResponse:
     """Publish one web_package slot (hq/light/poster) to durable storage.
 

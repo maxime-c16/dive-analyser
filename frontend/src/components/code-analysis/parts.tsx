@@ -66,6 +66,7 @@ export function Segmented<T extends string>({ label, options, value, onChange }:
 
 /** Counts a number up once on first paint; static under reduced motion. */
 export function CountUp({ value, digits = 1, suffix = '' }: { value: number | null; digits?: number; suffix?: string }) {
+  const { i18n } = useTranslation()
   const [shown, setShown] = useState(value)
   const played = useRef(false)
   useLayoutEffect(() => {
@@ -83,5 +84,5 @@ export function CountUp({ value, digits = 1, suffix = '' }: { value: number | nu
     frame = requestAnimationFrame(step)
     return () => cancelAnimationFrame(frame)
   }, [value])
-  return <>{shown == null ? '—' : `${digits === 1 ? fmtScore(shown) : shown.toFixed(digits)}${suffix}`}</>
+  return <>{shown == null ? '—' : `${digits === 1 ? fmtScore(shown) : shown.toLocaleString(i18n.language, { minimumFractionDigits: digits, maximumFractionDigits: digits })}${suffix}`}</>
 }

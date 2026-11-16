@@ -64,7 +64,8 @@ Choose the smallest meaningful checks from the CI matrix. Use real data shapes;
 assert observable behavior, cancellation and failure recovery, not only that a
 mock was called. A proof should fail if its protection is removed. Check actual
 redirect destinations and media bytes where those are the claimed property.
-Docs-only changes need no product test suite.
+Docs-only changes run only the `fast` tier — no product suites, but the
+required `gate` status check is still produced (see [CI matrix](../ci/README.md)).
 
 Use [the findings register](reviews/REVIEW_FINDINGS.md) for review evidence.
 For each bot finding record: source/run SHA, affected invariant, confirmed or

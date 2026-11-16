@@ -1,0 +1,8 @@
+{
+  "id": "lighter-light-video",
+  "date": "2026-11-10",
+  "title": "Faster-loading dives on mobile",
+  "body": "The Light version of each dive is now about half as heavy at nearly the same sharpness, so dives start and play without freezing on mobile data. Existing dives switch over gradually as they are re-prepared.",
+  "audience": "all",
+  "components": ["backend"]
+}

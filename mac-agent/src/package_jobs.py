@@ -116,7 +116,7 @@ async def process_package_job(processor, job: dict) -> dict:
             transform_version=transform_version,
             ffmpeg_path=config.media.ffmpeg_path,
             ffprobe_path=config.media.ffprobe_path,
-            threads_per_variant=1,
+            threads_per_variant=int(getattr(config.media, "package_threads_per_variant", 2)),
             timeout_seconds=getattr(config.media, "transcode_timeout_seconds", 2700),
         )
         if not result.ready:

@@ -1,3 +1,4 @@
+import { parseHlsMode, type HlsMode } from './hlsPlayback'
 import { getMediaStatus, getPlaybackUrlFromStatus, getOriginalPlaybackUrl, getPreviewPlaybackUrl } from '../services/mediaApi'
 
 export type MediaPreview = {
@@ -11,6 +12,12 @@ export type MediaPreview = {
   originalPlaybackUrl?: string | null;
   previewPlaybackUrl?: string | null;
   playbackResolved?: boolean;
+  /** Library hint: the durable Light is ledger-ready (role route may start it). */
+  startRole?: 'light' | null;
+  /** Transform version of that ready Light (sizes the start decision). */
+  startLightVersion?: string | null;
+  /** Library hint: the clip has adaptive HLS (Apple's player only, or all). */
+  startHls?: HlsMode | null;
 };
 
 const previewCache = new Map<string, MediaPreview>();
@@ -58,6 +65,9 @@ type StatusShape = {
   thumbhash?: string | null
   poster_url?: string | null
   playback_url?: string | null
+  start_role?: string | null
+  start_light_version?: string | null
+  start_hls?: string | null
   status: string
 };
 
@@ -88,6 +98,9 @@ function previewFromStatus(videoUuid: string, status: StatusShape | undefined): 
     // player without waiting for its own status round-trip.
     videoThumbUrl: isGridSafeThumbUrl(playback) ? playback : null,
     playbackUrl: playback,
+    startRole: status.start_role === 'light' ? 'light' : null,
+    startLightVersion: status.start_light_version ?? null,
+    startHls: parseHlsMode(status.start_hls),
     ready: Boolean(status.animated_url || status.thumb_url || status.poster_url || (playback && isGridSafeThumbUrl(playback))),
   };
 }

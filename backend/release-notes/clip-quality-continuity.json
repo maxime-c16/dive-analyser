@@ -1,0 +1,8 @@
+{
+  "id": "clip-quality-continuity",
+  "date": "2026-11-10",
+  "title": "Change video quality without losing your place",
+  "body": "Pick Preview, Light, HQ or Original from a quality menu. The dive keeps its moment and stays paused or playing. A dropped connection reloads the clip where you were, and the desktop seek bar is full width again.",
+  "audience": "all",
+  "components": ["frontend"]
+}

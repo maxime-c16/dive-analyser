@@ -26,7 +26,7 @@ One tick (``ops/systemd/dive-media-migration.timer`` every minute):
 
 Gates (all fail closed): run active, master package flag, run transform ==
 current transform, healthy package-capable worker, fresh Mac facts
-(scratch >= 8 GiB and ``vm.memory_pressure == 0``), server cache >= 25 GiB,
+(scratch >= 8 GiB and normal kernel memory pressure (reported as ``memory_pressure == "0"``)), server cache >= 25 GiB,
 package breaker closed (two consecutive terminal package failures),
 explicit byte budget, optional admission cap.
 

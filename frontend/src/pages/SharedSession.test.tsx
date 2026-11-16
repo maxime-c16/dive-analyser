@@ -10,12 +10,12 @@ const video={id:3,filename:'IMG.MOV',can_share:false,video_url:'/guest/play'}
 const session={session_id:9,date:'2026-10-17',videos:[video],video_count:1,total_duration:1936,total_bytes:3338404955}
 const page=(path=`/share/session/7#${token}`)=><MemoryRouter initialEntries={[path]}><Routes><Route path="/share/session/:shareId" element={<SharedSession/>}/></Routes></MemoryRouter>
 beforeEach(()=>{vi.clearAllMocks();vi.stubGlobal('IntersectionObserver',class{observe(){}disconnect(){}});vi.mocked(api.post).mockResolvedValue({data:session});vi.mocked(api.get).mockImplementation((url)=>Promise.resolve({data:String(url).includes('/groups')?{items:[{id:1,name:'Adultes',club_id:2,club:'Club test'}],next_after:null}:String(url).includes('/clubs')?{items:[{club_id:2,club:'Club test'}],next_after:null}:[{id:1,name:'Adultes',club_id:2,club:'Club test'}]}))})
-it('exchanges the fragment once without autoplay',async()=>{const {container}=render(<StrictMode>{page()}</StrictMode>);await screen.findByRole('button',{name:'Lire IMG.MOV'});expect(api.post).toHaveBeenCalledTimes(1);expect(container.querySelector('video')).toBeNull()})
+it('exchanges the fragment once without autoplay',async()=>{const {container}=render(<StrictMode>{page()}</StrictMode>);await screen.findByRole('button',{name:'Play IMG.MOV'});expect(api.post).toHaveBeenCalledTimes(1);expect(container.querySelector('video')).toBeNull()})
 it('rejects missing secrets before making a request',async()=>{render(page('/share/session/7'));expect(await screen.findByRole('alert')).toHaveTextContent('invalide');expect(api.post).not.toHaveBeenCalled()})
 it('revoked links are unavailable',async()=>{vi.mocked(api.post).mockRejectedValue(new Error('404'));render(page());expect(await screen.findByRole('alert')).toHaveTextContent('indisponible')})
 it('uses separate account, club, group and email screens with opt-in enabled',async()=>{
  render(page())
- fireEvent.click(await screen.findByRole('button',{name:/Télécharger ·/}))
+ fireEvent.click(await screen.findByRole('button',{name:/Download ·/}))
  expect(await screen.findByRole('heading',{name:'Créer mon compte'})).toBeInTheDocument()
  expect(screen.queryByRole('combobox')).toBeNull()
  fireEvent.change(screen.getByLabelText('Nom'),{target:{value:'Alex'}})
@@ -45,7 +45,7 @@ it('follows paged group lists',async()=>{
     if(!config?.params?.after_id)return {data:{items:[{id:1,name:'A',club_id:2,club:'Club test'}],next_after:{club:'Club test',group:'A',id:1}}}
     return {data:{items:[{id:2,name:'B',club_id:3,club:'Club two'}],next_after:null}}}) as typeof api.get)
   render(page())
-  fireEvent.click(await screen.findByRole('button',{name:/Télécharger ·/}))
+  fireEvent.click(await screen.findByRole('button',{name:/Download ·/}))
   fireEvent.change(screen.getByLabelText('Nom'),{target:{value:'Alex'}})
   fireEvent.change(screen.getByLabelText('E-mail'),{target:{value:'alex@example.test'}})
   fireEvent.change(screen.getByLabelText('Mot de passe'),{target:{value:'long-test-password'}})
@@ -59,7 +59,7 @@ it('loads more clubs on demand instead of the whole catalog',async()=>{
     if(url.includes('/groups'))return Promise.resolve({data:{items:[],next_after:null}})
     return Promise.resolve({data:[]})}) as typeof api.get)
   render(page())
-  fireEvent.click(await screen.findByRole('button',{name:/Télécharger ·/}))
+  fireEvent.click(await screen.findByRole('button',{name:/Download ·/}))
   fireEvent.change(screen.getByLabelText('Nom'),{target:{value:'Alex'}})
   fireEvent.change(screen.getByLabelText('E-mail'),{target:{value:'alex@example.test'}})
   fireEvent.change(screen.getByLabelText('Mot de passe'),{target:{value:'long-test-password'}})
@@ -76,7 +76,7 @@ it('cancels pending club requests on unmount',async()=>{
     if(config?.signal)signals.push(config.signal)
     return new Promise(()=>{})}) as typeof api.get)
   const {unmount}=render(page())
-  fireEvent.click(await screen.findByRole('button',{name:/Télécharger ·/}))
+  fireEvent.click(await screen.findByRole('button',{name:/Download ·/}))
   await waitFor(()=>expect(signals.length).toBeGreaterThan(0))
   unmount()
   expect(signals.every(signal=>signal.aborted)).toBe(true)
@@ -89,7 +89,7 @@ it('offers the existing-account login with the same panel and no signup fields',
  expect(screen.queryByRole('combobox')).toBeNull()
 })
 it('preserves account values when going back from club selection',async()=>{
- render(page());fireEvent.click(await screen.findByRole('button',{name:/Télécharger ·/}))
+ render(page());fireEvent.click(await screen.findByRole('button',{name:/Download ·/}))
  fireEvent.change(screen.getByLabelText('Nom'),{target:{value:'Alex'}})
  fireEvent.submit(screen.getByRole('button',{name:'Continuer'}).closest('form')!)
  fireEvent.click(screen.getByRole('button',{name:'Retour'}))

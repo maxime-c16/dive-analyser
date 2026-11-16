@@ -1,3 +1,4 @@
+import { fmtNum } from '../utils/formatNumber'
 import SignupReviews from "../components/session-video/SignupReviews"
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Activity, Building2, AlertTriangle, CheckCircle2, Database, Gift, HardDrive, Loader2, Mail, Radio, RefreshCw, Server, Users, Video } from 'lucide-react'
@@ -13,8 +14,8 @@ import PageLoading from '../components/PageLoading'
 function bytes(value?: number | null) {
   if (value == null) return 'Unknown'
   if (value < 1024 ** 2) return `${Math.round(value / 1024)} KiB`
-  if (value < 1024 ** 3) return `${(value / 1024 ** 2).toFixed(1)} MiB`
-  return `${(value / 1024 ** 3).toFixed(1)} GiB`
+  if (value < 1024 ** 3) return `${fmtNum((value / 1024 ** 2), 1)} MiB`
+  return `${fmtNum((value / 1024 ** 3), 1)} GiB`
 }
 
 function stamp(value?: string | null) {
@@ -97,7 +98,7 @@ export default function Admin() {
   const active = status?.media.active_jobs ?? []
   const runningWorkflows = status?.workflows.filter((workflow) => workflow.status === 'running') ?? []
 
-  return <div className="ops-workspace mx-auto max-w-[1420px] space-y-6">
+  return <div className="ops-workspace mx-auto w-full min-w-0 max-w-[1420px] space-y-6">
     <header className="border-b border-app pb-5">
       <div><h1 className="text-3xl font-semibold tracking-tight text-app-text">Administration</h1></div>
       <nav aria-label="Administration sections" className="mt-4 flex flex-wrap gap-2">

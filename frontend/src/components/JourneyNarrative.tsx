@@ -1,3 +1,4 @@
+import { fmtNum } from '../utils/formatNumber'
 import React from 'react'
 import { format, parseISO } from 'date-fns'
 import { BarChart3, TrendingUp } from 'lucide-react'
@@ -53,19 +54,19 @@ function JourneyNarrative({ data }: JourneyNarrativeProps) {
             <div>
               <div className="text-app-muted text-sm mb-1">{i18n.t('journey.firstMonthAvg')}</div>
               <div className="text-2xl font-bold text-app-accent">
-                {data.growth.first_month_average.toFixed(2)}
+                {fmtNum(data.growth.first_month_average, 1)}
               </div>
             </div>
             <div>
               <div className="text-app-muted text-sm mb-1">{i18n.t('journey.latestMonthAvg')}</div>
               <div className="text-2xl font-bold text-app-accent">
-                {data.growth.last_month_average.toFixed(2)}
+                {fmtNum(data.growth.last_month_average, 1)}
               </div>
             </div>
             <div className="pt-2 border-t border-app">
               <div className="text-app-muted text-sm mb-1">{i18n.t('journey.totalImprovement')}</div>
               <div className={`text-2xl font-bold ${data.growth.improvement >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                {data.growth.improvement > 0 ? '+' : ''}{data.growth.improvement.toFixed(2)}
+                {data.growth.improvement > 0 ? '+' : ''}{fmtNum(data.growth.improvement, 1)}
               </div>
             </div>
           </div>

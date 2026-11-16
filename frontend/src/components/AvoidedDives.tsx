@@ -1,3 +1,4 @@
+import { fmtNum } from '../utils/formatNumber'
 import React, { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api } from '../services/api'
@@ -180,7 +181,7 @@ function AvoidedDives() {
                   </div>
                   <div>
                     <div className="text-app-muted text-xs mb-1">{t('avoidedDives.avoidanceScore')}</div>
-                    <div className="font-bold text-app-text">{dive.avoidance_score.toFixed(1)}</div>
+                    <div className="font-bold text-app-text">{fmtNum(dive.avoidance_score, 1)}</div>
                   </div>
                 </div>
               </div>

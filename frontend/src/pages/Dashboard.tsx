@@ -1,3 +1,5 @@
+import { fmtNum } from '../utils/formatNumber'
+import { performanceColor } from '../utils/performanceScoring'
 import React, { useEffect, useState } from "react";
 import { getNavigationData } from "../services/navigationData";
 import { useSyncStatus } from "../hooks/useSyncStatus";
@@ -97,23 +99,8 @@ const COLORS = {
  * the `groups.*` keys at render time.
  */
 
-const PERFORMANCE_COLORS = {
-  P: "#22c55e",
-  G: "#3b82f6",
-  M: "#f59e0b",
-  B: "#f97316",
-  F: "#ef4444",
-};
-
 function Dashboard() {
   const { t } = useTranslation();
-  const performanceLabelLocalized: Record<string, string> = {
-    P: t("performance.P"),
-    G: t("performance.G"),
-    M: t("performance.M"),
-    B: `${t("performance.B")}/${t("performance.F")}`,
-    BF: `${t("performance.B")}/${t("performance.F")}`,
-  };
   const { currentSync, isConnected } = useSyncStatus();
   const [stats, setStats] = useState<OverallStats | null>(null);
   const [monthlyStats, setMonthlyStats] = useState<MonthlyStats[]>([]);
@@ -219,32 +206,12 @@ function Dashboard() {
       personalValue: value.value,
     }));
 
-  // Approximate tag distribution until the API exposes raw performance buckets.
-  const performanceData = [
-    {
-      name: performanceLabelLocalized.P,
-      value: Math.round((stats?.success_rate || 0) * 0.3),
-      color: PERFORMANCE_COLORS.P,
-    },
-    {
-      name: performanceLabelLocalized.G,
-      value: Math.round((stats?.success_rate || 0) * 0.7 - 20),
-      color: PERFORMANCE_COLORS.G,
-    },
-    {
-      name: performanceLabelLocalized.M,
-      value: Math.round(100 - (stats?.success_rate || 0) - 5),
-      color: PERFORMANCE_COLORS.M,
-    },
-    { name: performanceLabelLocalized.BF, value: 5, color: PERFORMANCE_COLORS.F },
-  ].filter((d) => d.value > 0);
-
   return (
     <div className="app-page">
       {/* Header */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div className="flex w-full items-start gap-2 md:w-auto">
-          <h1 className="min-w-0 flex-1 text-3xl font-bold text-app-text">
+        <div className="flex w-full items-center gap-2 md:w-auto">
+          <h1 className="min-w-0 flex-1 text-3xl font-semibold tracking-tight text-app-text">
             {t("dashboard.title")}
           </h1>
           <MobileShellActions />
@@ -276,7 +243,7 @@ function Dashboard() {
         />
         <MetricCard
           title={t("dashboard.successRate")}
-          value={`${stats?.success_rate?.toFixed(1) || 0}%`}
+          value={`${fmtNum(stats?.success_rate, 1) || 0}%`}
           subtitle={t("dashboard.successRateSubtitle")}
           color="success"
           trend={
@@ -286,7 +253,7 @@ function Dashboard() {
         />
         <MetricCard
           title={t("dashboard.avgPerformance")}
-          value={stats?.avg_performance?.toFixed(2) || "0.00"}
+          value={fmtNum(stats?.avg_performance, 1) || "—"}
           subtitle={t("dashboard.avgPerformanceSubtitle")}
           color="accent"
           icon={BarChart3}
@@ -294,7 +261,7 @@ function Dashboard() {
         {stats?.avg_dd !== undefined && stats.avg_dd > 0 && (
           <MetricCard
             title={t("dashboard.avgDD")}
-            value={stats.avg_dd.toFixed(1)}
+            value={fmtNum(stats.avg_dd, 1)}
             color="accent"
             icon={Zap}
           />
@@ -302,7 +269,7 @@ function Dashboard() {
         {stats?.max_dd !== undefined && stats.max_dd > 0 && (
           <MetricCard
             title={t("dashboard.maxDD")}
-            value={stats.max_dd.toFixed(1)}
+            value={fmtNum(stats.max_dd, 1)}
             color="accent"
             icon={Flame}
           />
@@ -473,7 +440,7 @@ function Dashboard() {
                 }}
                 labelStyle={{ color: "#edf2f4" }}
                 formatter={(value: number, name: string) => [
-                  name === "performance" ? value.toFixed(2) : value,
+                  name === "performance" ? fmtNum(value, 1) : value,
                   name === "performance"
                     ? t("dashboard.avgPerformance")
                     : name === "dives"
@@ -560,7 +527,7 @@ function Dashboard() {
                   borderRadius: "8px",
                 }}
                 formatter={(value: number) => [
-                  `${value.toFixed(1)}%`,
+                  `${fmtNum(value, 1)}%`,
                   t("dashboard.successRate"),
                 ]}
               />
@@ -592,7 +559,7 @@ function Dashboard() {
                 paddingAngle={2}
                 dataKey="dives"
                 label={({ name, percent }) =>
-                  `${name} ${(percent * 100).toFixed(0)}%`
+                  `${name} ${fmtNum((percent * 100), 0)}%`
                 }
                 labelLine={false}
               >
@@ -752,13 +719,7 @@ function MetricCard({
 function PerformanceBadge({ value }: { value: number | null }) {
   if (value === null) return <span className="text-app-muted">-</span>;
 
-  const color =
-    value >= 7
-      ? "text-green-400"
-      : value >= 4.5
-        ? "text-amber-400"
-        : "text-red-400";
-  return <span className={`font-medium ${color}`}>{value.toFixed(2)}</span>;
+  return <span className={`font-medium ${performanceColor(value)}`}>{fmtNum(value, 1)}</span>;
 }
 
 function SuccessRateBadge({ value }: { value: number | null }) {
@@ -772,7 +733,7 @@ function SuccessRateBadge({ value }: { value: number | null }) {
         : "bg-red-500/20 text-red-400";
   return (
     <span className={`px-2 py-1 rounded text-sm font-medium ${color}`}>
-      {value.toFixed(1)}%
+      {fmtNum(value, 1)}%
     </span>
   );
 }

@@ -45,10 +45,13 @@ cohort observation.
 """
 
 import mimetypes
+import threading
+from collections import OrderedDict
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import RedirectResponse
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
@@ -56,7 +59,7 @@ from app.database import get_db
 from app.models.media_backbone import MediaBlobLocation, MediaRevision
 from app.models.user_auth import AppUser, MediaPlaybackGrant
 from app.api.v1.auth import get_current_user
-from app.services import b2_presign, legacy_media, playback_metrics
+from app.services import b2_presign, hls_index, legacy_media, playback_metrics
 from app.services.user_access import (
     DENY_NO_DIVER_CHAIN,
     DENY_NO_OWNER_ACCESS,
@@ -110,6 +113,11 @@ def _record_grant(
             ttl_seconds=ttl_seconds,
         )
     )
+    if db.get_bind().dialect.name == "postgresql":
+        # The grant ledger is an audit/metrics trail, not an authority: a
+        # crash may lose the last few rows, but playback no longer waits on
+        # a WAL fsync (deb-serv's disk) for every grant.
+        db.execute(text("SET LOCAL synchronous_commit TO OFF"))
     db.commit()
 
 
@@ -171,7 +179,7 @@ def list_canary_revisions(
     return {"revisions": out}
 
 
-def _deny(db: Session, user_id: int, revision_id: int, reason: str):
+def _deny(db: Session, user_id: int, revision_id: int | None, reason: str):
     _record_grant(
         db,
         user_id=user_id,
@@ -231,6 +239,23 @@ def _has_current_derivative_proof(db: Session, revision: MediaRevision) -> bool:
         decision.state == "ready" and decision.revision_id == revision.id
         for decision in clip.roles.values()
     )
+
+
+def _is_current_hls_revision(db: Session, revision: MediaRevision) -> bool:
+    """The revision is a current ready Light/HQ package in an HLS version.
+
+    Same authority as ``_has_current_derivative_proof`` plus the
+    ``MEDIA_HLS_TRANSFORM_VERSIONS`` allowlist (the kill switch): exactly the
+    revisions the master playlist may list.
+    """
+    from app.services.derivative_read import hls_roles, safe_resolve_clip_derivatives
+    from app.services.derivative_publisher import MissingSourceError
+
+    try:
+        clip = safe_resolve_clip_derivatives(db, revision.video_uuid)
+    except (MissingSourceError, ValueError):
+        return False
+    return any(role.revision_id == revision.id for role in hls_roles(clip))
 
 
 def _serve_legacy_fallback(
@@ -317,14 +342,64 @@ def _refresh_after_provider(db, request, revision_id, expected_identity):
     return user, revision, location, derived_only
 
 
-@router.get("/revisions/{revision_id}/play")
-def play_media_revision(
+class _StageTimer:
+    """Per-stage durations for the Server-Timing header (no identifiers)."""
+
+    def __init__(self) -> None:
+        self._mark = playback_metrics.now_ms()
+        self.stages: list[tuple[str, float, str | None]] = []
+
+    def lap(self, name: str, desc: str | None = None) -> float:
+        now = playback_metrics.now_ms()
+        elapsed = now - self._mark
+        self._mark = now
+        self.stages.append((name, elapsed, desc))
+        return elapsed
+
+    def header(self) -> str:
+        return ", ".join(
+            f"{name};{'desc=' + desc + ';' if desc else ''}dur={elapsed:.1f}"
+            for name, elapsed, desc in self.stages
+        )
+
+
+# Bounded, process-local memory of (viewer, revision) pairs already granted:
+# feeds the grant_refreshes counter without a ledger query per grant.
+_GRANTED_PAIRS_MAX = 8192
+_granted_pairs: "OrderedDict[tuple[int, int], None]" = OrderedDict()
+_granted_pairs_lock = threading.Lock()
+
+
+def _note_grant(user_id: int, revision_id: int) -> bool:
+    key = (user_id, revision_id)
+    with _granted_pairs_lock:
+        seen = key in _granted_pairs
+        _granted_pairs[key] = None
+        _granted_pairs.move_to_end(key)
+        while len(_granted_pairs) > _GRANTED_PAIRS_MAX:
+            _granted_pairs.popitem(last=False)
+    return seen
+
+
+def _grant_revision(
     revision_id: int,
     request: Request,
-    response: Response,
-    db: Session = Depends(get_db),
-    user: AppUser = Depends(get_current_user),
+    db: Session,
+    user: AppUser,
+    timer: _StageTimer,
+    *,
+    proof_established: bool = False,
+    deliver=None,
+    require_hls: bool = False,
 ):
+    """Authorize, prove and sign one revision; redirect to it by default.
+
+    ``deliver(presign, package, timer)`` replaces the redirect (HLS
+    playlists). ``package`` is plain data (blob SHA-256, bucket, key) copied
+    before the grant commits; deliver runs with no open transaction.
+    ``require_hls`` admits only a current HLS package (see
+    ``_is_current_hls_revision``), before any storage work.
+    """
     if not _flags_enabled():
         # Feature flags OFF: fail closed, route invisible.
         raise HTTPException(404, "Not found")
@@ -337,19 +412,28 @@ def play_media_revision(
         # never be reached from here (wrong owner + B2 copy, wrong owner +
         # legacy copy, unknown revision → DENY alike).
         _deny(db, user.id, revision_id, decision.reason)
+    timer.lap("authz")
 
     derived_only = _is_derivative_revision(revision)
-    if derived_only and not _has_current_derivative_proof(db, revision):
+    if require_hls:
+        if not derived_only or not _is_current_hls_revision(db, revision):
+            _deny(db, user.id, revision.id, "not_hls_package")
+        proof_established = True
+    # proof_established: the caller resolved this exact revision as the
+    # current ready proof in this same transaction, with no I/O since.
+    if derived_only and not proof_established and not _has_current_derivative_proof(db, revision):
         # The revision is no longer (or never was) the current PROD proof
         # for its clip: stale source, wrong transform version, non-ready
         # ledger, or missing/ambiguous/DEV-only storage. Uniform 404 with
         # zero presign calls and no legacy fallback (derived bytes must
         # never be substituted with cache bytes at a stable revision URL).
         _deny(db, user.id, revision.id, "derivative_not_current")
+    timer.lap("proof")
 
     lookup_started = playback_metrics.now_ms()
     location, storage_deny = _resolve_verified_prod_location(db, revision)
     metrics.storage_lookup_latency.observe(playback_metrics.now_ms() - lookup_started)
+    timer.lap("location")
 
     if location is None:
         if storage_deny == DENY_STORAGE_AMBIGUOUS or derived_only:
@@ -363,44 +447,62 @@ def play_media_revision(
             db, request, revision, user.id, reason=storage_deny
         )
 
-    # Never hold a read transaction/connection over provider I/O. Production
-    # kills idle transactions after 30s; a slow HEAD otherwise turns a valid
-    # playback request into OperationalError when recording its grant.
     expected_identity = _storage_identity(revision, location)
     bucket, object_key = location.bucket, location.object_key
-    db.rollback()
     head_failed = False
-    head_started = playback_metrics.now_ms()
-    try:
-        # P6 §13/§29: verify the playback credential is actually usable at
-        # grant time. boto3 presigning is a LOCAL operation and would happily
-        # sign with an invalid/revoked credential; the provider-side HEAD
-        # turns that into B2_TEMPORARY_FAILURE (→ authorized legacy
-        # fallback) instead of handing the browser a dead URL.
-        # This synchronous route runs provider I/O and SQL in the threadpool;
-        # a slow HEAD cannot stall the event loop.
-        b2_presign.head_object(
-            bucket=bucket,
-            object_key=object_key,
+    if b2_presign.head_is_cached(bucket, object_key):
+        # A recent HEAD already proved this object and no provider I/O
+        # happens now: the authority read above is still the current one,
+        # so the post-network refresh below has nothing to re-validate.
+        timer.lap("head", "hit")
+    elif b2_presign.credential_proven():
+        # The background probe proved within two intervals that the playback
+        # credential reads PROD media; the object's verified location comes
+        # from the ledger above. No provider I/O, so no refresh either. A
+        # missing object surfaces to the player as a playback error.
+        timer.lap("head", "probe")
+    else:
+        # Never hold a read transaction/connection over provider I/O.
+        # Production kills idle transactions after 30s; a slow HEAD otherwise
+        # turns a valid playback request into OperationalError when
+        # recording its grant.
+        db.rollback()
+        head_started = playback_metrics.now_ms()
+        try:
+            # P6 §13/§29: verify the playback credential is actually usable
+            # at grant time. boto3 presigning is a LOCAL operation and would
+            # happily sign with an invalid/revoked credential; the
+            # provider-side HEAD turns that into B2_TEMPORARY_FAILURE (→
+            # authorized legacy fallback) instead of handing the browser a
+            # dead URL. This synchronous route runs provider I/O and SQL in
+            # the threadpool; a slow HEAD cannot stall the event loop.
+            b2_presign.head_object(
+                bucket=bucket,
+                object_key=object_key,
+            )
+        except b2_presign.PresignUnavailable:
+            head_failed = True
+        finally:
+            metrics.presign_latency.observe(playback_metrics.now_ms() - head_started)
+        timer.lap("head", "miss")
+        user, revision, location, derived_only = _refresh_after_provider(
+            db, request, revision_id, expected_identity
         )
-    except b2_presign.PresignUnavailable:
-        head_failed = True
-    finally:
-        metrics.presign_latency.observe(playback_metrics.now_ms() - head_started)
-
-    user, revision, location, derived_only = _refresh_after_provider(
-        db, request, revision_id, expected_identity
-    )
+        timer.lap("refresh")
     try:
         if head_failed:
             raise b2_presign.PresignUnavailable("provider HEAD unavailable")
         presign_started = playback_metrics.now_ms()
-        presign = b2_presign.presign_get(
+        presign, reused = b2_presign.presign_playback(
+            viewer_id=user.id,
+            revision_id=revision.id,
+            storage_identity=expected_identity,
             bucket=location.bucket,
             object_key=location.object_key,
             storage_location_id=location.id,
         )
         metrics.presign_latency.observe(playback_metrics.now_ms() - presign_started)
+        timer.lap("sign", "reused" if reused else "new")
     except b2_presign.PresignUnavailable:
         # B2_TEMPORARY_FAILURE: authorized legacy fallback when available,
         # else explicit provider failure. Derived revisions never take the
@@ -419,17 +521,15 @@ def play_media_revision(
             db, request, revision, user.id, reason="presign_unavailable"
         )
 
-    if (
-        db.query(MediaPlaybackGrant)
-        .filter_by(
-            user_id=user.id,
-            media_revision_id=revision.id,
-            outcome=OUTCOME_ALLOWED,
-        )
-        .first()
-        is not None
-    ):
+    if _note_grant(user.id, revision.id):
         metrics.grant_refreshes.inc()
+    # Plain values only: the commit below expires ORM objects, and reading
+    # them afterwards would reopen a transaction before provider I/O.
+    package = {
+        "blob_sha256": revision.blob_sha256,
+        "bucket": location.bucket,
+        "object_key": location.object_key,
+    }
 
     _record_grant(
         db,
@@ -439,11 +539,183 @@ def play_media_revision(
         storage_location_id=location.id,
         ttl_seconds=presign.ttl_seconds,
     )
+    timer.lap("ledger")
     metrics.authorized.inc()
     metrics.b2_selected.inc()
+    if deliver is not None:
+        db.rollback()  # no transaction across the provider read in deliver
+        return deliver(presign, package, timer)
     redirect = RedirectResponse(url=presign.url, status_code=302)
     _secure_headers(redirect)
+    redirect.headers["Server-Timing"] = timer.header()
     return redirect
+
+
+@router.get("/revisions/{revision_id}/play")
+def play_media_revision(
+    revision_id: int,
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+    user: AppUser = Depends(get_current_user),
+):
+    return _grant_revision(revision_id, request, db, user, _StageTimer())
+
+
+PLAYABLE_ROLES = ("light", "hq")
+
+
+@router.get("/{video_uuid}/play/{role}")
+def play_media_role(
+    video_uuid: str,
+    role: str,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: AppUser = Depends(get_current_user),
+):
+    """Play a clip's current durable rendition by role, without a status call.
+
+    Resolves the role's current ready proof once, then runs the same grant
+    path as the revision route (authorization first, verified storage,
+    presign). A role that is not provably ready is a uniform 404: the player
+    falls back to its status-driven source, so no other rendition (and no
+    legacy cache entry) is disclosed here.
+    """
+    if not _flags_enabled() or role not in PLAYABLE_ROLES:
+        raise HTTPException(404, "Not found")
+    from app.services.derivative_read import safe_resolve_clip_derivatives
+    from app.services.derivative_publisher import MissingSourceError
+    from app.services.user_access import can_user_access_video
+
+    timer = _StageTimer()
+    # Authorization first, as on the revision route: a viewer without access
+    # never reaches derivative or storage resolution (uniform 404).
+    decision = can_user_access_video(db, user, video_uuid)
+    if not decision.allowed:
+        _deny(db, user.id, None, decision.reason)
+    timer.lap("authz")
+    try:
+        clip = safe_resolve_clip_derivatives(db, video_uuid)
+    except (MissingSourceError, ValueError):
+        clip = None
+    role_decision = clip.roles.get(role) if clip is not None else None
+    if role_decision is None or role_decision.state != "ready" or role_decision.revision_id is None:
+        raise HTTPException(404, "Not found")
+    timer.lap("resolve")
+    return _grant_revision(role_decision.revision_id, request, db, user, timer, proof_established=True)
+
+
+def _package_index(blob_sha256: str, bucket: str, object_key: str):
+    """Parsed fMP4 index of one durable package (cached by content hash)."""
+    return hls_index.cached_index(
+        blob_sha256,
+        lambda length: b2_presign.read_object_head(bucket, object_key, length),
+    )
+
+
+def _playlist_response(body: str, timer: "_StageTimer") -> Response:
+    # The body carries signed URLs (media playlist) or revision ids (master):
+    # private, never cached, never logged.
+    response = Response(content=body, media_type=hls_index.PLAYLIST_CONTENT_TYPE)
+    _secure_headers(response)
+    response.headers["Server-Timing"] = timer.header()
+    return response
+
+
+@router.get("/revisions/{revision_id}/hls.m3u8")
+def play_media_revision_hls(
+    revision_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: AppUser = Depends(get_current_user),
+):
+    """Byte-range media playlist for one durable fragmented package.
+
+    Same authority as the revision play route (authorization, current
+    derivative proof, verified storage, presign); the signed URL goes into
+    the playlist instead of a redirect. Not a fragmented package: 404.
+    """
+
+    def deliver(presign, package, timer):
+        try:
+            index = _package_index(package["blob_sha256"], package["bucket"], package["object_key"])
+        except b2_presign.PresignUnavailable:
+            raise HTTPException(503, "B2 provider unavailable")
+        timer.lap("index")
+        if index is None:
+            raise HTTPException(404, "Not found")
+        return _playlist_response(hls_index.media_playlist(index, presign.url), timer)
+
+    return _grant_revision(
+        revision_id, request, db, user, _StageTimer(), deliver=deliver, require_hls=True,
+    )
+
+
+@router.get("/{video_uuid}/hls.m3u8")
+def play_media_hls(
+    video_uuid: str,
+    request: Request,
+    start: str | None = None,
+    db: Session = Depends(get_db),
+    user: AppUser = Depends(get_current_user),
+):
+    """Adaptive master playlist over a clip's current Light and HQ packages.
+
+    Light is listed first (players start on the first variant) unless
+    ``start=hq``. Each variant points at its revision's media playlist, which
+    re-runs the full grant. A clip without a ready fragmented Light is a
+    uniform 404: the player falls back to the progressive files.
+    """
+    if not _flags_enabled():
+        raise HTTPException(404, "Not found")
+    from app.services.derivative_publisher import MissingSourceError
+    from app.services.derivative_read import hls_roles, safe_resolve_clip_derivatives
+    from app.services.user_access import can_user_access_video
+
+    timer = _StageTimer()
+    decision = can_user_access_video(db, user, video_uuid)
+    if not decision.allowed:
+        _deny(db, user.id, None, decision.reason)
+    timer.lap("authz")
+    try:
+        clip = safe_resolve_clip_derivatives(db, video_uuid)
+    except (MissingSourceError, ValueError):
+        clip = None
+    roles = hls_roles(clip)
+    timer.lap("resolve")
+    if not roles:
+        raise HTTPException(404, "Not found")
+    targets = []
+    for role in roles:
+        revision = db.get(MediaRevision, role.revision_id)
+        location, _deny_reason = _resolve_verified_prod_location(db, revision) if revision else (None, None)
+        if location is None:
+            if role.role == "light":
+                raise HTTPException(404, "Not found")
+            continue
+        targets.append((role.role, role.revision_id, revision.blob_sha256, location.bucket, location.object_key))
+    timer.lap("location")
+    # No transaction is held across provider I/O (production kills idle ones).
+    db.rollback()
+    variants = []
+    for role, revision_id, blob_sha256, bucket, object_key in targets:
+        try:
+            index = _package_index(blob_sha256, bucket, object_key)
+        except b2_presign.PresignUnavailable:
+            if role == "light":
+                raise HTTPException(503, "B2 provider unavailable")
+            continue
+        if index is None:
+            if role == "light":
+                raise HTTPException(404, "Not found")
+            continue
+        variants.append((role, index, f"/api/v1/media/revisions/{revision_id}/hls.m3u8"))
+    timer.lap("index")
+    if start == "hq":
+        variants.sort(key=lambda variant: variant[0] != "hq")
+    return _playlist_response(
+        hls_index.master_playlist([(index, uri) for _role, index, uri in variants]), timer,
+    )
 
 
 @router.get("/playback/metrics")

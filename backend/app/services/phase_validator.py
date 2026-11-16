@@ -7,6 +7,8 @@ for backwards compatibility with existing analytics.
 
 from typing import Tuple, Optional
 
+from app.services.performance_scoring import composite_grade
+
 
 class PhaseValidator:
     """Validates two-phase dive scores and handles conversions"""
@@ -65,41 +67,27 @@ class PhaseValidator:
     @staticmethod
     def infer_legacy_score(phase1: str, phase2: str) -> str:
         """
-        Convert two-phase scores to single legacy score.
+        Stored single letter of a two-phase dive.
 
-        Strategy: Take the minimum score (pessimistic estimate)
-        This ensures a dive is considered successful only if both phases
-        were executed at a minimum level.
+        The letter is the nearest band of the weighted 0-10 score
+        (performance_scoring.composite_grade), so the letter, the number,
+        the colour and the success flag always agree. See docs/SCORING.md.
+        It used to be min(phase1, phase2), which showed "G" next to 8.65.
 
         Examples:
             >>> infer_legacy_score("G", "P")
-            "G"  # min(3, 4) = 3 = "G"
-            >>> infer_legacy_score("M", "P")
-            "M"  # min(2, 4) = 2 = "M"
-            >>> infer_legacy_score("P", "P")
-            "P"  # min(4, 4) = 4 = "P"
-            >>> infer_legacy_score("F", "G")
-            "F"  # min(0, 3) = 0 = "F"
-
-        Args:
-            phase1: Phase 1 (Hurdle + Flight) score
-            phase2: Phase 2 (Opening + Entry) score
-
-        Returns:
-            Single legacy performance score (F/B/M/G/P)
+            "P"  # 0.45*7 + 0.55*10 = 8.65
+            >>> infer_legacy_score("P", "M")
+            "G"  # 6.975
+            >>> infer_legacy_score("F", "F")
+            "F"
         """
         scores = PhaseValidator.VALID_SCORES
         if phase1 not in scores:
             raise ValueError(f"Invalid phase1 score: {phase1}")
         if phase2 not in scores:
             raise ValueError(f"Invalid phase2 score: {phase2}")
-
-        # Take minimum (pessimistic)
-        composite_numeric = min(scores[phase1], scores[phase2])
-
-        # Convert back to letter
-        reverse_map = {0: 'F', 1: 'B', 2: 'M', 3: 'G', 4: 'P'}
-        return reverse_map[composite_numeric]
+        return composite_grade(phase1, phase2)
 
     @staticmethod
     def get_phase_insight(phase1: str, phase2: str) -> str:

@@ -94,7 +94,7 @@ describe('series workspace', () => {
     expect(screen.getByLabelText('Code du passage 2')).toHaveFocus()
     await waitFor(() => expect(api.get).toHaveBeenCalledWith('/api/v1/dd/lookup/103B/3m'))
     await waitFor(() => expect(seriesApi.clips).toHaveBeenCalledWith('103B', '3m', 'best'))
-    await waitFor(() => expect(input.closest('li')).toHaveTextContent('DD 1.6'))
+    await waitFor(() => expect(input.closest('li')).toHaveTextContent('DD 1,6'))
   })
   it('keeps focus on partial codes and supports Enter and Backspace navigation', async () => {
     vi.mocked(seriesApi.get).mockResolvedValue({ ...initial, slots: [] })
@@ -136,10 +136,10 @@ describe('series workspace', () => {
     await waitFor(() => expect(api.get).toHaveBeenCalledWith('/api/v1/dd/lookup/101B/3m'))
     await userEvent.clear(input)
     await userEvent.type(input, '201B')
-    await waitFor(() => expect(input.closest('li')).toHaveTextContent('DD 2.1'))
+    await waitFor(() => expect(input.closest('li')).toHaveTextContent('DD 2,1'))
     await act(async () => finish({ data: { dd_value: 9.9 } }))
     expect(input).toHaveValue('201B')
-    expect(input.closest('li')).toHaveTextContent('DD 2.1')
+    expect(input.closest('li')).toHaveTextContent('DD 2,1')
     expect(screen.getByLabelText('Code du passage 2')).toHaveFocus()
   })
   it('opens options for one dive at a time and closes them with Escape', async () => {

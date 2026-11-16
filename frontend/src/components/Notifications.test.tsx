@@ -555,15 +555,19 @@ describe('Calendar alerts in the inbox (Task05)', () => {
       url: '/calendar/o/12',
       event_title: 'Groupe A training',
       timezone: 'Europe/Paris',
+      calendar_name: 'Groupe A',
+      calendar_kind: 'group',
       starts_at: '2026-10-22T17:00:00Z',
       start_date: null,
       all_day: false,
       venue_name: 'Piscine Maurice Thorez',
       status: 'scheduled',
+      event_cancelled: false,
       changes: [
-        { kinds: ['time_changed', 'venue_changed'], old_start: '2026-10-21T17:00:00Z', new_start: '2026-10-22T17:00:00Z' },
+        { occurrence_id: 12, kinds: ['time_changed', 'venue_changed'], old_start: '2026-10-21T17:00:00Z', new_start: '2026-10-22T17:00:00Z' },
       ],
       total: 3,
+      total_exact: true,
     },
   }
   const redacted: Row = {
@@ -583,9 +587,196 @@ describe('Calendar alerts in the inbox (Task05)', () => {
     expect(await screen.findByText('Event changed · Groupe A training')).toBeInTheDocument()
     const text = screen.getByText(/Moved:/).textContent ?? ''
     expect(text).toContain('Place changed: Piscine Maurice Thorez')
+    expect((text.match(/Piscine Maurice Thorez/g) ?? []).length).toBe(1) // named once, not repeated by the context line
     expect(text).toContain('+2 more sessions')
+    expect(text).toContain('Groupe A') // the group calendar's name, not just "something changed"
     expect(text).toMatch(/07:00 PM.*→.*07:00 PM/) // 17:00Z shown in the event timezone (Europe/Paris)
     expect(screen.getByRole('link', { name: 'Open event' })).toHaveAttribute('href', '/calendar/o/12')
+  })
+
+  it('shows where and when on a reminder row', async () => {
+    rows = [{
+      ...moved,
+      id: 10,
+      type: 'calendar_reminder',
+      title: 'Groupe A training',
+      calendar: {
+        ...moved.calendar!,
+        kind: 'reminder',
+        changes: [],
+        total: 0,
+      },
+    }]
+    renderPage()
+    expect(await screen.findByText('Tomorrow · Groupe A training')).toBeInTheDocument()
+    const text = screen.getByText(/Piscine Maurice Thorez/).textContent ?? ''
+    expect(text).toContain('Groupe A · Piscine Maurice Thorez')
+    expect(text).toMatch(/07:00 PM/) // the session's start in the event timezone
+  })
+
+  it('never presents an undercounted merge as an exact number', async () => {
+    rows = [{ ...moved, id: 11, calendar: { ...moved.calendar!, total_exact: false } }]
+    renderPage()
+    expect(await screen.findByText(/Event changed · Groupe A training/)).toBeInTheDocument()
+    const text = screen.getByText(/Moved:/).textContent ?? ''
+    expect(text).toContain('and more sessions') // no fake "+2" — the merge could not count the union
+    expect(text).not.toContain('+2 more sessions')
+  })
+
+  it('keeps cancellation wording to its true scope', async () => {
+    // One session of the event cancelled: the row is about that session.
+    rows = [{
+      ...moved,
+      id: 12,
+      type: 'calendar_change',
+      title: 'Groupe A training',
+      calendar: {
+        ...moved.calendar!,
+        kind: 'cancellation',
+        status: 'cancelled',
+        event_cancelled: false,
+        changes: [],
+        total: 0,
+      },
+    }]
+    renderPage()
+    expect(await screen.findByText('Cancelled · Groupe A training')).toBeInTheDocument()
+    const text = screen.getByText(/Session cancelled/).textContent ?? ''
+    expect(text).toContain('Session cancelled') // the session, not "This event is cancelled."
+    expect(text).not.toContain('This event is cancelled')
+  })
+
+  it('downgrades a partial cancellation whose own session is still on', async () => {
+    rows = [{
+      ...moved,
+      id: 13,
+      type: 'calendar_change',
+      title: 'Groupe A training',
+      calendar: {
+        ...moved.calendar!,
+        kind: 'cancellation',
+        status: 'scheduled',
+        event_cancelled: false,
+        changes: [{ kinds: ['time_changed'], old_start: '2026-10-21T17:00:00Z', new_start: '2026-10-22T17:00:00Z' }],
+        total: 2,
+      },
+    }]
+    renderPage()
+    expect(await screen.findByText('Event changed · Groupe A training')).toBeInTheDocument()
+    const text = screen.getByText(/Moved:/).textContent ?? ''
+    expect(text).not.toContain('Session cancelled')
+    expect(text).not.toContain('This event is cancelled')
+  })
+
+  it('keeps the delivery session venue when another session changed venue', async () => {
+    rows = [{
+      ...moved,
+      id: 17,
+      calendar: {
+        ...moved.calendar!,
+        kind: 'change',
+        changes: [
+          { occurrence_id: 12, kinds: ['time_changed'], old_start: '2026-10-21T17:00:00Z', new_start: '2026-10-22T17:00:00Z' },
+          { occurrence_id: 99, kinds: ['venue_changed'], venue: 'Piscine Georges Vallerey' },
+        ],
+        total: 2,
+      },
+    }]
+    renderPage()
+    expect(await screen.findByText(/Event changed · Groupe A training/)).toBeInTheDocument()
+    const text = screen.getByText(/Place changed: Piscine Georges Vallerey/).textContent ?? ''
+    expect(text).toContain('Place changed: Piscine Georges Vallerey') // the other session's venue
+    expect((text.match(/Piscine Maurice Thorez/g) ?? []).length).toBe(1) // this session's pool still shows
+  })
+
+  it('renders each session venue change with its own venue', async () => {    rows = [{
+      ...moved,
+      id: 16,
+      calendar: {
+        ...moved.calendar!,
+        kind: 'change',
+        changes: [
+          { kinds: ['venue_changed'], old_start: null, new_start: null, venue: 'Piscine Maurice Thorez' },
+          { kinds: ['venue_changed'], old_start: null, new_start: null, venue: 'Piscine Georges Vallerey' },
+        ],
+        total: 2,
+      },
+    }]
+    renderPage()
+    expect(await screen.findByText(/Event changed · Groupe A training/)).toBeInTheDocument()
+    const text = screen.getByText(/Place changed: Piscine Maurice Thorez/).textContent ?? ''
+    expect(text).toContain('Place changed: Piscine Maurice Thorez')
+    expect(text).toContain('Place changed: Piscine Georges Vallerey') // not collapsed into one line
+  })
+
+  it('shows the uncounted indicator even when the bound matches the changes', async () => {
+    rows = [{
+      ...moved,
+      id: 18,
+      calendar: {
+        ...moved.calendar!,
+        kind: 'change',
+        changes: [{ occurrence_id: 12, kinds: ['venue_changed'], venue: 'Piscine Maurice Thorez' }],
+        total: 1, // an inexact lower bound equal to the retained changes
+        total_exact: false,
+      },
+    }]
+    renderPage()
+    expect(await screen.findByText(/Event changed · Groupe A training/)).toBeInTheDocument()
+    const text = screen.getByText(/Place changed: Piscine Maurice Thorez/).textContent ?? ''
+    expect(text).toContain('and more sessions')
+    expect(text).not.toContain('+0 more sessions')
+  })
+
+  it('keeps a date-only all-day value on the UTC calendar in any timezone', async () => {
+    rows = [{
+      ...moved,
+      id: 15,
+      type: 'calendar_reminder',
+      title: 'Club camp',
+      calendar: {
+        ...moved.calendar!,
+        kind: 'reminder',
+        event_title: 'Club camp',
+        timezone: 'Pacific/Kiritimati', // UTC+14: noon UTC is already tomorrow there
+        starts_at: null,
+        start_date: '2026-10-22',
+        all_day: true,
+        changes: [],
+        total: 0,
+      },
+    }]
+    renderPage()
+    expect(await screen.findByText(/Club camp/)).toBeInTheDocument()
+    const text = screen.getByText(/Piscine Maurice Thorez/).textContent ?? ''
+    expect(text).toContain('Thu, Oct 22') // the local date, never shifted to Fri, Oct 23
+  })
+
+  it('formats each endpoint of a timed <-> all-day move with its own shape', async () => {    rows = [{
+      ...moved,
+      id: 14,
+      calendar: {
+        ...moved.calendar!,
+        kind: 'change',
+        changes: [{
+          kinds: ['time_changed'],
+          old_start: '2026-10-21T17:00:00Z',
+          old_all_day: false,
+          new_start: '2026-10-22T00:00:00Z', // local midnight (Europe/Paris)
+          new_all_day: true,
+        }],
+        total: 1,
+      },
+    }]
+    renderPage()
+    expect(await screen.findByText(/Event changed · Groupe A training/)).toBeInTheDocument()
+    const text = screen.getByText(/Moved:/).textContent ?? ''
+    expect(text).toMatch(/07:00 PM.*→/) // the old timed endpoint keeps its time
+    // The moved line only (before the context and when lines): its new
+    // endpoint is a date, not a time.
+    const movedLine = text.split(' · ')[0] ?? ''
+    const to = movedLine.split('→')[1] ?? ''
+    expect(to).not.toMatch(/:/)
   })
 
   it('redacts an alert whose event is no longer visible (no title, no link)', async () => {

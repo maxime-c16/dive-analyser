@@ -1,3 +1,7 @@
+// Must run before anything that touches `window.localStorage`: restores the
+// jsdom storage that node ≥26 hides from vitest's environment whitelist
+// (hosted CI on node 20 is unaffected). See file doc comment.
+import './node-storage-compat'
 import '@testing-library/jest-dom/vitest'
 import { afterEach } from 'vitest'
 import { cleanup } from '@testing-library/react'

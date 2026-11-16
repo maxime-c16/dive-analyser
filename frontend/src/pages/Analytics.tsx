@@ -1,3 +1,5 @@
+import { fmtNum } from '../utils/formatNumber'
+import { MobileShellActions } from '../navigation/mobileShellActions'
 import React, { useEffect, useState } from 'react'
 import { getNavigationData } from '../services/navigationData'
 import {
@@ -137,7 +139,10 @@ function Analytics() {
   return (
     <div className="app-page">
       {/* Header */}
-      <h1 className="text-3xl font-bold text-app-text">{t('nav.analytics')}</h1>
+      <div className="flex items-center gap-2">
+        <h1 className="min-w-0 flex-1 text-3xl font-semibold tracking-tight text-app-text">{t('nav.analytics')}</h1>
+        <MobileShellActions />
+      </div>
 
       {/* Performance Over Time */}
       <div className="app-panel">
@@ -191,9 +196,8 @@ function Analytics() {
               <YAxis stroke="#98a2aa" domain={[0, 10]} />
               <Tooltip
                 contentStyle={{ backgroundColor: '#15191c', border: '1px solid rgba(82,96,105,.45)', borderRadius: '8px' }}
-                formatter={(value: number) => value.toFixed(2)}
+                formatter={(value: number) => fmtNum(value, 1)}
               />
-              <Legend />
               <Bar dataKey={groupPerformanceKey} name={performanceName} radius={[4, 4, 0, 0]}>
                 {heightChartData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={HEIGHT_COLORS[entry.name] || COLORS.primary} />
@@ -212,9 +216,8 @@ function Analytics() {
               <YAxis stroke="#98a2aa" domain={[0, 100]} />
               <Tooltip
                 contentStyle={{ backgroundColor: '#15191c', border: '1px solid rgba(82,96,105,.45)', borderRadius: '8px' }}
-                formatter={(value: number) => `${value.toFixed(1)}%`}
+                formatter={(value: number) => `${fmtNum(value, 1)}%`}
               />
-              <Legend />
               <Bar dataKey="successRate" name={t("analytics.successRatePct")} radius={[4, 4, 0, 0]}>
                 {heightChartData.map((entry, index) => (
                   <Cell
@@ -284,13 +287,13 @@ function Analytics() {
               <div className="flex items-center justify-between mb-2">
                 <span className="text-2xl font-bold text-app-text">{dive.dive_code}</span>
                 <span className={`text-sm font-medium ${dive.improvement > 0 ? 'text-green-400' : 'text-red-400'}`}>
-                  {dive.improvement > 0 ? '↑' : '↓'} {Math.abs(dive.improvement).toFixed(2)}
+                  {dive.improvement > 0 ? '↑' : '↓'} {fmtNum(Math.abs(dive.improvement), 1)}
                 </span>
               </div>
               <div className="space-y-1 text-sm">
                 <div className="flex justify-between text-app-muted">
                   <span>{t('analytics.recentAvg')}:</span>
-                  <span className="text-app-text">{dive.recent_avg.toFixed(2)}</span>
+                  <span className="text-app-text">{fmtNum(dive.recent_avg, 1)}</span>
                 </div>
                 <div className="flex justify-between text-app-muted">
                   <span>{t('analysis.attempts')}:</span>
@@ -309,11 +312,11 @@ function Analytics() {
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div className="app-panel">
           <h3 className="text-app-muted text-sm mb-1">{t('analytics.averagePerformance')}</h3>
-          <p className="text-3xl font-bold text-app-accent">{avgPerformance.toFixed(2)}</p>
+          <p className="text-3xl font-bold text-app-accent">{fmtNum(avgPerformance, 1)}</p>
         </div>
         <div className="app-panel">
           <h3 className="text-app-muted text-sm mb-1">{t('analytics.averageSuccessRate')}</h3>
-          <p className="text-3xl font-bold text-green-400">{avgSuccessRate.toFixed(1)}%</p>
+          <p className="text-3xl font-bold text-green-400">{fmtNum(avgSuccessRate, 1)}%</p>
           <p className="text-app-muted text-sm mt-1">{t('dashboard.successRateSubtitle')}</p>
         </div>
         <div className="app-panel">

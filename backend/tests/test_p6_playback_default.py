@@ -241,7 +241,7 @@ def fake_presign(monkeypatch, request):
     behavior = {"fail": False}
     calls = []
 
-    def _fake(bucket, object_key, ttl_seconds=None, storage_location_id=None):
+    def _fake(bucket, object_key, ttl_seconds=None, storage_location_id=None, **_extra):
         from app.services.b2_presign import PresignResult, PresignUnavailable, clamp_ttl
 
         calls.append({"bucket": bucket, "object_key": object_key, "storage_location_id": storage_location_id})

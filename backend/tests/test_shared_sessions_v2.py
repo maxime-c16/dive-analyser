@@ -479,3 +479,118 @@ def test_session_image_cleanup_removes_only_dead_videos(sessions_env,tmp_path,mo
     assert image_path(live.id,'poster').is_file() and image_path(live.id,'animated').is_file()
     assert not image_path(dead.id,'poster').exists() and not image_path(dead.id,'animated').exists()
     assert not ghost.exists()
+
+
+def test_image_retry_rotates_and_cools_down(sessions_env, monkeypatch, tmp_path):
+    from app.services import session_images as images
+    db, *_ = sessions_env
+    videos = [service.ingest_object(db, KEY)]
+    # Same source row suffices to prove failure is retried without re-ingestion.
+    monkeypatch.setattr(images, '_retry_cursor', 0)
+    monkeypatch.setattr(images, '_session_root', lambda: tmp_path)
+    calls = []
+    def fail(video):
+        calls.append(video.id)
+        raise RuntimeError('failure')
+    monkeypatch.setattr(images, 'extract_images', fail)
+    assert images.retry_missing_images(db, attempt_limit=1) == 1
+    assert images.retry_missing_images(db, attempt_limit=1) == 0  # wrap
+    assert images.retry_missing_images(db, attempt_limit=1) == 0  # cooldown persists
+    marker = images.image_path(videos[0].id, 'poster').parent / '.image-retry'
+    import os
+    os.utime(marker, (0, 0))
+    def succeed(video):
+        calls.append(video.id)
+        for kind in ('poster', 'animated'):
+            images.image_path(video.id, kind).write_bytes(b'webp')
+    monkeypatch.setattr(images, 'extract_images', succeed)
+    assert images.retry_missing_images(db, attempt_limit=1) == 1
+    images.retry_missing_images(db)
+    assert images.retry_missing_images(db) == 0
+    assert calls == [videos[0].id, videos[0].id]
+    assert not marker.exists()  # successful retry releases its cooldown marker
+    marker.touch()  # also clean up a leftover marker on an already-ready pair
+    monkeypatch.setattr(images, '_retry_cursor', 0)
+    assert images.retry_missing_images(db) == 0
+    assert not marker.exists()
+
+
+def test_still_survives_animation_extraction_failure(monkeypatch, tmp_path):
+    from app.services import session_images as images
+    from contextlib import contextmanager
+    from types import SimpleNamespace
+    from PIL import Image
+    import subprocess
+    monkeypatch.setattr(images, '_session_root', lambda: tmp_path)
+    monkeypatch.setattr(images, 'presign_get', lambda *a: 'unused')
+    @contextmanager
+    def source(url):
+        yield 'http://127.0.0.1/source', {}
+    monkeypatch.setattr(images, 'range_source', source)
+    calls = []
+    def run(command, **kwargs):
+        calls.append(command)
+        if len(calls) > 1:
+            raise subprocess.TimeoutExpired(command, 45)
+        Image.new('RGB', (36, 64), 'blue').save(command[-1])
+    monkeypatch.setattr(images.subprocess, 'run', run)
+    with pytest.raises(RuntimeError, match='extraction failed'):
+        images.extract_images(SimpleNamespace(id=55, bucket='test', object_key='test', duration_seconds=60, color_transfer=None))
+    with Image.open(images.image_path(55, 'poster')) as poster:
+        assert poster.size == (36, 64)
+    assert not images.image_path(55, 'animated').exists()
+
+
+def test_image_retry_bounds_work_and_advances_past_failures(sessions_env, monkeypatch, tmp_path):
+    from app.services import session_images as images
+    db, *_ = sessions_env
+    first = service.ingest_object(db, KEY)
+    owner = first.owner_user_id
+    for index in range(2):
+        db.add(SessionVideo(owner_user_id=owner, bucket='test', object_key=f'retry-{index}.MOV', status='ready'))
+    db.commit()
+    monkeypatch.setattr(images, '_retry_cursor', 0)
+    monkeypatch.setattr(images, '_session_root', lambda: tmp_path)
+    calls = []
+    def fail(video):
+        calls.append(video.id)
+        raise RuntimeError('failure')
+    monkeypatch.setattr(images, 'extract_images', fail)
+    for _ in range(3):
+        assert images.retry_missing_images(db, scan_limit=1, attempt_limit=1) == 1
+    assert calls == sorted(set(calls)) and len(calls) == 3
+    assert images.retry_missing_images(db, scan_limit=1, attempt_limit=1) == 0
+    assert images.retry_missing_images(db, scan_limit=1, attempt_limit=1) == 0
+
+
+
+def test_image_cleanup_removes_orphan_markers_within_budget(sessions_env, monkeypatch, tmp_path):
+    from app.services import session_images as images
+    from datetime import datetime
+    db, *_ = sessions_env
+    live = service.ingest_object(db, KEY)
+    dead = SessionVideo(owner_user_id=live.owner_user_id, bucket='test', object_key='deleted-retry.MOV',
+                        status='ready', deleted_at=datetime.utcnow())
+    db.add(dead)
+    db.commit()
+    monkeypatch.setattr(images, '_session_root', lambda: tmp_path)
+    monkeypatch.setattr(images, '_scan_cursor', None)
+    live_marker = images.image_path(live.id, 'poster').parent / '.image-retry'
+    dead_marker = images.image_path(dead.id, 'poster').parent / '.image-retry'
+    ghost_marker = images.image_path(999999, 'poster').parent / '.image-retry'
+    staging_dir = images.image_path(999998, 'poster').parent
+    staging_marker = staging_dir / '.image-retry'
+    for marker in (live_marker, dead_marker, ghost_marker, staging_marker):
+        marker.parent.mkdir(parents=True, exist_ok=True)
+        marker.touch()
+    staging = staging_dir / 'poster.123.tmp'
+    staging.write_bytes(b'in-flight')
+    images.cleanup_session_images(db, limit=1)
+    assert live_marker.is_file()  # live pending retries retain their cooldown
+    assert sum(p.exists() for p in (dead_marker, ghost_marker, staging_marker)) == 2
+    images.cleanup_session_images(db)
+    assert not dead_marker.parent.exists()
+    assert not ghost_marker.parent.exists()
+    assert not staging_marker.exists()
+    assert staging.read_bytes() == b'in-flight'
+    assert live_marker.is_file()

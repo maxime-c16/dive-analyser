@@ -7,6 +7,8 @@ export type DerivativeRoleStatus = {
   playback_url?: string | null
   revision_id?: number | null
   aliased_to?: string | null
+  /** This rendition alone as a byte-range HLS playlist (fragmented packages). */
+  hls_url?: string | null
 }
 
 export type DerivativeStatusBlock = {
@@ -14,6 +16,8 @@ export type DerivativeStatusBlock = {
   transform_version?: string | null
   start?: string | null
   recommended?: string | null
+  /** Adaptive HLS master available: for Apple's player only, or for all. */
+  hls?: 'apple' | 'all' | null
   hq: DerivativeRoleStatus
   light: DerivativeRoleStatus
   poster: DerivativeRoleStatus
@@ -84,6 +88,20 @@ export function getDerivativePlaybackUrl(status: MediaStatus, role: DerivativeRo
   const entry = status.derivatives?.[role]
   if (!entry || entry.state !== 'ready' || !entry.playback_url) return null
   return entry.playback_url
+}
+
+/**
+ * Durable Light/HQ revision URLs mapped to their single-rendition HLS
+ * playlists. Apple's player starts a fragmented package in ~0.8 s through a
+ * playlist versus 3–6 s as a progressive file; other players keep the file.
+ */
+export function derivativeHlsUrls(status: MediaStatus): Map<string, string> {
+  const urls = new Map<string, string>()
+  for (const role of ['light', 'hq'] as const) {
+    const entry = status.derivatives?.[role]
+    if (entry?.state === 'ready' && entry.playback_url && entry.hls_url) urls.set(entry.playback_url, entry.hls_url)
+  }
+  return urls
 }
 
 /** Ready durable-derivative poster URL, or null (legacy poster stays). */

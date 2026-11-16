@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react'
+import { MobileShellActions } from '../navigation/mobileShellActions'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import BatchDownload from '../components/BatchDownload'
@@ -217,9 +218,12 @@ function BatchReview({ batchId, diverId }: { batchId: string; diverId: number | 
   return (
     <div>
       <header className="mb-5">
-        <h1 className="text-2xl font-semibold">
-          {t('deposits.titleBatch', { name: batch.diver_name ?? '', count: batch.dives.length })}
-        </h1>
+        <div className="flex items-center gap-2">
+          <h1 className="min-w-0 flex-1 text-2xl font-semibold tracking-tight text-app-text">
+            {t('deposits.titleBatch', { name: batch.diver_name ?? '', count: batch.dives.length })}
+          </h1>
+          <MobileShellActions />
+        </div>
         <p className="mt-1 text-sm text-app-muted">{canAccept ? t('deposits.subtitle') : t('deposits.awaitingOwner', { name: batch.diver_name ?? '' })}</p>
       </header>
       {canAccept && <div className="mb-4 flex flex-wrap gap-2">
@@ -300,8 +304,10 @@ function BatchList() {
   return (
     <div>
       <header className="mb-5">
-        <h1 className="text-2xl font-semibold">{t(hasOthers ? 'deposits.pendingTitle' : 'deposits.title')}</h1>
-        <p className="mt-1 text-sm text-app-muted">{t(hasOthers ? 'deposits.pendingSubtitle' : 'deposits.subtitle')}</p>
+        <div className="flex items-center gap-2">
+          <h1 className="min-w-0 flex-1 text-3xl font-semibold tracking-tight text-app-text">{t(hasOthers ? 'deposits.pendingTitle' : 'deposits.title')}</h1>
+          <MobileShellActions />
+        </div>
       </header>
       {batches.length === 0 ? (
         <p className="text-sm text-app-muted">{t('deposits.empty')}</p>

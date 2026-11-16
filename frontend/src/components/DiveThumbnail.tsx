@@ -22,6 +22,7 @@ export default function DiveThumbnail({
   const [motionAllowed, setMotionAllowed] = useState(false);
   const [animatedError, setAnimatedError] = useState(false);
   const animated = !animatedError && motionAllowed && visible && (dive.animated_url || preview?.animatedUrl);
+  const [imageLoaded, setImageLoaded] = useState(false);
   const [imgError, setImgError] = useState(false);
   const [thumbError, setThumbError] = useState(false);
   const thumb = !thumbError && (dive.thumb_url || preview?.thumbUrl);
@@ -87,6 +88,41 @@ export default function DiveThumbnail({
       observer.disconnect();
     };
   }, [dive.video_uuid]);
+  // Session image URLs exist before their files do. Retry failed image
+  // requests while visible, without polling the session API or playback.
+  useEffect(() => {
+    setImageLoaded(false);
+    setAnimatedError(false);
+    setThumbError(false);
+    setImgError(false);
+  }, [dive.thumb_url, dive.animated_url]);
+  useEffect(() => {
+    if (!visible || imageLoaded || dive.video_uuid || !(dive.thumb_url || dive.animated_url)) return;
+    let attempts = 0;
+    const timer = setInterval(() => {
+      setAnimatedError(false);
+      setThumbError(false);
+      setImgError(false);
+      if (++attempts >= 12) clearInterval(timer);
+    }, 10_000);
+    return () => clearInterval(timer);
+  }, [visible, imageLoaded, dive.video_uuid, dive.thumb_url, dive.animated_url]);
+  // Recheck only visible pending tiles; getPreview batches and deduplicates
+  // requests. Stop after two minutes and clean up on identity/navigation.
+  useEffect(() => {
+    if (!visible || !dive.video_uuid || preview?.ready) return;
+    let active = true;
+    let attempts = 0;
+    let timer: ReturnType<typeof setTimeout>;
+    const refresh = async () => {
+      const result = await getPreview(dive.video_uuid!);
+      if (!active) return;
+      setPreview(result);
+      if (!result.ready && ++attempts < 12) timer = setTimeout(refresh, 10_000);
+    };
+    timer = setTimeout(refresh, 10_000);
+    return () => { active = false; clearTimeout(timer); };
+  }, [visible, dive.video_uuid, preview?.ready]);
   useEffect(() => {
     const button = containerRef.current?.closest('button')
     if (!button || !dive.video_uuid) return
@@ -113,8 +149,9 @@ export default function DiveThumbnail({
         <img
           src={animated || thumb || preview!.posterUrl!}
           alt={t('thumbnail.posterFor', { code: dive.dive_code })}
-          className="h-full w-full object-cover"
+          className="absolute inset-0 h-full w-full object-cover"
           loading="lazy"
+          onLoad={() => setImageLoaded(true)}
           onError={() => animated ? setAnimatedError(true) : thumb ? setThumbError(true) : setImgError(true)}
         />
       ) : preview?.videoThumbUrl && !(dive.thumb_url || preview?.thumbUrl || dive.animated_url || preview?.animatedUrl) ? (
@@ -127,7 +164,7 @@ export default function DiveThumbnail({
         // the whole clip.
         <video
           src={preview.videoThumbUrl as string}
-          className="h-full w-full object-cover"
+          className="absolute inset-0 h-full w-full object-cover"
           muted
           playsInline
           preload="metadata"

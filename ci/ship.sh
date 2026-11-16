@@ -7,7 +7,7 @@
 #   ci/ship.sh status                     what is running where, vs GitHub master
 #   ci/ship.sh server [options]           deploy the app stack on deb-serv
 #   ci/ship.sh proxy  [--dry-run]          recreate the public media proxy
-#   ci/ship.sh mac    [options]           deploy the media agent on mac-media-01
+#   ci/ship.sh mac    [options]           deploy the media agent on the Mac worker (mac-server, alias diveanalyzer-mac)
 #   ci/ship.sh all    [options]           server, then mac
 #
 # Options:
@@ -530,6 +530,24 @@ do_mac() {
 
 SHIP_FROM="$(whoami)@$(hostname -s)"
 export SHIP_FROM
+
+# Host preflight before any target-host work: cheap, readable, and advisory by
+# default so the deb-serv auto-deploy cron can never be blocked by it. Enforce
+# FAILs explicitly with DIVE_CHECKHOST_STRICT=1. --dry-run changes nothing and
+# is allowed regardless. --target checks only the hosts this command touches.
+if [ "$cmd" != status ]; then
+    case "$cmd" in
+        proxy|server) pk_target="server" ;;
+        mac)          pk_target="mac" ;;
+        all)          pk_target="all" ;;
+    esac
+    if ! bash "$SCRIPT_DIR/checkhost.sh" --scope ship --target "$pk_target" --brief; then
+        if [ "$DRY_RUN" = 0 ] && [ "${DIVE_CHECKHOST_STRICT:-0}" = 1 ]; then
+            ci_die "host preflight failed — fix the FAIL lines above, or run from deb-serv"
+        fi
+        ci_warn "preflight FAIL lines above are advisory; set DIVE_CHECKHOST_STRICT=1 to block on them"
+    fi
+fi
 
 case "$cmd" in
     proxy)

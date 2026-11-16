@@ -91,7 +91,7 @@ describe('minimal IA routing', () => {
     renderAt('/dashboard')
     expect(screen.getByRole('status')).toHaveTextContent('Loading page')
     // Resolve the real lazy page while keeping chart rendering out of this routing test.
-    expect(await screen.findByRole('heading', { name: 'Training Dashboard' }, { timeout: LAZY_ROUTE_WAIT })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Dashboard' }, { timeout: LAZY_ROUTE_WAIT })).toBeInTheDocument()
   }, LAZY_ROUTE_TEST_TIMEOUT)
 
   it('Library is the primary navigation destination', async () => {
@@ -181,7 +181,7 @@ describe('minimal IA routing', () => {
     renderAt('/competitions')
     // The redirect lands on Journey (no duplicate Competitions destination).
     expect(
-      await screen.findByRole('heading', { name: 'Your Diving Journey' }, { timeout: LAZY_ROUTE_WAIT }),
+      await screen.findByRole('heading', { name: 'Journey' }, { timeout: LAZY_ROUTE_WAIT }),
     ).toBeInTheDocument()
     expect(screen.queryByText('Page not found')).not.toBeInTheDocument()
   }, LAZY_ROUTE_TEST_TIMEOUT)

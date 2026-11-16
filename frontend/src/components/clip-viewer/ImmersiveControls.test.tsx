@@ -326,3 +326,38 @@ it("movement, cancellation and unmount during a hold release the press", () => {
   expect(onHudPressChange).toHaveBeenCalledTimes(calls + 2);
   expect(onHudPressChange).toHaveBeenLastCalledWith(false);
 });
+
+it("shows play when a non-looping video ends and updates duration changes", () => {
+  const t = setup();
+  Object.defineProperty(t.video, "paused", { value: false, configurable: true });
+  fireEvent.play(t.video);
+  Object.defineProperty(t.video, "paused", { value: true, configurable: true });
+  fireEvent.ended(t.video);
+  expect(screen.getByRole("button", { name: "Play video" })).toBeInTheDocument();
+  Object.defineProperty(t.video, "duration", { value: 120, configurable: true });
+  fireEvent.durationChange(t.video);
+  expect(screen.getByRole("slider")).toHaveAttribute("max", "120");
+});
+
+it('seeks and mutes from the focused video surface without reaching viewer navigation', () => {
+  const t = setup();
+  Object.defineProperty(t.video, 'duration', { value: 12, configurable: true });
+  t.video.currentTime = 10;
+  fireEvent.keyDown(t.surface, { key: 'ArrowRight' });
+  expect(t.video.currentTime).toBe(12);
+  fireEvent.keyDown(t.surface, { key: 'ArrowLeft' });
+  expect(t.video.currentTime).toBe(7);
+  fireEvent.keyDown(t.surface, { key: 'm' });
+  expect(t.video.muted).toBe(true);
+  fireEvent.keyDown(t.surface, { key: 'ArrowLeft', ctrlKey: true });
+  expect(t.video.currentTime).toBe(7);
+  expect(t.onNavigate).not.toHaveBeenCalled();
+});
+
+it('requests fullscreen for the player including its controls', () => {
+  const t = setup();
+  const request = vi.fn().mockResolvedValue(undefined);
+  t.surface.parentElement!.requestFullscreen = request;
+  fireEvent.keyDown(t.surface, { key: 'f' });
+  expect(request).toHaveBeenCalledOnce();
+});

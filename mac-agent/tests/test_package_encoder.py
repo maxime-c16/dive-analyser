@@ -20,6 +20,7 @@ from pathlib import Path
 import pytest
 
 from src.package_encoder import (
+    _x264_args,
     AUDIO_BITRATE,
     DERIVATIVE_TRANSFORM_VERSION_DEFAULT,
     POSTER_SHORT_SIDE,
@@ -1418,3 +1419,80 @@ def test_cancel_during_post_hash_cleans_owned_no_leak(tmp_path, monkeypatch):
     assert src.read_bytes() == before
     assert [p for p in out.iterdir() if p.name.startswith(".pkg-attempt-")] == []
     assert [p for p in out.iterdir() if p.name.startswith("pkg-")] == []
+
+
+# ---- Rate recipes per transform version ----
+
+
+def _segments(cmd):
+    joined = " ".join(cmd)
+    return joined.split("hq.mp4")[0], joined.split("lt.mp4")[0].split("hq.mp4")[-1]
+
+
+def test_v1_recipe_is_unchanged_light_stays_crf_only():
+    plan = _plan_for_cmd(transfer="arib-std-b67")
+    default = build_package_cmd(Path("s.mov"), Path("hq.mp4"), Path("lt.mp4"), Path("p.jpg"), plan)
+    v1 = build_package_cmd(Path("s.mov"), Path("hq.mp4"), Path("lt.mp4"), Path("p.jpg"), plan, transform_version="ffmpeg-h264-web-v1")
+    assert default == v1
+    hq_seg, lt_seg = _segments(v1)
+    assert "-maxrate 12M -bufsize 24M" in hq_seg and "-maxrate" not in lt_seg
+
+
+def test_v2_recipe_caps_light_and_keeps_hq():
+    plan = _plan_for_cmd(transfer="arib-std-b67")
+    cmd = build_package_cmd(Path("s.mov"), Path("hq.mp4"), Path("lt.mp4"), Path("p.jpg"), plan, transform_version="ffmpeg-h264-web-v2")
+    hq_seg, lt_seg = _segments(cmd)
+    assert "-maxrate 12M -bufsize 24M" in hq_seg
+    assert "-maxrate 2500k -bufsize 5000k" in lt_seg
+    # Everything else (frames, GOP, tone map, dims) is the same recipe.
+    v1 = build_package_cmd(Path("s.mov"), Path("hq.mp4"), Path("lt.mp4"), Path("p.jpg"), plan, transform_version="ffmpeg-h264-web-v1")
+    cap = ["-maxrate", "2500k", "-bufsize", "5000k"]
+    start = next(i for i in range(len(cmd)) if cmd[i:i + 4] == cap)
+    assert cmd[:start] + cmd[start + 4:] == v1
+
+
+def test_unknown_transform_version_has_no_recipe():
+    plan = _plan_for_cmd(transfer="arib-std-b67")
+    with pytest.raises(ValueError, match="no encode recipe"):
+        build_package_cmd(Path("s.mov"), Path("hq.mp4"), Path("lt.mp4"), Path("p.jpg"), plan, transform_version="ffmpeg-h264-web-v9")
+
+
+def test_build_package_refuses_unknown_version_before_any_work(tmp_path):
+    source = tmp_path / "s.mov"
+    source.write_bytes(b"not read")
+    with pytest.raises(ValueError, match="no encode recipe"):
+        asyncio.run(build_package(
+            source, tmp_path / "out", video_uuid="11111111-2222-4333-8444-555555555555",
+            source_sha256="a" * 64, transform_version="ffmpeg-h264-web-v9",
+            ffmpeg_path="/nonexistent/ffmpeg", ffprobe_path="/nonexistent/ffprobe",
+        ))
+    assert not (tmp_path / "out").exists() or not any((tmp_path / "out").iterdir())
+
+
+def test_v3_recipe_is_v2_with_the_faster_preset():
+    plan = _plan_for_cmd(transfer="arib-std-b67")
+    v2 = build_package_cmd(Path("s.mov"), Path("hq.mp4"), Path("lt.mp4"), Path("p.jpg"), plan, transform_version="ffmpeg-h264-web-v2")
+    v3 = build_package_cmd(Path("s.mov"), Path("hq.mp4"), Path("lt.mp4"), Path("p.jpg"), plan, transform_version="ffmpeg-h264-web-v3")
+    assert v2.count("medium") == 2 and v3.count("faster") == 2 and "medium" not in v3
+    assert [("medium" if part == "faster" else part) for part in v3] == v2
+
+
+def test_v4_recipe_is_v3_written_as_fragmented_mp4():
+    plan = _plan_for_cmd(transfer="arib-std-b67")
+    v3 = build_package_cmd(Path("s.mov"), Path("hq.mp4"), Path("lt.mp4"), Path("p.jpg"), plan, transform_version="ffmpeg-h264-web-v3")
+    v4 = build_package_cmd(Path("s.mov"), Path("hq.mp4"), Path("lt.mp4"), Path("p.jpg"), plan, transform_version="ffmpeg-h264-web-v4")
+    frag = "+frag_keyframe+empty_moov+default_base_moof+global_sidx"
+    assert v4.count(frag) == 2 and "+faststart" not in v4
+    assert [("+faststart" if part == frag else part) for part in v4] == v3
+
+
+@pytest.mark.skipif(shutil.which("ffmpeg") is None, reason="needs ffmpeg")
+def test_v4_output_has_moov_and_sidx_before_media(tmp_path):
+    src = tmp_path / "src.mp4"
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "testsrc2=s=320x240:r=30:d=3",
+                    "-c:v", "libx264", "-pix_fmt", "yuv420p", str(src)], check=True)
+    out = tmp_path / "frag.mp4"
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(src), *(_x264_args(30, 1, False, "ffmpeg-h264-web-v4")), str(out)], check=True)
+    from src.package_encoder import _atom_order
+    atoms = _atom_order(out)
+    assert atoms[:3] == ["ftyp", "moov", "sidx"] and "moof" in atoms

@@ -53,6 +53,24 @@ class Settings(BaseSettings):
     media_derivative_transform_version: str = os.getenv(
         "MEDIA_DERIVATIVE_TRANSFORM_VERSION", "ffmpeg-h264-web-v1"
     )
+    # Ordered transform versions the read path may SERVE (newest first). Empty
+    # means "only media_derivative_transform_version" (the produced one). A
+    # cutover lists the new version first and keeps the old one as fallback
+    # until the backfill covers every clip.
+    media_derivative_served_transform_versions: str = os.getenv(
+        "MEDIA_DERIVATIVE_SERVED_TRANSFORM_VERSIONS", ""
+    )
+    # Transform versions packaged as fragmented MP4: their Light/HQ are also
+    # served as byte-range HLS (adaptive). Empty turns HLS off.
+    media_hls_transform_versions: str = os.getenv(
+        "MEDIA_HLS_TRANSFORM_VERSIONS", "ffmpeg-h264-web-v4"
+    )
+    # Only Apple's native HLS player (Safari, every iOS browser) reads B2
+    # segments without CORS; Chrome's native player and hls.js need the PROD
+    # bucket to answer CORS for the app origin. Enable once it does.
+    # Comma-separated app origins the bucket's CORS rule admits. Requests
+    # served on one of them get "all"; other origins (or none) get "apple".
+    media_hls_cors_origins: str = os.getenv("MEDIA_HLS_CORS_ORIGINS", "")
     media_cache_max_bytes: int = int(os.getenv("MEDIA_CACHE_MAX_BYTES", str(50 * 1024 * 1024 * 1024)))
     primary_diver_name: str = os.getenv("PRIMARY_DIVER_NAME", "Maxime")
     dive_analysis_cache_ttl_seconds: int = int(os.getenv("DIVE_ANALYSIS_CACHE_TTL_SECONDS", "60"))
@@ -142,6 +160,16 @@ class Settings(BaseSettings):
     # B2 playback presign (runtime credential only — never in Git; the
     # playback key is least-privilege readFiles on the PROD bucket).
     media_playback_presign_ttl_seconds: int = int(os.getenv("MEDIA_PLAYBACK_PRESIGN_TTL_SECONDS", "120"))
+    # Revision playback grants only (downloads/shares/jobs keep the shorter
+    # default). Bounded by b2_presign.MAX_TTL_SECONDS; a viewer's grant is
+    # reused while at least half of this life remains.
+    media_playback_grant_ttl_seconds: int = int(os.getenv("MEDIA_PLAYBACK_GRANT_TTL_SECONDS", "300"))
+    # Web packages leased at once across the whole fleet (each agent still
+    # holds at most one). 2 lets a second Mac help with a backfill.
+    media_max_active_packages: int = int(os.getenv("MEDIA_MAX_ACTIVE_PACKAGES", "1"))
+    # Background proof that the playback credential can read PROD media,
+    # every N seconds (0 = off: every first grant HEADs its own object).
+    media_playback_credential_probe_seconds: int = int(os.getenv("MEDIA_PLAYBACK_CREDENTIAL_PROBE_SECONDS", "60"))
     # A successful provider HEAD (credential can read the object) is reused
     # for this long per object and credential; 0 re-checks on every play.
     media_playback_head_cache_seconds: int = int(os.getenv("MEDIA_PLAYBACK_HEAD_CACHE_SECONDS", "300"))

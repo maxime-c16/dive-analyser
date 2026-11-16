@@ -83,7 +83,7 @@ def _fake_result(tmp_path, aliased=False):
     )
 
 
-def test_package_single_pass_threads_one_and_slots_published(tmp_path, monkeypatch):
+def test_package_single_pass_configured_threads_and_slots_published(tmp_path, monkeypatch):
     sync_client = SimpleNamespace(
         heartbeat_media_job=AsyncMock(return_value={}),
         fail_media_job=AsyncMock(return_value={}),
@@ -112,8 +112,8 @@ def test_package_single_pass_threads_one_and_slots_published(tmp_path, monkeypat
     proc.source_vault = vault
     out = asyncio.run(pj.process_package_job(proc, _package_job()))
     assert out == {"job_ready": True}
-    # Single pass, threads bounded to 1 per variant.
-    assert len(build_calls) == 1 and build_calls[0].get("threads_per_variant") == 1
+    # Single pass with the configured encoder threads (default 2 per output).
+    assert len(build_calls) == 1 and build_calls[0].get("threads_per_variant") == 2
     # Three sequential fenced slot publishes with the lease transform pin.
     calls = [c for c in sync_client.publish_package_slot.mock_calls if c and c[0] == ""]
     assert len(calls) == 3
@@ -458,3 +458,45 @@ def test_package_stale_publish_409_abandons_without_vault(tmp_path, monkeypatch)
     # Owned temps still cleaned even on abandonment.
     assert cleaned == [True]
     assert not src_file.exists()
+
+
+def test_package_threads_follow_the_media_setting(tmp_path, monkeypatch):
+    sync_client = SimpleNamespace(
+        heartbeat_media_job=AsyncMock(return_value={}),
+        fail_media_job=AsyncMock(return_value={}),
+        lease_media_jobs=AsyncMock(return_value={"jobs": []}),
+        publish_package_slot=AsyncMock(side_effect=[
+            {"job_ready": False}, {"job_ready": False}, {"job_ready": True}]),
+    )
+    proc = _processor(sync_client, package_threads_per_variant=1)
+    (tmp_path / "pkg-test").mkdir()
+    result = _fake_result(tmp_path)
+    result.cleanup = lambda: None
+    import src.package_jobs as pj
+
+    build_calls = []
+
+    async def fake_build(*a, **k):
+        build_calls.append(k)
+        return result
+
+    monkeypatch.setattr("src.package_encoder.build_package", fake_build)
+    monkeypatch.setattr("src.b2_source.download_b2_source", AsyncMock(return_value=tmp_path / "src.mov"))
+    (tmp_path / "src.mov").write_bytes(b"camera-bytes")
+    monkeypatch.setattr("src.package_jobs._sha256_file", lambda p: "a" * 64)
+    proc.source_vault = SimpleNamespace(mark_media_ready=MagicMock(), resolve=lambda uuid: None)
+    asyncio.run(pj.process_package_job(proc, _package_job()))
+    assert build_calls[0]["threads_per_variant"] == 1
+
+
+@pytest.mark.parametrize("threads, ok", [(1, True), (2, True), (3, True), (0, False), (4, False)])
+def test_package_threads_setting_is_bounded(threads, ok):
+    from src.config import Config, MediaConfig
+
+    config = Config.__new__(Config)
+    config.media = MediaConfig(enabled=True, max_jobs=2, interval_seconds=60, package_threads_per_variant=threads)
+    if ok:
+        config._validate_media_config()
+    else:
+        with pytest.raises(ValueError, match="package_threads_per_variant"):
+            config._validate_media_config()
