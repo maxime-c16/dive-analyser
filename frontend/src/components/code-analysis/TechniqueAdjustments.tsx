@@ -89,7 +89,7 @@ export default function TechniqueAdjustments({diver,context,viewer}:{diver:numbe
   {error&&<div role="alert" className="th-error">{error}<button className="th-text-button" onClick={()=>void load()}>{t('technique.retry')}</button></div>}
   {notice&&<p role="status" className="th-notice">{notice}</p>}
   {loading&&!items.length&&<p role="status">{t('technique.loadingClips')}</p>}
-  
+
   {items.some(active)&&<><h3 className="th-adjustment-heading">{t('adjustments.active')}</h3><ol className="th-timeline th-adjustment-list">{items.filter(active).map(renderItem)}</ol></>}
   {items.some(item=>!active(item))&&<><h3 className="th-adjustment-heading">{t('adjustments.ended')}</h3><p className="th-adjustments-rule">{t('adjustments.existingEnds')}</p><ol className="th-timeline th-adjustment-list">{items.filter(item=>!active(item)).map(renderItem)}</ol></>}
   {!loading&&!items.length&&<p>{t('adjustments.empty')}</p>}
