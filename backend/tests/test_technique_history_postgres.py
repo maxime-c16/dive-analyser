@@ -667,3 +667,42 @@ def test_copying_adjustment_elsewhere_never_closes_others_or_duplicates_source_f
         params=dict(context,diver=1,track=copy['track_id'])
         assert db.scalar(text(RESOLVED+' SELECT count(*) FROM resolved WHERE episode_id IS NOT NULL'),params)==0
         assert db.scalar(text(RESOLVED+' SELECT count(*) FROM resolved WHERE episode_id IS NOT NULL'),dict(params,code='105'))==1
+
+def test_independent_duplicate_draft_adjustments_are_rejected_without_writes(pg,monkeypatch):
+    from types import SimpleNamespace
+    from sqlalchemy.orm import Session
+    from fastapi import HTTPException
+    from app.api.v1 import technique_adjustments as api
+    monkeypatch.setattr(api,'owner',lambda *a,**kw:SimpleNamespace(id=1))
+    context=dict(code='103',scope='103',apparatus='springboard',height='3',position='B',sync=False,revision=0,start_at='2026-01-01T00:00:00',anchor_id=1)
+    with Session(pg) as db:
+        batch=api.Batch(revision=0,changes=[api.AdjustmentChange(**context,label='Less pike',draft_key='a'),api.AdjustmentChange(**context,label=' less PIKE ',draft_key='b')])
+        for action in [api.preview,api.save]:
+            with pytest.raises(HTTPException) as failure:action(1,batch,None,db)
+            assert failure.value.status_code==422
+            db.rollback()
+            assert db.scalar(text('SELECT count(*) FROM technique_episodes'))==0
+
+
+def test_independent_stop_validation_stale_revision_and_sequential_resume(pg,monkeypatch):
+    from types import SimpleNamespace
+    from sqlalchemy.orm import Session
+    from fastapi import HTTPException
+    from app.api.v1 import technique_adjustments as api
+    monkeypatch.setattr(api,'owner',lambda *a,**kw:SimpleNamespace(id=1))
+    with pg.begin() as c:c.execute(text('INSERT INTO app_users VALUES(1)'))
+    context=dict(code='103',apparatus='springboard',height='3',position='B',sync=False)
+    with Session(pg) as db:
+        result=api.save(1,api.Batch(revision=0,changes=[api.AdjustmentChange(**context,scope='103',revision=0,start_at='2026-01-01T00:00:00',anchor_id=1,label=label,draft_key=label) for label in ['A','B']]),None,db)
+        current=result['revision']
+        for episode in result['episodes']:
+            for invalid in ['2025-12-31T00:00:00','2026-01-01T00:00:00']:
+                with pytest.raises(HTTPException) as failure:api.end(1,api.End(**context,revision=current,episode_id=episode['id'],end_at=invalid,commit=True),None,db)
+                assert failure.value.status_code==422
+            stopped=api.end(1,api.End(**context,revision=current,episode_id=episode['id'],end_at='2026-02-01T12:00:00',timezone='Europe/Paris',commit=True),None,db)
+            assert str(db.scalar(text('SELECT end_at FROM technique_episodes WHERE id=:id'),{'id':episode['id']}))=='2026-02-01 11:00:00'
+            with pytest.raises(HTTPException) as failure:api.end(1,api.End(**context,revision=current,episode_id=episode['id'],resume=True,commit=True),None,db)
+            assert failure.value.status_code==409
+            resumed=api.end(1,api.End(**context,revision=stopped['revision'],episode_id=episode['id'],resume=True,commit=True),None,db)
+            current=resumed['revision']
+        assert db.scalar(text('SELECT count(*) FROM technique_episodes WHERE end_at IS NULL'))==2

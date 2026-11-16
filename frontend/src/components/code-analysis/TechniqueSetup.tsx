@@ -153,19 +153,30 @@ export default function TechniqueSetup({ base, context, revision, constrainPosit
   }
   function beginMarker(forceNew = false) {
     if (!current || saving) return
-    setReturnToSessions(false);setUncertainUntil(undefined)
+    setReturnToSessions(false)
     const marker = forceNew ? undefined : markers.find(m => m.attempt.id === current.id)
+    setUncertainUntil(marker?.uncertainUntil)
     editingDraftKey.current=marker?markerKey(marker):null;setReplacementChoice(marker?.replaceEpisode?{id:marker.replaceEpisode,label:marker.replaceLabel??null}:null);setReplacement(marker?.replaceEpisode?`episode:${marker.replaceEpisode}`:marker?.replaceDraft?`draft:${marker.replaceDraft}`:'')
     setSelectedIdentity(marker?.techniqueId ? `id:${marker.techniqueId}` : marker?.identityKey ?? 'new'); setLabel(marker?.label ?? nameDraft); setEditing(current); setReviewed(false)
   }
+  function updateMarker(previous:Marker[], original:Marker, updated:Marker) {
+    const before=markerKey(original),after=markerKey(updated)
+    return previous.map(marker=>marker===original ? updated : marker.replaceDraft===before ? {...marker,replaceDraft:after,replaceLabel:updated.label} : marker)
+  }
   function keepMarker() {
     if (!editing || !label.trim()) return
+    if(independent&&markers.some(m=>markerKey(m)!==editingDraftKey.current&&m.attempt.id===editing.id&&m.label.trim().toLocaleLowerCase()===label.trim().toLocaleLowerCase())){setError(t('adjustments.duplicate'));return}
+    setError('')
     const normalized=label.trim().toLocaleLowerCase()
     const exact=identities.filter(item=>item.label.trim().toLocaleLowerCase()===normalized)
     const known = selectedIdentity.startsWith('id:') ? { id: Number(selectedIdentity.slice(3)), label } : exact.length===1 ? exact[0] : null
     const reused = markers.find(item => item.identityKey === selectedIdentity) ?? markers.find(item=>item.label.trim().toLocaleLowerCase()===normalized)
     const identityKey = known ? `id:${known.id}` : reused?.identityKey ?? `new:${++identitySerial.current}`
-    setMarkers(previous => [...previous.filter(m => independent ? markerKey(m)!==editingDraftKey.current : m.attempt.id !== editing.id), { attempt: editing, label: known?.label ?? reused?.label ?? label.trim(), saved: false, identityKey, techniqueId: known?.id ?? reused?.techniqueId,uncertainUntil,sessionStart:returnToSessions,replaceEpisode:replacement.startsWith('episode:')?Number(replacement.slice(8)):undefined,replaceDraft:replacement.startsWith('draft:')?replacement.slice(6):undefined,replaceLabel:replacementChoice?.label??undefined }])
+    setMarkers(previous => {
+      const updated:Marker = { attempt: editing, label: known?.label ?? reused?.label ?? label.trim(), saved: false, identityKey, techniqueId: known?.id ?? reused?.techniqueId,uncertainUntil,sessionStart:returnToSessions,replaceEpisode:replacement.startsWith('episode:')?Number(replacement.slice(8)):undefined,replaceDraft:replacement.startsWith('draft:')?replacement.slice(6):undefined,replaceLabel:replacementChoice?.label??undefined }
+      const original=previous.find(m=>independent ? markerKey(m)===editingDraftKey.current : m.attempt.id===editing.id)
+      return original ? updateMarker(previous,original,updated) : [...previous,updated]
+    })
     setEditing(null); setLabel(''); setNameDraft(''); setReviewed(false);setUncertainUntil(undefined);if(returnToSessions)setSessionsOpen(true)
   }
   async function reviewOrSave(save = false) {
@@ -220,9 +231,9 @@ export default function TechniqueSetup({ base, context, revision, constrainPosit
       <p className="th-setup-help">{trackName&&`${trackName} · `}{context.code} · {t(context.apparatus==='platform'?'technique.platform':'technique.springboard')} · {context.height} · {initialEpisode && initialEpisode.position == null ? t('technique.allPositions') : context.position} · {t(initialEpisode && initialEpisode.sync == null ? 'technique.individualAndSync' : context.sync ? 'technique.onlySync' : 'technique.onlyIndividual')}</p>
       <ol className="th-setup-review-list">{draft.map(marker => { const impact = reviewed ? impacts.find(item => independent ? item.draft_key===markerKey(marker) : item.anchor_id === marker.attempt.id) : null; return <li key={markerKey(marker)}>
         <div><button className="th-text-button" disabled={saving} onClick={() => { setReview(false); setReviewed(false); setSeek(''); void load(marker.attempt.id, true, '', 'around', marker.attempt.id) }}><strong>{marker.label}</strong></button><strong>{marker.saved && <Check size={14} aria-label={t('technique.saved')} />}</strong><small>{marker.uncertainUntil ? '≈ ' : ''}{date(marker.attempt.history_occurred_at)} · {t('technique.sessionAttempt',{index:marker.attempt.session_index??1,total:marker.attempt.session_total??1})}{impact ? ` – ${impact.end_at ? date(impact.end_at) : t('technique.now')}` : ''}</small></div>
-        {!marker.saved && <div><button className="th-icon" disabled={saving} aria-label={t('technique.edit')} onClick={() => { if (!items.some(a => a.id === marker.attempt.id)) { setSeek(''); void load(marker.attempt.id, true, '', 'around', marker.attempt.id) } else setCurrent(marker.attempt); editingDraftKey.current=markerKey(marker);setReplacementChoice(marker.replaceEpisode?{id:marker.replaceEpisode,label:marker.replaceLabel??null}:null);setReplacement(marker.replaceEpisode?`episode:${marker.replaceEpisode}`:marker.replaceDraft?`draft:${marker.replaceDraft}`:'');setEditing(marker.attempt); setSelectedIdentity(marker.techniqueId ? `id:${marker.techniqueId}` : marker.identityKey); setLabel(marker.label); setReview(false); setReviewed(false) }}><Pencil size={15} /></button><button className="th-icon" disabled={saving} aria-label={t('technique.moveBoundary')} onClick={() => {
+        {!marker.saved && <div><button className="th-icon" disabled={saving} aria-label={t('technique.edit')} onClick={() => { if (!items.some(a => a.id === marker.attempt.id)) { setSeek(''); void load(marker.attempt.id, true, '', 'around', marker.attempt.id) } else setCurrent(marker.attempt); setUncertainUntil(marker.uncertainUntil);editingDraftKey.current=markerKey(marker);setReplacementChoice(marker.replaceEpisode?{id:marker.replaceEpisode,label:marker.replaceLabel??null}:null);setReplacement(marker.replaceEpisode?`episode:${marker.replaceEpisode}`:marker.replaceDraft?`draft:${marker.replaceDraft}`:'');setEditing(marker.attempt); setSelectedIdentity(marker.techniqueId ? `id:${marker.techniqueId}` : marker.identityKey); setLabel(marker.label); setReview(false); setReviewed(false) }}><Pencil size={15} /></button><button className="th-icon" disabled={saving} aria-label={t('technique.moveBoundary')} onClick={() => {
           setMovingKey(marker.identityKey + ':' + marker.attempt.id); setReview(false); setReviewed(false); setSeek(''); void load(marker.attempt.id,true,'','around',marker.attempt.id)
-        }}><Flag size={15} /></button><button className="th-icon" disabled={saving} aria-label={t('technique.removeMarker')} onClick={() => { setRemovedMarker(marker);setMarkers(p => p.filter(m => markerKey(m)!==markerKey(marker))); setReviewed(false) }}><Trash2 size={15} /></button></div>}
+        }}><Flag size={15} /></button><button className="th-icon" disabled={saving} aria-label={t('technique.removeMarker')} onClick={() => { if(independent&&markers.some(m=>m.replaceDraft===markerKey(marker))){setError(t('adjustments.usedByReplacement'));return} setError('');setRemovedMarker(marker);setMarkers(p => p.filter(m => markerKey(m)!==markerKey(marker))); setReviewed(false) }}><Trash2 size={15} /></button></div>}
         {impact && <div className="th-setup-impact">{independent&&!impact.replaces&&!initialEpisode&&<small>{t('adjustments.adds')}</small>}<small>{techniqueImpact(t, impact.counts.affected, impact.counts.explicit_preserved)}</small>{impact.same_previous&&<small>{t('technique.samePrevious')}</small>}{impact.same_following&&<small>{t('technique.sameFollowing')}{impact.following&&onAdjust&&<button className="th-text-button" disabled={saving} onClick={()=>void adjustBoundary(impact.following!.id)}>{t('technique.adjustFollowing')}</button>}</small>}{independent&&!impact.end_at&&<small>{t('adjustments.continues')}</small>}{impact.next_label&&<small>{t('technique.endsAtNext',{name:impact.next_label})}</small>}{impact.replaces && <small>{t('technique.replacesPeriod', { name: impact.replaces })}</small>}{impact.following && <small>{t('technique.existingContinues', { name: impact.following.label ?? t('technique.unknown'), date: date(impact.following.start_at) })}</small>}</div>}
       </li>})}</ol>
       <div className="th-dialog-actions th-setup-footer"><button className="th-secondary" disabled={saving} onClick={() => { setReview(false); setReviewed(false);setSessionsOpen(startInSessions&&!initialEpisode) }}>{t('technique.keepBrowsing')}</button><button className="th-primary" disabled={saving || !pending.length} onClick={() => void reviewOrSave(reviewed)}>{t(saving ? (reviewed ? 'technique.setupSaving' : 'technique.checkingChanges') : reviewed ? 'technique.saveChanges' : 'technique.reviewChange')}</button></div>
@@ -241,7 +252,7 @@ export default function TechniqueSetup({ base, context, revision, constrainPosit
 
       {moving && <div className="th-setup-edit"><strong>{t('technique.movingBoundary', { name: moving.label })}</strong><button className="th-primary" disabled={!independent&&Boolean(markerHere && markerHere !== moving)} onClick={() => {
         if (!current) return
-        setMarkers(previous => previous.map(marker => marker === moving ? { ...marker, attempt: current } : marker))
+        setMarkers(previous => updateMarker(previous,moving,{...moving,attempt:current}))
         setMovingKey(null); setReviewed(false)
       }}>{t('technique.moveStartHere')}</button><button className="th-text-button" onClick={() => setMovingKey(null)}>{t('technique.cancel')}</button></div>}
       {!moving && boundaryHere && !markerHere && onAdjust ? <button className="th-primary" onClick={() => void adjustBoundary()}>{t('technique.adjustExisting')}</button> : !moving && <div className="th-setup-controls"><button className="th-primary" disabled={!current || saving || (!markerHere && (markers.length >= 16 || Boolean(initialEpisode))) || markerHere?.saved} onClick={()=>beginMarker()}><Flag size={16} />{t(markerHere ? 'technique.editMarker' : independent?'adjustments.markHere':'technique.markStart')}</button></div>}

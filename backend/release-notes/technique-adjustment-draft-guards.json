@@ -1,0 +1,8 @@
+{
+ "id":"technique-adjustment-draft-guards",
+ "date":"2026-11-16",
+ "title":"Safer technique adjustment drafts",
+ "body":"Moving or renaming a marker keeps its replacement links intact. Duplicate adjustments are caught before saving, approximate dates stay approximate, and date errors or history conflicts can be corrected without leaving the dialog.",
+ "audience":"all",
+ "components":["frontend","backend"]
+}

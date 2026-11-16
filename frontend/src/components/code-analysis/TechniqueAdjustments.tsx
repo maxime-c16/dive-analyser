@@ -37,7 +37,7 @@ export default function TechniqueAdjustments({diver,context,viewer}:{diver:numbe
   }catch{if(mounted.current&&gen===generation.current)setError(t('technique.unavailable'))}
   finally{if(mounted.current&&gen===generation.current)setLoading(false)}
  }
- useEffect(()=>{mounted.current=true;setItems([]);setSelected(null);setSetup(false);setDialog(null);setBusy(false);setNotice('');void load();return()=>{mounted.current=false;scopeEpoch.current++;generation.current++}},[base,key])
+ useEffect(()=>{mounted.current=true;setItems([]);setSelected(null);setSetup(false);setDialog(null);setBusy(false);setNotice('');void load();return()=>{mounted.current=false;scopeEpoch.current++;generation.current++}},[base,key,viewer])
  useEffect(()=>{try{setDraft(Boolean(draftKey&&localStorage.getItem(draftKey)))}catch{setDraft(false)}},[draftKey,setup])
  async function openSetup(item?:Adjustment){
   if(busy||loading)return
@@ -52,24 +52,27 @@ export default function TechniqueAdjustments({diver,context,viewer}:{diver:numbe
   finally{if(mounted.current&&gen===scopeEpoch.current)setBusy(false)}
  }
  async function submitDialog(){
-  if(!dialog||busy)return
+  if(!dialog||busy||loading)return
   const gen=scopeEpoch.current;setBusy(true);setError('')
   try{
    if(dialog.mode==='remove'){
-    await api.post(`${base}/remove`,{...context,revision:version,episode_id:dialog.item.id,commit:reviewed})
+    await api.post(`${base}/remove`,{...context,revision:version,episode_id:dialog.item.id,commit:reviewed},{timeout:30000})
     if(!mounted.current||gen!==scopeEpoch.current)return
     if(!reviewed){setReviewed(true);return}
    }else if(dialog.mode==='share'){
-    const {data}=await api.post(`${base}/copy`,{...context,revision:version,episode_id:dialog.item.id,targets:[{scope:scope==='code'?otherCode.trim().toUpperCase():scope,apparatus:context.apparatus,height:context.height}],commit:reviewed})
+    const {data}=await api.post(`${base}/copy`,{...context,revision:version,episode_id:dialog.item.id,targets:[{scope:scope==='code'?otherCode.trim().toUpperCase():scope,apparatus:context.apparatus,height:context.height}],commit:reviewed},{timeout:30000})
     if(!mounted.current||gen!==scopeEpoch.current)return
     if(!reviewed){setShareCount(data.preview?.[0]?.counts?.affected??null);setReviewed(true);return}
    }else{
-    await api.post(`${base}/end`,{...context,revision:version,episode_id:dialog.item.id,resume:dialog.mode==='continue',end_at:dialog.mode==='continue'?null:end,timezone,commit:reviewed})
+    await api.post(`${base}/end`,{...context,revision:version,episode_id:dialog.item.id,resume:dialog.mode==='continue',end_at:dialog.mode==='continue'?null:end,timezone,commit:reviewed},{timeout:30000})
     if(!mounted.current||gen!==scopeEpoch.current)return
     if(!reviewed){setReviewed(true);return}
    }
    setDialog(null);setNotice(t('technique.saved'));void load()
-  }catch{if(mounted.current&&gen===scopeEpoch.current){setError(t('technique.conflict'));setReviewed(false)}}
+  }catch(failure){if(mounted.current&&gen===scopeEpoch.current){
+    const status=(failure as {response?:{status?:number}}).response?.status
+    setError(t(status===409?'technique.conflict':status===422?(dialog.mode==='end'?'adjustments.invalidEnd':'adjustments.invalidChange'):'technique.unavailable'));setReviewed(false)
+   }}
   finally{if(mounted.current&&gen===scopeEpoch.current)setBusy(false)}
  }
  const active=(item:Adjustment)=>!item.end_at&&Date.parse(item.start_at+'Z')<=Date.now()
@@ -100,9 +103,9 @@ export default function TechniqueAdjustments({diver,context,viewer}:{diver:numbe
      {scope==='code'&&<label className="th-field">{t('technique.otherCode')}<input value={otherCode} maxLength={10} disabled={reviewed||busy} onChange={e=>setOtherCode(e.target.value)}/></label>}<span>{t(context.apparatus==='platform'?'technique.platform':'technique.springboard')} · {context.height} · {dialog.item.position??t('technique.allPositions')} · {t(dialog.item.sync==null?'technique.individualAndSync':dialog.item.sync?'technique.onlySync':'technique.onlyIndividual')} · {t('adjustments.copyOnce')}</span>
      {shareCount!=null&&<p>{t('technique.affectedDives',{count:shareCount})}</p>}
     </>}
-    {error&&<p role="alert" className="th-error">{error}</p>}
+    {error&&<div role="alert" className="th-error">{error}<button className="th-text-button" disabled={busy||loading} onClick={()=>{setReviewed(false);void load()}}>{t('technique.retry')}</button></div>}
     {reviewed&&dialog.mode!=='share'&&dialog.mode!=='remove'&&<p>{dialog.mode==='end'?t('adjustments.stopsOnlyThis'):t('adjustments.continues')}</p>}
-    <div className="th-dialog-actions"><button className="th-secondary" disabled={busy} onClick={()=>reviewed?setReviewed(false):setDialog(null)}>{t(reviewed?'common.back':'technique.cancel')}</button><button className="th-primary" disabled={busy||(dialog.mode==='end'&&!end)||(dialog.mode==='share'&&(!scope||scope==='code'&&!otherCode.trim()))} onClick={()=>void submitDialog()}>{t(reviewed?'common.save':'technique.reviewChange')}</button></div>
+    <div className="th-dialog-actions"><button className="th-secondary" disabled={busy} onClick={()=>reviewed?setReviewed(false):setDialog(null)}>{t(reviewed?'common.back':'technique.cancel')}</button><button className="th-primary" disabled={busy||loading||(dialog.mode==='end'&&!end)||(dialog.mode==='share'&&(!scope||scope==='code'&&!otherCode.trim()))} onClick={()=>void submitDialog()}>{t(reviewed?'common.save':'technique.reviewChange')}</button></div>
    </div>
   </TechniqueDialog>}
  </section>

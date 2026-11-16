@@ -54,3 +54,38 @@ is present on `origin/master` but absent on this branch. No published note was
 changed by this fix. Browser interaction checks passed in headless Chromium;
 a separate WebKit run timed out before opening the code page, so these results
 do not constitute physical iPhone/Safari validation.
+
+### Edge-case pass (2026-11-16)
+
+Confirmed and fixed:
+
+- Renaming or moving an earlier draft no longer breaks a later marker's
+  `replace_draft_key`; deleting a referenced draft asks the user to change or
+  remove its replacement first.
+- Identical labels on the same anchor (ignoring case and outer whitespace)
+  are rejected within a draft, both in the UI and by preview/save validation.
+  Different simultaneous adjustments are still allowed.
+- Renaming an approximate draft preserves its uncertainty interval.
+- Invalid end dates, revision conflicts, and unavailable requests have distinct
+  recovery messages. The dialog can refresh a conflicting revision in place;
+  submitting is disabled during refresh. Mutation requests time out after
+  30 seconds rather than holding the UI indefinitely.
+- Pending mutations are invalidated on viewer changes as well as context changes.
+
+Verification includes 43 backend checks against a disposable PostgreSQL database,
+46 frontend checks including locale parity, TypeScript and a production build.
+Coverage includes atomic rollback, exact context/owner isolation, family-copy
+exclusion, paged inventory, overlapping changes, replacement, sequential stop and
+resume, local-time conversion, invalid dates, stale revisions, and draft editing.
+The branch-wide release catalog check retains the known baseline discrepancy
+noted above; the newly added note passes its schema validator.
+
+In a private background preview tab, real clips decoded (`readyState=4`),
+navigation resumed after naming, and a local marker reached the server-backed
+review (five eligible dives). The review had no horizontal overflow at 320px.
+No history write was submitted. These browser checks do not validate physical
+Safari gestures, VoiceOver or uncertain network commit delivery.
+
+The temporary browser draft was closed and reopened successfully, then removed;
+no adjustment draft remained in the private profile when its tab was closed.
+At 320px the review footer's buttons ended at y=582 within a 640px viewport.

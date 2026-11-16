@@ -6,6 +6,11 @@
  */
 const fr = {
   adjustments: {
+    invalidEnd: "Choisissez une fin après le début de cet ajustement.",
+    invalidChange: "Ce changement ne peut pas être appliqué. Vérifiez l’ajustement et la destination choisis.",
+    duplicate: "Cet ajustement commence déjà sur ce plongeon. Modifiez son repère.",
+    usedByReplacement: "Un autre repère remplace cet ajustement. Modifiez ou retirez d’abord ce remplacement.",
+
     firstPage: "Revenir aux ajustements récents",
     removeConfirm: "Retirer cet ajustement de l’historique ? Les autres ajustements et les annotations des plongeons sont conservés.",
     whatChanges: "Que changez-vous ?",

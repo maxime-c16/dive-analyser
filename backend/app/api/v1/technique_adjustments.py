@@ -67,7 +67,7 @@ def normalize(db,diver,c):
 def prepare(db,diver,body,request):
     owner(request,db,diver,True)
     if revision(db,diver)!=body.revision:raise HTTPException(409,'History changed; refresh preview')
-    keys=set();context=None;changed=set();replaced=set();items=[];by_key={}
+    keys=set();starts=set();context=None;changed=set();replaced=set();items=[];by_key={}
     for i,c in enumerate(body.changes):
         normalize(db,diver,c)
         key=(c.code,c.apparatus,c.height,c.position,c.sync)
@@ -75,6 +75,9 @@ def prepare(db,diver,body,request):
         context=key
         if c.draft_key in keys:raise HTTPException(422,'Duplicate draft marker')
         keys.add(c.draft_key)
+        signature=(*key,c.start_at,c.start_id,c.label.strip().casefold())
+        if signature in starts:raise HTTPException(422,'An identical adjustment already starts here in this draft')
+        starts.add(signature)
         e=target(db,diver,c,c.episode_id) if c.episode_id else None
         if not e:
             duplicate=db.scalar(select(TechniqueEpisode.id).join(TechniqueTrack,TechniqueEpisode.track_id==TechniqueTrack.id).join(Technique,TechniqueEpisode.technique_id==Technique.id).where(TechniqueTrack.diver_id==diver,TechniqueEpisode.deleted.is_(False),TechniqueEpisode.scope==c.code,TechniqueEpisode.apparatus==c.apparatus,TechniqueEpisode.height==c.height,TechniqueEpisode.position.is_not_distinct_from(c.position),TechniqueEpisode.sync.is_not_distinct_from(c.sync),TechniqueEpisode.start_at==c.start_at,TechniqueEpisode.start_id==c.start_id,func.lower(func.trim(Technique.label))==c.label.strip().lower()).limit(1))

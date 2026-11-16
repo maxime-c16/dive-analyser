@@ -6,6 +6,11 @@
  */
 const en = {
   adjustments: {
+    invalidEnd: "Choose an end after this adjustment starts.",
+    invalidChange: "This change cannot be applied. Check the selected adjustment and destination.",
+    duplicate: "This adjustment already starts on this dive. Edit its marker instead.",
+    usedByReplacement: "Another marker replaces this adjustment. Edit or remove that replacement first.",
+
     firstPage: "Back to recent adjustments",
     removeConfirm: "Remove this adjustment from history? Other adjustments and dive annotations are kept.",
     whatChanges: "What changes?",
