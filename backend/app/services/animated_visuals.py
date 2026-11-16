@@ -5,6 +5,7 @@ A tile is STOP_MOTION_FRAMES stills sampled evenly across the whole clip
 constants (session_images.extract_images) so every grid tile animates alike.
 """
 import hashlib
+from itertools import zip_longest
 import os
 from pathlib import Path
 import shutil
@@ -229,8 +230,10 @@ def _candidates(db, limit, now):
     markers of gone, replaced or since-tiled proxies are removed in-window.
     """
     max_id = db.execute(select(func.max(MediaCacheEntry.id))).scalar() or 0
-    rows, seen = [], set()
+    per_window, seen = [], set()
     for low, high in _windows(max_id, now):
+        rows = []
+        per_window.append(rows)
         pending = pending_proxies(db, SCAN_WINDOW, low, high)
         current = {row.id: row.checksum_sha256 for row in pending}
         failed = _load_failed(low, high)
@@ -241,7 +244,12 @@ def _candidates(db, limit, now):
             if row.id not in seen and failed.get(row.id) != row.checksum_sha256:
                 seen.add(row.id)
                 rows.append(row)
-    return rows[:max(1, min(limit, 16))]
+    # Alternate between windows so a newest window kept full by new uploads
+    # cannot starve the rotating one (and vice versa).
+    picked = []
+    for group in zip_longest(*per_window):
+        picked += [row for row in group if row is not None]
+    return picked[:max(1, min(limit, 16))]
 
 
 def backfill(db, limit=4, time_budget=40.0):

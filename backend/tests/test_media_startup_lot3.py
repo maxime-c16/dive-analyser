@@ -532,3 +532,15 @@ def test_tick_scan_skips_old_ids_outside_windows_and_prunes_stale_failures(test_
     assert ids == {old.id}
     markers = {p.name for p in (root / '.animated-failed').rglob('*') if p.is_file()}
     assert markers == {f"{recent.id}.{'f' * 64}"}
+
+
+def test_full_newest_window_cannot_starve_the_rotating_window(test_db, root, monkeypatch):
+    _, oldest = _proxy(test_db, root, 'oldest', 'proxy_720p', '0' * 64)
+    newest = [_proxy(test_db, root, f'new{i}', 'proxy_720p', f'{i + 1:064x}')[1] for i in range(6)]
+    monkeypatch.setattr(av, 'SCAN_WINDOW', 6)
+    max_id = newest[-1].id
+    # Pick the minute whose rotating window holds `oldest`, outside the newest window.
+    minute = next(m for m in range(100) if any(
+        low < oldest.id <= high for low, high in av._windows(max_id, m * 60)[1:]))
+    picked = [row.id for row in av._candidates(test_db, 4, minute * 60)]
+    assert len(picked) == 4 and oldest.id in picked
