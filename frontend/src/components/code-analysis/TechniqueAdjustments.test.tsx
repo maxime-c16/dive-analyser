@@ -35,3 +35,66 @@ it('offers explicit end removal and opens the independent add flow',async()=>{
  fireEvent.click(screen.getByRole('button',{name:'Add an adjustment'}));await screen.findByText('Adjustment setup')
  expect(setup.mock.lastCall?.[0].independent).toEqual(expect.objectContaining({base:'/api/v1/technique-adjustments/1',revision:7,choices:items}))
 })
+
+it('can remove two end dates consecutively and cancel or close the next dialog after reloading',async()=>{
+ let saved=0
+ const ended=items.map(item=>({...item,end_at:'2026-10-18T10:00:00'}))
+ post.mockImplementation(async(url:string,body:any)=>{
+  if(url.endsWith('/end')&&body.commit){saved++;ended.find(item=>item.id===body.episode_id)!.end_at=null as any}
+  return {data:{items:ended.map(item=>({...item})),revision:7+saved,next:null}}
+ })
+ render(<TechniqueAdjustments diver={1} viewer={1} context={context}/>);await screen.findByText('Earlier twist')
+ for(const [index,label] of ['Earlier twist','Less pike'].entries()){
+  fireEvent.click(screen.getByRole('button',{name:new RegExp(label)}))
+  fireEvent.click(screen.getByRole('button',{name:'Remove the end date'}))
+  let dialog=await screen.findByRole('dialog')
+  expect(within(dialog).getByRole('button',{name:'Cancel'})).toBeEnabled()
+  fireEvent.click(within(dialog).getByRole('button',{name:'Cancel'}))
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button',{name:'Remove the end date'}))
+  dialog=await screen.findByRole('dialog')
+  fireEvent.click(within(dialog).getByRole('button',{name:'Review change'}))
+  await waitFor(()=>expect(within(dialog).getByRole('button',{name:'Save'})).toBeEnabled())
+  fireEvent.click(within(dialog).getByRole('button',{name:'Save'}))
+  await waitFor(()=>expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  await waitFor(()=>expect(screen.getByRole('button',{name:'Add an adjustment'})).toBeEnabled())
+  expect(saved).toBe(index+1)
+ }
+ fireEvent.click(screen.getByRole('button',{name:/Deeper pike/}))
+ fireEvent.click(screen.getByRole('button',{name:'Remove the end date'}))
+ fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button',{name:'Close'}))
+ expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+ expect(post.mock.calls.filter(([url,body])=>url.endsWith('/end')&&body.commit).map(([,body])=>body.revision)).toEqual([7,8])
+})
+
+it('unlocks the dialog after a failed preview so it can be retried or closed',async()=>{
+ render(<TechniqueAdjustments diver={1} viewer={1} context={context}/>);await screen.findByText('Deeper pike')
+ fireEvent.click(screen.getByRole('button',{name:/Deeper pike/}))
+ fireEvent.click(screen.getByRole('button',{name:'Remove the end date'}))
+ const dialog=await screen.findByRole('dialog')
+ post.mockRejectedValueOnce(new Error('Unavailable'))
+ fireEvent.click(within(dialog).getByRole('button',{name:'Review change'}))
+ await within(dialog).findByRole('alert')
+ expect(within(dialog).getByRole('button',{name:'Review change'})).toBeEnabled()
+ expect(within(dialog).getByRole('button',{name:'Cancel'})).toBeEnabled()
+ fireEvent.click(within(dialog).getByRole('button',{name:'Close'}))
+ expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+})
+
+it('ignores a pending preview from the previous dive context',async()=>{
+ const {rerender}=render(<TechniqueAdjustments diver={1} viewer={1} context={context}/>);await screen.findByText('Deeper pike')
+ fireEvent.click(screen.getByRole('button',{name:/Deeper pike/}))
+ fireEvent.click(screen.getByRole('button',{name:'Remove the end date'}))
+ let resolvePreview!:(value:any)=>void
+ post.mockImplementationOnce(()=>new Promise(resolve=>{resolvePreview=resolve}))
+ fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button',{name:'Review change'}))
+ rerender(<TechniqueAdjustments diver={1} viewer={1} context={{...context,height:'3m'}}/>)
+ await waitFor(()=>expect(screen.getByRole('button',{name:'Add an adjustment'})).toBeEnabled())
+ resolvePreview({data:{revision:7}})
+ await waitFor(()=>expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+ fireEvent.click(screen.getByRole('button',{name:/Deeper pike/}))
+ fireEvent.click(screen.getByRole('button',{name:'Remove the end date'}))
+ const dialog=await screen.findByRole('dialog')
+ expect(within(dialog).getByRole('button',{name:'Review change'})).toBeEnabled()
+ expect(within(dialog).queryByRole('button',{name:'Save'})).not.toBeInTheDocument()
+})

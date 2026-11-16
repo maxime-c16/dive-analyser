@@ -33,3 +33,24 @@ Inventory uses a joined SQL page of50 plus one sentinel, with stable occurrence/
 A headless browser on the real isolated history prepared two adjustments at the same dive, verified that both remain open, replaced just one with a third adjustment, and confirmed three correct preview intervals at320px without horizontal overflow or JS errors. No actual history save was performed. Evidence is private outside git in `~/.local/share/dive-technique-preview/independent`.
 
 The existing test relay remains `http://192.168.1.57:6191/dives/analysis/5122D`. It forwards privately through deb-serv to the Mac's isolated test instance, so the Mac must remain running. Production has not been deployed or changed. No further council was launched, as requested.
+
+### Mobile editing recovery (2026-11-16)
+
+Successful mutations reload the list without retaining the mutation's busy
+state. Read-request generations and context epochs are separate: a reload
+invalidates old reads, while a diver/context switch also invalidates mutation
+callbacks. Preview failures leave retry, cancel and close available.
+
+Regression coverage exercises two consecutive end removals with refreshed
+revisions, cancellation/close after the first write, failed preview recovery,
+and a pending preview across a context switch. The five related frontend test
+files pass (39 tests); TypeScript and the production build pass. Headless
+browser checks use intercepted mutation responses, with no user-data writes,
+and verify chart gutters and reachable dialog actions at 320 and 390 px.
+
+The new release note validates against the schema. The full catalog check is
+blocked by a pre-existing branch/base difference: `adaptive-clip-streaming.json`
+is present on `origin/master` but absent on this branch. No published note was
+changed by this fix. Browser interaction checks passed in headless Chromium;
+a separate WebKit run timed out before opening the code page, so these results
+do not constitute physical iPhone/Safari validation.

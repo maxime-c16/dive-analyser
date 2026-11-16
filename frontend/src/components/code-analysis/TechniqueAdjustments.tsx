@@ -22,7 +22,7 @@ export default function TechniqueAdjustments({diver,context,viewer}:{diver:numbe
  const [setup,setSetup]=useState(false),[editing,setEditing]=useState<Adjustment|undefined>(),[draft,setDraft]=useState(false)
  const [dialog,setDialog]=useState<{mode:'end'|'continue'|'share'|'remove';item:Adjustment}|null>(null),[end,setEnd]=useState(localNow),[reviewed,setReviewed]=useState(false)
  const [scope,setScope]=useState(''),[otherCode,setOtherCode]=useState(''),[shareCount,setShareCount]=useState<number|null>(null)
- const generation=useRef(0),mounted=useRef(true),key=JSON.stringify(context)
+ const generation=useRef(0),scopeEpoch=useRef(0),mounted=useRef(true),key=JSON.stringify(context)
  const date=(value:string)=>techniqueDateTime(value,i18n.language)
  const timezone=Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC'
   const draftKey=track?`adjustment-draft:${viewer}:${history}/${track.id}:${key}:new`:''
@@ -37,40 +37,40 @@ export default function TechniqueAdjustments({diver,context,viewer}:{diver:numbe
   }catch{if(mounted.current&&gen===generation.current)setError(t('technique.unavailable'))}
   finally{if(mounted.current&&gen===generation.current)setLoading(false)}
  }
- useEffect(()=>{mounted.current=true;setItems([]);setSelected(null);setSetup(false);setDialog(null);void load();return()=>{mounted.current=false;generation.current++}},[base,key])
+ useEffect(()=>{mounted.current=true;setItems([]);setSelected(null);setSetup(false);setDialog(null);setBusy(false);setNotice('');void load();return()=>{mounted.current=false;scopeEpoch.current++;generation.current++}},[base,key])
  useEffect(()=>{try{setDraft(Boolean(draftKey&&localStorage.getItem(draftKey)))}catch{setDraft(false)}},[draftKey,setup])
  async function openSetup(item?:Adjustment){
   if(busy||loading)return
-  setBusy(true);setError('');const gen=generation.current
+  setBusy(true);setError('');const gen=scopeEpoch.current
   try{
    let current=track
    if(item)current={id:item.track_id,revision:item.track_revision}
-   if(!current){const created=await api.post(`${history}/tracks`,{name:'General'});current=created.data;const list=await api.post(`${base}/list`,context);if(!mounted.current||gen!==generation.current)return;setVersion(list.data.revision);setTrack(current)}
-   if(!mounted.current||gen!==generation.current)return
+   if(!current){const created=await api.post(`${history}/tracks`,{name:'General'});current=created.data;const list=await api.post(`${base}/list`,context);if(!mounted.current||gen!==scopeEpoch.current)return;setVersion(list.data.revision);setTrack(current)}
+   if(!mounted.current||gen!==scopeEpoch.current)return
    setEditing(item);setSetup(true)
-  }catch{if(mounted.current&&gen===generation.current)setError(t('technique.unavailable'))}
-  finally{if(mounted.current&&gen===generation.current)setBusy(false)}
+  }catch{if(mounted.current&&gen===scopeEpoch.current)setError(t('technique.unavailable'))}
+  finally{if(mounted.current&&gen===scopeEpoch.current)setBusy(false)}
  }
  async function submitDialog(){
   if(!dialog||busy)return
-  const gen=generation.current;setBusy(true);setError('')
+  const gen=scopeEpoch.current;setBusy(true);setError('')
   try{
    if(dialog.mode==='remove'){
     await api.post(`${base}/remove`,{...context,revision:version,episode_id:dialog.item.id,commit:reviewed})
-    if(!mounted.current||gen!==generation.current)return
+    if(!mounted.current||gen!==scopeEpoch.current)return
     if(!reviewed){setReviewed(true);return}
    }else if(dialog.mode==='share'){
     const {data}=await api.post(`${base}/copy`,{...context,revision:version,episode_id:dialog.item.id,targets:[{scope:scope==='code'?otherCode.trim().toUpperCase():scope,apparatus:context.apparatus,height:context.height}],commit:reviewed})
-    if(!mounted.current||gen!==generation.current)return
+    if(!mounted.current||gen!==scopeEpoch.current)return
     if(!reviewed){setShareCount(data.preview?.[0]?.counts?.affected??null);setReviewed(true);return}
    }else{
     await api.post(`${base}/end`,{...context,revision:version,episode_id:dialog.item.id,resume:dialog.mode==='continue',end_at:dialog.mode==='continue'?null:end,timezone,commit:reviewed})
-    if(!mounted.current||gen!==generation.current)return
+    if(!mounted.current||gen!==scopeEpoch.current)return
     if(!reviewed){setReviewed(true);return}
    }
    setDialog(null);setNotice(t('technique.saved'));void load()
-  }catch{if(mounted.current&&gen===generation.current){setError(t('technique.conflict'));setReviewed(false)}}
-  finally{if(mounted.current&&gen===generation.current)setBusy(false)}
+  }catch{if(mounted.current&&gen===scopeEpoch.current){setError(t('technique.conflict'));setReviewed(false)}}
+  finally{if(mounted.current&&gen===scopeEpoch.current)setBusy(false)}
  }
  const active=(item:Adjustment)=>!item.end_at&&Date.parse(item.start_at+'Z')<=Date.now()
  function openDialog(mode:'end'|'continue'|'share'|'remove',item:Adjustment){setDialog({mode,item});setEnd(localNow());setReviewed(false);setScope('');setOtherCode('');setShareCount(null);setError('')}
@@ -79,7 +79,7 @@ export default function TechniqueAdjustments({diver,context,viewer}:{diver:numbe
   {selected===item.id&&<div className="th-episode-actions th-adjustment-actions"><button onClick={()=>void openSetup(item)}>{t('technique.adjustInPlayer')}</button>{active(item)?<button onClick={()=>openDialog('end',item)}>{t('adjustments.stop')}</button>:item.end_at&&<button onClick={()=>openDialog('continue',item)}>{t('adjustments.removeEnd')}</button>}<button onClick={()=>openDialog('share',item)}>{t('technique.share')}</button><button onClick={()=>openDialog('remove',item)}>{t('technique.delete')}</button></div>}
   {selected===item.id&&<TechniqueTrackChart key={item.track_id} base={`${history}/${item.track_id}`} context={context} revision={item.track_revision} selected={item.id} selection={item} onSelect={id=>setSelected(id)} onClear={()=>setSelected(null)}/>}
  </li>
- return <section className="ca-panel th-history" aria-label={t('adjustments.title')}>
+ return <section className="ca-panel th-history th-adjustments" aria-label={t('adjustments.title')}>
   <div className="ca-panel-h"><h2>{t('adjustments.title')}</h2></div>
   <button className="th-primary th-add-adjustment" disabled={busy||loading} onClick={()=>void openSetup()}><Plus size={17}/>{t(draft?'technique.resumeHistory':'adjustments.add')}</button>
   <p className="th-adjustments-rule">{t('adjustments.rule')}</p>

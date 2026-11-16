@@ -1,0 +1,8 @@
+{
+ "id":"technique-adjustment-mobile-recovery",
+ "date":"2026-11-16",
+ "title":"Keep editing technique adjustments on mobile",
+ "body":"Remove several end dates in a row without getting stuck. Expanded charts stay inside their cards, actions have more room, and confirmation dialogs fit smaller screens.",
+ "audience":"all",
+ "components":["frontend"]
+}
