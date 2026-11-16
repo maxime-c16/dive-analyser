@@ -7,6 +7,7 @@ Run inside the backend container (uses its DATABASE_URL):
     start --budget-gib N [--queue-depth 2] [--priority 70] [--admission-cap N]
     tick                               one bounded controller pass (timer, every minute),
                                        then copy up to 40 durable posters into the grid cache
+                                       and build up to 4 stop-motion library tiles
     status [--json]                    run, items, gates, budget, throughput, failures
     pause --reason TEXT                stop admitting; withdraw not-yet-leased jobs
     resume                             admit again (gates still apply)
@@ -37,6 +38,18 @@ def _materialize_posters(factory):
     with factory() as db:
         try:
             return materialize_durable_posters(db)
+        except Exception as exc:  # noqa: BLE001 - type only, never bound values
+            db.rollback()
+            return {"status": "failed", "error": type(exc).__name__}
+
+
+def _animate_tiles(factory):
+    """Stop-motion tiles for local proxies still missing one (bounded; never fails the tick)."""
+    from app.services.animated_visuals import backfill
+
+    with factory() as db:
+        try:
+            return backfill(db, limit=4, time_budget=40.0)
         except Exception as exc:  # noqa: BLE001 - type only, never bound values
             db.rollback()
             return {"status": "failed", "error": type(exc).__name__}
@@ -144,6 +157,7 @@ def main(argv=None) -> int:
                 result = mm.tick(db)
                 db.commit()
                 result["posters"] = _materialize_posters(factory)
+                result["animated"] = _animate_tiles(factory)
                 print(json.dumps(result, sort_keys=True, default=str))
                 return 0
             if args.cmd == "start":

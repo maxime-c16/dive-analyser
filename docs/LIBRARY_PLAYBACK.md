@@ -73,7 +73,20 @@ qualities remain explicit choices; status revalidation preserves a presented
 local source. No automatic playback swap is attempted. With no local proxy,
 durable playback remains the fallback. Covers prefer local thumbs/posters.
 
-Optional server-generated `animated` WebP tiles respect reduced motion, data
-saving and viewport visibility. Their explicit bounded backfill, disk floor,
-synthetic measurement fixture and deployment order are documented in
+Server-generated `animated` WebP tiles respect reduced motion, data saving and
+viewport visibility. A tile is a stop-motion of the whole clip: 10 stills
+sampled evenly from start to end, 220 ms each (session videos use the same
+constants), at most 80 KB (width steps down 360 → 240 px to fit). The
+per-minute media tick (`scripts/media_migration.py tick`) builds up to 4 tiles
+for local proxies still missing a `stop-motion-v2` tile, one per asset (720p
+preferred), and drops the asset's older tile so orphan cleanup reclaims it.
+Each tick inspects at most two 512-id windows: the newest ids (new uploads
+tile within a minute) and one window rotating with the clock, which covers
+every id once per `ceil(max_id / 512)` minutes. Proxy generations that cannot
+produce a tile get an empty marker file `.animated-failed/<id // 512>/<id>.<checksum>`
+under the cache root and are not retried; a tick reads only the shards of the
+windows it scans and drops markers whose proxy is gone, replaced or tiled. A
+disk-floor stop is transient. A tick-budget stop is retried next tick, unless
+the proxy had the whole budget to itself, in which case it is marked failed. Assets without a
+local proxy have no tile. Disk floor and the original lot design:
 [audit lot 3](audits/media-startup-opus/lot3-result.md).

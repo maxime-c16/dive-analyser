@@ -25,7 +25,7 @@ def test_real_ffmpeg_bounded_webp_and_backfill(test_db, root, monkeypatch):
         pytest.skip('ffmpeg required')
     path = root / 'proxy.mp4'
     subprocess.run(['ffmpeg', '-v', 'error', '-f', 'lavfi', '-i',
-        'testsrc2=size=640x360:rate=30', '-t', '2', '-c:v', 'libx264',
+        'testsrc2=size=640x360:rate=30', '-t', '6', '-g', '15', '-c:v', 'libx264',
         '-pix_fmt', 'yuv420p', str(path)], check=True)
     asset = PhotosAsset(video_uuid='lot3-synthetic')
     test_db.add(asset)
@@ -40,8 +40,8 @@ def test_real_ffmpeg_bounded_webp_and_backfill(test_db, root, monkeypatch):
     from app.services import poster_visuals
     import os
     generate = av.generate
-    def previously_orphaned(path):
-        result = generate(path)
+    def previously_orphaned(path, deadline=None):
+        result = generate(path, deadline)
         if result:
             marker = poster_visuals.orphan_marker(result[0])
             marker.touch()
@@ -58,25 +58,203 @@ def test_real_ffmpeg_bounded_webp_and_backfill(test_db, root, monkeypatch):
     assert entry.checksum_sha256 in entry.storage_path
     with Image.open(entry.storage_path) as image:
         assert image.is_animated and image.width <= 360
+        assert image.n_frames == av.STOP_MOTION_FRAMES
         duration = 0
         for i in range(image.n_frames):
             image.seek(i)
             image.load()
             duration += image.info['duration']
-        assert 800 <= duration <= 1100
-    assert av.backfill(test_db, 1)['generated'] == 0
+        assert duration == av.STOP_MOTION_FRAMES * av.FRAME_MS
+    # Stills are sampled across the whole clip, the last near its end.
+    seeks = []
+    real_run = av.subprocess.run
+    def record(command, **kwargs):
+        if command[0] == 'nice':
+            seeks.append(float(command[command.index('-ss') + 1]))
+            # Scratch stays within SCRATCH_RESERVE: earlier stills are gone.
+            assert not list(Path(command[-1]).parent.glob('*.png'))
+        return real_run(command, **kwargs)
+    monkeypatch.setattr(av.subprocess, 'run', record)
+    assert av.generate(path)
+    assert len(seeks) == av.STOP_MOTION_FRAMES
+    assert seeks[0] < 0.5 and seeks[-1] > 5.4
+    assert av.backfill(test_db, 1)['scanned'] == 0
     assert _preferred_entry([entry]) is None
     payload = _thumbnail_status_for_entries(test_db, asset.video_uuid, [entry])
     assert payload['status'] == 'ready' and payload['playback_url'] is None
     assert payload['animated_url'].startswith('/media/cache/signed/')
 
 
+def _proxy(db, root, uuid, rendition, checksum):
+    asset = db.query(PhotosAsset).filter_by(video_uuid=uuid).one_or_none()
+    if asset is None:
+        asset = PhotosAsset(video_uuid=uuid)
+        db.add(asset)
+        db.flush()
+    entry = MediaCacheEntry(photos_asset_id=asset.id, media_key=f'{uuid}-{rendition}',
+        rendition=rendition, storage_path=str(root / f'{uuid}-{rendition}.mp4'), size_bytes=10,
+        checksum_sha256=checksum, status='ready')
+    db.add(entry)
+    db.commit()
+    return asset, entry
+
+
+def test_tick_selection_replaces_old_tiles_and_skips_failures(test_db, root, monkeypatch):
+    asset, hq = _proxy(test_db, root, 'both', 'proxy_720p', 'a' * 64)
+    _proxy(test_db, root, 'both', 'proxy_360p', 'b' * 64)
+    _, low = _proxy(test_db, root, 'low-only', 'proxy_360p', 'c' * 64)
+    _, broken = _proxy(test_db, root, 'broken', 'proxy_720p', 'd' * 64)
+    first_second = MediaCacheEntry(photos_asset_id=asset.id, media_key='animated-v1-old',
+        rendition='animated', storage_path=str(root / 'old.webp'), size_bytes=5, status='ready')
+    test_db.add(first_second)
+    test_db.commit()
+    # One proxy per asset (720p preferred), newest first; v1 tiles don't count.
+    assert [row.id for row in av.pending_proxies(test_db, 16)] == [broken.id, low.id, hq.id]
+    test_db.rollback()
+    def generate(source, deadline=None):
+        if source.endswith('broken-proxy_720p.mp4'):
+            return None
+        checksum = hashlib.sha256(source.encode()).hexdigest()
+        path = root / 'animated' / checksum[:2] / f'{checksum}.webp'
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(b'x' * 10)
+        return str(path), checksum, 10
+    monkeypatch.setattr(av, 'generate', generate)
+    assert av.backfill(test_db, 4) == dict(scanned=3, generated=2, failed=1)
+    tiles = test_db.query(MediaCacheEntry).filter_by(rendition='animated').all()
+    assert {t.source_blob_sha256 for t in tiles} == {'a' * 64, 'c' * 64}
+    assert all(t.transform_version == av.TRANSFORM_VERSION for t in tiles)
+    # Nothing left: done assets are fenced, the failure is not retried every tick.
+    assert av.backfill(test_db, 4)['scanned'] == 0
+
+
+def test_tick_selects_only_newest_proxy_generation(test_db, root, monkeypatch):
+    asset = PhotosAsset(video_uuid='regen')
+    test_db.add(asset)
+    test_db.flush()
+    old = MediaCacheEntry(photos_asset_id=asset.id, media_key='regen-720p-old',
+        rendition='proxy_720p', storage_path=str(root / 'regen-old.mp4'), size_bytes=10,
+        checksum_sha256='e' * 64, status='ready')
+    new = MediaCacheEntry(photos_asset_id=asset.id, media_key='regen-720p-new',
+        rendition='proxy_720p', storage_path=str(root / 'regen-new.mp4'), size_bytes=10,
+        checksum_sha256='f' * 64, status='ready')
+    legacy = PhotosAsset(video_uuid='regen-prefers-hq')
+    test_db.add(legacy)
+    test_db.flush()
+    legacy_low = MediaCacheEntry(photos_asset_id=legacy.id, media_key='regen-hq-old',
+        rendition='proxy_720p', storage_path=str(root / 'regen-hq-old.mp4'), size_bytes=10,
+        checksum_sha256='10' * 32, status='ready')
+    legacy_new_low = MediaCacheEntry(photos_asset_id=legacy.id, media_key='regen-low-new',
+        rendition='proxy_360p', storage_path=str(root / 'regen-low-new.mp4'), size_bytes=10,
+        checksum_sha256='11' * 32, status='ready')
+    test_db.add_all([old, new, legacy_low, legacy_new_low])
+    test_db.commit()
+    # One row per asset: the newest 720p generation; 720p still wins over a
+    # newer 360p. Batching both generations would tile the older over the newer.
+    rows = {row.photos_asset_id: row for row in av.pending_proxies(test_db, 16)}
+    assert rows[asset.id].id == new.id
+    assert rows[legacy.id].id == legacy_low.id
+    test_db.rollback()
+    seen = []
+    def generate(source, deadline=None):
+        seen.append(source)
+        checksum = hashlib.sha256(source.encode()).hexdigest()
+        path = root / 'animated' / checksum[:2] / f'{checksum}.webp'
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(b'x' * 10)
+        return str(path), checksum, 10
+    monkeypatch.setattr(av, 'generate', generate)
+    assert av.backfill(test_db, 4) == dict(scanned=2, generated=2, failed=0)
+    # Newest first: the 720p-over-newer-360p asset (higher ids) tiles first.
+    assert seen == [str(root / 'regen-hq-old.mp4'), str(root / 'regen-new.mp4')]
+    tiles = {t.photos_asset_id: t for t in test_db.query(MediaCacheEntry).filter_by(rendition='animated')}
+    assert tiles[asset.id].source_blob_sha256 == 'f' * 64
+    assert tiles[legacy.id].source_blob_sha256 == '10' * 32
+
+
+def test_generate_honours_expired_deadline(root, monkeypatch):
+    import time
+    path = root / 'proxy.mp4'
+    path.touch()
+    monkeypatch.setattr(av.subprocess, 'run', lambda *a, **k: pytest.fail('ffmpeg after deadline'))
+    with pytest.raises(av.BudgetExceeded):
+        av.generate(path, time.monotonic() - 1)
+    # Less than one quantum left also yields instead of starting doomed ffmpeg.
+    with pytest.raises(av.BudgetExceeded):
+        av.generate(path, time.monotonic() + 0.1)
+
+
+def test_backfill_expired_budget_defers_without_fencing(test_db, root, monkeypatch):
+    _, proxy = _proxy(test_db, root, 'expired', 'proxy_720p', 'a' * 64)
+    monkeypatch.setattr(av.subprocess, 'run', lambda *a, **k: pytest.fail('ffmpeg after deadline'))
+    assert av.backfill(test_db, 4, time_budget=0) == dict(scanned=1, generated=0, failed=0)
+    assert [row.id for row in av.pending_proxies(test_db, 16)] == [proxy.id]
+    test_db.rollback()
+
+
+def test_disk_deferral_is_retried_after_recovery(test_db, root, monkeypatch):
+    _, proxy = _proxy(test_db, root, 'deferred', 'proxy_720p', 'a' * 64)
+    (root / 'deferred-proxy_720p.mp4').touch()
+    monkeypatch.setattr(av.shutil, 'disk_usage', lambda _: SimpleNamespace(free=av.MIN_FREE_BYTES))
+    assert av.backfill(test_db, 4) == dict(scanned=1, generated=0, failed=0)
+    # Deferred, not fenced: the proxy is still selectable on the next tick.
+    assert [row.id for row in av.pending_proxies(test_db, 16)] == [proxy.id]
+    test_db.rollback()
+    monkeypatch.setattr(av.shutil, 'disk_usage', lambda _: SimpleNamespace(free=100 * 1024**3))
+    def generate(source, deadline=None):
+        checksum = hashlib.sha256(source.encode()).hexdigest()
+        path = root / 'animated' / checksum[:2] / f'{checksum}.webp'
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(b'x' * 10)
+        return str(path), checksum, 10
+    monkeypatch.setattr(av, 'generate', generate)
+    assert av.backfill(test_db, 4) == dict(scanned=1, generated=1, failed=0)
+
+
+def test_budget_exhaustion_defers_later_rows_but_fences_a_proxy_that_had_it_all(test_db, root, monkeypatch):
+    _, slow = _proxy(test_db, root, 'slow-budget', 'proxy_720p', 'a' * 64)
+    _, fast = _proxy(test_db, root, 'fast', 'proxy_720p', 'c' * 64)
+    def generate(source, deadline=None):
+        if 'fast' in source:  # newest first: spends the budget, then succeeds
+            checksum = hashlib.sha256(source.encode()).hexdigest()
+            path = root / 'animated' / checksum[:2] / f'{checksum}.webp'
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(b'x' * 10)
+            return str(path), checksum, 10
+        raise av.BudgetExceeded()
+    monkeypatch.setattr(av, 'generate', generate)
+    # Budget spent by earlier work: the slow proxy waits for the next tick.
+    assert av.backfill(test_db, 4) == dict(scanned=2, generated=1, failed=0)
+    assert [row.id for row in av.pending_proxies(test_db, 16)] == [slow.id]
+    test_db.rollback()
+    # Next tick it heads the batch with the full budget and still runs out:
+    # fenced, so it cannot head every later tick and starve the rest.
+    assert av.backfill(test_db, 4) == dict(scanned=1, generated=0, failed=1)
+    assert av.backfill(test_db, 4)['scanned'] == 0
+
+
+def test_full_cap_timeout_still_fences(test_db, root, monkeypatch):
+    _, proxy = _proxy(test_db, root, 'hung', 'proxy_720p', 'b' * 64)
+    (root / 'hung-proxy_720p.mp4').touch()
+    def hung_run(*args, **kwargs):
+        raise subprocess.TimeoutExpired(cmd=args[0], timeout=kwargs.get('timeout'))
+    monkeypatch.setattr(av.subprocess, 'run', hung_run)
+    # Full 40 s budget: ffprobe gets its whole 15 s cap, so a hang is the
+    # proxy's fault and the proxy is fenced like any permanent failure.
+    assert av.backfill(test_db, 4)['failed'] == 1
+    assert av.backfill(test_db, 4)['scanned'] == 0
+
+
 def test_disk_floor_and_path_confinement(root, monkeypatch):
     path = root / 'proxy.mp4'
     path.touch()
-    monkeypatch.setattr(av.shutil, 'disk_usage', lambda _: SimpleNamespace(free=av.MIN_FREE_BYTES))
+    monkeypatch.setattr(av.shutil, 'disk_usage',
+        lambda _: SimpleNamespace(free=av.MIN_FREE_BYTES + av.SCRATCH_RESERVE - 1))
     monkeypatch.setattr(av.subprocess, 'run', lambda *a, **k: pytest.fail('ffmpeg below floor'))
-    assert av.generate(path) is None
+    with pytest.raises(av.Deferred):
+        av.generate(path)
+    # A vanished source is a permanent per-proxy failure, not a deferral.
+    assert av.generate(root / 'missing.mp4') is None
     with pytest.raises(ValueError):
         av.generate(root.parent / 'outside.mp4')
 
@@ -93,7 +271,7 @@ def test_backfill_releases_connection_and_fences_changed_proxy(test_db, root, mo
     entry_id = entry.id
     test_db.rollback()
     bind = test_db.get_bind()
-    def generate(_):
+    def generate(_, deadline=None):
         assert not test_db.in_transaction()
         with Session(bind=bind) as other:
             source = other.get(MediaCacheEntry, entry_id)
@@ -327,3 +505,45 @@ def test_trim_keeps_deferred_animation_bytes_in_quota(test_db, root, references)
     assert marker.exists()
     os.utime(marker, (0, 0))
     assert cleanup_cache(test_db, max_bytes=150) == (0, 100, 0)
+
+
+@pytest.mark.parametrize('max_id', [1, 511, 512, 513, 1000, 3077, 10_000])
+def test_tick_windows_are_bounded_and_cover_every_id(max_id):
+    covered = set()
+    cycle = -(-(max_id + 1) // av.SCAN_WINDOW)
+    for minute in range(cycle):
+        ranges = av._windows(max_id, minute * 60)
+        assert sum(high - low for low, high in ranges) <= 2 * av.SCAN_WINDOW
+        for low, high in ranges:
+            covered.update(range(low + 1, high + 1))
+    assert set(range(1, max_id + 1)) <= covered
+
+
+def test_tick_scan_skips_old_ids_outside_windows_and_prunes_stale_failures(test_db, root, monkeypatch):
+    _, old = _proxy(test_db, root, 'old', 'proxy_720p', 'e' * 64)
+    _, recent = _proxy(test_db, root, 'recent', 'proxy_720p', 'f' * 64)
+    monkeypatch.setattr(av, 'SCAN_WINDOW', 1)
+    # Only the newest id and the rotating window are inspected per tick.
+    minute_for_recent = av._windows(recent.id, 0)
+    assert all(high - low <= 1 for low, high in minute_for_recent)
+    av._mark_failed(old.id, 'stale-generation')
+    av._mark_failed(recent.id, 'f' * 64)
+    ids = set()
+    for minute in range(recent.id + 1):
+        ids.update(row.id for row in av._candidates(test_db, 16, minute * 60))
+    # The current failure stays fenced; the replaced generation is pruned and retried.
+    assert ids == {old.id}
+    markers = {p.name for p in (root / '.animated-failed').rglob('*') if p.is_file()}
+    assert markers == {f"{recent.id}.{'f' * 64}"}
+
+
+def test_full_newest_window_cannot_starve_the_rotating_window(test_db, root, monkeypatch):
+    _, oldest = _proxy(test_db, root, 'oldest', 'proxy_720p', '0' * 64)
+    newest = [_proxy(test_db, root, f'new{i}', 'proxy_720p', f'{i + 1:064x}')[1] for i in range(6)]
+    monkeypatch.setattr(av, 'SCAN_WINDOW', 6)
+    max_id = newest[-1].id
+    # Pick the minute whose rotating window holds `oldest`, outside the newest window.
+    minute = next(m for m in range(100) if any(
+        low < oldest.id <= high for low, high in av._windows(max_id, m * 60)[1:]))
+    picked = [row.id for row in av._candidates(test_db, 4, minute * 60)]
+    assert len(picked) == 4 and oldest.id in picked

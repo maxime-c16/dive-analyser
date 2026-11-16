@@ -44,7 +44,7 @@ def test_animated_cleanup_racing_delayed_publisher(pg, root, monkeypatch):
         locked.set()
         assert generated.wait(5)
         yield from files(namespace)
-    def generate(_):
+    def generate(_, deadline=None):
         path = root / 'animated' / 'cc' / ('c' * 64 + '.webp')
         path.parent.mkdir(parents=True)
         path.write_bytes(b'animation')
