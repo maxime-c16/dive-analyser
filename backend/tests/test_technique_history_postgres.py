@@ -604,6 +604,17 @@ def test_remove_legacy_end_is_explicit_and_keeps_other_adjustments_and_records(p
         a=legacy.change(1,1,legacy.Change(**args,revision=0,label='Pike',start_at=datetime(2025,1,1)),None,db)['episode']
         b=legacy.change(1,1,legacy.Change(**args,revision=1,label='Twist',start_at=datetime(2026,1,1)),None,db)['episode']
         db.execute(text("INSERT INTO technique_assignments(track_id,dive_id,diver_id,code,apparatus,height,position,sync,state,technique_id,episode_id) VALUES(1,1,1,'103','springboard','3','B',false,'technique',:tech,:episode)"),{'tech':a['technique_id'],'episode':a['id']});db.commit()
+        # Two conflicting identities deliberately share a label: remap by ID.
+        other=db.scalar(text("INSERT INTO techniques(track_id,label,created_at) VALUES(1,'Twist',now()) RETURNING id"))
+        db.execute(text("""INSERT INTO dives(id,session_id,diver_id,dive_code,platform_type,height,position,is_sync,performance,dive_datetime)
+          SELECT n,1,1,'103','springboard','3','B',false,'G','2025-06-01' FROM generate_series(2,6) n"""))
+        db.execute(text("""INSERT INTO technique_assignments(track_id,dive_id,diver_id,code,apparatus,height,position,sync,state,technique_id,episode_id)
+          VALUES(1,2,1,'103','springboard','3','B',false,'technique',:b,:episode),
+          (1,3,1,'103','springboard','3','B',false,'technique',:other,:episode),
+          (1,4,1,'103','springboard','3','B',false,'mixed',NULL,:episode),
+          (1,5,1,'103','springboard','3','B',false,'unknown',NULL,:episode)"""),{'b':b['technique_id'],'other':other,'episode':a['id']})
+        db.execute(text("""INSERT INTO technique_session_states(track_id,session_id,code,apparatus,height,position,sync,state)
+          VALUES(1,1,'103','springboard','3','B',false,'mixed')"""));db.commit()
         context=dict(code='103',apparatus='springboard',height='3',position='B',sync=False)
         before=api.listing(1,api.Browse(**context),None,db)
         assert next(e for e in before['items'] if e['id']==a['id'])['end_at'] is not None
@@ -615,7 +626,20 @@ def test_remove_legacy_end_is_explicit_and_keeps_other_adjustments_and_records(p
         assert a_track!=b['track_id']
         assert db.scalar(text('SELECT end_at FROM technique_episodes WHERE id=:id'),{'id':a['id']}) is None
         assert db.scalar(text('SELECT end_at FROM technique_episodes WHERE id=:id'),{'id':b['id']}) is None
-        assert db.scalar(text('SELECT count(*) FROM technique_assignments WHERE track_id=:track AND episode_id=:id'),{'track':a_track,'id':a['id']})==1
+        assert db.scalar(text('SELECT count(*) FROM technique_assignments WHERE track_id=:track AND episode_id=:id'),{'track':a_track,'id':a['id']})==5
+        assert db.scalar(text('SELECT count(*) FROM technique_assignments WHERE track_id=1'))==5
+        rows=db.execute(text(RESOLVED+' SELECT * FROM resolved ORDER BY id'),dict(context,diver=1,track=a_track)).mappings().all()
+        assert [r['source'] for r in rows]==['recorded']*5+['session']
+        assert [r['state'] for r in rows]==['technique']*3+['mixed','unknown','mixed']
+        assert rows[0]['use_id']==rows[0]['intended_id']
+        assert rows[1]['use_id']!=rows[1]['intended_id']
+        assert rows[2]['use_id']!=rows[2]['intended_id']
+        assert rows[1]['use_id']!=rows[2]['use_id']
+        for r in rows[:3]:
+            identity=db.execute(text('SELECT track_id,label FROM techniques WHERE id=:id'),{'id':r['use_id']}).one()
+            assert identity.track_id==a_track
+            assert identity.label==('Pike' if r['id']==1 else 'Twist')
+        assert all(r['recorded_episode_id']==a['id'] for r in rows[:5])
 
 def test_adjustment_inventory_is_paged_and_cannot_replace_another_divers_episode(pg,monkeypatch):
     from types import SimpleNamespace

@@ -120,9 +120,23 @@ def detach(db,e,user):
     before=snapshot(e);label=db.scalar(select(Technique.label).where(Technique.id==e.technique_id))
     track=TechniqueTrack(diver_id=old.diver_id,name='adjustment-'+uuid4().hex);db.add(track);db.flush()
     t=Technique(track_id=track.id,label=label);db.add(t);db.flush()
-    db.execute(text("""INSERT INTO technique_assignments(track_id,dive_id,diver_id,code,apparatus,height,position,sync,state,technique_id,episode_id)
-    SELECT :new,dive_id,diver_id,code,apparatus,height,position,sync,state,CASE WHEN technique_id=:old_tech THEN :new_tech ELSE NULL END,episode_id
-    FROM technique_assignments WHERE track_id=:old AND episode_id=:episode AND (state IN ('mixed','unknown') OR technique_id=:old_tech)"""),dict(new=track.id,old=old.id,episode=e.id,old_tech=e.technique_id,new_tech=t.id))
+    # Preserve conflicting identities too, without materializing assignments or
+    # mapping by label (distinct techniques may deliberately share a label).
+    db.execute(text("""WITH identity_map AS MATERIALIZED (
+      SELECT t.id old_id,nextval(pg_get_serial_sequence('techniques','id')) new_id,t.label,t.created_at
+      FROM techniques t WHERE t.track_id=:old AND t.id<>:old_tech
+      AND EXISTS(SELECT 1 FROM technique_assignments a
+        WHERE a.track_id=:old AND a.episode_id=:episode AND a.technique_id=t.id)
+    ), cloned AS (
+      INSERT INTO techniques(id,track_id,label,created_at)
+      SELECT new_id,:new,label,created_at FROM identity_map RETURNING id
+    )
+    INSERT INTO technique_assignments(track_id,dive_id,diver_id,code,apparatus,height,position,sync,state,technique_id,episode_id)
+    SELECT :new,a.dive_id,a.diver_id,a.code,a.apparatus,a.height,a.position,a.sync,a.state,
+      CASE WHEN a.technique_id=:old_tech THEN :new_tech ELSE c.id END,a.episode_id
+    FROM technique_assignments a LEFT JOIN identity_map m ON m.old_id=a.technique_id
+    LEFT JOIN cloned c ON c.id=m.new_id
+    WHERE a.track_id=:old AND a.episode_id=:episode"""),dict(new=track.id,old=old.id,episode=e.id,old_tech=e.technique_id,new_tech=t.id))
     # A legacy session flag belongs to the old track. Preserve it for sessions
     # intersecting this episode; membership still uses the episode's interval.
     db.execute(text("""INSERT INTO technique_session_states(track_id,session_id,code,apparatus,height,position,sync,state)
