@@ -122,6 +122,7 @@ def save_staged_frames(frames, target):
     `.webp` files, so stranded staging would bypass the disk budget.
     """
     from PIL import Image
+    from app.services.animated_visuals import FRAME_MS
     target.mkdir(parents=True, exist_ok=True)
     staged = {}
     try:
@@ -129,7 +130,7 @@ def save_staged_frames(frames, target):
             staging = target / f'{kind}.{os.getpid()}.tmp'
             staged[kind] = staging
             frames[0].save(staging, format='WEBP', quality=78,
-                **(dict(save_all=True, append_images=frames[1:], duration=220, loop=0) if kind == 'animated' else {}))
+                **(dict(save_all=True, append_images=frames[1:], duration=FRAME_MS, loop=0) if kind == 'animated' else {}))
     except Exception:
         discard_staged(staged)
         raise
@@ -302,8 +303,9 @@ def session_image_disk_bytes(cap=None):
 
 
 def extract_images(video):
-    """Ten independent input seeks; decode just one frame per seek, tone-map HDR."""
+    """Independent input seeks across the clip; one frame per seek, tone-map HDR."""
     from PIL import Image
+    from app.services.animated_visuals import STOP_MOTION_FRAMES
     with _slots:
         target = image_path(video.id, 'poster').parent
         target.mkdir(parents=True, exist_ok=True)
@@ -313,12 +315,12 @@ def extract_images(video):
               'zscale=t=bt709:m=bt709:r=tv,format=yuv420p' if hdr else 'null')
         with range_source(url) as (source, stats), tempfile.TemporaryDirectory(prefix='session-frames-') as tmp:
             frames = []
-            for index in range(10):
+            for index in range(STOP_MOTION_FRAMES):
                 path = Path(tmp) / f'{index}.png'
                 # -ss BEFORE -i is essential: demuxer seeks over HTTP, never
                 # decodes the preceding 30 minutes. No stdout/stderr URLs.
                 command = ['ffmpeg', '-v', 'error', '-nostdin', '-threads', '2', '-filter_threads', '1', '-rw_timeout', '15000000',
-                    '-ss', str((video.duration_seconds or 1) * (index + .5) / 10),
+                    '-ss', str((video.duration_seconds or 1) * (index + .5) / STOP_MOTION_FRAMES),
                     '-i', source, '-frames:v', '1', '-an', '-vf', vf, '-y', str(path)]
                 try:
                     subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
