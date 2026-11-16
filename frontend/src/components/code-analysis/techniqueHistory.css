@@ -211,3 +211,35 @@
  .clip-viewer.is-workflow .clip-workflow { padding-bottom:calc(80px + env(safe-area-inset-bottom)); }
  .clip-viewer.is-workflow .clip-caption { display:none; }
 }
+
+/* Browsing prioritises an uncropped video; context expands on demand. */
+.th-setup-context { font-size:12px; color:var(--app-muted); }
+.th-setup-context summary { cursor:pointer; padding:4px 0; overflow-wrap:anywhere; }
+.th-setup-context[open] > :not(summary) { margin-top:8px; }
+@media(max-width:1023px) {
+ .clip-viewer.is-workflow .clip-layout { display:flex; flex:1; overflow:hidden; }
+ .clip-viewer.is-workflow .clip-stage-column { flex:1 1 0; min-height:0; }
+ .clip-viewer.is-workflow .clip-filmstrip.is-history { max-height:78px; padding:6px 12px; overflow-y:hidden; }
+ .clip-viewer.is-workflow .clip-filmstrip-day { display:none; }
+ .clip-viewer.is-workflow .clip-filmstrip ol { gap:8px; }
+ .clip-viewer.is-workflow .clip-filmstrip li { flex:0 0 48px; }
+ .clip-viewer.is-workflow .clip-filmstrip button { padding:2px; }
+ .clip-viewer.is-workflow .clip-filmstrip-thumb { height:42px; width:42px; }
+ .clip-viewer.is-workflow .clip-filmstrip-code { font-size:10px; line-height:14px; }
+ .clip-viewer.is-workflow .clip-filmstrip-score,.clip-viewer.is-workflow .clip-filmstrip-height { display:none; }
+ .clip-viewer.is-workflow .clip-workflow { max-height:170px; padding:8px 14px; gap:6px; flex:0 0 auto; }
+ .clip-viewer.is-workflow .clip-workflow:has(.th-setup-context[open]),
+ .clip-viewer.is-workflow .clip-workflow:has(.th-setup-edit),
+ .clip-viewer.is-workflow .clip-workflow:has(.th-setup-review-body) { max-height:min(42dvh,300px); }
+ .clip-viewer.is-workflow .clip-navigation { flex-shrink:0; }
+ .th-setup-navigation { gap:4px; align-items:center; }
+ .th-setup-navigation button { min-height:40px; font-size:12px; }
+}
+@media(min-width:1024px) {
+ .clip-viewer.is-workflow.is-studio .clip-layout:has(> .clip-filmstrip) { grid-template-columns: minmax(0,1fr) 320px; grid-template-rows:minmax(0,1fr) auto; }
+ .clip-viewer.is-workflow.is-studio .clip-stage-column { grid-column:1; grid-row:1; }
+ .clip-viewer.is-workflow.is-studio .clip-filmstrip { grid-column:1; grid-row:2; max-height:100px; }
+ .clip-viewer.is-workflow.is-studio .clip-filmstrip ol { display:flex; overflow-x:auto; }
+ .clip-viewer.is-workflow.is-studio .clip-filmstrip li { flex:0 0 60px; }
+ .clip-viewer.is-workflow.is-studio .clip-workflow { grid-column:2; grid-row:1 / span 2; width:320px; }
+}
