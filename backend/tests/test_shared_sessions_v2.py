@@ -534,3 +534,25 @@ def test_still_survives_animation_extraction_failure(monkeypatch, tmp_path):
     with Image.open(images.image_path(55, 'poster')) as poster:
         assert poster.size == (36, 64)
     assert not images.image_path(55, 'animated').exists()
+
+
+def test_image_retry_bounds_work_and_advances_past_failures(sessions_env, monkeypatch, tmp_path):
+    from app.services import session_images as images
+    db, *_ = sessions_env
+    first = service.ingest_object(db, KEY)
+    owner = first.owner_user_id
+    for index in range(2):
+        db.add(SessionVideo(owner_user_id=owner, bucket='test', object_key=f'retry-{index}.MOV', status='ready'))
+    db.commit()
+    monkeypatch.setattr(images, '_retry_cursor', 0)
+    monkeypatch.setattr(images, '_session_root', lambda: tmp_path)
+    calls = []
+    def fail(video):
+        calls.append(video.id)
+        raise RuntimeError('failure')
+    monkeypatch.setattr(images, 'extract_images', fail)
+    for _ in range(3):
+        assert images.retry_missing_images(db, scan_limit=1, attempt_limit=1) == 1
+    assert calls == sorted(set(calls)) and len(calls) == 3
+    assert images.retry_missing_images(db, scan_limit=1, attempt_limit=1) == 0
+    assert images.retry_missing_images(db, scan_limit=1, attempt_limit=1) == 0
