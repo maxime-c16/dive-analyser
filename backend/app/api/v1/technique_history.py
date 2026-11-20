@@ -789,6 +789,7 @@ def revision_detail(diver:int,track:int,revision:int,request:Request,db:Session=
 
 class TrackChartInput(ContextInput):
     after:str=Field(default='',max_length=256)
+    episode_id:int | None = Field(default=None,gt=0)
 
 
 @router.post('/{diver}/{track}/track-chart')
@@ -801,14 +802,16 @@ def track_chart(diver:int,track:int,body:TrackChartInput,request:Request,db:Sess
     CASE WHEN count(rating)>=2 THEN percentile_cont(0.25) WITHIN GROUP(ORDER BY rating) END q1,
     CASE WHEN count(rating)>=2 THEN percentile_cont(0.75) WITHIN GROUP(ORDER BY rating) END q3,
     to_char(min(history_occurred_at),'YYYY-MM-DD"T"HH24:MI:SS.US')||':'||lpad(session_id::text,10,'0')||':'||lpad(coalesce(episode_id,0)::text,10,'0')||':'||lpad(coalesce(use_id,0)::text,10,'0')||':'||state||':'||source point_key
-    FROM resolved GROUP BY session_id,episode_id,use_id,state,source,uncertain HAVING count(rating)>0
+    FROM resolved WHERE (CAST(:episode_id AS integer) IS NULL OR episode_id=:episode_id)
+    GROUP BY session_id,episode_id,use_id,state,source,uncertain HAVING count(rating)>0
     ), boundaries AS (
     SELECT *,CASE WHEN episode_id IS DISTINCT FROM lag(episode_id) OVER(ORDER BY point_key)
     OR uncertain IS DISTINCT FROM lag(uncertain) OVER(ORDER BY point_key)
     OR (state IN ('mixed','unknown','unrecorded')) IS DISTINCT FROM lag(state IN ('mixed','unknown','unrecorded')) OVER(ORDER BY point_key)
     THEN 1 ELSE 0 END change FROM bins
     ), segments AS (
-    SELECT *,sum(change) OVER(ORDER BY point_key) segment FROM boundaries
+    SELECT *,sum(change) OVER(ORDER BY point_key) segment,
+    min(occurred_at) OVER() range_start,max(occurred_at) OVER() range_end FROM boundaries
     ), page AS (SELECT * FROM segments WHERE point_key>:after ORDER BY point_key LIMIT 51)
     SELECT page.*,curves.curve_median,curves.curve_q1,curves.curve_q3 FROM page LEFT JOIN LATERAL (
     SELECT CASE WHEN page.state='technique' AND NOT page.uncertain AND page.episode_id IS NOT NULL THEN percentile_cont(0.5) WITHIN GROUP(ORDER BY median) FILTER(WHERE rn<=3) END curve_median,
@@ -819,7 +822,11 @@ def track_chart(diver:int,track:int,body:TrackChartInput,request:Request,db:Sess
     rows=db.execute(text(sql),params).mappings().all()
     ids={r['episode_id'] for r in rows[:50] if r['episode_id'] is not None}
     boundaries=db.execute(select(TechniqueEpisode.id,TechniqueEpisode.start_at,TechniqueEpisode.end_at,TechniqueEpisode.uncertain_until,Technique.label).outerjoin(Technique,Technique.id==TechniqueEpisode.technique_id).where(TechniqueEpisode.track_id==track,TechniqueEpisode.id.in_(ids)).order_by(TechniqueEpisode.start_at,TechniqueEpisode.start_id)).mappings().all() if ids else []
-    return {'revision':row.revision,'items':[dict(r) for r in rows[:50]],'boundaries':[dict(b) for b in boundaries],'next':rows[49]['point_key'] if len(rows)>50 else None}
+    items = [dict(r) for r in rows[:50]]
+    date_range = {'start': rows[0]['range_start'], 'end': rows[0]['range_end']} if rows else None
+    for item in items:
+        del item['range_start'], item['range_end']
+    return {'revision':row.revision,'items':items,'boundaries':[dict(b) for b in boundaries],'next':rows[49]['point_key'] if len(rows)>50 else None,'range':date_range}
 
 @router.get('/contexts')
 def context_inventory(request:Request,code:str=Query(min_length=1,max_length=10),after:str=Query(default='',max_length=256),db:Session=Depends(get_db)):

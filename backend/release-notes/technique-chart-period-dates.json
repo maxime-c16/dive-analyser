@@ -1,0 +1,8 @@
+{
+  "id": "technique-chart-period-dates",
+  "date": "2026-11-20",
+  "title": "Technique charts follow the dates you set",
+  "body": "Selecting a technique change shows the dives in its saved period. The chart refreshes after an end date changes, and regular calendar marks make it easier to compare dates.",
+  "audience": "all",
+  "components": ["frontend", "backend"]
+}

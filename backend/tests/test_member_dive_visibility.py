@@ -97,6 +97,24 @@ def test_own_and_community_lists_and_direct_private_ids(workspace):
     assert client.get(f"/api/v1/dives/{dives['bob-private']}").json()['can_manage'] is True
 
 
+def test_library_history_dates_require_both_opt_in_and_ownership(workspace):
+    db, login, dives, _, _ = workspace
+    own = db.get(Dive, dives['bob-private'])
+    occurrence = own.history_occurred_at.isoformat()
+    own.dive_datetime = datetime(2025, 1, 1)
+    db.commit()
+    path = '/api/v1/dives/library?diver_scope=all&dive_code=101B'
+    client = login('bob')
+    assert all('history_occurred_at' not in row for row in client.get(path).json()['items'])
+    response = client.get(path + '&history_dates=true')
+    assert response.status_code == 200, response.text
+    rows = {row['id']: row for row in response.json()['items']}
+    assert rows[dives['bob-private']]['history_occurred_at'] == occurrence
+    assert rows[dives['bob-private']]['dive_datetime'] != occurrence
+    assert 'history_occurred_at' not in rows[dives['alice-public']]
+    assert dives['alice-private'] not in rows
+
+
 def test_ownership_writes_and_shared_session_protection(workspace):
     db, login, dives, _, session_id = workspace
     client = login('bob')

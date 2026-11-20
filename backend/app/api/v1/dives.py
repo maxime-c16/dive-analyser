@@ -267,6 +267,7 @@ def library_page(
     date_from: Optional[datetime] = Query(None), date_to: Optional[datetime] = Query(None),
     code_filter: str = Query("", max_length=8192),
     diver_id: Optional[int] = Query(None),
+    history_dates: bool = False,
 ):
     """A bounded, filtered Library page; cursor ties include id for stable order."""
     from app.services.library_query import encode_cursor
@@ -280,6 +281,15 @@ def library_page(
         diver_id=diver_id)
     more = len(rows) > limit
     rows = rows[:limit]
+    context = db.info.get("member_access")
+    if history_dates and context:
+        owned_ids = set(context["diver_ids"])
+        dive_ids = [row["id"] for row in rows if row["diver_id"] in owned_ids]
+        if dive_ids:
+            dates = dict(db.query(Dive.id, Dive.history_occurred_at).filter(Dive.id.in_(dive_ids)).all())
+            for row in rows:
+                if row["id"] in dates:
+                    row["history_occurred_at"] = dates[row["id"]]
     # One bounded join after list_dives has applied the existing access scope.
     visuals = _library_visuals(db, [row["video_uuid"] for row in rows if row.get("video_uuid")])
     for row in rows:

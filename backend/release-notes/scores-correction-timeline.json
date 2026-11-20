@@ -1,0 +1,8 @@
+{
+  "id": "scores-correction-timeline",
+  "date": "2026-11-20",
+  "title": "See technique corrections on the score chart",
+  "body": "Open Corrections alongside Attempts and Sessions. Select a correction to see when it applied and which scores fall within the period. Nearby starts are grouped so long histories stay readable.",
+  "audience": "all",
+  "components": ["frontend", "backend"]
+}

@@ -275,6 +275,40 @@ def test_chart_curve_uses_preceding_sessions_across_page_boundary(pg,monkeypatch
         assert second['items'][0]['median']==0
         assert second['items'][0]['curve_median']==10
 
+def test_track_chart_paginates_only_the_selected_period_and_reflects_an_edited_end(pg, monkeypatch):
+    from datetime import datetime
+    from types import SimpleNamespace
+    from sqlalchemy.orm import Session
+    from app.api.v1 import technique_adjustments as adjustments, technique_history as api
+
+    for module in (api, adjustments):
+        monkeypatch.setattr(module, 'owner', lambda *a, **k: SimpleNamespace(id=1))
+    with pg.begin() as c:
+        c.execute(text("""INSERT INTO app_users VALUES(1);
+        INSERT INTO technique_tracks(id,diver_id,name,revision) VALUES(1,1,'General',0);
+        INSERT INTO techniques(id,track_id,label,created_at) VALUES(1,1,'A',now());
+        INSERT INTO technique_episodes(id,track_id,technique_id,scope,apparatus,height,start_at,start_id,precision,timezone,gap,notes,deleted)
+        VALUES(1,1,1,'103','springboard','3','2026-01-03',0,'date','UTC',false,'',false);
+        INSERT INTO dives(session_id,diver_id,dive_code,platform_type,height,position,is_sync,performance,dive_datetime)
+        SELECT n,1,'103','springboard','3','B',false,'P','2026-01-01'::timestamp+n*interval '1 day'
+        FROM generate_series(2,61) n"""))
+    context = dict(code='103', apparatus='springboard', height='3', position='B')
+    with Session(pg) as db:
+        first = api.track_chart(1, 1, api.TrackChartInput(**context, episode_id=1), None, db)
+        second = api.track_chart(1, 1, api.TrackChartInput(**context, episode_id=1, after=first['next']), None, db)
+        assert len(first['items']) == 50 and len(second['items']) == 10
+        assert first['range'] == second['range'] == {'start': datetime(2026, 1, 3), 'end': datetime(2026, 3, 3)}
+        cutoff = datetime(2026, 1, 10)
+        adjustments.end(1, adjustments.End(**context, episode_id=1, revision=1, end_at=cutoff, commit=True), None, db)
+
+        revised = api.track_chart(1, 1, api.TrackChartInput(**context, episode_id=1), None, db)
+        history = api.track_chart(1, 1, api.TrackChartInput(**context), None, db)
+        assert revised['revision'] > first['revision']
+        assert len(revised['items']) == 7 and revised['next'] is None
+        assert revised['boundaries'][0]['end_at'] == cutoff
+        assert all(item['episode_id'] == 1 and item['occurred_at'] < cutoff for item in revised['items'])
+        assert history['range'] == {'start': datetime(2026, 1, 1), 'end': datetime(2026, 3, 3)}
+
 def test_bulk_recorded_identity_and_deleted_episode_provenance_survive(pg,monkeypatch):
     from sqlalchemy.orm import Session
     from app.api.v1 import technique_history as api
