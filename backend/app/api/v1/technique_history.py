@@ -1,6 +1,6 @@
 """Owner-only, revision fenced technique history. All handlers run in threadpool."""
 from datetime import datetime
-from typing import Literal
+from typing import Annotated, Literal
 from fastapi import APIRouter, Depends, HTTPException, Request, Query
 from pydantic import BaseModel, Field
 from sqlalchemy import select, text, func
@@ -789,6 +789,7 @@ def revision_detail(diver:int,track:int,revision:int,request:Request,db:Session=
 
 class TrackChartInput(ContextInput):
     after:str=Field(default='',max_length=256)
+    episode_id:int | None = Field(default=None,gt=0)
 
 
 @router.post('/{diver}/{track}/track-chart')
@@ -801,14 +802,16 @@ def track_chart(diver:int,track:int,body:TrackChartInput,request:Request,db:Sess
     CASE WHEN count(rating)>=2 THEN percentile_cont(0.25) WITHIN GROUP(ORDER BY rating) END q1,
     CASE WHEN count(rating)>=2 THEN percentile_cont(0.75) WITHIN GROUP(ORDER BY rating) END q3,
     to_char(min(history_occurred_at),'YYYY-MM-DD"T"HH24:MI:SS.US')||':'||lpad(session_id::text,10,'0')||':'||lpad(coalesce(episode_id,0)::text,10,'0')||':'||lpad(coalesce(use_id,0)::text,10,'0')||':'||state||':'||source point_key
-    FROM resolved GROUP BY session_id,episode_id,use_id,state,source,uncertain HAVING count(rating)>0
+    FROM resolved WHERE (CAST(:episode_id AS integer) IS NULL OR episode_id=:episode_id)
+    GROUP BY session_id,episode_id,use_id,state,source,uncertain HAVING count(rating)>0
     ), boundaries AS (
     SELECT *,CASE WHEN episode_id IS DISTINCT FROM lag(episode_id) OVER(ORDER BY point_key)
     OR uncertain IS DISTINCT FROM lag(uncertain) OVER(ORDER BY point_key)
     OR (state IN ('mixed','unknown','unrecorded')) IS DISTINCT FROM lag(state IN ('mixed','unknown','unrecorded')) OVER(ORDER BY point_key)
     THEN 1 ELSE 0 END change FROM bins
     ), segments AS (
-    SELECT *,sum(change) OVER(ORDER BY point_key) segment FROM boundaries
+    SELECT *,sum(change) OVER(ORDER BY point_key) segment,
+    min(occurred_at) OVER() range_start,max(occurred_at) OVER() range_end FROM boundaries
     ), page AS (SELECT * FROM segments WHERE point_key>:after ORDER BY point_key LIMIT 51)
     SELECT page.*,curves.curve_median,curves.curve_q1,curves.curve_q3 FROM page LEFT JOIN LATERAL (
     SELECT CASE WHEN page.state='technique' AND NOT page.uncertain AND page.episode_id IS NOT NULL THEN percentile_cont(0.5) WITHIN GROUP(ORDER BY median) FILTER(WHERE rn<=3) END curve_median,
@@ -819,10 +822,21 @@ def track_chart(diver:int,track:int,body:TrackChartInput,request:Request,db:Sess
     rows=db.execute(text(sql),params).mappings().all()
     ids={r['episode_id'] for r in rows[:50] if r['episode_id'] is not None}
     boundaries=db.execute(select(TechniqueEpisode.id,TechniqueEpisode.start_at,TechniqueEpisode.end_at,TechniqueEpisode.uncertain_until,Technique.label).outerjoin(Technique,Technique.id==TechniqueEpisode.technique_id).where(TechniqueEpisode.track_id==track,TechniqueEpisode.id.in_(ids)).order_by(TechniqueEpisode.start_at,TechniqueEpisode.start_id)).mappings().all() if ids else []
-    return {'revision':row.revision,'items':[dict(r) for r in rows[:50]],'boundaries':[dict(b) for b in boundaries],'next':rows[49]['point_key'] if len(rows)>50 else None}
+    items = [dict(r) for r in rows[:50]]
+    date_range = {'start': rows[0]['range_start'], 'end': rows[0]['range_end']} if rows else None
+    for item in items:
+        del item['range_start'], item['range_end']
+    return {'revision':row.revision,'items':items,'boundaries':[dict(b) for b in boundaries],'next':rows[49]['point_key'] if len(rows)>50 else None,'range':date_range}
 
 @router.get('/contexts')
-def context_inventory(request:Request,code:str=Query(min_length=1,max_length=10),after:str=Query(default='',max_length=256),db:Session=Depends(get_db)):
+def context_inventory(
+    request: Request,
+    code: str = Query(min_length=1, max_length=10),
+    after: str = Query(default='', max_length=256),
+    db: Session = Depends(get_db),
+    height: Annotated[str, Query(max_length=5)] = '',
+    order: Literal['identity', 'volume'] = 'identity',
+):
     import json
     from sqlalchemy import tuple_
     from app.models.user_auth import UserDiverAccess
@@ -830,13 +844,31 @@ def context_inventory(request:Request,code:str=Query(min_length=1,max_length=10)
     if user is None:raise HTTPException(401,'Authentication required')
     columns=(Dive.diver_id,Dive.platform_type,Dive.height,func.coalesce(Dive.position,''),func.coalesce(Dive.is_sync,False))
     stmt=select(Dive.diver_id,Dive.platform_type.label('apparatus'),Dive.height,columns[3].label('position'),columns[4].label('sync'),func.max(Diver.display_name).label('diver_name'),func.count().label('eligible')).join(Diver,Diver.id==Dive.diver_id).join(UserDiverAccess,(UserDiverAccess.diver_id==Dive.diver_id)&(UserDiverAccess.user_id==user.id)&(UserDiverAccess.access_kind=='OWNER')).where(Dive.dive_code==code)
+    if height:
+        stmt = stmt.where(Dive.height == height)
+    # Group before applying the cursor so the rank and counts describe the
+    # complete owner-filtered inventory, including contexts on later pages.
+    groups = stmt.group_by(*columns).subquery()
+    identity = (groups.c.diver_id, groups.c.apparatus, groups.c.height, groups.c.position, groups.c.sync)
+    ordering = (-groups.c.eligible, *identity) if order == 'volume' else identity
+    page = select(groups)
     if after:
         try:
             key=json.loads(after)
-            if not isinstance(key,list) or len(key)!=5 or type(key[0]) is not int or any(not isinstance(v,str) for v in key[1:4]) or type(key[4]) is not bool:raise ValueError()
+            if not isinstance(key, list) or len(key) != len(ordering):
+                raise ValueError()
+            if order == 'volume' and (type(key[0]) is not int or key[0] >= 0):
+                raise ValueError()
+            context_key = key[-5:]
+            if type(context_key[0]) is not int or any(not isinstance(v, str) for v in context_key[1:4]) or type(context_key[4]) is not bool:
+                raise ValueError()
         except (ValueError,TypeError):raise HTTPException(422,'Invalid context cursor')
-        stmt=stmt.where(tuple_(*columns)>tuple(key))
-    rows=db.execute(stmt.group_by(*columns).order_by(*columns).limit(51)).mappings().all()
+        page = page.where(tuple_(*ordering) > tuple(key))
+    rows=db.execute(page.order_by(*ordering).limit(51)).mappings().all()
     items=[dict(r,code=code) for r in rows[:50]]
-    cursor=json.dumps([rows[49][key] for key in ('diver_id','apparatus','height','position','sync')]) if len(rows)>50 else None
+    cursor = None
+    if len(rows) > 50:
+        last = rows[49]
+        context_key = [last[column.key] for column in identity]
+        cursor = json.dumps([-last['eligible'], *context_key] if order == 'volume' else context_key)
     return {'items':items,'next':cursor}

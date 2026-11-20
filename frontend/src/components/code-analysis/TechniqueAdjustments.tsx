@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { Plus, ChevronRight } from 'lucide-react'
@@ -7,13 +7,14 @@ import TechniqueDialog from './TechniqueDialog'
 import TechniqueSetup, {type AdjustmentChoice} from './TechniqueSetup'
 import TechniqueTrackChart from './TechniqueTrackChart'
 import { techniqueDateTime } from './techniqueDates'
+import CorrectionScores, { type ScorePanel } from './CorrectionScores'
 import './techniqueHistory.css'
 
 type Context={code:string;apparatus:string;height:string;position:string;sync:boolean}
 type Adjustment=AdjustmentChoice & {track_revision:number;start_id:number;end_id:number|null;uncertain_until:string|null}
 const families=['1','2','3','4','51','52','53','54']
 const localNow=()=>new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,16)
-export default function TechniqueAdjustments({diver,context,viewer}:{diver:number;context:Context;viewer:string|number}){
+export default function TechniqueAdjustments({diver,context,viewer,scores,contextPicker,contextLabel}:{diver:number;context:Context;viewer:string|number;scores?:ScorePanel;contextPicker?:ReactNode;contextLabel?:string}){
  const {t,i18n}=useTranslation(),base=`/api/v1/technique-adjustments/${diver}`,history=`/api/v1/technique-history/${diver}`
  const [pageAfter,setPageAfter]=useState(0)
  const [items,setItems]=useState<Adjustment[]>([]),[version,setVersion]=useState(0),[next,setNext]=useState<number|null>(null)
@@ -80,9 +81,28 @@ export default function TechniqueAdjustments({diver,context,viewer}:{diver:numbe
  const renderItem=(item:Adjustment)=><li key={item.id} className={`${active(item)?'is-ongoing ':''}${selected===item.id?'is-selected':''}`}>
   <button className="th-episode" aria-pressed={selected===item.id} onClick={()=>setSelected(selected===item.id?null:item.id)}><span className="th-timeline-dot" aria-hidden="true"/><span className="th-episode-copy"><span className="th-episode-name">{item.label}{active(item)&&<span className="th-current">{t('adjustments.active')}</span>}</span><span className="th-date">{item.uncertain_until?'≈ ':''}{date(item.start_at)}{item.end_at?` → ${date(item.end_at)}`:` · ${t('adjustments.noEnd')}`}</span>{item.scope!==context.code&&<small>{t('technique.appliesTo')} {item.scope}</small>}</span><ChevronRight size={16}/></button>
   {selected===item.id&&<div className="th-episode-actions th-adjustment-actions"><button onClick={()=>void openSetup(item)}>{t('technique.adjustInPlayer')}</button>{active(item)?<button onClick={()=>openDialog('end',item)}>{t('adjustments.stop')}</button>:item.end_at&&<button onClick={()=>openDialog('continue',item)}>{t('adjustments.removeEnd')}</button>}<button onClick={()=>openDialog('share',item)}>{t('technique.share')}</button><button onClick={()=>openDialog('remove',item)}>{t('technique.delete')}</button></div>}
-  {selected===item.id&&<TechniqueTrackChart key={item.track_id} base={`${history}/${item.track_id}`} context={context} revision={item.track_revision} selected={item.id} selection={item} onSelect={id=>setSelected(id)} onClear={()=>setSelected(null)}/>}
+  {selected===item.id&&<TechniqueTrackChart key={item.track_id} base={`${history}/${item.track_id}`} context={context} revision={item.track_revision} selected={item.id} selection={item} onSelect={id=>setSelected(id)}/>}
  </li>
- return <section className="ca-panel th-history th-adjustments" aria-label={t('adjustments.title')}>
+ const pages = (pageAfter > 0 || next != null) && <div className="th-pagination">
+  {pageAfter > 0 && <button disabled={loading} onClick={() => void load()}>{t('adjustments.firstPage')}</button>}
+  {next != null && <button disabled={loading} onClick={() => void load(next)}>{t('adjustments.more')}</button>}
+ </div>
+ const correctionAttempts = scores?.corrections?.attempts.filter(attempt =>
+  attempt.diver_id === diver && attempt.dive_code === context.code && attempt.height === context.height &&
+  attempt.platform_type === context.apparatus && (attempt.position ?? '') === context.position && Boolean(attempt.is_sync) === context.sync)
+ return <>
+ {scores && <section className="ca-panel">
+  {scores.header}
+  {scores.corrections ? <>
+   {contextPicker || <p className="ca-correction-note">{contextLabel}</p>}
+   {error && !items.length
+    ? <p className="ca-correction-note" role="alert">{error}</p>
+    : <CorrectionScores {...scores.corrections} attempts={correctionAttempts ?? []} corrections={items} loading={loading}/>}
+   {pages}
+  </> : scores.content}
+ </section>}
+ {!scores?.corrections && contextPicker}
+ <section className="ca-panel th-history th-adjustments" aria-label={t('adjustments.title')}>
   <div className="ca-panel-h"><h2>{t('adjustments.title')}</h2></div>
   <button className="th-primary th-add-adjustment" disabled={busy||loading} onClick={()=>void openSetup()}><Plus size={17}/>{t(draft?'technique.resumeHistory':'adjustments.add')}</button>
   <p className="th-adjustments-rule">{t('adjustments.rule')}</p>
@@ -93,8 +113,7 @@ export default function TechniqueAdjustments({diver,context,viewer}:{diver:numbe
   {items.some(active)&&<><h3 className="th-adjustment-heading">{t('adjustments.active')}</h3><ol className="th-timeline th-adjustment-list">{items.filter(active).map(renderItem)}</ol></>}
   {items.some(item=>!active(item))&&<><h3 className="th-adjustment-heading">{t('adjustments.ended')}</h3><p className="th-adjustments-rule">{t('adjustments.existingEnds')}</p><ol className="th-timeline th-adjustment-list">{items.filter(item=>!active(item)).map(renderItem)}</ol></>}
   {!loading&&!items.length&&<p>{t('adjustments.empty')}</p>}
-  {pageAfter>0&&<button className="th-text-button" disabled={loading} onClick={()=>void load()}>{t('adjustments.firstPage')}</button>}
-  {next!=null&&<button className="th-text-button" disabled={loading} onClick={()=>void load(next)}>{t('adjustments.more')}</button>}
+  {!scores?.corrections && pages}
   {setup&&track&&createPortal(<TechniqueSetup key={`${key}/${editing?.id??'new'}`} viewer={viewer} independent={{base,revision:version,choices:items,more:next!=null,onMore:()=>void load(next??0)}} base={`${history}/${editing?.track_id??track.id}`} revision={editing?.track_revision??track.revision} trackName={t('adjustments.title')} context={context} initialEpisode={editing} constrainPosition={editing?editing.position!=null:true} constrainSync={editing?editing.sync!=null:true} onClose={()=>setSetup(false)} onDone={()=>{setSetup(false);setNotice(t('technique.saved'));void load()}}/>,document.body)}
   {dialog&&<TechniqueDialog title={t(dialog.mode==='remove'?'technique.delete':dialog.mode==='share'?'technique.share':dialog.mode==='end'?'adjustments.stop':'adjustments.removeEnd')} onClose={()=>{if(!busy)setDialog(null)}}>
    <div className="th-form"><strong>{dialog.item.label}</strong>
@@ -108,5 +127,5 @@ export default function TechniqueAdjustments({diver,context,viewer}:{diver:numbe
     <div className="th-dialog-actions"><button className="th-secondary" disabled={busy} onClick={()=>reviewed?setReviewed(false):setDialog(null)}>{t(reviewed?'common.back':'technique.cancel')}</button><button className="th-primary" disabled={busy||loading||(dialog.mode==='end'&&!end)||(dialog.mode==='share'&&(!scope||scope==='code'&&!otherCode.trim()))} onClick={()=>void submitDialog()}>{t(reviewed?'common.save':'technique.reviewChange')}</button></div>
    </div>
   </TechniqueDialog>}
- </section>
+ </section></>
 }

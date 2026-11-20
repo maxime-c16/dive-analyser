@@ -1,4 +1,5 @@
 import TechniqueWorkspace from '../components/code-analysis/TechniqueWorkspace'
+import type { ScorePanel } from '../components/code-analysis/CorrectionScores'
 import React, { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { loadChunk } from '../utils/chunkLoad'
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
@@ -26,7 +27,7 @@ const ClipViewer = lazy(() => loadChunk(() => import('../components/clip-viewer/
 
 const PERIODS = [['1m', 30], ['3m', 91], ['1y', 365], ['all', Infinity]] as const
 type Period = (typeof PERIODS)[number][0]
-type Mode = 'attempts' | 'sessions'
+type Mode = 'attempts' | 'sessions' | 'corrections'
 const isAnalyticsCode = (code: string) => !/^[1-4]00/.test(code)
 const ts = (attempt: Attempt) => Date.parse(attempt.dive_datetime)
 
@@ -120,7 +121,9 @@ export default function CodeAnalysis() {
   const period = (params.get('period') as Period) || 'all'
   const height = params.get('h') || ''
   const month = params.get('month') || ''
-  const mode: Mode = params.get('mode') === 'sessions' ? 'sessions' : 'attempts'
+  const canViewCorrections = Boolean(user && !diverId)
+  const requestedMode = params.get('mode')
+  const mode: Mode = requestedMode === 'sessions' ? 'sessions' : requestedMode === 'corrections' && canViewCorrections ? 'corrections' : 'attempts'
   const focusId = Number(params.get('attempt')) || null
   const selId = Number(params.get('sel')) || null
   const clipId = Number(params.get('clip')) || null
@@ -259,6 +262,39 @@ export default function CodeAnalysis() {
     return onClick ? <button type="button" className="ca-bar" aria-pressed={pressed} onClick={onClick}>{content}</button> : <div className="ca-bar">{content}</div>
   }
 
+  const calendarMonth = /^\d{4}-(0[1-9]|1[0-2])$/.test(month) ? new Date(`${month}-01T00:00:00Z`) : null
+  const days = PERIODS.find(([key]) => key === period)?.[1] ?? Infinity
+  const from = Math.max(calendarMonth?.getTime() ?? -Infinity, now - days * DAY_MS)
+  const until = calendarMonth ? Date.UTC(calendarMonth.getUTCFullYear(), calendarMonth.getUTCMonth() + 1, 1) : undefined
+  const scoreModes: Array<readonly [Mode, string]> = [['attempts', t('codeAnalysis.modeAttempts')], ['sessions', t('codeAnalysis.modeSessions')]]
+  if (canViewCorrections) scoreModes.push(['corrections', t('codeAnalysis.modeCorrections')])
+  const scorePanel: ScorePanel | undefined = analytics ? {
+    header: <div className="ca-panel-h ca-scores-header"><h2>{t('codeAnalysis.scores')}</h2>
+      <Segmented label={t('codeAnalysis.chartModeAria')} value={mode} onChange={value => { setExtreme(null); update({ mode: value === 'attempts' ? null : value, sel: null }) }}
+        options={scoreModes} /></div>,
+    corrections: mode === 'corrections' ? { attempts: all, from: Number.isFinite(from) ? from : undefined, until } : undefined,
+    content: <>
+      <ScoreChart points={points} smoothing={smoothing} selected={selectedIndex} label={t('codeAnalysis.chartLabel', { count: points.length, code })}
+        onSelect={(index, mark) => {
+          setExtreme(mark ?? null)
+          const id = mode === 'sessions' ? scoredGroups[index]?.[0]?.id : scored[index]?.id
+          if (id) update({ sel: String(id) })
+        }} />
+      <div className="ca-legend"><span><i />{t('codeAnalysis.legendMedian')}</span><span><i className="ca-legend-band" />{t('codeAnalysis.legendRange')}</span><span className="ca-t-P">▲ {t('codeAnalysis.peak')}</span><span className="ca-t-B">▼ {t('codeAnalysis.valley')}</span></div>
+      {preview && <div className="ca-preview" key={`${preview.attempt.id}-${extreme?.index ?? ''}`}>
+        <span className="ca-thumb"><DiveThumbnail dive={preview.attempt} compact /></span>
+        <div style={{ minWidth: 0 }}>
+          <div><span className={`ca-preview-score ca-t-${preview.attempt.performance}`}>{fmtScore(attemptScore(preview.attempt))}</span> <span className="ca-flat">{preview.attempt.performance}{preview.attempt.phase1_performance && preview.attempt.phase2_performance ? ` · ${preview.attempt.phase1_performance}/${preview.attempt.phase2_performance}` : ''}</span></div>
+          <div className="ca-preview-sub">{date(preview.attempt.dive_datetime, 'd MMM · HH:mm')} · {preview.attempt.height} · {rankText(rank(preview.attempt, items), items.length)}</div>
+          {preview.pool && extreme && <div className={`ca-preview-why ${extreme.kind === 'peak' ? 'ca-t-P' : 'ca-t-B'}`}>
+            {t(extreme.kind === 'peak' ? 'codeAnalysis.peakExplain' : 'codeAnalysis.valleyExplain', { median: fmtScore(extreme.value), count: preview.pool.length, from: date(preview.pool[0].dive_datetime, 'd MMM'), to: date(preview.pool[preview.pool.length - 1].dive_datetime, 'd MMM') })}
+          </div>}
+        </div>
+        <button type="button" className="ca-btn" onClick={() => openClip(preview.attempt.id)}><Play className="h-4 w-4" aria-hidden="true" />{t('codeAnalysis.watch')}</button>
+      </div>}
+    </>,
+  } : undefined
+
   return <>
   <div className="ca ca-page ca-arrive">
     <div className="ca-span">
@@ -283,9 +319,10 @@ export default function CodeAnalysis() {
 
     {!analytics && <div className="ca-span ca-note">{t('codeAnalysis.straightJump')}</div>}
     {!items.length && attemptsCapped && <div className="ca-span ca-note">{attemptsTotal === null ? t('codeAnalysis.cappedPlain') : t('codeAnalysis.cappedAria', { total: attemptsTotal })}</div>}
-    {!items.length ? <div className="ca-span ca-note">{t('codeAnalysis.emptyPeriod', { code })} <button type="button" className="ca-btn" onClick={() => update({ period: null, h: null, month: null })}>{t('codeAnalysis.showAll')}</button></div> : <>
+    {!items.length && mode !== 'corrections' && <div className="ca-span ca-note">{t('codeAnalysis.emptyPeriod', { code })} <button type="button" className="ca-btn" onClick={() => update({ period: null, h: null, month: null })}>{t('codeAnalysis.showAll')}</button></div>}
+    {(items.length > 0 || canViewCorrections && scorePanel) && <>
       <div className="ca-main">
-        {analytics && <div>
+        {items.length > 0 && analytics && <div>
           <dl className="ca-kpis" style={{ margin: 0 }} aria-label={t('codeAnalysis.summary')}>
             <div className="ca-kpi"><dt>{t('codeAnalysis.average')}</dt><dd><CountUp value={mean(scores)} /></dd></div>
             <div className="ca-kpi"><dt>{t('codeAnalysis.median')}</dt><dd><CountUp value={med} /></dd></div>
@@ -298,7 +335,7 @@ export default function CodeAnalysis() {
             : t('codeAnalysis.sample', { attempts: items.length, sessions: sessions.length, from: date(items[0].dive_datetime), to: date(latest!.dive_datetime) })}</p>
         </div>}
 
-        {focus && analytics && (() => {
+        {items.length > 0 && focus && analytics && (() => {
           const before = all.filter(item => ts(item) < ts(focus)), previous = before[before.length - 1]
           const delta = attemptScore(focus) - (median(all.filter(item => item.performance).map(attemptScore)) as number)
           const beaten = [...before].reverse().find(item => attemptScore(item) >= attemptScore(focus))
@@ -318,32 +355,9 @@ export default function CodeAnalysis() {
           </button>
         })()}
 
-        {analytics && <section className="ca-panel">
-          <div className="ca-panel-h"><h2>{t('codeAnalysis.scores')}</h2>
-            <Segmented label={t('codeAnalysis.chartModeAria')} value={mode} onChange={value => { setExtreme(null); update({ mode: value === 'attempts' ? null : value, sel: null }) }}
-              options={[['attempts', t('codeAnalysis.modeAttempts')], ['sessions', t('codeAnalysis.modeSessions')]] as const} /></div>
-          <ScoreChart points={points} smoothing={smoothing} selected={selectedIndex} label={t('codeAnalysis.chartLabel', { count: points.length, code })}
-            onSelect={(index, mark) => {
-              setExtreme(mark ?? null)
-              const id = mode === 'sessions' ? scoredGroups[index]?.[0]?.id : scored[index]?.id
-              if (id) update({ sel: String(id) })
-            }} />
-          <div className="ca-legend"><span><i />{t('codeAnalysis.legendMedian')}</span><span><i className="ca-legend-band" />{t('codeAnalysis.legendRange')}</span><span className="ca-t-P">▲ {t('codeAnalysis.peak')}</span><span className="ca-t-B">▼ {t('codeAnalysis.valley')}</span></div>
-          {preview && <div className="ca-preview" key={`${preview.attempt.id}-${extreme?.index ?? ''}`}>
-            <span className="ca-thumb"><DiveThumbnail dive={preview.attempt} compact /></span>
-            <div style={{ minWidth: 0 }}>
-              <div><span className={`ca-preview-score ca-t-${preview.attempt.performance}`}>{fmtScore(attemptScore(preview.attempt))}</span> <span className="ca-flat">{preview.attempt.performance}{preview.attempt.phase1_performance && preview.attempt.phase2_performance ? ` · ${preview.attempt.phase1_performance}/${preview.attempt.phase2_performance}` : ''}</span></div>
-              <div className="ca-preview-sub">{date(preview.attempt.dive_datetime, 'd MMM · HH:mm')} · {preview.attempt.height} · {rankText(rank(preview.attempt, items), items.length)}</div>
-              {preview.pool && extreme && <div className={`ca-preview-why ${extreme.kind === 'peak' ? 'ca-t-P' : 'ca-t-B'}`}>
-                {t(extreme.kind === 'peak' ? 'codeAnalysis.peakExplain' : 'codeAnalysis.valleyExplain', { median: fmtScore(extreme.value), count: preview.pool.length, from: date(preview.pool[0].dive_datetime, 'd MMM'), to: date(preview.pool[preview.pool.length - 1].dive_datetime, 'd MMM') })}
-              </div>}
-            </div>
-            <button type="button" className="ca-btn" onClick={() => openClip(preview.attempt.id)}><Play className="h-4 w-4" aria-hidden="true" />{t('codeAnalysis.watch')}</button>
-          </div>}
-        </section>}
-
-        {user && <TechniqueWorkspace key={`${user.user_id}-${code}`} code={code} viewer={user.user_id} height={height} />}
-        <div className="ca-two">
+        {user ? <TechniqueWorkspace key={`${user.user_id}-${code}`} code={code} viewer={user.user_id} height={height} scores={scorePanel} />
+          : scorePanel && <section className="ca-panel">{scorePanel.header}{scorePanel.content}</section>}
+        {items.length > 0 && <><div className="ca-two">
           {analytics && (heightRows.length > 0 || phaseRows.length > 0) && <section className="ca-panel">
             <div className="ca-panel-h"><h2>{t('codeAnalysis.context')}</h2><span>{t('codeAnalysis.median')}</span></div>
             <div className="ca-bars">
@@ -365,10 +379,10 @@ export default function CodeAnalysis() {
           </section>
         </div>
         {desktop && communityPanel}
-        {analytics && !diverId && <Link to={`/dives/analysis/${encodeURIComponent(code)}/details`} state={location.state} className="ca-flat" style={{ fontSize: 13 }}>{t('codeAnalysis.details')}</Link>}
+        {analytics && !diverId && <Link to={`/dives/analysis/${encodeURIComponent(code)}/details`} state={location.state} className="ca-flat" style={{ fontSize: 13 }}>{t('codeAnalysis.details')}</Link>}</>}
       </div>
 
-      <div className="ca-aside">
+      {items.length > 0 && <div className="ca-aside">
         <section className="ca-panel">
           <div className="ca-panel-h"><h2>{t('codeAnalysis.representatives')}</h2></div>
           <div className="ca-reps">{reps.map(([role, attempt]) => <button key={role} type="button" className="ca-rep" onClick={() => openClip(attempt.id)}>
@@ -385,7 +399,7 @@ export default function CodeAnalysis() {
             <span className="ca-rel-foot"><span>{t('codeAnalysis.median')} <b>{fmtScore(summary.median)}</b><small>{t('codeAnalysis.attemptsShort', { count: summary.attempt_count })}</small></span><Sparkline values={summary.spark} width={56} height={22} /></span>
           </Link>)}</div>
         </section>}
-      </div>
+      </div>}
     </>}
 
   </div>

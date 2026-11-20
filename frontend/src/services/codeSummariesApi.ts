@@ -149,7 +149,7 @@ export function getCodeAttemptsResult(code: string, scope: string, viewer: strin
         // filters server-side BEFORE the paging window: same-prefix sibling
         // codes (code_prefix) can never crowd this code's attempts out of
         // the bounded window — permission scoping stays unchanged.
-        params: { limit: 100, diver_scope: scope, dive_code: exact, ...(diverId ? { diver_id: diverId } : {}), ...(cursor ? { cursor } : {}) },
+        params: { limit: 100, diver_scope: scope, dive_code: exact, history_dates: true, ...(diverId ? { diver_id: diverId } : {}), ...(cursor ? { cursor } : {}) },
         signal,
       })
       // The Library response is newest first, so a bounded walk keeps the

@@ -9,16 +9,19 @@ export type ChartPoint = { key: number | string; highlight?: boolean; segment?: 
  * the rolling median and usual range are drawn behind, and the clearest
  * peaks/valleys of the median are labelled and tappable.
  */
-export default function ScoreChart({ points, smoothing, selected, onSelect, label, boundary, markers, timeScale = false, selectionMode = 'scrub', showCursor = true }: {
+export default function ScoreChart({ points, smoothing, selected, onSelect, label, boundary, markers, timeDomain, renderTimeline, timeScale = false, selectionMode = 'scrub', showCursor = true, outsideOpacity = .25 }: {
   showCursor?: boolean
   timeScale?: boolean
+  timeDomain?: { start: number; end: number }
+  renderTimeline?: (dateX: (date: number) => number, width: number) => React.ReactNode
+  outsideOpacity?: number
   selectionMode?: 'tap' | 'scrub'
   markers?: { at: number; until?: number }[]
   boundary?: { start: number; end?: number; uncertainUntil?: number }
   points: ChartPoint[]
   smoothing: number
   selected: number | null
-  onSelect: (index: number, extreme?: Extreme) => void
+  onSelect?: (index: number, extreme?: Extreme) => void
   label: string
 }) {
   const { t, i18n } = useTranslation()
@@ -35,16 +38,19 @@ export default function ScoreChart({ points, smoothing, selected, onSelect, labe
     return () => observer?.disconnect()
   }, [])
 
-  const W = Math.max(280, width), H = W < 500 ? 200 : 240, L = 24, R = 10, T = 20, B = 22
+  const W = Math.max(280, width), H = W < 500 ? 200 : 240, L = 24, R = renderTimeline ? 24 : 10, T = 20, B = 22
   const n = points.length
   const hatchId = useId().replace(/:/g, '')
   const timed = timeScale || Boolean(boundary)
   const times = points.map(p => p.occurredAt).filter((value): value is number => value != null && Number.isFinite(value))
-  const distinctTimes = new Set(times)
-  const singleTime = distinctTimes.size === 1
-  const timeStart = times.length ? Math.min(...times) - (singleTime ? 43200000 : 0) : 0
-  const timeEnd = Math.max(timeStart + 1, ...times) + (singleTime ? 43200000 : 0)
+  const firstTime = timeDomain?.start ?? (times.length ? Math.min(...times) : 0)
+  const lastTime = timeDomain?.end ?? (times.length ? Math.max(...times) : 0)
+  const singleTime = firstTime === lastTime
+  const timeStart = firstTime - (singleTime ? DAY / 2 : 0)
+  const timeEnd = lastTime + (singleTime ? DAY / 2 : 0)
   const timeX = (time: number) => L + Math.max(0, Math.min(1, (time - timeStart) / (timeEnd - timeStart))) * (W - L - R)
+  const onAxis = (time: number) => time >= timeStart && time <= timeEnd
+  const showBand = boundary && boundary.start <= timeEnd && (boundary.end ?? timeEnd) >= timeStart
   const x = (index: number) => timed ? timeX(points[index]?.occurredAt ?? timeStart) : n === 1 ? (L + W - R) / 2 : L + index * (W - L - R) / (n - 1)
   const y = (value: number) => T + (10 - value) * (H - T - B) / 10
   const values = useMemo(() => points.map(point => point.value), [points])
@@ -78,14 +84,15 @@ export default function ScoreChart({ points, smoothing, selected, onSelect, labe
   const monthTicks = useMemo(() => {
     const ticks: Array<{ index: number; text: string }> = []
     let last = '', lastX = -99
-    points.forEach((point, index) => {
+    if (!timed) points.forEach((point, index) => {
       if (point.month === last) return
       last = point.month
       if (x(index) - lastX > 46) { ticks.push({ index, text: point.monthLabel }); lastX = x(index) }
     })
     return ticks
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [points, W])
+  }, [points, W, timed])
+  const dateTicks = timed ? calendarTicks(timeStart, timeEnd, W - L - R, i18n.language) : []
 
   const indexAt = (clientX: number, clientY?: number) => {
     const rect = host.current!.getBoundingClientRect()
@@ -97,7 +104,7 @@ export default function ScoreChart({ points, smoothing, selected, onSelect, labe
   }
   const drag = useRef<{ x: number; y: number; horizontal: boolean | null; moved: boolean } | null>(null)
   const onPointerDown = (event: React.PointerEvent) => {
-    if (!n || (event.target as Element).closest('.ca-mark')) return
+    if (!onSelect || !n || (event.target as Element).closest('.ca-mark')) return
     drag.current = { x: event.clientX, y: event.clientY, horizontal: event.pointerType === 'mouse' ? true : null, moved: false }
     if (selectionMode === 'scrub' && event.pointerType === 'mouse') onSelect(indexAt(event.clientX,event.clientY))
   }
@@ -109,16 +116,16 @@ export default function ScoreChart({ points, smoothing, selected, onSelect, labe
       const dx = Math.abs(event.clientX - state.x), dy = Math.abs(event.clientY - state.y)
       if (dx + dy > 6) state.horizontal = dx > dy
     }
-    if (state.horizontal && selectionMode === 'scrub') onSelect(indexAt(event.clientX,event.clientY))
+    if (state.horizontal && selectionMode === 'scrub') onSelect?.(indexAt(event.clientX,event.clientY))
   }
   const cancelDrag = () => { drag.current = null }
   const endDrag = (event: React.PointerEvent) => {
     const state = drag.current
     drag.current = null
-    if (state && !state.moved && n && (selectionMode === 'tap' || state.horizontal === null)) onSelect(indexAt(event.clientX,event.clientY))
+    if (state && !state.moved && n && (selectionMode === 'tap' || state.horizontal === null)) onSelect?.(indexAt(event.clientX,event.clientY))
   }
   const onKeyDown = (event: React.KeyboardEvent) => {
-    if (!n) return
+    if (!onSelect || !n) return
     if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
     event.preventDefault()
     onSelect(Math.max(0, Math.min(n - 1, (selected ?? n - 1) + (event.key === 'ArrowLeft' ? -1 : 1))))
@@ -128,34 +135,42 @@ export default function ScoreChart({ points, smoothing, selected, onSelect, labe
   const medianPath = groups.filter(group => group.length > 1 && group.every(i => smooth[i] != null)).map(group => `M${group.map(i => `${x(i).toFixed(1)},${y(smooth[i]!).toFixed(1)}`).join('L')}`).join(' ')
   const current = selected != null ? points[selected] : null
 
-  return <div ref={host} className="ca-chart" tabIndex={0} role="group" aria-label={`${label}. ${t('codeAnalysis.chartKeys')}`}
+  return <><div ref={host} className="ca-chart" tabIndex={onSelect ? 0 : undefined} role={onSelect ? 'group' : 'img'} aria-label={onSelect ? `${label}. ${t('codeAnalysis.chartKeys')}` : label}
     onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={endDrag} onPointerCancel={cancelDrag} onPointerLeave={cancelDrag} onKeyDown={onKeyDown}>
     {width > 0 && <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} aria-hidden="true">
       {!timed && groups.filter(group => group.some(i => points[i].highlight)).map(group => <rect key={`selected-${group[0]}`} x={x(group[0]) - 4} y={T} width={Math.max(8, x(group[group.length - 1]) - x(group[0]) + 8)} height={H - B - T} fill="currentColor" fillOpacity=".08" pointerEvents="none" />)}
-      {timed && <rect className="ca-selection-band" x={boundary ? timeX(boundary.start) : L} y={T} width={boundary ? Math.max(4, timeX(boundary.end ?? timeEnd) - timeX(boundary.start)) : 0} height={H-B-T} fill="currentColor" fillOpacity=".08" opacity={boundary ? 1 : 0} pointerEvents="none" />}
+      {timed && showBand && <rect className="ca-selection-band" x={timeX(boundary.start)} y={T} width={Math.max(0, timeX(boundary.end ?? timeEnd) - timeX(boundary.start))} height={H-B-T} fill="currentColor" fillOpacity=".08" pointerEvents="none" />}
       {timed && <g pointerEvents="none"><defs><pattern id={hatchId} width="6" height="6" patternUnits="userSpaceOnUse"><path d="M0 6L6 0" stroke="currentColor" strokeOpacity=".3" /></pattern></defs>
         {boundary?.uncertainUntil && <rect x={timeX(boundary.start)} y={T} width={Math.max(0, timeX(boundary.uncertainUntil) - timeX(boundary.start))} height={H - B - T} fill={`url(#${hatchId})`} />}
         {markers?.filter(marker => marker.at <= timeEnd && (marker.at >= timeStart || (marker.until ?? marker.at) >= timeStart)).map((marker, i) => <g key={i}><line x1={timeX(marker.at)} x2={timeX(marker.at)} y1={T} y2={H - B} stroke="currentColor" strokeOpacity=".4" strokeDasharray="2 3" />{marker.until && <rect x={timeX(marker.at)} y={T} width={Math.max(0, timeX(marker.until) - timeX(marker.at))} height={H - B - T} fill={`url(#${hatchId})`} />}</g>)}
-        {boundary && <line className="ca-selection-edge" x1={timeX(boundary.start)} x2={timeX(boundary.start)} y1={T} y2={H - B} stroke="currentColor" strokeDasharray="2 3"><title>{new Date(boundary.start).toISOString()}</title></line>}
-        {boundary?.end && <line className="ca-selection-edge" x1={timeX(boundary.end)} x2={timeX(boundary.end)} y1={T} y2={H - B} stroke="currentColor" strokeDasharray="2 3" />}
+        {boundary && onAxis(boundary.start) && <line className="ca-selection-edge ca-selection-start" x1={timeX(boundary.start)} x2={timeX(boundary.start)} y1={T} y2={H - B} stroke="currentColor" strokeDasharray="2 3"><title>{new Date(boundary.start).toISOString()}</title></line>}
+        {boundary?.end != null && onAxis(boundary.end) && <line className="ca-selection-edge" x1={timeX(boundary.end)} x2={timeX(boundary.end)} y1={T} y2={H - B} stroke="currentColor" strokeDasharray="2 3" />}
       </g>}
       {[0, 2.5, 5, 7.5, 10].map(value => <g key={value}>
         <line className="ca-grid" x1={L} x2={W - R} y1={y(value)} y2={y(value)} />
         <text className="ca-axis" x={L - 6} y={y(value) + 3} textAnchor="end">{value.toLocaleString(i18n.language)}</text>
       </g>)}
       {monthTicks.map(tick => <text key={tick.index} className="ca-axis" x={x(tick.index)} y={H - 6}>{tick.text}</text>)}
+      {dateTicks.map(tick => {
+        const px = timeX(tick.at)
+        return <g key={tick.at}>
+          <line className="ca-grid" x1={px} x2={px} y1={T} y2={H - B + 4} opacity=".55" />
+          <text className="ca-axis" x={Math.min(W - 2, Math.max(2, px))} y={H - 6}
+            textAnchor={px < 32 ? 'start' : px > W - 32 ? 'end' : 'middle'}>{tick.text}</text>
+        </g>
+      })}
       {bandPath && <path className="ca-band" d={bandPath} />}
       {points.map((point, index) => point.lo != null && point.hi != null &&
         <line key={`r${point.key}`} x1={x(index)} x2={x(index)} y1={y(point.lo)} y2={y(point.hi)} stroke={`var(--ca-${point.band})`} strokeOpacity=".45" strokeLinecap="round"
           strokeWidth={Math.max(2, Math.min(8, (W - L - R) / n * 0.5))} />)}
-      {points.map((point, index) => <circle key={point.key} cx={x(index)} cy={y(point.value)} r={radius} fill={`var(--ca-${point.band})`} className="ca-score-point" fillOpacity={boundary && !point.highlight ? .25 : .9} />)}
+      {points.map((point, index) => <circle key={point.key} cx={x(index)} cy={y(point.value)} r={radius} fill={`var(--ca-${point.band})`} className="ca-score-point" fillOpacity={boundary && !point.highlight ? outsideOpacity : .9} />)}
       {medianPath && <path ref={line} className="ca-medline" d={medianPath} />}
-      {(selectionMode === 'tap' ? [] : marks).map(mark => {
+      {(selectionMode === 'tap' || !onSelect ? [] : marks).map(mark => {
         const up = mark.kind === 'peak', colour = up ? 'var(--ca-P)' : 'var(--ca-B)'
         const text = `${up ? '▲' : '▼'} ${fmtScore(mark.value)}`
         return <g key={`${mark.kind}${mark.index}`} className="ca-mark" role="button" tabIndex={0} aria-label={`${up ? t('codeAnalysis.peak') : t('codeAnalysis.valley')} ${fmtScore(mark.value)}`}
-          onClick={event => { event.stopPropagation(); onSelect(mark.index, mark) }}
-          onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); onSelect(mark.index, mark) } }}>
+          onClick={event => { event.stopPropagation(); onSelect?.(mark.index, mark) }}
+          onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); onSelect?.(mark.index, mark) } }}>
           <circle cx={x(mark.index)} cy={y(mark.value)} r="14" fill="transparent" />
           <circle cx={x(mark.index)} cy={y(mark.value)} r="5" fill="var(--app-bg)" stroke={colour} strokeWidth="2.5" />
           <text x={x(mark.index)} y={up ? y(mark.value) - 11 : y(mark.value) + 19} textAnchor="middle" fill={colour}>{text}</text>
@@ -166,7 +181,44 @@ export default function ScoreChart({ points, smoothing, selected, onSelect, labe
         <circle cx={x(selected)} cy={y(current.value)} r={radius + 4} fill="none" stroke="#fff" strokeWidth="2" />
       </g>}
     </svg>}
-  </div>
+  </div>{width > 0 && renderTimeline?.(date => timeX(date) * width / W, width)}</>
+}
+
+const HOUR = 60 * 60 * 1000
+const DAY = 24 * HOUR
+
+function calendarTicks(start: number, end: number, width: number, language: string) {
+  const target = Math.max(2, Math.floor(width / 82))
+  const span = end - start
+  const ticks: number[] = []
+  let format: Intl.DateTimeFormatOptions
+
+  if (span >= 60 * DAY) {
+    const first = new Date(start), last = new Date(end)
+    const firstMonth = first.getUTCFullYear() * 12 + first.getUTCMonth()
+    const lastMonth = last.getUTCFullYear() * 12 + last.getUTCMonth()
+    const desired = Math.max(1, (lastMonth - firstMonth) / target)
+    const step = [1, 2, 3, 6, 9, 12].find(value => value >= desired) ?? Math.ceil(desired / 12) * 12
+    for (let month = Math.ceil(firstMonth / step) * step; month <= lastMonth; month += step) {
+      const at = Date.UTC(Math.floor(month / 12), month % 12, 1)
+      if (at >= start && at <= end) ticks.push(at)
+    }
+    format = step >= 12 ? { year: 'numeric' } : {
+      month: 'short', year: first.getUTCFullYear() !== last.getUTCFullYear() ? '2-digit' : undefined,
+    }
+  } else {
+    const minute = HOUR / 60
+    const desired = span / target
+    const daily = span >= 2 * DAY
+    const steps = daily ? [1, 2, 3, 5, 7, 14, 28].map(value => value * DAY) :
+      [1, 5, 15, 30, 60, 300, 900, 1800, 3600, 10800, 21600, 43200, 86400].map(value => value * 1000)
+    const step = steps.find(value => value >= desired) ?? steps[steps.length - 1]
+    for (let at = Math.ceil(start / step) * step; at <= end; at += step) ticks.push(at)
+    format = daily ? { day: 'numeric', month: 'short' } :
+      { hour: '2-digit', minute: '2-digit', second: step < minute ? '2-digit' : undefined, hourCycle: 'h23' }
+  }
+  const formatter = new Intl.DateTimeFormat(language, { ...format, timeZone: 'UTC' })
+  return (ticks.length ? ticks : [start]).map(at => ({ at, text: formatter.format(at) }))
 }
 
 function prefersReducedMotion() {

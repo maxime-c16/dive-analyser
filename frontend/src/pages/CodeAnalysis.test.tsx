@@ -9,9 +9,19 @@ import { getCodeAttemptsResult, getCodeSummaries } from '../services/codeSummari
 
 const auth = vi.hoisted(() => ({ user: null as any }))
 vi.mock('../contexts/AuthContext', () => ({ useAuth: () => auth }))
-vi.mock('../components/code-analysis/TechniqueWorkspace', () => ({
-  default: ({ onSelected }: { onSelected?: (active: boolean) => void }) => <button onClick={() => onSelected?.(true)}>Record test technique</button>,
-}))
+vi.mock('../components/code-analysis/TechniqueWorkspace', async () => {
+  const { default: CorrectionScores } = await import('../components/code-analysis/CorrectionScores')
+  const fixture = {
+    id: 1, label: 'Keep the head neutral', start_at: '2026-01-01T00:00:00', start_id: 0,
+    end_at: '2026-02-01T00:00:00', end_id: 0, uncertain_until: null,
+  }
+  return {
+    default: ({ scores }: { scores?: import('../components/code-analysis/CorrectionScores').ScorePanel }) => <>
+      {scores?.header}{scores?.corrections ? <CorrectionScores {...scores.corrections} corrections={[fixture]} /> : scores?.content}
+      <button>Record test technique</button>
+    </>,
+  }
+})
 
 vi.mock('../services/codeSummariesApi', () => ({
   getCodeAttempts: vi.fn(), getCodeSummaries: vi.fn(),
@@ -43,6 +53,29 @@ beforeEach(() => {
   auth.user = null
   vi.mocked(getCodeAttemptsResult).mockResolvedValue({ items: attempts as never, capped: false })
   vi.mocked(getCodeSummaries).mockResolvedValue({ generated_at: day(0), codes: [], activity: {} } as never)
+})
+
+it('offers Corrections as the third Scores mode and restores the dives view', async () => {
+  auth.user = { user_id: 1, is_admin: true }
+  renderPage('/dives/analysis/5122D')
+  await userEvent.click(await screen.findByRole('button', { name: 'Corrections' }))
+  expect(screen.getByText('Keep the head neutral')).toBeInTheDocument()
+  expect(screen.getByTestId('location')).toHaveTextContent('mode=corrections')
+  await userEvent.click(screen.getByRole('button', { name: 'Attempts' }))
+  expect(screen.getByRole('button', { name: 'Attempts' })).toHaveAttribute('aria-pressed', 'true')
+})
+
+it('keeps Corrections accessible when a month contains only immutable history dates', async () => {
+  auth.user = { user_id: 1, is_admin: true }
+  vi.mocked(getCodeAttemptsResult).mockResolvedValue({
+    items: [{ ...attempts[0], dive_datetime: '2026-04-10T00:00:00', history_occurred_at: '2026-01-10T00:00:00' }],
+    capped: false,
+  })
+  renderPage('/dives/analysis/5122D?month=2026-01')
+  expect(await screen.findByRole('button', { name: 'Show all' })).toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: 'Corrections' }))
+  expect(screen.getByText('1 rated dive on the chart · score 4.5')).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Show all' })).not.toBeInTheDocument()
 })
 
 it('summarises every attempt of the code and highlights the dive it came from', async () => {
@@ -147,8 +180,10 @@ it('keeps an ungraded dive in counts but out of every score view', async () => {
   expect(await screen.findByRole('heading', { name: '5122D' })).toBeInTheDocument()
   // Counts still cover every attempt; scores only the twelve graded ones.
   expect(screen.getByText(/13 attempts · 7 sessions/)).toBeInTheDocument()
-  expect(screen.getByText('5.2')).toBeInTheDocument()
-  expect(screen.getByText('42%')).toBeInTheDocument()
+  await waitFor(() => {
+    expect(screen.getByText('5.2')).toBeInTheDocument()
+    expect(screen.getByText('42%')).toBeInTheDocument()
+  }, { timeout: 3000 })
   // The newest dive is ungraded, so the Latest representative falls back to
   // the newest graded dive (id 12, an M) instead of showing a 0.0 score.
   const latestRep = screen.getByRole('button', { name: /Latest/ })

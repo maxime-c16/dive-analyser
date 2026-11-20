@@ -1,0 +1,8 @@
+{
+  "id": "technique-history-default-videos",
+  "date": "2026-11-20",
+  "title": "Find your videos when recording a technique change",
+  "body": "Technique history opens the group with the most dives by default. The selector shows how many dives are in each group, and the session picker shows the selected dive code and height.",
+  "audience": "all",
+  "components": ["frontend"]
+}

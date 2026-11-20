@@ -190,6 +190,8 @@ it('starts with sessions, logs without clip-by-clip tagging and resumes its draf
  sessionsApi()
  const view=render(<TechniqueSetup {...props} startInSessions viewer="resume-test" />)
  await screen.findByText('Pool',{exact:false})
+ expect(screen.getByRole('dialog', { name: `Fill in my history · ${context.code} · ${context.height}` })).toBeInTheDocument()
+ expect(post).toHaveBeenCalledWith(`${props.base}/browse-sessions`, expect.objectContaining(context), expect.anything())
  expect(post.mock.calls.some(([url])=>url.endsWith('/attempts'))).toBe(false)
  fireEvent.click(screen.getByRole('button',{name:/1 Jul 2026/}))
  fireEvent.click(screen.getByRole('button',{name:'From the first dive of this session'}))

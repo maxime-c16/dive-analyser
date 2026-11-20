@@ -19,6 +19,7 @@ export type Attempt = {
   performance_numeric: number;
   height: string;
   dive_datetime: string;
+  history_occurred_at?: string | null;
   session_id: number;
   is_lineup: boolean;
   is_sync: boolean;
