@@ -34,9 +34,14 @@ it('defaults to the most recorded 201C group and respects manual and page height
     { ...context, apparatus: 'springboard', height: '1m', eligible: 276 },
     { ...context, apparatus: 'springboard', height: '3m', eligible: 113 },
   ]
-  api.defaults.adapter = async config => ({
-    data: { items, next: null }, status: 200, statusText: 'OK', headers: {}, config,
-  })
+  const load = vi.fn(async config => ({
+    data: {
+      items: config.params.after ? items.slice(0, 1) : items.filter(item => !config.params.height || item.height === config.params.height),
+      next: config.params.after || config.params.height ? null : 'next-page',
+    },
+    status: 200, statusText: 'OK', headers: {}, config,
+  }))
+  api.defaults.adapter = load
 
   const { rerender } = render(<TechniqueWorkspace viewer={1} code="201C" height={null} />)
   expect(await screen.findByText('Technique history for diver 1 at 1m')).toBeInTheDocument()
@@ -45,6 +50,11 @@ it('defaults to the most recorded 201C group and respects manual and page height
   fireEvent.change(picker, { target: { value: platform.value } })
   expect(screen.getByText('Technique history for diver 1 at 5m')).toBeInTheDocument()
 
+  fireEvent.click(screen.getByRole('button', { name: 'More dive contexts' }))
+  expect(await screen.findByText('Technique history for diver 1 at 5m')).toBeInTheDocument()
+  expect(load).toHaveBeenLastCalledWith(expect.objectContaining({ params: expect.objectContaining({ after: 'next-page' }) }))
+
   rerender(<TechniqueWorkspace viewer={1} code="201C" height="3m" />)
-  expect(screen.getByText('Technique history for diver 1 at 3m')).toBeInTheDocument()
+  expect(await screen.findByText('Technique history for diver 1 at 3m')).toBeInTheDocument()
+  expect(load).toHaveBeenLastCalledWith(expect.objectContaining({ params: { code: '201C', order: 'volume', height: '3m', after: '' } }))
 })

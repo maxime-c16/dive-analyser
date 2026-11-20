@@ -392,6 +392,34 @@ def test_context_inventory_is_complete_and_owner_scoped(pg,monkeypatch):
         assert len(result['items'])==2 and {r['height'] for r in result['items']}=={'1','3'}
         assert all(r['diver_id']==1 for r in result['items'])
 
+def test_context_inventory_ranks_before_paging_and_filters_height_in_sql(pg, monkeypatch):
+    from types import SimpleNamespace
+    from sqlalchemy.orm import Session
+    from app.api.v1 import technique_history as api
+    from app.models.user_auth import UserDiverAccess
+
+    monkeypatch.setattr(api, 'optional_session_user', lambda *a: SimpleNamespace(id=1))
+    UserDiverAccess.__table__.create(pg)
+    with Session(pg) as db:
+        db.execute(text("""INSERT INTO app_users VALUES(1);
+        INSERT INTO dives(session_id,diver_id,dive_code,platform_type,height,position,is_sync,performance,dive_datetime)
+        SELECT 1,1,'103','platform',lpad(n::text,2,'0'),'B',false,'G','2026-01-02' FROM generate_series(1,51) n;
+        INSERT INTO dives(session_id,diver_id,dive_code,platform_type,height,position,is_sync,performance,dive_datetime)
+        SELECT 1,1,'103','springboard','9m','B',false,'G','2026-01-02' FROM generate_series(1,8)"""))
+        db.add(UserDiverAccess(user_id=1, diver_id=1, access_kind='OWNER'))
+        db.commit()
+
+        legacy = api.context_inventory(None, '103', '', db)
+        assert all(item['height'] != '9m' for item in legacy['items'])
+        first = api.context_inventory(None, '103', '', db, order='volume')
+        assert len(first['items']) == 50
+        assert (first['items'][0]['height'], first['items'][0]['eligible']) == ('9m', 8)
+        second = api.context_inventory(None, '103', first['next'], db, order='volume')
+        heights = [item['height'] for item in first['items'] + second['items']]
+        assert len(heights) == len(set(heights)) == 53 and second['next'] is None
+        filtered = api.context_inventory(None, '103', '', db, height='9m', order='volume')
+        assert filtered['items'] == first['items'][:1] and filtered['next'] is None
+
 
 def test_browse_window_can_seek_an_anchor_and_page_both_directions(pg, monkeypatch):
     from sqlalchemy.orm import Session

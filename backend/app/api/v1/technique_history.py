@@ -1,6 +1,6 @@
 """Owner-only, revision fenced technique history. All handlers run in threadpool."""
 from datetime import datetime
-from typing import Literal
+from typing import Annotated, Literal
 from fastapi import APIRouter, Depends, HTTPException, Request, Query
 from pydantic import BaseModel, Field
 from sqlalchemy import select, text, func
@@ -829,7 +829,14 @@ def track_chart(diver:int,track:int,body:TrackChartInput,request:Request,db:Sess
     return {'revision':row.revision,'items':items,'boundaries':[dict(b) for b in boundaries],'next':rows[49]['point_key'] if len(rows)>50 else None,'range':date_range}
 
 @router.get('/contexts')
-def context_inventory(request:Request,code:str=Query(min_length=1,max_length=10),after:str=Query(default='',max_length=256),db:Session=Depends(get_db)):
+def context_inventory(
+    request: Request,
+    code: str = Query(min_length=1, max_length=10),
+    after: str = Query(default='', max_length=256),
+    db: Session = Depends(get_db),
+    height: Annotated[str, Query(max_length=5)] = '',
+    order: Literal['identity', 'volume'] = 'identity',
+):
     import json
     from sqlalchemy import tuple_
     from app.models.user_auth import UserDiverAccess
@@ -837,13 +844,31 @@ def context_inventory(request:Request,code:str=Query(min_length=1,max_length=10)
     if user is None:raise HTTPException(401,'Authentication required')
     columns=(Dive.diver_id,Dive.platform_type,Dive.height,func.coalesce(Dive.position,''),func.coalesce(Dive.is_sync,False))
     stmt=select(Dive.diver_id,Dive.platform_type.label('apparatus'),Dive.height,columns[3].label('position'),columns[4].label('sync'),func.max(Diver.display_name).label('diver_name'),func.count().label('eligible')).join(Diver,Diver.id==Dive.diver_id).join(UserDiverAccess,(UserDiverAccess.diver_id==Dive.diver_id)&(UserDiverAccess.user_id==user.id)&(UserDiverAccess.access_kind=='OWNER')).where(Dive.dive_code==code)
+    if height:
+        stmt = stmt.where(Dive.height == height)
+    # Group before applying the cursor so the rank and counts describe the
+    # complete owner-filtered inventory, including contexts on later pages.
+    groups = stmt.group_by(*columns).subquery()
+    identity = (groups.c.diver_id, groups.c.apparatus, groups.c.height, groups.c.position, groups.c.sync)
+    ordering = (-groups.c.eligible, *identity) if order == 'volume' else identity
+    page = select(groups)
     if after:
         try:
             key=json.loads(after)
-            if not isinstance(key,list) or len(key)!=5 or type(key[0]) is not int or any(not isinstance(v,str) for v in key[1:4]) or type(key[4]) is not bool:raise ValueError()
+            if not isinstance(key, list) or len(key) != len(ordering):
+                raise ValueError()
+            if order == 'volume' and (type(key[0]) is not int or key[0] >= 0):
+                raise ValueError()
+            context_key = key[-5:]
+            if type(context_key[0]) is not int or any(not isinstance(v, str) for v in context_key[1:4]) or type(context_key[4]) is not bool:
+                raise ValueError()
         except (ValueError,TypeError):raise HTTPException(422,'Invalid context cursor')
-        stmt=stmt.where(tuple_(*columns)>tuple(key))
-    rows=db.execute(stmt.group_by(*columns).order_by(*columns).limit(51)).mappings().all()
+        page = page.where(tuple_(*ordering) > tuple(key))
+    rows=db.execute(page.order_by(*ordering).limit(51)).mappings().all()
     items=[dict(r,code=code) for r in rows[:50]]
-    cursor=json.dumps([rows[49][key] for key in ('diver_id','apparatus','height','position','sync')]) if len(rows)>50 else None
+    cursor = None
+    if len(rows) > 50:
+        last = rows[49]
+        context_key = [last[column.key] for column in identity]
+        cursor = json.dumps([-last['eligible'], *context_key] if order == 'volume' else context_key)
     return {'items':items,'next':cursor}

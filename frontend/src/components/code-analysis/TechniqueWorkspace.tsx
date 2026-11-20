@@ -9,17 +9,28 @@ type Context = { diver_name?: string; diver_id: number; code: string; apparatus:
 const contextKey = ({ diver_id, code, apparatus, height, position, sync }: Context) =>
   JSON.stringify([diver_id, code, apparatus, height, position, sync])
 
-export default function TechniqueWorkspace({ viewer, code, height, scores }: { viewer: number; code: string; height: string | null; scores?: ScorePanel }) {
+type Props = { viewer: number; code: string; height: string | null; scores?: ScorePanel }
+
+export default function TechniqueWorkspace(props: Props) {
+  return <ContextPage key={JSON.stringify([props.viewer, props.code, props.height || ''])} {...props} />
+}
+
+function ContextPage({ viewer, code, height, scores }: Props) {
   const { t } = useTranslation()
   const [contexts, setContexts] = useState<Context[]>([]), [selected, setSelected] = useState(''), [after, setAfter] = useState(''), [next, setNext] = useState<string | null>(null)
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading')
-  useEffect(() => { setAfter(''); setSelected(''); setContexts([]) }, [viewer, code])
   useEffect(() => {
-    let current = true
-    setContexts([]); setStatus('loading')
-    api.get('/api/v1/technique-history/contexts', { params: { code, after } }).then(({ data }) => { if (current) { setContexts(Array.isArray(data.items) ? data.items : []); setNext(data.next); setStatus('ready') } }).catch(() => { if (current) setStatus('error') })
-    return () => { current = false }
-  }, [viewer, code, after])
+    const controller = new AbortController()
+    setContexts([]); setStatus('loading'); setNext(null)
+    api.get('/api/v1/technique-history/contexts', {
+      params: { code, after, height: height || undefined, order: 'volume' },
+      signal: controller.signal,
+    }).then(({ data }) => {
+      if (controller.signal.aborted) return
+      setContexts(Array.isArray(data.items) ? data.items : []); setNext(data.next); setStatus('ready')
+    }).catch(() => { if (!controller.signal.aborted) setStatus('error') })
+    return () => controller.abort()
+  }, [viewer, code, height, after])
   const candidates = contexts.filter(c => !height || c.height === height).sort((a, b) => b.eligible - a.eligible)
   const current = candidates.find(c => contextKey(c) === selected) ?? candidates[0]
   if (!current) return <>
