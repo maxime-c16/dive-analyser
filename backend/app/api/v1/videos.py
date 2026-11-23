@@ -1,6 +1,5 @@
 from fastapi import APIRouter, HTTPException, Query, Depends, BackgroundTasks, Request, status
 from fastapi.responses import FileResponse, StreamingResponse, JSONResponse, RedirectResponse
-import httpx
 import logging
 import os
 import mimetypes

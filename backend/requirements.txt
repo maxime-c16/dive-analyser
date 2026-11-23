@@ -8,7 +8,6 @@ pydantic-settings==2.1.0
 # Database
 sqlalchemy==2.0.23
 psycopg2-binary==2.9.9
-alembic==1.12.1
 
 # Security (P5 user auth + playback presign)
 argon2-cffi==23.1.0
@@ -20,30 +19,19 @@ pywebpush==2.5.0
 # Avatar decoding/resizing (metadata stripped before storage)
 Pillow==12.3.0
 
-# Data processing
-numpy==1.26.2
-pandas==2.1.3
-
-# Visualization
-plotly==5.18.0
-matplotlib==3.8.2
-seaborn==0.13.0
-
 # Utilities
 python-dotenv==1.0.0
 python-dateutil==2.8.2
 requests==2.31.0
-aiofiles==23.2.1
-pytz==2023.3
+# IANA timezone database for zoneinfo.ZoneInfo (e.g. Europe/Paris in
+# session_videos / calendar) on minimal runtimes such as Alpine Linux.
+tzdata==2026.6
 # YAML feature specs (app.services.metric_registry). Was previously
 # undeclared: prod and CI carried it through environment luck. Pinned to the
 # same version the running images already use.
 PyYAML==6.0.3
 
-# Logging and monitoring
-python-json-logger==2.0.7
-
-# Development (remove in production)
+# Testing (also installed by ci/lib.sh from this file)
 pytest==7.4.3
 pytest-asyncio==0.21.1
 httpx==0.25.2

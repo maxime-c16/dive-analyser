@@ -105,13 +105,6 @@ These are 0–100 indices. Never show them next to a 0–10 note as if comparabl
   primary diver; review priority from technique × DD, same-dive percentile,
   breakthrough, progression, consistency, novelty. Not an official score.
 
-## 4. Dead code — do not build on it
-
-`services/performance_scorer.py` (7/11-judge FINA panel) and
-`services/results_aggregator.py` (competition standings with a hard-coded
-execution of 8.0) are only imported by `tests/test_fina_sprint*`. No route or
-screen uses them.
-
 ## Checklist for a scoring change
 
 1. Update the owner function, never a local copy in a component or query.
