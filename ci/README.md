@@ -103,8 +103,8 @@ under `~/.cache/dive-ci/` (`DIVE_CI_CACHE` overrides this).
 - Browser E2E: the existing Playwright configuration requires a live deployment
   and credentials. Unit tests and the API flow remain isolated.
 - ML/research experiments: need media, model weights, and heavier dependencies.
-- ESLint: the existing lint script has no installed ESLint or configuration;
-  TypeScript and build checks provide the current static frontend gate.
+- ESLint: not installed or configured; TypeScript and build checks provide
+  the current static frontend gate.
 
 These exclusions describe integration/resource boundaries, not exceptions for
 known failing tests. The unused root Dockerfile still gets a static warning;

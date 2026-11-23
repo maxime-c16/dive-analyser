@@ -8,7 +8,8 @@ RUN apk add --no-cache \
     gcc \
     musl-dev \
     postgresql-client \
-    postgresql-libs
+    postgresql-libs \
+    tzdata
 
 # Copy requirements first for better caching
 COPY requirements.txt .
@@ -25,8 +26,9 @@ RUN adduser -D diver && chown diver:diver /app
 COPY --chown=diver:diver . .
 USER diver
 
-# Health check
+# Health check (BusyBox wget avoids spawning Python + requests every 10s;
+# -Y off bypasses any http_proxy env var so loopback probes stay direct)
 HEALTHCHECK --interval=10s --timeout=5s --retries=3 \
-    CMD python -c "import requests; response = requests.get('http://localhost:8000/health', timeout=2); response.raise_for_status()" || exit 1
+    CMD wget -q -Y off -T 2 -O /dev/null http://127.0.0.1:8000/health || exit 1
 
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

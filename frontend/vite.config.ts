@@ -81,7 +81,7 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-    sourcemap: true,
+    sourcemap: false,
   },
   preview: {
     host: '0.0.0.0',

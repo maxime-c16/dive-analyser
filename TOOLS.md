@@ -35,9 +35,9 @@ keeps its sync config under `/Users/Shared/services/data/diveanalyzer/`.
   server-side. `ci/gate.sh images` fails fast with a readable message.
 - GNU `timeout/sha256sum/nproc/flock` exist through Homebrew
   (`brew install coreutils flock`) — without them the gate cannot run.
-- `backend/requirements.txt` still pins `pandas==2.1.3` / `numpy==1.26.2`
-  (no wheels for python >3.12 — they do not build on 3.13/3.14 either,
-  meson errors): run the whole gate with the cellar python 3.12 first.
+- `backend/requirements.txt` pins `pydantic==2.5.0` / `psycopg2-binary==2.9.9`
+  (no wheels for python >3.12 — they fail to build from source on 3.13/3.14):
+  run the whole gate with the cellar python 3.12 first.
   Once, prepare the interpreter shim + isolated PyYAML (the compose
   check imports PyYAML from PATH python):
   ```bash
