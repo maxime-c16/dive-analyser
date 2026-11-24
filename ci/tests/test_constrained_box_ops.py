@@ -94,6 +94,48 @@ class ConstrainedBoxOpsTest(unittest.TestCase):
             self.assertIn("ghcr.io/maxime-c16/dive-analyser-backend:sha-", combined)
             self.assertIn("fallback: docker build", combined)
 
+    def test_try_pull_image_requires_exact_full_sha_label(self):
+        deploy = (ROOT / "ci/deploy.sh").read_text()
+        # Extract try_pull_image and exercise it with a fake docker binary.
+        start = deploy.index("try_pull_image()")
+        end = deploy.index("\nif [ \"$ONLY\" != \"backend\" ]; then", start)
+        func_src = deploy[start:end]
+        full_sha = "a" * 40
+        with tempfile.TemporaryDirectory() as tmp:
+            shim_dir = Path(tmp) / "bin"
+            shim_dir.mkdir()
+            docker_shim = shim_dir / "docker"
+            docker_shim.write_text(
+                "#!/bin/sh\n"
+                "case \"$1\" in\n"
+                "  pull|tag|image)\n"
+                "    if [ \"$1\" = image ] && [ \"$2\" = inspect ]; then\n"
+                "      printf '%s\\n' \"$FAKE_LABEL\"\n"
+                "    fi\n"
+                "    exit 0\n"
+                "    ;;\n"
+                "esac\n"
+                "exit 0\n"
+            )
+            docker_shim.chmod(docker_shim.stat().st_mode | stat.S_IEXEC)
+            harness = (
+                f"source {ROOT / 'ci/lib.sh'}\n"
+                "set +e\n"
+                "LOCAL_BUILD=0\n"
+                "IMAGE_REGISTRY=ghcr.io/maxime-c16\n"
+                f"full_sha={full_sha}\n"
+                "sha=aaaaaaa\n"
+                f"{func_src}\n"
+                "try_pull_image dive-analyser-backend ghcr.io/maxime-c16/dive-analyser-backend:sha-$full_sha pull-test\n"
+            )
+            base_env = {**os.environ, "PATH": f"{shim_dir}:{os.environ.get('PATH', '')}"}
+            # Prefix-only label must be rejected.
+            bad = subprocess.run(["bash", "-c", harness], env={**base_env, "FAKE_LABEL": full_sha[:7]}, capture_output=True, text=True)
+            self.assertNotEqual(bad.returncode, 0, bad.stdout + bad.stderr)
+            # Exact full SHA must be accepted.
+            good = subprocess.run(["bash", "-c", harness], env={**base_env, "FAKE_LABEL": full_sha}, capture_output=True, text=True)
+            self.assertEqual(good.returncode, 0, good.stdout + good.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

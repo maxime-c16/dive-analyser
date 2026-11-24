@@ -213,20 +213,11 @@ try_pull_image() {
     fi
     local label
     label="$(docker image inspect "$remote_ref" --format '{{index .Config.Labels "dive.analyser/sha"}}' 2>/dev/null || true)"
-    case "$full_sha" in
-        "$label"?*|"$label")
-            if [ -z "$label" ]; then
-                ci_warn "pulled $remote_ref missing dive.analyser/sha label — falling back to local build"
-                docker image rm "$remote_ref" >/dev/null 2>&1 || true
-                return 1
-            fi
-            ;;
-        *)
-            ci_warn "pulled $remote_ref label '${label:-none}' != $full_sha — falling back to local build"
-            docker image rm "$remote_ref" >/dev/null 2>&1 || true
-            return 1
-            ;;
-    esac
+    if [ -z "$label" ] || [ "$label" != "$full_sha" ]; then
+        ci_warn "pulled $remote_ref label '${label:-none}' != $full_sha — falling back to local build"
+        docker image rm "$remote_ref" >/dev/null 2>&1 || true
+        return 1
+    fi
     docker tag "$remote_ref" "$local_image:sha-$sha" || return 1
     return 0
 }
