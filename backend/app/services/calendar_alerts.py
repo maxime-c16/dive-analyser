@@ -40,7 +40,7 @@ from datetime import date, datetime, time, timedelta, timezone
 from typing import Callable, Dict, Iterable, List, Optional
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import func, inspect, or_
+from sqlalchemy import and_, func, inspect, or_
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
@@ -465,13 +465,67 @@ def expand_one(db: Session, outbox: CalendarAlertOutbox, now: datetime) -> int:
         # Who takes part in which affected occurrence.
         per_user: Dict[int, set] = {}
         follow_only: set = set()
-        for oid, uid in db.query(OccurrenceInterest.occurrence_id, OccurrenceInterest.user_id).filter(
-                OccurrenceInterest.occurrence_id.in_(list(affected)),
-                OccurrenceInterest.state.in_(PARTICIPANT_INTEREST)).limit(MAX_RECIPIENTS):
-            per_user.setdefault(uid, set()).add(oid)
-        everyone = [r[0] for r in db.query(EventInvitation.invitee_user_id).filter(
-            EventInvitation.event_id == event.id, EventInvitation.status.in_(CHANGE_INVITATION)).limit(MAX_RECIPIENTS)]
-        everyone += _group_members(db, event, calendar, now.date())
+        interest_rows = db.query(OccurrenceInterest.occurrence_id, OccurrenceInterest.user_id).filter(
+            OccurrenceInterest.occurrence_id.in_(list(affected)),
+            OccurrenceInterest.state.in_(PARTICIPANT_INTEREST)).limit(MAX_RECIPIENTS).all()
+        everyone = set(r[0] for r in db.query(EventInvitation.invitee_user_id).filter(
+            EventInvitation.event_id == event.id, EventInvitation.status.in_(CHANGE_INVITATION)).limit(MAX_RECIPIENTS))
+        everyone.update(_group_members(db, event, calendar, now.date()))
+        is_group_training = (
+            event.event_type == "training" and event.audience == "group"
+            and calendar.club_id is not None and calendar.training_group_id is not None
+        )
+        if is_group_training and interest_rows:
+            candidate_uids = {uid for _oid, uid in interest_rows if uid not in everyone}
+            full_viewers = set(everyone)
+            if event.organizer_user_id in candidate_uids:
+                full_viewers.add(event.organizer_user_id)
+            if candidate_uids:
+                full_viewers.update(uid for (uid,) in db.query(ClubMembership.user_id).filter(
+                    ClubMembership.club_id == calendar.club_id,
+                    ClubMembership.ended_at.is_(None),
+                    ClubMembership.role.in_(access.STAFF_ROLES),
+                    ClubMembership.user_id.in_(candidate_uids),
+                ).limit(MAX_RECIPIENTS))
+            open_only_uids = candidate_uids - full_viewers
+            allowed_open_pairs = set()
+            if open_only_uids and access.openings_schema_ready(db):
+                from app.models.calendar import ClubTrainingOpening
+                on = now.date()
+                open_only_oids = {oid for oid, uid in interest_rows if uid in open_only_uids}
+                allowed_open_pairs = set(
+                    db.query(EventOccurrence.id, TrainingGroupMembership.user_id).join(
+                        ClubTrainingOpening, and_(
+                            ClubTrainingOpening.club_id == calendar.club_id,
+                            ClubTrainingOpening.eligible_group_id != calendar.training_group_id,
+                            ClubTrainingOpening.window_start <= EventOccurrence.window_start,
+                            ClubTrainingOpening.window_end > EventOccurrence.window_start,
+                        ),
+                    ).join(
+                        TrainingGroupMembership, and_(
+                            TrainingGroupMembership.club_id == ClubTrainingOpening.club_id,
+                            TrainingGroupMembership.group_id == ClubTrainingOpening.eligible_group_id,
+                            TrainingGroupMembership.user_id.in_(open_only_uids),
+                            TrainingGroupMembership.effective_from <= on,
+                            or_(TrainingGroupMembership.effective_to.is_(None),
+                                TrainingGroupMembership.effective_to > on),
+                        ),
+                    ).join(
+                        ClubMembership, and_(
+                            ClubMembership.id == TrainingGroupMembership.club_membership_id,
+                            ClubMembership.ended_at.is_(None),
+                        ),
+                    ).filter(
+                        EventOccurrence.id.in_(open_only_oids),
+                    ).distinct().limit(MAX_RECIPIENTS).all()
+                )
+            for oid, uid in interest_rows:
+                if uid in full_viewers or (oid, uid) in allowed_open_pairs:
+                    per_user.setdefault(uid, set()).add(oid)
+        else:
+            full_viewers = set(everyone)
+            for oid, uid in interest_rows:
+                per_user.setdefault(uid, set()).add(oid)
         for uid in everyone:
             per_user.setdefault(uid, set()).update(affected)
         follower_ids = [uid for (uid,) in db.query(CalendarEventFollow.user_id).filter(
@@ -489,6 +543,7 @@ def expand_one(db: Session, outbox: CalendarAlertOutbox, now: datetime) -> int:
             ).limit(MAX_RECIPIENTS)}
             if event.organizer_user_id in follower_ids:
                 allowed_followers.add(event.organizer_user_id)
+            full_viewers.update(allowed_followers)
             follower_ids = [uid for uid in follower_ids if uid in allowed_followers]
         for uid in follower_ids:
             if uid not in per_user:
@@ -525,7 +580,22 @@ def expand_one(db: Session, outbox: CalendarAlertOutbox, now: datetime) -> int:
                     CalendarAlertDelivery.kind.in_(("change", "cancellation")),
                     CalendarAlertDelivery.status == "pending",
                     or_(CalendarAlertDelivery.lease_until.is_(None), CalendarAlertDelivery.lease_until < now)):
-                details = _merge_details(old.details or {}, details, keep_id=items[0]["id"])
+                old_details = old.details or {}
+                if is_group_training and uid not in full_viewers:
+                    old_check = {item.get("id") for item in (old_details.get("occurrences") or []) if item.get("id")}
+                    old_check.update(i for i in (old_details.get("ids") or []) if isinstance(i, int))
+                    u_row = db.get(AppUser, uid) if old_check else None
+                    still_vis = {
+                        o.id for o, _e, _c in access.visible_occurrences(db, u_row).filter(
+                            EventOccurrence.id.in_(old_check))
+                    } if (u_row is not None and old_check) else set()
+                    old_details = {
+                        **old_details,
+                        "occurrences": [i for i in (old_details.get("occurrences") or []) if i.get("id") in still_vis],
+                        "ids": [i for i in (old_details.get("ids") or []) if i in still_vis],
+                        "total": len(still_vis),
+                    }
+                details = _merge_details(old_details, details, keep_id=items[0]["id"])
                 old.status, old.suppressed_reason = "suppressed", "superseded"
             if details.get("event_cancelled") or any("cancelled" in i["kinds"] for i in details["occurrences"]):
                 kind = "cancellation"
@@ -805,7 +875,21 @@ def _push_body(db: Session, d: CalendarAlertDelivery, event: CalendarEvent) -> s
     # occurrence inside a multi-session alert still counts the others. An
     # inexact total is a lower bound: even a bound of 1 may hide other
     # affected sessions, so the uncounted marker never depends on the number.
+    raw_ids = details.get("ids")
+    check_ids = (
+        [oid for oid in raw_ids if isinstance(oid, int)]
+        if isinstance(raw_ids, list)
+        else [item.get("id") for item in items if isinstance(item.get("id"), int)]
+    )
     total = details.get("total") or len(items)
+    if len(check_ids) > 1:
+        recipient = db.get(AppUser, d.user_id)
+        if recipient is not None:
+            has_full = access.visible_events(db, recipient, include_openings=False).filter(
+                CalendarEvent.id == event.id).first() is not None
+            if not has_full:
+                total = access.visible_occurrences(db, recipient).filter(
+                    EventOccurrence.id.in_(check_ids)).count()
     if not details.get("event_cancelled"):
         if not details.get("total_exact", True):
             parts.append(PUSH_MORE_UNCOUNTED)
@@ -1056,19 +1140,21 @@ def requeue_dead(db: Session, table: str, row_id: Optional[int] = None, now: Opt
 # --- Read side --------------------------------------------------------------------------------------------------------------
 
 def _read_changes(occurrences: Dict[int, EventOccurrence], details: dict, occ: EventOccurrence) -> list:
-    """Per-item change view for the reader. The effective-venue test is per
-    item against its own (bulk-loaded) occurrence: an event-level venue-name
-    change reaches the sessions that inherit the event venue, not those with
-    their own override — the delivery session's shape says nothing about the
-    other sessions."""
+    """Per-item change view for the reader, filtered to occurrences the reader
+    can currently see. The effective-venue test is per item against its own
+    (bulk-loaded) occurrence: an event-level venue-name change reaches the
+    sessions that inherit the event venue, not those with their own override —
+    the delivery session's shape says nothing about the other sessions."""
     out = []
     for item in details.get("occurrences", []):
+        item_id = item.get("id")
+        if item_id not in occurrences:
+            continue  # never expose sessions the reader can no longer see
         kinds = list(item.get("kinds", []))
         if "venue_changed" in kinds and "venue" not in item:
-            item_occ = occurrences.get(item.get("id")) or occ
-            if not _event_venue_reaches(details, item_occ):
+            if not _event_venue_reaches(details, occurrences[item_id]):
                 kinds.remove("venue_changed")
-        out.append({"occurrence_id": item.get("id"), "kinds": kinds,
+        out.append({"occurrence_id": item_id, "kinds": kinds,
                     "old_start": item.get("old_start"),
                     "new_start": item.get("new_start"),
                     "old_all_day": bool(item.get("old_all_day", occ.is_all_day)),
@@ -1092,9 +1178,13 @@ def render_for_reader(db: Session, user: AppUser, rows: List[Notification]) -> D
         CalendarAlertDelivery.notification_id.in_([r.id for r in cal_rows]))}
     occ_ids = {d.occurrence_id for d in deliveries.values() if d.occurrence_id}
     for d in deliveries.values():
-        for item in (d.details or {}).get("occurrences", []):
+        details = d.details or {}
+        for item in details.get("occurrences", []):
             if item.get("id"):
                 occ_ids.add(item["id"])  # one bounded query for every session a row may describe
+        for oid in details.get("ids") or []:
+            if isinstance(oid, int):
+                occ_ids.add(oid)
     visible = {o.id: (o, e, c) for o, e, c in access.visible_occurrences(db, user).filter(
         EventOccurrence.id.in_(occ_ids))} if occ_ids else {}
     occurrences_by_id = {o.id: o for o, _e, _c in visible.values()}
@@ -1105,6 +1195,19 @@ def render_for_reader(db: Session, user: AppUser, rows: List[Notification]) -> D
             continue
         occ, event, calendar = visible[d.occurrence_id]
         details = d.details or {}
+        changes = _read_changes(occurrences_by_id, details, occ)
+        raw_items = details.get("occurrences") or []
+        raw_ids = details.get("ids")
+        if isinstance(raw_ids, list):
+            visible_ids = [oid for oid in raw_ids if oid in occurrences_by_id]
+            total = len(visible_ids) if len(visible_ids) < len(raw_ids) else details.get("total", len(visible_ids))
+            total_exact = bool(details.get("total_exact", True))
+        elif len(changes) < len(raw_items):
+            total = len(changes)
+            total_exact = False if (details.get("total") or 0) > len(raw_items) else bool(details.get("total_exact", True))
+        else:
+            total = details.get("total", 0)
+            total_exact = bool(details.get("total_exact", True))
         out[r.id] = {"title": event.title, "body": None, "calendar": {
             "redacted": False, "kind": d.kind, "event_id": event.id, "occurrence_id": occ.id,
             "url": _occurrence_url(occ.id), "event_title": event.title, "timezone": event.timezone,
@@ -1113,7 +1216,7 @@ def render_for_reader(db: Session, user: AppUser, rows: List[Notification]) -> D
             "all_day": bool(occ.is_all_day), "venue_name": occ.venue_name or event.venue_name,
             "status": "cancelled" if occ.status == "cancelled" else "scheduled",
             "event_cancelled": bool(details.get("event_cancelled")),
-            "changes": _read_changes(occurrences_by_id, details, occ),
-            "total": details.get("total", 0),
-            "total_exact": bool(details.get("total_exact", True))}}
+            "changes": changes,
+            "total": total,
+            "total_exact": total_exact}}
     return out

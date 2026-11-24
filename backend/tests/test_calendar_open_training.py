@@ -714,3 +714,109 @@ def test_left_and_rejoined_member_stale_group_assignment_does_not_grant_open_vis
     bob = cal["login"]("bob")
     assert bob.get(f"/api/v1/calendar/occurrences/{s['deb_inside_id']}").status_code == 404
     assert {u.id for u in session_calendar.occurrence_members(db, s["deb_inside_id"]).all()} == {alice_id}
+
+
+def test_closed_opening_occurrence_filtered_from_alert_expansion_reader_and_push(cal):
+    """When one opening closes while another stays open, stale interest on the
+    closed occurrence must not enter new event-level alerts, and already-delivered
+    multi-occurrence alerts must filter out the closed occurrence at read/push time."""
+    from app.models.calendar import CalendarAlertOutbox
+    from app.models.notification import Notification
+
+    s = _setup_kcpm_window(cal)
+    db = cal["db"]
+    club_id = cal["clubs"]["k"].id
+    g_conf_id = cal["groups"]["b"].id
+    bob_id = cal["users"]["bob"].id
+
+    # Two distinct future windows on the same Groupe A series:
+    # Window 1 covers deb_inside; Window 2 covers deb_after (comp_day).
+    mgr = cal["login"]("manager")
+    op1 = mgr.post(
+        f"/api/v1/calendar/clubs/{club_id}/training-openings",
+        json={"eligible_group_id": g_conf_id, "competition_event_id": s["comp_id"]},
+        headers=_headers(),
+    )
+    assert op1.status_code == 201
+    op2 = mgr.post(
+        f"/api/v1/calendar/clubs/{club_id}/training-openings",
+        json={
+            "eligible_group_id": g_conf_id,
+            "label": "Fenêtre suivante",
+            "starts_on": s["comp_day"].isoformat(),
+            "ends_on": (s["comp_day"] + timedelta(days=3)).isoformat(),
+        },
+        headers=_headers(),
+    )
+    assert op2.status_code == 201
+    op2_id = op2.json()["id"]
+
+    # Bob opts into both occurrences while both windows are open.
+    bob = cal["login"]("bob")
+    for oid in (s["deb_inside_id"], s["deb_after_id"]):
+        assert bob.put(
+            f"/api/v1/calendar/occurrences/{oid}/interest",
+            json={"state": "interested"},
+            headers=_headers(),
+        ).status_code == 200
+
+    # 1) Already-delivered multi-occurrence alert covering both occurrences:
+    now = datetime.utcnow()
+    notif = alerts.notification_service.stage(
+        db, user_id=bob_id, type="calendar_change", title=alerts.GENERIC_TITLES["change"],
+    )
+    details = {
+        "occurrences": [
+            {"id": s["deb_inside_id"], "kinds": ["venue_changed"]},
+            {"id": s["deb_after_id"], "kinds": ["time_changed"], "old_start": "2026-12-01T18:00:00Z", "new_start": "2026-12-01T19:00:00Z"},
+        ],
+        "ids": [s["deb_inside_id"], s["deb_after_id"]],
+        "total": 2,
+        "total_exact": True,
+        "event_venue": True,
+        "event_venue_name": True,
+    }
+    delivery = alerts._new_delivery(
+        delivery_key="open-multi-1", kind="change", notif_type="calendar_change",
+        user_id=bob_id, event_id=s["ev_deb_id"], occurrence_id=s["deb_inside_id"],
+        details=details, notification_id=notif.id,
+        expires_at=now + timedelta(days=2), now=now,
+    )
+    db.add(delivery)
+    db.commit()
+    notif_id, delivery_id = notif.id, delivery.id
+
+    # Now close Window 2 while Window 1 stays open.
+    mgr = cal["login"]("manager")
+    assert mgr.delete(f"/api/v1/calendar/clubs/{club_id}/training-openings/{op2_id}", headers=_headers()).status_code == 204
+    db.expunge_all()
+
+    # Reader view must drop deb_after (ID, dates) and report total=1.
+    bob_user = db.get(AppUser, bob_id)
+    view = alerts.render_for_reader(db, bob_user, [db.get(Notification, notif_id)])[notif_id]
+    assert view["calendar"]["redacted"] is False
+    assert [c["occurrence_id"] for c in view["calendar"]["changes"]] == [s["deb_inside_id"]]
+    assert view["calendar"]["total"] == 1
+
+    # Push body must not advertise "+1 more" for the closed occurrence.
+    push_body = alerts._push_body(db, db.get(CalendarAlertDelivery, delivery_id), db.get(CalendarEvent, s["ev_deb_id"]))
+    assert "+1 more" not in push_body
+
+    # 2) New event-level venue edit after Window 2 closed: expand_one must NOT
+    # include the stale-interest closed occurrence (deb_after) in Bob's new alert.
+    coach = cal["login"]("coach")
+    ev_row = db.get(CalendarEvent, s["ev_deb_id"])
+    assert coach.patch(
+        f"/api/v1/calendar/events/{s['ev_deb_id']}",
+        json={"expected_version": ev_row.version, "venue_name": "Piscine Olympique"},
+        headers=_headers(),
+    ).status_code == 200
+    outbox = db.query(CalendarAlertOutbox).filter_by(event_id=s["ev_deb_id"]).order_by(CalendarAlertOutbox.id.desc()).first()
+    alerts.expand_one(db, outbox, datetime.utcnow())
+    db.commit()
+    new_delivery = db.query(CalendarAlertDelivery).filter_by(
+        user_id=bob_id, outbox_id=outbox.id,
+    ).one()
+    assert new_delivery.details["ids"] == [s["deb_inside_id"]]
+    assert [o["id"] for o in new_delivery.details["occurrences"]] == [s["deb_inside_id"]]
+    assert new_delivery.details["total"] == 1
