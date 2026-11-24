@@ -5,13 +5,17 @@ budget before any parsing, then parsed and stored off the event loop. The
 same file is sent twice: once to preview, once to save; the server parses it
 each time, so the stored rows never come from client-side JSON.
 """
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy import inspect
 from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 
 from app.api.v1.auth import get_current_user
-from app.api.v1.calendar import calendar_gate, commit, private_responses, writer
+from app.api.v1.calendar import admin_writer, calendar_gate, commit, private_responses, writer
+from app.api.v1.admin_users import require_admin
 from app.database import get_db
 from app.models.user_auth import AppUser
 from app.services import meet_results as service
@@ -81,5 +85,34 @@ async def save_results(event_id: int, request: Request, name: str = Query("", ma
 @router.delete("/events/{event_id}/results", status_code=204)
 def delete_results(event_id: int, user: AppUser = Depends(writer), db: Session = Depends(get_db)):
     service.delete(db, user, event_id)
+    commit(db)
+    return Response(status_code=204)
+
+
+# --- Administrators: who is tied to whom -------------------------------------------
+
+class LinkWrite(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    user_id: Optional[int]  # null = never link this person
+
+
+@router.get("/admin/meet-accounts")
+def meet_accounts(q: str = Query(..., min_length=2, max_length=60), admin: AppUser = Depends(require_admin),
+                  db: Session = Depends(get_db)):
+    return {"items": service.account_candidates(db, q)}
+
+
+@router.put("/results/entries/{entry_id}/link", status_code=204)
+def set_link(entry_id: int, payload: LinkWrite, admin: AppUser = Depends(admin_writer), db: Session = Depends(get_db)):
+    """Tie this person to an account (or never link them) in every meet."""
+    service.set_link(db, admin, entry_id, payload.user_id)
+    commit(db)
+    return Response(status_code=204)
+
+
+@router.delete("/results/entries/{entry_id}/link", status_code=204)
+def clear_link(entry_id: int, admin: AppUser = Depends(admin_writer), db: Session = Depends(get_db)):
+    """Back to automatic matching for this person."""
+    service.clear_link(db, admin, entry_id)
     commit(db)
     return Response(status_code=204)

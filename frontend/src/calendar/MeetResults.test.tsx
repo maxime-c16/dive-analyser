@@ -6,6 +6,7 @@ import { calendarApi, CalendarError, type MeetResultsPage } from './api'
 
 vi.mock('./api', async (original) => ({...await original<typeof import('./api')>(), calendarApi: {
   event: vi.fn(), results: vi.fn(), previewResults: vi.fn(), saveResults: vi.fn(), deleteResults: vi.fn(),
+  meetAccounts: vi.fn(), setResultLink: vi.fn(), clearResultLink: vi.fn(),
 }}))
 vi.mock('./useStrings', async original => {
   const module = await original<typeof import('./useStrings')>()
@@ -19,11 +20,11 @@ const page: MeetResultsPage = {can_import: false, available: true, results: {
   source_name: 'idf.pdf', meet_date: '2026-11-22', imported_at: '2026-11-23T10:00:00Z', events: [
     {id: 1, title: 'Elite - Dames - 3m', board: '3m', entries: [
       {id: 10, rank: 1, diver_name: 'Anna TESTA', birth_year: 2001, club_name: 'Club Alpha', total: 70.3, status: null,
-        guest: false, is_me: false, account: null, dives: [dive('201B', 34.2, 34.2), dive('304C', 36.1, 70.3, 4)]},
+        guest: false, is_me: false, account: null, link_source: null, linkable: null, dives: [dive('201B', 34.2, 34.2), dive('304C', 36.1, 70.3, 4)]},
     ]},
     {id: 2, title: 'Elite - Messieurs - HV', board: 'HV', entries: [
       {id: 20, rank: null, diver_name: 'Dan DEMO', birth_year: null, club_name: 'Club Z', total: 0, status: 'withdrawn',
-        guest: true, is_me: false, account: null, dives: []},
+        guest: true, is_me: false, account: null, link_source: null, linkable: null, dives: []},
     ]},
   ]}}
 
@@ -111,4 +112,29 @@ it('explains a rejected file and ignores a slower preview of an earlier pick', a
   expect(screen.queryByText(/99 plongeons/)).toBeNull()
   expect(screen.getByText('new.pdf')).toBeInTheDocument()
   expect(screen.queryByRole('alert')).toBeNull()
+})
+
+it('lets an administrator relink a person, forbid a link or return to automatic', async () => {
+  const women = page.results!.events[0]
+  const anna = {...women.entries[0], link_source: 'auto' as const, linkable: true,
+    account: {user_id: 4, display_name: 'Anna', avatar_url: null, avatar_hud: 'reticle' as const}}
+  vi.mocked(calendarApi.results).mockResolvedValue({...page, can_manage_links: true,
+    results: {...page.results!, events: [{...women, entries: [anna]}]}})
+  vi.mocked(calendarApi.meetAccounts).mockResolvedValue({items: [
+    {user_id: 9, display_name: 'Nana', avatar_url: null, avatar_hud: 'orbit', diver_names: ['ANNA T']}]})
+  vi.mocked(calendarApi.setResultLink).mockResolvedValue(undefined)
+  view()
+  fireEvent.click(await screen.findByRole('button', {name: /Anna TESTA/}))
+  expect(screen.getByText('auto')).toBeInTheDocument()
+  expect(screen.queryByRole('button', {name: 'Revenir à l’automatique'})).toBeNull()
+
+  fireEvent.click(screen.getByRole('button', {name: 'Relier à un compte'}))
+  fireEvent.change(screen.getByRole('searchbox'), {target: {value: 'nan'}})
+  fireEvent.click(await screen.findByRole('button', {name: /Nana/}, {timeout: 2000}))
+  await waitFor(() => expect(calendarApi.setResultLink).toHaveBeenCalledWith(10, 9))
+  await waitFor(() => expect(calendarApi.results).toHaveBeenCalledTimes(2))  // reloads: links change in every meet
+
+  // The row stays open across the reload.
+  fireEvent.click(await screen.findByRole('button', {name: 'Ne jamais relier'}))
+  await waitFor(() => expect(calendarApi.setResultLink).toHaveBeenLastCalledWith(10, null))
 })

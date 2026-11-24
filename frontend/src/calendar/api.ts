@@ -113,11 +113,16 @@ export interface MeetEntry {
   /** The viewer's own row (automatic, unambiguous account match). */
   is_me: boolean
   /** Linked account, shown to the account itself and its club mates only. */
-  account: { user_id: number; display_name: string; avatar_url: string | null; avatar_hud: 'orbit' | 'reticle' | 'depth' } | null
+  account: MeetAccount | null
+  /** Administrators only (null otherwise): where the link comes from, and whether the row can be linked. */
+  link_source: 'auto' | 'admin' | null
+  linkable: boolean | null
 }
+export interface MeetAccount { user_id: number; display_name: string; avatar_url: string | null; avatar_hud: 'orbit' | 'reticle' | 'depth' }
+export interface MeetAccountCandidate extends MeetAccount { diver_names: string[] }
 export interface MeetEvent { id: number; title: string; board: string; entries: MeetEntry[] }
 export interface MeetResults { source_name: string; meet_date: string | null; imported_at: string; events: MeetEvent[] }
-export interface MeetResultsPage { can_import: boolean; available: boolean; results: MeetResults | null }
+export interface MeetResultsPage { can_import: boolean; available: boolean; results: MeetResults | null; can_manage_links?: boolean }
 export interface MeetPreview {
   meet_date: string | null; date_matches: boolean | null; events: { title: string; board: string; entries: number }[]
   entry_count: number; dive_count: number; warnings: string[]; replaces: boolean; linked_count: number
@@ -196,6 +201,11 @@ export const calendarApi = {
   previewResults: (eventId: number, file: Blob) => request<MeetPreview>(`/events/${eventId}/results/preview`, pdf('POST', file)),
   saveResults: (eventId: number, file: File) =>
     request<MeetResultsPage>(`/events/${eventId}/results?${new URLSearchParams({ name: file.name.slice(0, 200) })}`, pdf('PUT', file)),
+  meetAccounts: (q: string, signal?: AbortSignal) =>
+    request<{ items: MeetAccountCandidate[] }>(`/admin/meet-accounts?${new URLSearchParams({ q })}`, { signal }),
+  /** Administrators: tie this person to an account in every meet (null = never link). */
+  setResultLink: (entryId: number, user_id: number | null) => request<void>(`/results/entries/${entryId}/link`, json('PUT', { user_id })),
+  clearResultLink: (entryId: number) => request<void>(`/results/entries/${entryId}/link`, { method: 'DELETE' }),
   deleteResults: (eventId: number) => request<void>(`/events/${eventId}/results`, { method: 'DELETE' }),
   roster: (clubId: number) => request<Roster>(`/clubs/${clubId}/members`),
   clubResources: (clubId: number) => request<Resource[]>(`/clubs/${clubId}/resources`),

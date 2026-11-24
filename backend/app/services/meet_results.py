@@ -14,17 +14,20 @@ not something a community-wide event should reveal.
 from __future__ import annotations
 
 import hashlib
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from typing import Optional
 
+from sqlalchemy import func, or_
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models.calendar import Calendar, CalendarEvent, ClubMembership, EventOccurrence
-from app.models.meet_results import MeetResult, MeetResultDive, MeetResultEntry, MeetResultEvent
-from app.models.user_auth import AppUser
+from app.models.diver import Diver
+from app.models.meet_results import MeetPersonLink, MeetResult, MeetResultDive, MeetResultEntry, MeetResultEvent
+from app.models.user_auth import AppUser, UserDiverAccess
 from app.services import calendar_events as events
 from app.services.calendar_events import fail
-from app.services.meet_result_links import auto_links
+from app.services.meet_result_links import person_key, resolve
 from app.services.meet_results_pdf import ParsedMeet
 from app.services.member_avatar import avatar_identity
 
@@ -58,7 +61,7 @@ def preview(db: Session, user: AppUser, event_id: int, parsed: ParsedMeet) -> di
         "events": [{"title": e.title, "board": e.board, "entries": len(e.entries)} for e in parsed.events],
         "entry_count": parsed.entry_count, "dive_count": parsed.dive_count,
         "warnings": parsed.warnings, "replaces": replaces,
-        "linked_count": len({uid for uid in auto_links(db, _flat(parsed)).values()}),
+        "linked_count": len({uid for uid, _src in resolve(db, _flat(parsed)).values() if uid}),
     }
     db.rollback()  # release the event lock; nothing was written
     return out
@@ -82,13 +85,14 @@ def replace(db: Session, user: AppUser, event_id: int, parsed: ParsedMeet, sourc
             for i, e in enumerate(parsed.events)]
     db.add_all(rows)
     db.flush()
-    links = auto_links(db, _flat(parsed))
+    links = resolve(db, _flat(parsed))
     entries = [(MeetResultEntry(event_id=row.id, position=j, rank=en.rank, diver_name=en.diver_name,
                                 birth_year=en.birth_year, club_name=en.club_name, total=en.total,
                                 status=en.status, guest=en.guest), en)
                for row, e in zip(rows, parsed.events) for j, en in enumerate(e.entries)]
     for i, (row, _en) in enumerate(entries):
-        row.user_id = links.get(i)
+        row.person_key = person_key(row.diver_name, row.birth_year)
+        row.user_id, row.link_source = links.get(i, (None, None))
     db.add_all([m for m, _ in entries])
     db.flush()
     db.add_all([MeetResultDive(entry_id=m.id, position=k, dive_code=d.dive_code, height=d.height, dd=d.dd,
@@ -108,9 +112,13 @@ def _num(value) -> float:
 
 
 def _visible_accounts(db: Session, viewer: AppUser, user_ids: set[int]) -> dict[int, dict]:
-    """Linked accounts the viewer may see: themselves, or a shared active club."""
+    """Linked accounts the viewer may see: themselves, a shared active club,
+    or any account for an administrator (who manages the links)."""
     if not user_ids:
         return {}
+    if viewer.is_admin:
+        rows = db.query(AppUser).filter(AppUser.id.in_(user_ids), AppUser.is_active.is_(True)).all()
+        return {u.id: {"user_id": u.id, "display_name": u.display_name, **avatar_identity(u)} for u in rows}
     active = (ClubMembership.status == "active", ClubMembership.ended_at.is_(None))
     mine = {cid for (cid,) in db.query(ClubMembership.club_id).filter(ClubMembership.user_id == viewer.id, *active)}
     shared = {uid for (uid,) in db.query(ClubMembership.user_id).filter(
@@ -124,7 +132,8 @@ def read(db: Session, user: AppUser, event_id: int, summary: bool = False) -> di
     """`summary` answers only whether results exist (one indexed lookup)."""
     event, calendar = events.visible_event(db, user, event_id)
     result = db.query(MeetResult).filter(MeetResult.calendar_event_id == event.id).one_or_none()
-    out = {"can_import": can_import(db, user, event, calendar), "available": result is not None, "results": None}
+    out = {"can_import": can_import(db, user, event, calendar), "available": result is not None, "results": None,
+           "can_manage_links": bool(user.is_admin)}
     if result is None or summary:
         return out
     meet_events = db.query(MeetResultEvent).filter(MeetResultEvent.result_id == result.id).order_by(
@@ -147,6 +156,9 @@ def read(db: Session, user: AppUser, event_id: int, summary: bool = False) -> di
             "id": en.id, "rank": en.rank, "diver_name": en.diver_name, "birth_year": en.birth_year,
             "club_name": en.club_name, "total": _num(en.total), "status": en.status,
             "guest": en.guest, "is_me": en.user_id == user.id, "account": accounts.get(en.user_id),
+            # Link bookkeeping is for administrators only.
+            "link_source": en.link_source if user.is_admin else None,
+            "linkable": en.person_key is not None if user.is_admin else None,
             "dives": dives_by_entry.get(en.id, [])})
     out["results"] = {
         "source_name": result.source_name, "meet_date": result.meet_date.isoformat() if result.meet_date else None,
@@ -155,3 +167,94 @@ def read(db: Session, user: AppUser, event_id: int, summary: bool = False) -> di
                    for e in meet_events],
     }
     return out
+
+
+# --- Administrator link management --------------------------------------------
+
+MAX_RELINK_MEETS = 200
+
+
+def relink_meet(db: Session, result_id: int) -> None:
+    """Recompute every row's account link in one meet from the current admin
+    decisions plus automatic matching (the same rule as at import)."""
+    rows = db.query(MeetResultEntry).join(MeetResultEvent, MeetResultEvent.id == MeetResultEntry.event_id).filter(
+        MeetResultEvent.result_id == result_id).order_by(MeetResultEntry.event_id, MeetResultEntry.position).all()
+    links = resolve(db, rows)
+    for i, row in enumerate(rows):
+        row.user_id, row.link_source = links.get(i, (None, None))
+
+
+def _affected_meets(db: Session, key: str, user_ids: set[int]) -> list[int]:
+    """Meets where this person appears, or where these accounts are linked."""
+    cond = MeetResultEntry.person_key == key
+    if user_ids:
+        cond = or_(cond, MeetResultEntry.user_id.in_(user_ids))
+    ids = [rid for (rid,) in db.query(MeetResultEvent.result_id).join(
+        MeetResultEntry, MeetResultEntry.event_id == MeetResultEvent.id).filter(cond).distinct().limit(MAX_RELINK_MEETS + 1)]
+    if len(ids) > MAX_RELINK_MEETS:
+        fail(409, "too_many_meets", "This person appears in too many meets to relink at once")
+    return ids
+
+
+def _admin_entry(db: Session, admin: AppUser, entry_id: int) -> MeetResultEntry:
+    row = db.query(MeetResultEntry, MeetResult.calendar_event_id).join(
+        MeetResultEvent, MeetResultEvent.id == MeetResultEntry.event_id).join(
+        MeetResult, MeetResult.id == MeetResultEvent.result_id).filter(MeetResultEntry.id == entry_id).one_or_none()
+    if row is None:
+        fail(404, "entry_not_found", "Result not found")
+    events.visible_event(db, admin, row[1])  # hidden event -> same 404 as missing
+    if row[0].person_key is None:
+        fail(422, "pair_not_linkable", "Synchro pairs cannot be linked to one account")
+    return row[0]
+
+
+def set_link(db: Session, admin: AppUser, entry_id: int, user_id: Optional[int]) -> None:
+    """Tie this person to `user_id` in every meet, or never link them (None)."""
+    entry = _admin_entry(db, admin, entry_id)
+    if user_id is not None and db.query(AppUser.id).filter(AppUser.id == user_id, AppUser.is_active.is_(True)).first() is None:
+        fail(422, "account_not_found", "Account not found")
+    key = entry.person_key
+    decision = db.query(MeetPersonLink).filter(MeetPersonLink.person_key == key).with_for_update().one_or_none()
+    previous = decision.user_id if decision else None
+    if decision is None:
+        decision = MeetPersonLink(person_key=key)
+        db.add(decision)
+    decision.user_id, decision.decided_by_user_id, decision.decided_at = user_id, admin.id, datetime.utcnow()
+    try:
+        db.flush()
+    except IntegrityError:
+        db.rollback()
+        fail(409, "conflict", "Conflicting concurrent change")
+    for rid in _affected_meets(db, key, {u for u in (user_id, previous, entry.user_id) if u}):
+        relink_meet(db, rid)
+
+
+def clear_link(db: Session, admin: AppUser, entry_id: int) -> None:
+    """Drop the administrator decision: this person is matched automatically again."""
+    entry = _admin_entry(db, admin, entry_id)
+    decision = db.query(MeetPersonLink).filter(MeetPersonLink.person_key == entry.person_key).with_for_update().one_or_none()
+    if decision is None:
+        return
+    freed = {u for u in (decision.user_id, entry.user_id) if u}
+    db.delete(decision)
+    db.flush()
+    for rid in _affected_meets(db, entry.person_key, freed):
+        relink_meet(db, rid)
+
+
+def account_candidates(db: Session, q: str, limit: int = 10) -> list[dict]:
+    """Active accounts whose name, or an owned diver's name, contains `q`."""
+    needle = f"%{q.strip().lower()}%"
+    owned = db.query(UserDiverAccess.user_id).join(Diver, Diver.id == UserDiverAccess.diver_id).filter(
+        UserDiverAccess.access_kind == "OWNER", func.lower(Diver.display_name).like(needle))
+    users = db.query(AppUser).filter(AppUser.is_active.is_(True), or_(
+        func.lower(AppUser.display_name).like(needle), AppUser.id.in_(owned))).order_by(
+        AppUser.display_name, AppUser.id).limit(limit).all()
+    divers: dict[int, list[str]] = {}
+    if users:
+        for uid, name in db.query(UserDiverAccess.user_id, Diver.display_name).join(
+                Diver, Diver.id == UserDiverAccess.diver_id).filter(
+                UserDiverAccess.user_id.in_([u.id for u in users]), UserDiverAccess.access_kind == "OWNER").limit(200):
+            divers.setdefault(uid, []).append(name)
+    return [{"user_id": u.id, "display_name": u.display_name, "diver_names": sorted(set(divers.get(u.id, []))),
+             **avatar_identity(u)} for u in users]

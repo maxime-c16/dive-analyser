@@ -36,12 +36,26 @@ CREATE TABLE IF NOT EXISTS meet_result_entries (
  total NUMERIC(7, 2) NOT NULL,
  status VARCHAR(16),
  guest BOOLEAN NOT NULL DEFAULT false,
+ person_key VARCHAR(160),
  user_id INTEGER REFERENCES app_users(id) ON DELETE SET NULL,
+ link_source VARCHAR(8),
+ CONSTRAINT ck_meet_result_entry_link CHECK (link_source IS NULL OR link_source IN ('auto', 'admin')),
  CONSTRAINT uq_meet_result_entry_position UNIQUE (event_id, position),
  CONSTRAINT ck_meet_result_entry_status CHECK (status IS NULL OR status IN ('disqualified', 'withdrawn', 'knocked_out'))
 );
 
 CREATE INDEX IF NOT EXISTS ix_meet_result_entries_user ON meet_result_entries (user_id);
+CREATE INDEX IF NOT EXISTS ix_meet_result_entries_person ON meet_result_entries (person_key);
+
+-- Administrator link decisions, one per person across all meets. user_id
+-- NULL = never link. Deleting the account deletes the decision.
+CREATE TABLE IF NOT EXISTS meet_person_links (
+ person_key VARCHAR(160) PRIMARY KEY,
+ user_id INTEGER REFERENCES app_users(id) ON DELETE CASCADE,
+ decided_by_user_id INTEGER REFERENCES app_users(id) ON DELETE SET NULL,
+ decided_at TIMESTAMP NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS ix_meet_person_links_user ON meet_person_links (user_id);
 
 CREATE TABLE IF NOT EXISTS meet_result_dives (
  id SERIAL PRIMARY KEY,

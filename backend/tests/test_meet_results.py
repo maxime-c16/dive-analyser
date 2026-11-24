@@ -99,7 +99,7 @@ def url(event_id, tail=""):
 def test_publisher_previews_then_saves_and_members_read(meet):
     coach = meet["login"]("coach")
     empty = coach.get(url(meet["meet_id"]))
-    assert empty.status_code == 200 and empty.json() == {"can_import": True, "available": False, "results": None}
+    assert empty.status_code == 200 and empty.json() == {"can_import": True, "available": False, "results": None, "can_manage_links": False}
 
     preview = coach.post(url(meet["meet_id"], "/preview"), content=make_pdf(), headers=PDF)
     assert preview.status_code == 200, preview.text
@@ -118,7 +118,7 @@ def test_publisher_previews_then_saves_and_members_read(meet):
         "points": 21.0, "running_total": 45.0, "penalty": 4}
 
     summary = meet["login"]("alice").get(url(meet["meet_id"], "?summary=true")).json()
-    assert summary == {"can_import": False, "available": True, "results": None}
+    assert summary == {"can_import": False, "available": True, "results": None, "can_manage_links": False}
     alice = meet["login"]("alice").get(url(meet["meet_id"]))
     assert alice.status_code == 200
     assert alice.json()["can_import"] is False and alice.json()["results"]["events"][1]["title"] == "Elite - Messieurs - HV"
@@ -218,3 +218,79 @@ def test_links_are_stored_and_shown_only_to_club_mates(cal):  # noqa: F811
     assert row("bob")["is_me"] is False and row("bob")["account"]["user_id"] == cal["users"]["alice"].id
     outsider = row("outsider")  # community event, other club: sees the sheet, not the account
     assert outsider["diver_name"] == "Alice MARTIN" and outsider["account"] is None
+
+
+# --- Administrators manage links ------------------------------------------------
+
+def _club_meet(cal, title, lines):  # noqa: F811
+    from app.services import calendar_access as access
+    from app.services.calendar_membership import admin_add_membership
+    db, u = cal["db"], cal["users"]
+    if access.active_membership(db, u["admin"], cal["clubs"]["k"].id) is None:
+        # Like the real admin: a member of the club whose meets they manage.
+        admin_add_membership(db, u["admin"], cal["clubs"]["k"].id, u["admin"].id, "member")
+    event = _event(db, cal["cals"]["k"], title, "club", event_type="competition")
+    _occ(db, event, f"{title}-1", 1)
+    db.commit()
+    eid = event.id
+    assert cal["login"]("coach").put(url(eid), content=make_pdf(lines), headers=PDF).status_code == 200
+    return eid
+
+
+def _rows(cal, who, eid):
+    return {e["diver_name"]: e for ev in cal["login"](who).get(url(eid)).json()["results"]["events"] for e in ev["entries"]}
+
+
+def test_admin_ties_person_across_meets_and_frees_the_auto_match(cal):  # noqa: F811
+    u = cal["users"]
+    dive = "201B 3 1,8 6,0 6,0 6,0   18,0 32,40 32,40  x"
+    sheet = [HEADER, "Elite - 3m", "Alice MARTIN (2001) -- KCPM Montreuil 1", dive,
+             "Mathilde ROUX (2003) -- KCPM Montreuil 2", dive.replace("32,40 32,40", "32,40 32,40")]
+    first = _club_meet(cal, "Meet A", sheet)
+    second = _club_meet(cal, "Meet B", sheet)
+    rows = _rows(cal, "admin", first)
+    assert rows["Alice MARTIN"]["account"]["user_id"] == u["alice"].id and rows["Alice MARTIN"]["link_source"] == "auto"
+    assert rows["Mathilde ROUX"]["account"] is None and rows["Mathilde ROUX"]["linkable"] is True
+    # Members never see the bookkeeping.
+    assert _rows(cal, "bob", first)["Alice MARTIN"]["link_source"] is None
+
+    admin = cal["login"]("admin")
+    found = admin.get("/api/v1/calendar/admin/meet-accounts?q=ali").json()["items"]
+    assert [a["user_id"] for a in found] == [u["alice"].id]
+    # Alice's account actually belongs to Mathilde: tie it, in every meet.
+    mathilde = rows["Mathilde ROUX"]["id"]
+    assert admin.put(f"/api/v1/calendar/results/entries/{mathilde}/link", json={"user_id": u["alice"].id}).status_code == 204
+    for eid in (first, second):
+        after = _rows(cal, "admin", eid)
+        assert after["Mathilde ROUX"]["account"]["user_id"] == u["alice"].id
+        assert after["Mathilde ROUX"]["link_source"] == "admin"
+        assert after["Alice MARTIN"]["account"] is None  # the account left the automatic pool
+
+    # A later import keeps the decision.
+    third = _club_meet(cal, "Meet C", sheet)
+    assert _rows(cal, "admin", third)["Mathilde ROUX"]["account"]["user_id"] == u["alice"].id
+
+    # Back to automatic: everything returns to the matcher's answer.
+    assert admin.delete(f"/api/v1/calendar/results/entries/{mathilde}/link").status_code == 204
+    for eid in (first, second, third):
+        back = _rows(cal, "admin", eid)
+        assert back["Alice MARTIN"]["account"]["user_id"] == u["alice"].id and back["Mathilde ROUX"]["account"] is None
+
+
+def test_admin_can_forbid_a_link_and_only_admins_manage(cal):  # noqa: F811
+    sheet = [HEADER, "Elite - 3m", "Alice MARTIN (2001) -- KCPM Montreuil 1",
+             "201B 3 1,8 6,0 6,0 6,0   18,0 32,40 32,40  x"]
+    eid = _club_meet(cal, "Meet N", sheet)
+    entry = _rows(cal, "admin", eid)["Alice MARTIN"]["id"]
+    link = f"/api/v1/calendar/results/entries/{entry}/link"
+    for who in ("coach", "alice"):
+        assert cal["login"](who).put(link, json={"user_id": None}).status_code == 403
+        assert cal["login"](who).delete(link).status_code == 403
+    assert cal["login"]("coach").get("/api/v1/calendar/admin/meet-accounts?q=ali").status_code == 403
+    admin = cal["login"]("admin")
+    assert admin.put(link, json={"user_id": 999999}).json()["detail"]["code"] == "account_not_found"
+    assert admin.put(link, json={"user_id": None}).status_code == 204
+    row = _rows(cal, "admin", eid)["Alice MARTIN"]
+    assert row["account"] is None and row["link_source"] == "admin"
+    assert _rows(cal, "alice", eid)["Alice MARTIN"]["is_me"] is False
+    assert admin.put(link, json={"user_id": None}, headers={"Origin": "https://evil.invalid"}).status_code == 403

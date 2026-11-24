@@ -329,3 +329,13 @@
 .meet-entry-row .member-avatar { flex: none; }
 .meet-profile { display: inline-flex; align-items: center; gap: 4px; margin: -4px 0 8px 60px; color: var(--app-accent); font-size: 13px; font-weight: 600; text-decoration: none; }
 @media (max-width: 480px) { .meet-profile { margin-left: 16px; } }
+.meet-link { display: grid; gap: 8px; margin: -4px 12px 10px 60px; padding: 10px 12px; border: 1px dashed var(--app-border-strong); border-radius: 12px; }
+@media (max-width: 480px) { .meet-link { margin-left: 12px; } }
+.meet-link-now { display: flex; align-items: center; gap: 8px; min-height: 30px; }
+.meet-link-account { display: inline-flex; align-items: center; gap: 8px; color: var(--app-text); font-size: 14px; font-weight: 600; text-decoration: none; }
+.meet-link-none { font-size: 14px; color: var(--app-muted); }
+.meet-link-search { display: grid; gap: 2px; }
+.meet-link-search .cal-search { margin: 0 0 4px; }
+.meet-link-candidate { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 4px 8px; border: 0; border-radius: 10px; background: none; color: var(--app-text); text-align: left; }
+.meet-link-candidate:active, .meet-link-candidate:hover { background: var(--app-panel-elevated); }
+.meet-link-candidate:disabled { opacity: .45; }

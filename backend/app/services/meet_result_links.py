@@ -15,6 +15,10 @@ characters; accounts mostly carry a first name only. A row is linked when:
 
 Synchro pairs are never linked. A wrong link is worse than none: everything
 uncertain stays plain text.
+
+Administrators override this per person (`meet_person_links`, keyed by
+`person_key`): tie to an account, or never link. Decisions apply to every
+meet, past and future, and their accounts leave the automatic pool.
 """
 from __future__ import annotations
 
@@ -106,13 +110,45 @@ def _candidates(full: set[str], given: str, users: dict, club_id: int) -> list[i
     return []
 
 
-def auto_links(db: Session, entries: list) -> dict[int, int]:
+def person_key(diver_name: str, birth_year: Optional[int]) -> Optional[str]:
+    """Stable identity of a sheet row across meets; None for synchro pairs."""
+    if " / " in diver_name:
+        return None
+    given, surname = split_name(diver_name)
+    return f"{given} {surname}".strip()[:150] + f"|{birth_year or 0}"
+
+
+def decisions(db: Session, keys: Iterable[str]) -> dict[str, Optional[int]]:
+    """Administrator decisions for these people: key -> user_id (None = never link)."""
+    from app.models.meet_results import MeetPersonLink
+    keys = {k for k in keys if k}
+    if not keys:
+        return {}
+    return dict(db.query(MeetPersonLink.person_key, MeetPersonLink.user_id).filter(
+        MeetPersonLink.person_key.in_(keys)).all())
+
+
+def resolve(db: Session, entries: list) -> dict[int, tuple[Optional[int], str]]:
+    """Index in `entries` -> (user_id, source) for every row that has a link
+    decision: 'admin' rows (user_id may be None) win over 'auto' matches."""
+    keys = [person_key(e.diver_name, e.birth_year) for e in entries]
+    decided = decisions(db, keys)
+    out: dict[int, tuple[Optional[int], str]] = {i: (decided[k], "admin") for i, k in enumerate(keys) if k in decided}
+    taken = {uid for uid in decided.values() if uid is not None}
+    rest = [i for i in range(len(entries)) if i not in out]
+    auto = auto_links(db, [entries[i] for i in rest], exclude_users=taken)
+    out.update({rest[j]: (uid, "auto") for j, uid in auto.items()})
+    return out
+
+
+def auto_links(db: Session, entries: list, exclude_users: frozenset | set = frozenset()) -> dict[int, int]:
     """Map index in `entries` (objects with diver_name, birth_year, club_name)
-    to the one account it unambiguously belongs to."""
+    to the one account it unambiguously belongs to. Accounts an administrator
+    already tied to someone (`exclude_users`) are never candidates."""
     clubs = _club_ids(db, {e.club_name for e in entries if " / " not in e.diver_name})
     if not clubs:
         return {}
-    users = _names_by_user(db, set(clubs.values()))
+    users = {uid: v for uid, v in _names_by_user(db, set(clubs.values())).items() if uid not in exclude_users}
     person_user: dict[tuple, Optional[int]] = {}
     person_of: dict[int, tuple] = {}
     for i, e in enumerate(entries):

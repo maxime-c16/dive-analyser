@@ -52,15 +52,33 @@ class MeetResultEntry(Base):
     # As printed by DiveRecorder after the club; NULL = finished normally.
     status = Column(String(16), nullable=True)
     guest = Column(Boolean, nullable=False, default=False)
-    # Set only by an unambiguous automatic match (services/meet_result_links).
+    # Who this row is (folded "given surname" + birth year 0 when unknown);
+    # NULL for synchro pairs. Admin link decisions are keyed on it.
+    person_key = Column(String(160), nullable=True)
+    # Linked account: an unambiguous automatic match ('auto') or an admin
+    # decision ('admin', where user_id NULL means "never link this person").
     user_id = Column(Integer, ForeignKey("app_users.id", ondelete="SET NULL"), nullable=True)
+    link_source = Column(String(8), nullable=True)
     __table_args__ = (
         UniqueConstraint("event_id", "position", name="uq_meet_result_entry_position"),
         Index("ix_meet_result_entries_user", "user_id"),
+        Index("ix_meet_result_entries_person", "person_key"),
+        CheckConstraint("link_source IS NULL OR link_source IN ('auto', 'admin')", name="ck_meet_result_entry_link"),
         CheckConstraint("status IS NULL OR status IN ('disqualified', 'withdrawn', 'knocked_out')",
                         name="ck_meet_result_entry_status"),
         MIGRATION_ONLY,
     )
+
+
+class MeetPersonLink(Base):
+    """An administrator's decision for one person across every meet:
+    tie them to `user_id`, or never link them (`user_id` NULL)."""
+    __tablename__ = "meet_person_links"
+    person_key = Column(String(160), primary_key=True)
+    user_id = Column(Integer, ForeignKey("app_users.id", ondelete="CASCADE"), nullable=True)
+    decided_by_user_id = Column(Integer, ForeignKey("app_users.id", ondelete="SET NULL"), nullable=True)
+    decided_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    __table_args__ = (Index("ix_meet_person_links_user", "user_id"), MIGRATION_ONLY)
 
 
 class MeetResultDive(Base):

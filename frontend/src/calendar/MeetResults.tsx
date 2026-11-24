@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { ChevronDown, ChevronRight, FileUp, Trash2 } from "lucide-react";
 import {
-  CalendarError, calendarApi, type EventDetail, type MeetEntry, type MeetPreview, type MeetResultsPage,
+  CalendarError, calendarApi, type EventDetail, type MeetAccountCandidate, type MeetEntry, type MeetPreview, type MeetResultsPage,
 } from "./api";
 import { useCalendarStrings } from "./useStrings";
 import PageLoading from "../components/PageLoading";
@@ -86,7 +86,8 @@ export default function MeetResults({ eventId }: { eventId: number }) {
           <section className="ca-panel meet-board" role="tabpanel" aria-label={current.title}>
             <ol className="meet-ranking">
               {current.entries.map((entry) => (
-                <Entry key={entry.id} entry={entry} open={open === entry.id}
+                <Entry key={entry.id} entry={entry} open={open === entry.id} manage={!!page.can_manage_links}
+                  reload={() => setRevision((r) => r + 1)}
                   toggle={() => setOpen((o) => (o === entry.id ? null : entry.id))} />
               ))}
             </ol>
@@ -105,7 +106,9 @@ function useNumber() {
   return { two: (n: number) => two.format(n), one: (n: number) => one.format(n), any: (n: number) => any.format(n) };
 }
 
-function Entry({ entry, open, toggle }: { entry: MeetEntry; open: boolean; toggle: () => void }) {
+function Entry({ entry, open, toggle, manage, reload }: {
+  entry: MeetEntry; open: boolean; toggle: () => void; manage: boolean; reload: () => void;
+}) {
   const { t } = useCalendarStrings();
   const fmt = useNumber();
   const podium = entry.rank && entry.rank <= 3 && !entry.status ? ` is-p${entry.rank}` : "";
@@ -123,7 +126,8 @@ function Entry({ entry, open, toggle }: { entry: MeetEntry; open: boolean; toggl
         <span className="meet-total">{fmt.two(entry.total)}</span>
         <ChevronDown size={16} aria-hidden="true" className="meet-chevron" />
       </button>
-      {open && entry.account && (
+      {open && manage && entry.linkable && <LinkManager entry={entry} reload={reload} />}
+      {open && !manage && entry.account && (
         <Link className="meet-profile" to={`/users/${entry.account.user_id}`}>
           {entry.account.display_name}<ChevronRight size={14} aria-hidden="true" />
         </Link>
@@ -146,6 +150,69 @@ function Entry({ entry, open, toggle }: { entry: MeetEntry; open: boolean; toggl
         </ol>
       )}
     </li>
+  );
+}
+
+/** Administrators: who this person is tied to, in every meet. */
+function LinkManager({ entry, reload }: { entry: MeetEntry; reload: () => void }) {
+  const { t } = useCalendarStrings();
+  const [searching, setSearching] = useState(false);
+  const [term, setTerm] = useState("");
+  const [found, setFound] = useState<MeetAccountCandidate[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    const q = term.trim();
+    if (q.length < 2) { setFound([]); return; }
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      calendarApi.meetAccounts(q, controller.signal).then((r) => setFound(r.items)).catch(() => undefined);
+    }, 250);
+    return () => { window.clearTimeout(timer); controller.abort(); };
+  }, [term]);
+  const act = (work: () => Promise<unknown>) => {
+    setBusy(true); setFailed(false);
+    work().then(() => { setSearching(false); setTerm(""); reload(); })
+      .catch(() => setFailed(true)).finally(() => setBusy(false));
+  };
+  const source = entry.link_source === "admin" ? t.linkAdmin : entry.link_source === "auto" ? t.linkAuto : null;
+  return (
+    <div className="meet-link" aria-busy={busy}>
+      <div className="meet-link-now">
+        {entry.account
+          ? <Link className="meet-link-account" to={`/users/${entry.account.user_id}`}>
+              <MemberAvatar member={entry.account} size={28} />{entry.account.display_name}
+            </Link>
+          : <span className="meet-link-none">{entry.link_source === "admin" ? t.neverLinked : t.noAccount}</span>}
+        {source && <span className={`cal-chip${entry.link_source === "admin" ? " is-warn" : ""}`}>{source}</span>}
+      </div>
+      <div className="cal-pills">
+        <button type="button" className="ca-pill" disabled={busy} aria-expanded={searching}
+          onClick={() => setSearching((v) => !v)}>{t.linkAccount}</button>
+        {!(entry.link_source === "admin" && !entry.account) && (
+          <button type="button" className="ca-pill" disabled={busy} onClick={() => act(() => calendarApi.setResultLink(entry.id, null))}>{t.neverLink}</button>
+        )}
+        {entry.link_source === "admin" && (
+          <button type="button" className="ca-pill" disabled={busy} onClick={() => act(() => calendarApi.clearResultLink(entry.id))}>{t.backToAuto}</button>
+        )}
+      </div>
+      {searching && (
+        <div className="meet-link-search">
+          <label className="cal-search is-inline">
+            <span className="sr-only">{t.searchAccounts}</span>
+            <input type="search" autoFocus placeholder={t.searchAccounts} value={term} onChange={(e) => setTerm(e.target.value)} />
+          </label>
+          {found.map((a) => (
+            <button key={a.user_id} type="button" className="meet-link-candidate" disabled={busy || a.user_id === entry.account?.user_id}
+              onClick={() => act(() => calendarApi.setResultLink(entry.id, a.user_id))}>
+              <MemberAvatar member={a} size={28} />
+              <span className="cal-list-main"><b>{a.display_name}</b>{a.diver_names.length > 0 && <small>{a.diver_names.join(", ")}</small>}</span>
+            </button>
+          ))}
+        </div>
+      )}
+      {failed && <p role="alert" className="cal-notice is-bad">{t.retrySave}</p>}
+    </div>
   );
 }
 
