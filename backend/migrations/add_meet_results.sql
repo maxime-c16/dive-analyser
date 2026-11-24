@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS meet_result_entries (
  diver_name VARCHAR(120) NOT NULL,
  birth_year SMALLINT,
  club_name VARCHAR(120) NOT NULL,
- total NUMERIC(7, 2) NOT NULL,
+ total NUMERIC(7, 2),
  status VARCHAR(16),
  guest BOOLEAN NOT NULL DEFAULT false,
  person_key VARCHAR(160),

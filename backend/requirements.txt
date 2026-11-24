@@ -20,7 +20,7 @@ pywebpush==2.5.0
 Pillow==12.3.0
 
 # Meet result sheets (DiveRecorder PDFs, text layer only; pure Python)
-pypdf==6.9.2
+pypdf==6.21.4
 
 # Utilities
 python-dotenv==1.0.0

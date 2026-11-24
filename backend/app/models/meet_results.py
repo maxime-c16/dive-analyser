@@ -48,7 +48,7 @@ class MeetResultEntry(Base):
     diver_name = Column(String(120), nullable=False)
     birth_year = Column(SmallInteger, nullable=True)
     club_name = Column(String(120), nullable=False)
-    total = Column(Numeric(7, 2), nullable=False)
+    total = Column(Numeric(7, 2), nullable=True)  # NULL: no dive printed
     # As printed by DiveRecorder after the club; NULL = finished normally.
     status = Column(String(16), nullable=True)
     guest = Column(Boolean, nullable=False, default=False)

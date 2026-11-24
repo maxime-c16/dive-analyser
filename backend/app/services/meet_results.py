@@ -128,12 +128,13 @@ def replace(db: Session, user: AppUser, event_id: int, parsed: ParsedMeet, sourc
 
 def delete(db: Session, user: AppUser, event_id: int) -> None:
     event, _calendar = events.editable_event(db, user, event_id)
+    lock_links(db)  # never under an admin relink of the same rows
     if db.query(MeetResult).filter(MeetResult.calendar_event_id == event.id).delete(synchronize_session=False) == 0:
         fail(404, "results_not_found", "No results for this event")
 
 
-def _num(value) -> float:
-    return float(value)
+def _num(value) -> Optional[float]:
+    return None if value is None else float(value)
 
 
 def _visible_accounts(db: Session, viewer: AppUser, user_ids: set[int]) -> dict[int, dict]:
@@ -156,18 +157,32 @@ def _visible_accounts(db: Session, viewer: AppUser, user_ids: set[int]) -> dict[
 def read(db: Session, user: AppUser, event_id: int, summary: bool = False) -> dict:
     """`summary` answers only whether results exist (one indexed lookup)."""
     event, calendar = events.visible_event(db, user, event_id)
-    result = db.query(MeetResult).filter(MeetResult.calendar_event_id == event.id).one_or_none()
-    out = {"can_import": can_import(db, user, event, calendar), "available": result is not None, "results": None,
+    out = {"can_import": can_import(db, user, event, calendar), "available": False, "results": None,
            "can_manage_links": bool(user.is_admin)}
-    if result is None or summary:
+    if summary:
+        out["available"] = db.query(MeetResult.id).filter(MeetResult.calendar_event_id == event.id).first() is not None
         return out
-    meet_events = db.query(MeetResultEvent).filter(MeetResultEvent.result_id == result.id).order_by(
-        MeetResultEvent.position).all()
-    entries = db.query(MeetResultEntry).join(MeetResultEvent, MeetResultEvent.id == MeetResultEntry.event_id).filter(
-        MeetResultEvent.result_id == result.id).order_by(MeetResultEntry.event_id, MeetResultEntry.position).all()
-    dives = db.query(MeetResultDive).join(MeetResultEntry, MeetResultEntry.id == MeetResultDive.entry_id).join(
-        MeetResultEvent, MeetResultEvent.id == MeetResultEntry.event_id).filter(
-        MeetResultEvent.result_id == result.id).order_by(MeetResultDive.entry_id, MeetResultDive.position).all()
+    # One statement = one snapshot: a re-import committing mid-read can never
+    # mix the old result with the new rows (or return an empty ranking).
+    rows = db.query(MeetResult, MeetResultEvent, MeetResultEntry, MeetResultDive).outerjoin(
+        MeetResultEvent, MeetResultEvent.result_id == MeetResult.id).outerjoin(
+        MeetResultEntry, MeetResultEntry.event_id == MeetResultEvent.id).outerjoin(
+        MeetResultDive, MeetResultDive.entry_id == MeetResultEntry.id).filter(
+        MeetResult.calendar_event_id == event.id).order_by(
+        MeetResultEvent.position, MeetResultEntry.position, MeetResultDive.position).all()
+    if not rows:
+        return out
+    out["available"] = True
+    result = rows[0][0]
+    meet_events, entries, dives = {}, {}, []
+    for _r, ev, en, d in rows:
+        if ev is not None:
+            meet_events.setdefault(ev.id, ev)
+        if en is not None:
+            entries.setdefault(en.id, en)
+        if d is not None:
+            dives.append(d)
+    meet_events, entries = list(meet_events.values()), list(entries.values())
     dives_by_entry: dict[int, list] = {}
     for d in dives:
         dives_by_entry.setdefault(d.entry_id, []).append({
@@ -183,6 +198,7 @@ def read(db: Session, user: AppUser, event_id: int, summary: bool = False) -> di
             "guest": en.guest, "is_me": en.user_id == user.id, "account": accounts.get(en.user_id),
             # Link bookkeeping is for administrators only.
             "link_source": en.link_source if user.is_admin else None,
+            "account_inactive": bool(en.user_id and en.user_id not in accounts) if user.is_admin else None,
             "linkable": en.person_key is not None if user.is_admin else None,
             "dives": dives_by_entry.get(en.id, [])})
     out["results"] = {
@@ -196,7 +212,7 @@ def read(db: Session, user: AppUser, event_id: int, summary: bool = False) -> di
 
 # --- Administrator link management --------------------------------------------
 
-MAX_RELINK_MEETS = 200
+MAX_RELINK_MEETS = 1000
 
 
 def relink_meet(db: Session, result_id: int, cache: Optional[dict] = None) -> None:
@@ -232,10 +248,10 @@ def _admin_entry(db: Session, admin: AppUser, entry_id: int) -> MeetResultEntry:
 
 def set_link(db: Session, admin: AppUser, entry_id: int, user_id: Optional[int]) -> None:
     """Tie this person to `user_id` in every meet, or never link them (None)."""
+    lock_links(db)  # first: everything below is read after any concurrent decision
     entry = _admin_entry(db, admin, entry_id)
     if user_id is not None and db.query(AppUser.id).filter(AppUser.id == user_id, AppUser.is_active.is_(True)).first() is None:
         fail(422, "account_not_found", "Account not found")
-    lock_links(db)
     key = entry.person_key
     decision = db.query(MeetPersonLink).filter(MeetPersonLink.person_key == key).with_for_update().one_or_none()
     if decision is None:
@@ -253,14 +269,15 @@ def set_link(db: Session, admin: AppUser, entry_id: int, user_id: Optional[int])
 
 
 def clear_link(db: Session, admin: AppUser, entry_id: int) -> None:
-    """Drop the administrator decision: this person is matched automatically again."""
-    entry = _admin_entry(db, admin, entry_id)
+    """Drop the administrator decision: this person is matched automatically again.
+    Relinks even without a decision, which repairs rows left behind when a
+    deleted account removed its decision."""
     lock_links(db)
+    entry = _admin_entry(db, admin, entry_id)
     decision = db.query(MeetPersonLink).filter(MeetPersonLink.person_key == entry.person_key).with_for_update().one_or_none()
-    if decision is None:
-        return
-    db.delete(decision)
-    db.flush()
+    if decision is not None:
+        db.delete(decision)
+        db.flush()
     cache: dict = {}
     for rid in _all_meets(db):
         relink_meet(db, rid, cache)

@@ -45,7 +45,9 @@ from app.models.calendar import Club, ClubMembership
 from app.models.diver import Diver, DiverAlias
 from app.models.user_auth import AppUser, UserDiverAccess
 
-MIN_CLUB_PREFIX = 8
+# DiveRecorder truncates the club to ~30 characters; only a name that long can
+# be a truncated prefix ("ASPTT Paris" must not match "ASPTT Paris Plongeon").
+MIN_CLUB_PREFIX = 25
 # Candidate sets are loaded whole. If one exceeds its cap, matching fails
 # closed (no automatic link) instead of deciding from a truncated set, where a
 # missing namesake would make an ambiguous name look unique.
@@ -84,15 +86,18 @@ def split_name(name: str) -> tuple[str, str]:
     return fold(" ".join(given)), fold(" ".join(surname))
 
 
-def _club_ids(db: Session, sheet_clubs: Iterable[str]) -> dict[str, int]:
-    clubs = _bounded(db.query(Club.id, Club.name, Club.short_name).filter(Club.archived_at.is_(None)), MAX_CLUBS)
+def _club_ids(db: Session, sheet_clubs: Iterable[str], cache: Optional[dict] = None) -> dict[str, int]:
+    cache = {} if cache is None else cache
+    if "clubs" not in cache:
+        cache["clubs"] = _bounded(db.query(Club.id, Club.name, Club.short_name).filter(Club.archived_at.is_(None)), MAX_CLUBS)
+    clubs = cache["clubs"]
     out = {}
     for sheet in sheet_clubs:
         f = fold(sheet)
         # An exact name or short name wins over a truncated prefix ("Club X" vs "Club X Nord").
         hits = {cid for cid, name, short in clubs if f == fold(name) or (short and f == fold(short))}
-        if not hits:
-            hits = {cid for cid, name, short in clubs if len(f) >= MIN_CLUB_PREFIX and fold(name).startswith(f)}
+        if not hits and len(sheet.strip()) >= MIN_CLUB_PREFIX:
+            hits = {cid for cid, name, short in clubs if fold(name).startswith(f)}
         if len(hits) == 1:
             out[sheet] = hits.pop()
     return out
@@ -187,40 +192,47 @@ def resolve(db: Session, entries: list, cache: Optional[dict] = None) -> dict[in
     decided = decisions(db, keys)
     out: dict[int, tuple[Optional[int], str]] = {i: (decided[k], "admin") for i, k in enumerate(keys) if k in decided}
     cache = {} if cache is None else cache
-    if "taken" not in cache:
-        # Every account an administrator tied to anyone, on any sheet (indexed).
-        cache["taken"] = {uid for (uid,) in db.query(MeetPersonLink.user_id).filter(
-            MeetPersonLink.user_id.isnot(None)).distinct()}
     rest = [i for i in range(len(entries)) if i not in out]
-    auto = auto_links(db, [entries[i] for i in rest], exclude_users=cache["taken"], cache=cache)
+    auto = auto_links(db, [entries[i] for i in rest], cache=cache)
     out.update({rest[j]: (uid, "auto") for j, uid in auto.items()})
     return out
 
 
-def auto_links(db: Session, entries: list, exclude_users: frozenset | set = frozenset(),
-               cache: Optional[dict] = None) -> dict[int, int]:
+def _claimed(db: Session, user_ids: Iterable[int]) -> set[int]:
+    """Candidates an administrator tied to anyone, on any sheet. Bounded by the
+    candidate set, not by the number of decisions."""
+    from app.models.meet_results import MeetPersonLink
+    ids = list(user_ids)
+    if not ids:
+        return set()
+    return {uid for (uid,) in db.query(MeetPersonLink.user_id).filter(MeetPersonLink.user_id.in_(ids)).distinct()}
+
+
+def auto_links(db: Session, entries: list, cache: Optional[dict] = None) -> dict[int, int]:
     """Map index in `entries` (objects with diver_name, birth_year, club_name)
     to the one account it unambiguously belongs to. Accounts an administrator
-    already tied to someone (`exclude_users`) are never candidates."""
+    already tied to someone are never candidates."""
     cache = {} if cache is None else cache
     try:
-        clubs = _club_ids(db, {e.club_name for e in entries if " / " not in e.diver_name})
+        clubs = _club_ids(db, {e.club_name for e in entries if " / " not in e.diver_name}, cache)
         if not clubs:
             return {}
         club_set = frozenset(clubs.values())
         if club_set not in cache:
-            cache[club_set] = _names_by_user(db, set(club_set))
-        everyone = cache[club_set]
+            pool = _names_by_user(db, set(club_set))
+            claimed = _claimed(db, pool)
+            cache[club_set] = {uid: v for uid, v in pool.items() if uid not in claimed}
+        users = cache[club_set]
     except _Truncated:
         return {}
-    users = {uid: v for uid, v in everyone.items() if uid not in exclude_users}
     person_user: dict[tuple, Optional[int]] = {}
     person_of: dict[int, tuple] = {}
     for i, e in enumerate(entries):
         if " / " in e.diver_name or e.club_name not in clubs:
             continue
         given, surname = split_name(e.diver_name)
-        person = (given, surname, e.birth_year, clubs[e.club_name])
+        # Identity as everywhere else (licence first): two licences are two people.
+        person = (key_of(e), clubs[e.club_name])
         person_of[i] = person
         if person in person_user:
             continue

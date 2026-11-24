@@ -1,13 +1,16 @@
 """Official meet results on competition events (under the calendar gate).
 
 Upload is the raw PDF body (Content-Type: application/pdf). Permission is
-checked before the body is read; the body is read with a byte budget; at
-most MAX_PARSES PDFs are decoded at once (busy -> 429); parsing and storage
-run off the event loop and re-check permission under the event lock. The
+checked before the body is read; a parse slot is taken before reading too
+(at most MAX_PARSES uploads buffered or decoded at once, busy -> 429); the
+body is read with a byte budget and a deadline; parsing and storage run off
+the event loop and re-check permission under the event lock. The
 same file is sent twice: once to preview, once to save; the server parses it
 each time, so the stored rows never come from client-side JSON.
 """
+import asyncio
 import threading
+from contextlib import asynccontextmanager
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
@@ -26,6 +29,7 @@ from app.services.meet_results_pdf import MeetPdfError, parse_pdf
 
 MAX_PDF_BYTES = 8 * 1024 * 1024
 MAX_PARSES = 2
+UPLOAD_DEADLINE_S = 60
 _parse_slots = threading.BoundedSemaphore(MAX_PARSES)
 _schema_ready = False
 
@@ -42,28 +46,41 @@ router = APIRouter(prefix="/calendar", dependencies=[Depends(calendar_gate), Dep
                                                     Depends(private_responses)])
 
 
+@asynccontextmanager
+async def _parse_slot():
+    """Held from before the body is read until parsing ends (released on any failure)."""
+    if not _parse_slots.acquire(blocking=False):
+        raise HTTPException(429, detail={"code": "busy", "message": "Another import is being read; try again"})
+    try:
+        yield
+    finally:
+        _parse_slots.release()
+
+
 async def _pdf_body(request: Request) -> bytes:
     declared = request.headers.get("content-length")
     if declared and declared.isdigit() and int(declared) > MAX_PDF_BYTES:
         raise HTTPException(413, detail={"code": "too_large", "message": "The PDF must be at most 8 MB"})
-    chunks, size = [], 0
-    async for chunk in request.stream():
-        size += len(chunk)
-        if size > MAX_PDF_BYTES:
-            raise HTTPException(413, detail={"code": "too_large", "message": "The PDF must be at most 8 MB"})
-        chunks.append(chunk)
-    return b"".join(chunks)
+
+    async def read() -> bytes:
+        chunks, size = [], 0
+        async for chunk in request.stream():
+            size += len(chunk)
+            if size > MAX_PDF_BYTES:
+                raise HTTPException(413, detail={"code": "too_large", "message": "The PDF must be at most 8 MB"})
+            chunks.append(chunk)
+        return b"".join(chunks)
+    try:
+        return await asyncio.wait_for(read(), UPLOAD_DEADLINE_S)
+    except asyncio.TimeoutError as exc:
+        raise HTTPException(408, detail={"code": "upload_timeout", "message": "The upload took too long"}) from exc
 
 
 def _parse(raw: bytes):
-    if not _parse_slots.acquire(blocking=False):
-        raise HTTPException(429, detail={"code": "busy", "message": "Another import is being read; try again"})
     try:
         return parse_pdf(raw)
     except MeetPdfError as exc:
         raise HTTPException(422, detail={"code": exc.code, "message": str(exc)}) from exc
-    finally:
-        _parse_slots.release()
 
 
 @router.get("/events/{event_id}/results")
@@ -76,24 +93,26 @@ def get_results(event_id: int, summary: bool = False, user: AppUser = Depends(ge
 async def preview_results(event_id: int, request: Request, user: AppUser = Depends(writer),
                           db: Session = Depends(get_db)):
     await run_in_threadpool(service.check_import, db, user, event_id)
-    raw = await _pdf_body(request)
+    async with _parse_slot():
+        raw = await _pdf_body(request)
 
-    def run():
-        return service.preview(db, user, event_id, _parse(raw))
-    return await run_in_threadpool(run)
+        def run():
+            return service.preview(db, user, event_id, _parse(raw))
+        return await run_in_threadpool(run)
 
 
 @router.put("/events/{event_id}/results")
 async def save_results(event_id: int, request: Request, name: str = Query("", max_length=200),
                        user: AppUser = Depends(writer), db: Session = Depends(get_db)):
     await run_in_threadpool(service.check_import, db, user, event_id)
-    raw = await _pdf_body(request)
+    async with _parse_slot():
+        raw = await _pdf_body(request)
 
-    def run():
-        service.replace(db, user, event_id, _parse(raw), name, raw)
-        commit(db)
-        return service.read(db, user, event_id)
-    return await run_in_threadpool(run)
+        def run():
+            service.replace(db, user, event_id, _parse(raw), name, raw)
+            commit(db)
+            return service.read(db, user, event_id)
+        return await run_in_threadpool(run)
 
 
 @router.delete("/events/{event_id}/results", status_code=204)

@@ -218,3 +218,46 @@ it('shows warning numbers in the reader\'s locale', async () => {
   fireEvent.change(container.querySelector('input[type=file]')!, {target: {files: [new File(['%PDF'], 'a.pdf')]}})
   expect(await screen.findByText('Ann A, plongeon 2 : total 120,50 imprimé, 119,50 attendu')).toBeInTheDocument()
 })
+
+it('shows a single event by title, a dash for no total, and the import panel after the ranking', async () => {
+  const women = page.results!.events[0]
+  vi.mocked(calendarApi.results).mockResolvedValue({...page, can_import: true, results: {...page.results!, events: [
+    {...women, entries: [...women.entries, {...women.entries[0], id: 11, rank: null, diver_name: 'Eva VIDE', total: null, dives: []}]}]}})
+  const {container} = view()
+  expect(await screen.findByRole('heading', {name: 'Elite - Dames - 3m'})).toBeInTheDocument()
+  expect(screen.queryByRole('tablist')).toBeNull()
+  expect(screen.queryByRole('tabpanel')).toBeNull()
+  const eva = screen.getByText('Eva VIDE').closest('.meet-entry-row') as HTMLElement
+  expect(eva.querySelector('.meet-total')).toHaveTextContent('–')
+  const board = container.querySelector('.meet-board')!
+  const panel = container.querySelector('.meet-import')!
+  expect(board.compareDocumentPosition(panel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+})
+
+it('tells admins when a tied account was deactivated and lists previewed events', async () => {
+  const women = page.results!.events[0]
+  vi.mocked(calendarApi.results).mockResolvedValue({...page, can_manage_links: true, results: {...page.results!, events: [
+    {...women, entries: [{...women.entries[0], linkable: true, link_source: 'admin', account: null, account_inactive: true}]}]}})
+  view()
+  fireEvent.click(await screen.findByRole('button', {name: /Anna TESTA/}))
+  expect(screen.getByText('Compte désactivé')).toBeInTheDocument()
+  expect(screen.queryByText('Jamais relié')).toBeNull()
+  expect(screen.getByRole('button', {name: 'Ne jamais relier'})).toBeInTheDocument()
+  expect(screen.getByText('S’applique à toutes les compétitions.')).toBeInTheDocument()
+})
+
+it('lists the events found and clears a failed save on discard', async () => {
+  vi.mocked(calendarApi.results).mockResolvedValue({can_import: true, available: false, results: null})
+  vi.mocked(calendarApi.previewResults).mockResolvedValue({meet_date: null, date_matches: null,
+    events: [{title: 'Elite - Dames - 3m', board: '3m', entries: 3}], entry_count: 3, dive_count: 6,
+    warnings: [], warnings_truncated: false, replaces: false, linked_count: 0})
+  vi.mocked(calendarApi.saveResults).mockRejectedValueOnce(new CalendarError(500, 'http_500', ''))
+  const {container} = view()
+  await screen.findByRole('button', {name: /Importer les résultats/})
+  fireEvent.change(container.querySelector('input[type=file]')!, {target: {files: [new File(['%PDF'], 'a.pdf')]}})
+  expect(await screen.findByText('Elite - Dames - 3m')).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', {name: 'Enregistrer les résultats'}))
+  expect(await screen.findByRole('alert')).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', {name: 'Abandonner'}))
+  expect(screen.queryByRole('alert')).toBeNull()
+})

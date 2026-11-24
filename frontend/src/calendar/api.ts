@@ -108,7 +108,7 @@ export interface MeetDive {
   running_total: number; penalty: number | null
 }
 export interface MeetEntry {
-  id: number; rank: number | null; diver_name: string; birth_year: number | null; club_name: string; total: number
+  id: number; rank: number | null; diver_name: string; birth_year: number | null; club_name: string; total: number | null
   status: 'disqualified' | 'withdrawn' | 'knocked_out' | null; guest: boolean; dives: MeetDive[]
   /** The viewer's own row (automatic, unambiguous account match). */
   is_me: boolean
@@ -117,6 +117,8 @@ export interface MeetEntry {
   /** Administrators only (null otherwise): where the link comes from, and whether the row can be linked. */
   link_source: 'auto' | 'admin' | null
   linkable: boolean | null
+  /** Administrators only: the linked account exists but is deactivated. */
+  account_inactive?: boolean | null
 }
 export interface MeetAccount { user_id: number; display_name: string; avatar_url: string | null; avatar_hud: 'orbit' | 'reticle' | 'depth' }
 export interface MeetAccountCandidate extends MeetAccount { diver_names: string[] }

@@ -68,6 +68,11 @@ export default function MeetResults({ eventId }: { eventId: number }) {
     window.requestAnimationFrame(() => document.getElementById(`meet-tab-${next.id}`)?.focus());
   };
 
+  const importPanel = (
+    <ImportPanel eventId={eventId} hasResults={!!results}
+      onSaved={(next) => setState({ status: "ready", event, page: next })} />
+  );
+
   return (
     <article className="cal-detail cal-src-competition meet">
       <header className="cal-hero-text ca-arrive">
@@ -76,10 +81,7 @@ export default function MeetResults({ eventId }: { eventId: number }) {
         {date && <p className="meet-date">{date}</p>}
       </header>
 
-      {page.can_import && (
-        <ImportPanel eventId={eventId} hasResults={!!results}
-          onSaved={(next) => setState({ status: "ready", event, page: next })} />
-      )}
+      {page.can_import && !results && importPanel}
 
       {!results && !page.can_import && <p className="cal-notice">{t.noResults}</p>}
 
@@ -94,8 +96,9 @@ export default function MeetResults({ eventId }: { eventId: number }) {
               ))}
             </div>
           )}
-          <section id="meet-panel" className="ca-panel meet-board" role="tabpanel"
-            {...(events.length > 1 ? { "aria-labelledby": `meet-tab-${current.id}` } : { "aria-label": current.title })}>
+          {events.length === 1 && <h2 className="meet-event-title">{current.title}</h2>}
+          <section className="ca-panel meet-board"
+            {...(events.length > 1 ? { id: "meet-panel", role: "tabpanel", "aria-labelledby": `meet-tab-${current.id}` } : {})}>
             <ol className="meet-ranking">
               {current.entries.map((entry) => (
                 <Entry key={entry.id} entry={entry} open={open === entry.id} manage={!!page.can_manage_links}
@@ -106,6 +109,8 @@ export default function MeetResults({ eventId }: { eventId: number }) {
           </section>
         </>
       )}
+
+      {page.can_import && results && importPanel}
     </article>
   );
 }
@@ -137,10 +142,13 @@ function Entry({ entry, open, toggle, manage, reload }: {
     <li className={`meet-entry${open ? " is-open" : ""}${entry.is_me ? " is-me" : ""}`}>
       <Row {...(expandable ? { type: "button" as const, "aria-expanded": open, onClick: toggle } : {})} className="meet-entry-row">
         <span className={`meet-rank${podium}`}>{entry.rank ?? "–"}</span>
-        {entry.account && <MemberAvatar member={entry.account} size={32} />}
         <span className="meet-who">
           <b>{entry.diver_name}</b>
-          <small>{[entry.club_name, entry.birth_year].filter(Boolean).join(" · ")}</small>
+          <small className="meet-sub">
+            {/* The account sits in the club line: names keep the full width and stay aligned. */}
+            {entry.account && <MemberAvatar member={entry.account} size={18} />}
+            <span>{[entry.club_name, entry.birth_year].filter(Boolean).join(" · ")}</span>
+          </small>
           {(entry.status || entry.guest) && (
             <span className="meet-chips">
               {entry.status && <span className="cal-chip is-bad">{t[`status_${entry.status}`]}</span>}
@@ -148,7 +156,7 @@ function Entry({ entry, open, toggle, manage, reload }: {
             </span>
           )}
         </span>
-        <span className="meet-total">{fmt.two(entry.total)}</span>
+        <span className="meet-total">{entry.total === null ? "–" : fmt.two(entry.total)}</span>
         {expandable ? <ChevronDown size={16} aria-hidden="true" className="meet-chevron" /> : <span className="meet-chevron" />}
       </Row>
       {open && manage && entry.linkable && <LinkManager entry={entry} reload={reload} />}
@@ -163,14 +171,17 @@ function Entry({ entry, open, toggle, manage, reload }: {
             <li key={i} className="meet-dive">
               <span className="meet-dive-code">
                 <b>{d.dive_code}</b>
-                <small>{fmt.any(d.height)} m · {fmt.one(d.dd)}</small>
+                <small>{fmt.any(d.height)} m · <span className="sr-only">{t.diveDD} </span>{fmt.one(d.dd)}</small>
               </span>
               <span className="meet-judges">
                 <span className="sr-only">{t.judges} </span>
                 {d.judges.map((j, k) => <span key={k}>{fmt.one(j)}</span>)}
                 {d.penalty ? <span className="cal-chip is-warn">{t.penalty[d.penalty] ?? d.penalty}</span> : null}
               </span>
-              <span className="meet-points"><b>{fmt.two(d.points)}</b><small>{fmt.two(d.running_total)}</small></span>
+              <span className="meet-points">
+                <b><span className="sr-only">{t.divePoints} </span>{fmt.two(d.points)}</b>
+                <small><span className="sr-only">{t.diveTotal} </span>{fmt.two(d.running_total)}</small>
+              </span>
             </li>
           ))}
         </ol>
@@ -215,19 +226,22 @@ function LinkManager({ entry, reload }: { entry: MeetEntry; reload: () => void }
           ? <Link className="meet-link-account" to={`/users/${entry.account.user_id}`}>
               <MemberAvatar member={entry.account} size={28} />{entry.account.display_name}
             </Link>
-          : <span className="meet-link-none">{entry.link_source === "admin" ? t.neverLinked : t.noAccount}</span>}
+          : <span className="meet-link-none">
+              {entry.account_inactive ? t.accountInactive : entry.link_source === "admin" ? t.neverLinked : t.noAccount}
+            </span>}
         {source && <span className={`cal-chip${entry.link_source === "admin" ? " is-warn" : ""}`}>{source}</span>}
       </div>
       <div className="cal-pills">
         <button type="button" className="ca-pill" disabled={busy} aria-expanded={searching}
           onClick={() => setSearching((v) => !v)}>{t.linkAccount}</button>
-        {!(entry.link_source === "admin" && !entry.account) && (
+        {!(entry.link_source === "admin" && !entry.account && !entry.account_inactive) && (
           <button type="button" className="ca-pill" disabled={busy} onClick={() => act(() => calendarApi.setResultLink(entry.id, null))}>{t.neverLink}</button>
         )}
         {entry.link_source === "admin" && (
           <button type="button" className="ca-pill" disabled={busy} onClick={() => act(() => calendarApi.clearResultLink(entry.id))}>{t.backToAuto}</button>
         )}
       </div>
+      <small className="meet-link-scope">{t.linkScope}</small>
       {searching && (
         <div className="meet-link-search">
           <label className="cal-search is-inline">
@@ -267,7 +281,7 @@ function ImportPanel({ eventId, hasResults, onSaved }: {
     const key = e instanceof CalendarError ? `meetError_${e.code}` : "";
     setError((t as Record<string, unknown>)[key] as string ?? (e instanceof CalendarError && e.status === 403 ? t.forbidden : t.retrySave));
   };
-  const reset = () => { generation.current += 1; setFile(null); setPreview(null); setBusy(false); if (input.current) input.current.value = ""; };
+  const reset = () => { generation.current += 1; setFile(null); setPreview(null); setBusy(false); setError(null); if (input.current) input.current.value = ""; };
   // Each step is tagged: a later pick, discard or save makes earlier answers stale.
   const run = async <T,>(work: () => Promise<T>, done: (value: T) => void) => {
     const mine = ++generation.current;
@@ -283,7 +297,7 @@ function ImportPanel({ eventId, hasResults, onSaved }: {
   };
   const pick = (next: File | null) => {
     if (!next) return;
-    setPreview(null); setFile(next);
+    setPreview(null); setFile(next); setConfirming(false);
     run(() => calendarApi.previewResults(eventId, next), setPreview);
   };
   const save = () => file && run(() => calendarApi.saveResults(eventId, file), (page) => { reset(); onSaved(page); });
@@ -314,6 +328,11 @@ function ImportPanel({ eventId, hasResults, onSaved }: {
       {preview && (
         <div className="meet-preview">
           <b>{t.resultsCount(preview.events.length, preview.entry_count, preview.dive_count)}</b>
+          {preview.events.length > 0 && (
+            <ul className="meet-preview-events">
+              {preview.events.map((e, i) => <li key={i}><span>{e.title}</span><span>{e.entries}</span></li>)}
+            </ul>
+          )}
           {preview.linked_count > 0 && <small>{t.linkedAccounts(preview.linked_count)}</small>}
           <small>{file?.name}</small>
           {preview.date_matches === false && preview.meet_date && <p className="cal-notice">{t.dateMismatch(day(preview.meet_date))}</p>}
@@ -336,7 +355,7 @@ function ImportPanel({ eventId, hasResults, onSaved }: {
           <Trash2 size={18} aria-hidden="true" /><span className="cal-list-main"><b>{t.deleteResults}</b></span>
         </button>
       )}
-      {confirming && (
+      {confirming && !preview && (
         <div className="cal-list-row cal-confirm">
           <button type="button" className="ca-pill is-danger" disabled={busy} onClick={remove}>{t.confirmDelete}</button>
           <button type="button" className="ca-pill" disabled={busy} onClick={() => setConfirming(false)}>{t.keepIt}</button>

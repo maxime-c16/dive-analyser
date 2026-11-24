@@ -43,6 +43,11 @@ def test_page_break_repeats_title_and_continues_until_places_restart():
              "201B 3 1,8 7,0 7,0 7,0   21,0 37,80 37,80  x"]
     meet = parse_text(text(*lines))
     assert [[en.diver_name for en in e.entries] for e in meet.events] == [["Ann A", "Bea B"], ["Cid C"]]
+    # A first-place tie across the break is one event (places 1, 1, 3).
+    tie = parse_text(text(HEADER, "E - 3m", "Ann A (2001) -- C 1", "201B 3 1,8 6,0 6,0 6,0   18,0 32,40 32,40  x",
+                          HEADER, "E - 3m", "Bea B (2002) -- C 1", "201B 3 1,8 6,0 6,0 6,0   18,0 32,40 32,40  x",
+                          "Cid C (2003) -- C 3", "201B 3 1,8 5,0 5,0 5,0   15,0 27,00 27,00  x"))
+    assert len(tie.events) == 1 and [e.rank for e in tie.events[0].entries] == [1, 1, 3]
 
 
 def test_round_place_column_synchro_pairs_and_exit_states():
@@ -162,9 +167,9 @@ def test_rejects_non_competitions_non_pdfs_oversize_and_foreign_origin(meet, mon
 
 # --- Automatic account links ----------------------------------------------------
 
-def _entry(name, club="KCPM Montreu", year=2001):
+def _entry(name, club="KCPM Montreuil", year=2001, licence=None):
     from types import SimpleNamespace
-    return SimpleNamespace(diver_name=name, club_name=club, birth_year=year)
+    return SimpleNamespace(diver_name=name, club_name=club, birth_year=year, licence=licence)
 
 
 def test_links_only_unambiguous_club_members(cal):  # noqa: F811
@@ -496,3 +501,95 @@ def test_alias_match_like_escaping_and_exact_club_preference(cal):  # noqa: F811
     assert auto_links(db, [_entry("Zoélie DURAND", club="KCPM Montreuil")]) == {0: u["una"].id}
     assert account_candidates(db, "%%") == [] and account_candidates(db, "__") == []
     assert [a["user_id"] for a in account_candidates(db, "zo")] == [u["una"].id]  # via the owned diver
+
+
+
+# --- Council round 2 regressions ------------------------------------------------
+
+def test_unranked_club_digits_stay_in_the_club_and_empty_rows_have_no_total():
+    meet = parse_text(text(HEADER, "E - 3m", "Ann A (2001) -- C 1", DIVE, "Paul P -- CN Paris 15"))
+    paul = meet.events[0].entries[1]
+    assert (paul.club_name, paul.rank, paul.total) == ("CN Paris 15", None, None)
+    assert meet.warnings[0]["kind"] == "place_beyond_entries"
+
+
+def test_unranked_synchro_pair_still_pairs_and_skips_points_check():
+    meet = parse_text(text(HEADER, "Synchro - Dames - 3m", "Ann A -- Club X (abandon)", "Bea B -- Club X",
+                           "Cid C (2001) -- Club Y 1", "Dee D (2002) -- Club Y",
+                           # 5-judge synchro panel: points weighted, never a "mismatch".
+                           "301B 3 1,9 6,0 6,0 6,0 6,0 6,0   18,0 20,52 20,52  r"))
+    names = [e.diver_name for e in meet.events[0].entries]
+    assert names == ["Ann A / Bea B", "Cid C / Dee D"] and meet.warnings == []
+
+
+def test_penalty_after_extra_spaces_is_kept():
+    meet = parse_text(text(HEADER, "E - 3m", "Ann A (2001) -- C 1", "304C 3 2,1 4,0 4,0 4,0   12,0 25,20 25,20   4double"))
+    assert meet.events[0].entries[0].dives[0].penalty == 4
+
+
+def test_distinct_licences_are_distinct_people_for_automatic_links(cal):  # noqa: F811
+    from app.services.meet_result_links import auto_links
+    db, u = cal["db"], cal["users"]
+    same = [_entry("Alice MARTIN", licence="111"), _entry("Alice MARTIN", licence="222")]
+    assert auto_links(db, same) == {}  # two people, one account: neither
+    assert auto_links(db, [_entry("Alice MARTIN", licence="111"), _entry("Alice MARTIN", licence="111")]) == {
+        0: u["alice"].id, 1: u["alice"].id}
+
+
+def test_short_club_prefix_never_matches():
+    from app.services.meet_result_links import MIN_CLUB_PREFIX
+    assert MIN_CLUB_PREFIX >= 25
+
+
+def test_back_to_automatic_repairs_rows_whose_decision_vanished(cal):  # noqa: F811
+    from app.models.meet_results import MeetPersonLink
+    db = cal["db"]
+    eid = _club_meet(cal, "Meet V", [HEADER, "E - 3m", "Alice MARTIN (2001) -- KCPM Montreuil 1", DIVE])
+    admin = cal["login"]("admin")
+    entry = _rows(cal, "admin", eid)["Alice MARTIN"]["id"]
+    assert admin.put(f"/api/v1/calendar/results/entries/{entry}/link", json={"user_id": None}).status_code == 204
+    db.query(MeetPersonLink).delete()  # as when the decision's account is deleted (ON DELETE CASCADE)
+    db.commit()
+    assert _rows(cal, "admin", eid)["Alice MARTIN"]["link_source"] == "admin"  # stale row
+    assert admin.delete(f"/api/v1/calendar/results/entries/{entry}/link").status_code == 204
+    row = _rows(cal, "admin", eid)["Alice MARTIN"]
+    assert row["link_source"] == "auto" and row["account"]["user_id"] == cal["users"]["alice"].id
+
+
+def test_deactivated_tied_account_is_reported_to_admins(cal):  # noqa: F811
+    db, u = cal["db"], cal["users"]
+    eid = _club_meet(cal, "Meet W", [HEADER, "E - 3m", "Zed ZORRO (2001) -- KCPM Montreuil 1", DIVE])
+    admin = cal["login"]("admin")
+    entry = _rows(cal, "admin", eid)["Zed ZORRO"]["id"]
+    assert admin.put(f"/api/v1/calendar/results/entries/{entry}/link", json={"user_id": u["bob"].id}).status_code == 204
+    db.get(type(u["bob"]), u["bob"].id).is_active = False
+    db.commit()
+    row = _rows(cal, "admin", eid)["Zed ZORRO"]
+    assert row["account"] is None and row["account_inactive"] is True and row["link_source"] == "admin"
+    assert _rows(cal, "alice", eid)["Zed ZORRO"]["account_inactive"] is None
+
+
+def test_upload_body_is_not_read_without_permission_or_slot(meet, monkeypatch):
+    import threading
+    reads = []
+
+    async def spy(request):
+        reads.append(1)
+        return b""
+    monkeypatch.setattr(meet_api, "_pdf_body", spy)
+    assert meet["login"]("alice").post(url(meet["meet_id"], "/preview"), content=b"%PDF", headers=PDF).status_code == 403
+    slots = threading.BoundedSemaphore(1)
+    slots.acquire()
+    monkeypatch.setattr(meet_api, "_parse_slots", slots)
+    assert meet["login"]("coach").post(url(meet["meet_id"], "/preview"), content=b"%PDF", headers=PDF).status_code == 429
+    assert reads == []
+
+
+def test_streamed_upload_without_length_is_bounded(meet, monkeypatch):
+    monkeypatch.setattr(meet_api, "MAX_PDF_BYTES", 100)
+
+    def chunks():
+        for _ in range(10):
+            yield b"%PDF-" + b"x" * 40
+    res = meet["login"]("coach").post(url(meet["meet_id"], "/preview"), content=chunks(), headers=PDF)
+    assert res.status_code == 413
