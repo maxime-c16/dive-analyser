@@ -33,6 +33,7 @@ from app.models.user_auth import AppUser
 from app.schemas import calendar as s
 from app.services import calendar_access as access
 from app.services import calendar_events as events
+from app.services import calendar_openings as openings
 from app.services import calendar_recurrence as recurrence
 from app.services import calendar_membership as membership
 from app.services.media_cache import playback_url
@@ -151,12 +152,13 @@ def occurrence_payloads(db: Session, user: AppUser, rows) -> list:
     if ids:
         imported = {oid for (oid,) in db.query(CalendarSourceMapping.occurrence_id).filter(
             CalendarSourceMapping.occurrence_id.in_(ids))}
+    open_ids = openings.open_access_occurrence_ids(db, user, rows)
     return [dict(id=o.id, occurrence_key=o.occurrence_key, status=o.status, is_all_day=bool(o.is_all_day),
                  starts_at=iso(o.starts_at), ends_at=iso(o.ends_at), start_date=o.start_date, end_date=o.end_date,
                  venue_name=o.venue_name or e.venue_name, is_filmed_session=o.filmed_session_id is not None, shared_session_id=o.filmed_session_id,
                  version=o.version, event=event_summary(e, c), my_interest=interest.get(o.id),
                  my_absence_reported=o.id in absent or interest.get(o.id) == "declined", imported=o.id in imported, series_date=o.series_date,
-                 detached=bool(o.detached), **local_view(o, e))
+                 detached=bool(o.detached), open_access=o.id in open_ids, **local_view(o, e))
             for o, e, c in rows]
 
 
@@ -287,9 +289,7 @@ def event_detail(event_id: int, user: AppUser = Depends(get_current_user), db: S
     if row is None:
         raise HTTPException(404, "Event not found")
     e, c = row
-    occ = db.query(EventOccurrence, CalendarEvent, Calendar).join(
-        CalendarEvent, CalendarEvent.id == EventOccurrence.event_id).join(
-        Calendar, Calendar.id == CalendarEvent.calendar_id).filter(
+    occ = access.visible_occurrences(db, user).filter(
         EventOccurrence.event_id == e.id).order_by(EventOccurrence.window_start, EventOccurrence.id).limit(MAX_LIMIT).all()
     organizer = db.get(AppUser, e.organizer_user_id) if e.organizer_user_id else None
     invitation = db.query(EventInvitation.status).filter_by(event_id=e.id, invitee_user_id=user.id).scalar()
@@ -348,6 +348,57 @@ def club_resources(club_id: int, user: AppUser = Depends(get_current_user), db: 
     if rows is None:
         raise HTTPException(404, "Club not found")
     return [resource_out(r) for r in rows]
+
+
+def _require_openings_schema(db: Session) -> None:
+    if not access.openings_schema_ready(db):
+        raise HTTPException(503, "Training openings schema not installed")
+
+
+@router.get("/clubs/{club_id}/training-openings", response_model=s.ClubTrainingOpeningsOut)
+def list_club_training_openings(club_id: int, user: AppUser = Depends(get_current_user), db: Session = Depends(get_db)):
+    _require_openings_schema(db)
+    return openings.list_club_openings(db, user, club_id)
+
+
+@router.post("/clubs/{club_id}/training-openings", status_code=201, response_model=s.TrainingOpeningOut)
+def create_club_training_opening(
+    club_id: int,
+    payload: s.TrainingOpeningCreate,
+    user: AppUser = Depends(writer),
+    db: Session = Depends(get_db),
+):
+    _require_openings_schema(db)
+    item = openings.create_opening(
+        db,
+        user,
+        club_id,
+        payload.eligible_group_id,
+        payload.competition_event_id,
+        payload.label,
+        payload.starts_on,
+        payload.ends_on,
+    )
+    commit(db)
+    return item
+
+
+@router.delete("/clubs/{club_id}/training-openings/{opening_id}", status_code=204)
+def delete_club_training_opening(
+    club_id: int,
+    opening_id: int,
+    user: AppUser = Depends(writer),
+    db: Session = Depends(get_db),
+):
+    _require_openings_schema(db)
+    openings.delete_opening(db, user, club_id, opening_id)
+    commit(db)
+
+
+@router.get("/events/{event_id}/training-openings", response_model=s.EventTrainingOpeningsOut)
+def event_training_openings(event_id: int, user: AppUser = Depends(get_current_user), db: Session = Depends(get_db)):
+    _require_openings_schema(db)
+    return openings.event_opening_scopes(db, user, event_id)
 
 
 # --- Task05: alert pipeline readiness (app administrators) -------------------------

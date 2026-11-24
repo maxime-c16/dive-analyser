@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { CalendarError, calendarApi, type Resource, type Roster, type RosterEntry } from "./api";
-import { parisToday } from "./model";
+import { CalendarError, calendarApi, type ClubTrainingOpenings, type Resource, type Roster, type RosterEntry } from "./api";
+import { addDays, parisToday } from "./model";
 import { keepFocusOnPress, useCalendarStrings, type CalendarContext } from "./useStrings";
 import PageLoading from "../components/PageLoading";
 
@@ -10,10 +10,15 @@ import PageLoading from "../components/PageLoading";
  * calendar follows and the member's own leave action. Every action is
  * re-authorized by the server; hidden buttons are convenience only. */
 export default function ClubAdmin({ ctx, clubId }: { ctx: CalendarContext; clubId: number }) {
-  const { t } = useCalendarStrings();
+  const { t, lang } = useCalendarStrings();
   const navigate = useNavigate();
   const [roster, setRoster] = useState<Roster | null>(null);
   const [resources, setResources] = useState<Resource[]>([]);
+  const [openings, setOpenings] = useState<ClubTrainingOpenings | null>(null);
+  const [openingGroup, setOpeningGroup] = useState("");
+  const [openingStart, setOpeningStart] = useState(() => parisToday());
+  const [openingEnd, setOpeningEnd] = useState(() => addDays(parisToday(), 13));
+  const [openingLabel, setOpeningLabel] = useState("");
   const [state, setState] = useState<"loading" | "ready" | "missing">("loading");
   const [message, setMessage] = useState<string | null>(null);
   const [confirmLeave, setConfirmLeave] = useState(false);
@@ -21,9 +26,22 @@ export default function ClubAdmin({ ctx, clubId }: { ctx: CalendarContext; clubI
   const mine = ctx.me.find((c) => c.club.id === clubId);
 
   useEffect(() => {
-    Promise.all([calendarApi.roster(clubId), calendarApi.clubResources(clubId)])
-      .then(([r, res]) => { setRoster(r); setResources(res); setState("ready"); })
-      .catch(() => setState("missing"));
+    let live = true;
+    Promise.all([
+      calendarApi.roster(clubId),
+      calendarApi.clubResources(clubId),
+      calendarApi.clubTrainingOpenings(clubId).catch(() => null),
+    ])
+      .then(([r, res, ops]) => {
+        if (!live) return;
+        setRoster(r);
+        setResources(res);
+        setOpenings(ops);
+        setOpeningGroup((cur) => cur || (r.groups[0] ? String(r.groups[0].id) : ""));
+        setState("ready");
+      })
+      .catch(() => { if (live) setState("missing"); });
+    return () => { live = false; };
   }, [clubId, revision]);
 
   if (state === "loading") return <PageLoading message={t.loading} />;
@@ -83,6 +101,58 @@ export default function ClubAdmin({ ctx, clubId }: { ctx: CalendarContext; clubI
           ))}
         </ul>
       </section>
+
+      {openings && (openings.can_manage || openings.items.length > 0) && (
+        <section className="calendar-group">
+          <h2>{t.openTraining}</h2>
+          {openings.items.length > 0 && (
+            <ul className="calendar-roster">
+              {openings.items.map((op) => {
+                const fmt = (d: string) => new Intl.DateTimeFormat(lang, { day: "numeric", month: "short", timeZone: "UTC" }).format(new Date(`${d}T12:00:00Z`));
+                const title = op.competition_title || op.label;
+                return (
+                  <li key={op.id}>
+                    <span>
+                      <strong>{op.eligible_group_name}</strong>
+                      {title ? ` · ${title}` : ""}
+                      {" · "}
+                      {t.dateRange(fmt(op.starts_on), fmt(op.ends_on))}
+                    </span>
+                    {openings.can_manage && (
+                      <button type="button" className="calendar-danger"
+                        onClick={() => run(() => calendarApi.deleteTrainingOpening(clubId, op.id))}>
+                        {t.openTrainingRemove}
+                      </button>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+          {openings.can_manage && roster.groups.length > 0 && (
+            <form className="calendar-inline-form" onSubmit={(e) => {
+              e.preventDefault();
+              if (!openingGroup) return;
+              run(() => calendarApi.createTrainingOpening(clubId, {
+                eligible_group_id: Number(openingGroup),
+                label: openingLabel.trim() || null,
+                starts_on: openingStart,
+                ends_on: openingEnd,
+              }), () => setOpeningLabel(""));
+            }}>
+              <label>{t.group}
+                <select value={openingGroup} onChange={(e) => setOpeningGroup(e.target.value)}>
+                  {roster.groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+                </select>
+              </label>
+              <label>{t.openTrainingFrom}<input type="date" value={openingStart} onChange={(e) => setOpeningStart(e.target.value)} required /></label>
+              <label>{t.openTrainingTo}<input type="date" value={openingEnd} onChange={(e) => setOpeningEnd(e.target.value)} required /></label>
+              <label>{t.openTrainingLabel}<input type="text" maxLength={200} value={openingLabel} onChange={(e) => setOpeningLabel(e.target.value)} /></label>
+              <button type="submit" {...keepFocusOnPress}>{t.openTrainingAdd}</button>
+            </form>
+          )}
+        </section>
+      )}
 
       {resources.length > 0 && (
         <section className="calendar-group">

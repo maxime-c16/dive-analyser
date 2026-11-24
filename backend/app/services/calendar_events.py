@@ -483,7 +483,8 @@ def absence_allowed(db: Session, user: AppUser, event: CalendarEvent, calendar: 
     assigned group sessions, or club-wide training for any active member."""
     if occurrence_id is not None:
         from app.services.session_calendar import occurrence_members
-        return occurrence_members(db, occurrence_id, include_absent=True).filter(AppUser.id == user.id).first() is not None
+        return occurrence_members(db, occurrence_id, include_absent=True, include_open_visitors=False).filter(
+            AppUser.id == user.id).first() is not None
     if event.event_type != "training" or calendar.club_id is None or event.audience not in ("group", "club"):
         return False
     if access.active_membership(db, user, calendar.club_id) is None:

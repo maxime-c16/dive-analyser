@@ -1,0 +1,8 @@
+{
+  "id": "calendar-open-training",
+  "date": "2026-11-24",
+  "title": "Open club sessions before competitions",
+  "body": "Club managers and coaches can open all training sessions to a group for the two weeks before a competition. Eligible divers see those sessions in their calendar and can tap I'm coming to join.",
+  "audience": "all",
+  "components": ["frontend", "backend"]
+}
