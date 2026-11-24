@@ -14,8 +14,11 @@ import {
   listNotifications,
   markAllNotificationsRead,
   markNotificationRead,
+  normalizeNotificationList,
   type AppNotification,
+  type NotificationList,
 } from '../services/notificationsApi'
+import { takeBootstrapSeed } from '../services/bootstrap'
 
 export type NotificationsError = 'load' | 'update' | null
 
@@ -72,13 +75,13 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
   const { user } = useAuth()
   // Account changes remount the polling boundary, like WhatsNewProvider.
   return user ? (
-    <AccountNotifications key={user.user_id}>{children}</AccountNotifications>
+    <AccountNotifications key={user.user_id} userId={user.user_id}>{children}</AccountNotifications>
   ) : (
     <>{children}</>
   )
 }
 
-function AccountNotifications({ children }: { children: React.ReactNode }) {
+function AccountNotifications({ userId, children }: { userId: number; children: React.ReactNode }) {
   const [items, setItems] = useState<AppNotification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [countsKnown, setCountsKnown] = useState(false)
@@ -89,19 +92,22 @@ function AccountNotifications({ children }: { children: React.ReactNode }) {
   const stateRef = useRef({ items, unreadCount })
   stateRef.current = { items, unreadCount }
 
+  const apply = useCallback((data: NotificationList) => {
+    setItems(data.items)
+    setUnreadCount(data.unread_count)
+    setCountsKnown(true)
+    setPageHasMore(data.has_more)
+    setError(null)
+    setRefreshTick(tick => tick + 1)
+  }, [])
+
   const load = useCallback(async () => {
     if (typeof document !== 'undefined') {
       if (document.visibilityState === 'hidden') return
       if (videoPlaying()) return
     }
     try {
-      const data = await listNotifications({ limit: 50 })
-      setItems(data.items)
-      setUnreadCount(data.unread_count)
-      setCountsKnown(true)
-      setPageHasMore(data.has_more)
-      setError(null)
-      setRefreshTick(tick => tick + 1)
+      apply(await listNotifications({ limit: 50 }))
     } catch {
       // The badge stays quiet on failure: last known count remains, the
       // /notifications page surfaces the error with a retry.
@@ -109,13 +115,19 @@ function AccountNotifications({ children }: { children: React.ReactNode }) {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [apply])
 
   useEffect(() => {
     let cancelled = false
-    void load().finally(() => {
-      if (cancelled) setLoading(false)
-    })
+    const seeded = takeBootstrapSeed<Partial<NotificationList>>('notifications', userId)
+    if (seeded) {
+      apply(normalizeNotificationList(seeded))
+      setLoading(false)
+    } else {
+      void load().finally(() => {
+        if (cancelled) setLoading(false)
+      })
+    }
     const refresh = () => {
       void load()
     }
@@ -128,7 +140,7 @@ function AccountNotifications({ children }: { children: React.ReactNode }) {
       window.removeEventListener('focus', refresh)
       document.removeEventListener('visibilitychange', refresh)
     }
-  }, [load])
+  }, [load, apply, userId])
 
   const refresh = useCallback(() => {
     setLoading(true)

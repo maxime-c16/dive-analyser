@@ -114,6 +114,10 @@ export async function listNotifications(options?: {
       cache: 'no-store',
     }),
   )) as NotificationList
+  return normalizeNotificationList(data)
+}
+
+export function normalizeNotificationList(data: Partial<NotificationList>): NotificationList {
   return {
     items: Array.isArray(data.items) ? data.items : [],
     unread_count: typeof data.unread_count === 'number' ? data.unread_count : 0,

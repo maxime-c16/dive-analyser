@@ -7,6 +7,7 @@ import { I18nProvider } from '../i18n/I18nProvider'
 import { NotificationsButton, NotificationsProvider } from './Notifications'
 import NotificationsPage from '../pages/Notifications'
 
+import { storeBootstrapSeed } from '../services/bootstrap'
 vi.mock('../contexts/AuthContext', () => ({
   useAuth: () => ({ user: { user_id: 7, email: 'alex@example.com', is_admin: false } }),
 }))
@@ -786,4 +787,11 @@ describe('Calendar alerts in the inbox (Task05)', () => {
     expect(screen.getByRole('heading', { name: 'Calendar change' })).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'Open event' })).toBeNull()
   })
+})
+
+it('renders the bell from the session bootstrap without a first request', async () => {
+  storeBootstrapSeed(7, { notifications: { items: [unreadRow], unread_count: 1, has_more: false } })
+  renderBell()
+  expect(await screen.findByRole('link', { name: 'Open notifications, 1 unread' })).toBeInTheDocument()
+  expect(fetch).not.toHaveBeenCalled()
 })

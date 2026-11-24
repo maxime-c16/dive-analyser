@@ -4,6 +4,7 @@ import { useModalOverlay } from '../utils/overlays'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest'
 import { WhatsNewProvider, WhatsNewButton, parseManifest } from './WhatsNew'
+import { storeBootstrapSeed } from '../services/bootstrap'
 
 vi.mock('../contexts/AuthContext', () => ({ useAuth: () => ({ user: { user_id: 42 } }) }))
 const key = 'dive-analyser:updates:v1:42'
@@ -151,4 +152,11 @@ it('translates the Evaluations hint and history while retaining note IDs and oth
     expect(screen.getByRole('dialog')).toHaveTextContent(note.title)
     expect(screen.getByRole('dialog')).toHaveTextContent(note.body)
   } finally { await act(async () => { await i18n.changeLanguage('en') }) }
+})
+
+it('reads the first manifest from the session bootstrap', async () => {
+  storeBootstrapSeed(42, { updates: manifest([second]) })
+  mount()
+  expect(await screen.findByRole('status')).toBeInTheDocument()
+  expect(fetch).not.toHaveBeenCalled()
 })

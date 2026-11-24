@@ -504,35 +504,74 @@ def start_reconciler() -> Optional[threading.Event]:
     stop = threading.Event()
 
     def loop():
-        from app.database import SessionLocal
-
         if stop.wait(15):  # let startup finish first
             return
         while True:
-            db = SessionLocal()
-            try:
-                count = reconcile(db)
-                if count:
-                    logger.info("shared sessions: reconciliation handled %s object(s)", count)
-            except SessionsStorageUnavailable as exc:
-                logger.warning("shared sessions: reconciliation skipped (%s)", str(exc)[:80])
-            except Exception as exc:
-                logger.error("shared sessions: reconciliation failed (%s)", type(exc).__name__)
-            finally:
-                db.rollback()
-                try:
-                    from app.services.session_images import retry_missing_images
-                    retry_missing_images(db)
-                except Exception as exc:
-                    logger.warning("Session image retries skipped (%s)", type(exc).__name__)
-                finally:
-                    db.rollback()
-                    db.close()
+            _reconcile_tick_exclusive()
             if stop.wait(max(60, settings.sessions_reconcile_seconds)):
                 return
 
     threading.Thread(target=loop, name="session-reconciler", daemon=True).start()
     return stop
+
+
+# Each uvicorn worker starts a reconciler; only one may run a pass at a time,
+# or both would list the inbox and extract the same images with ffmpeg.
+_RECONCILE_ADVISORY_KEY = 834929
+
+
+def _reconcile_tick_exclusive() -> bool:
+    """One reconciliation pass, skipped while another process holds the lock."""
+    from sqlalchemy import text
+    from app.database import engine
+
+    connection = None
+    try:
+        if engine.dialect.name == "postgresql":
+            connection = engine.connect()
+            locked = bool(connection.execute(
+                text("SELECT pg_try_advisory_lock(:key)"), {"key": _RECONCILE_ADVISORY_KEY}).scalar())
+            connection.commit()
+            if not locked:
+                return False
+            # A session-level lock survives commits; the unlock below ends it.
+        _reconcile_tick()
+        return True
+    except Exception as exc:
+        logger.error("shared sessions: reconciliation lock unavailable (%s)", type(exc).__name__)
+        return False
+    finally:
+        if connection is not None:
+            try:
+                connection.execute(text("SELECT pg_advisory_unlock(:key)"), {"key": _RECONCILE_ADVISORY_KEY})
+                connection.commit()
+            except Exception:
+                pass
+            connection.close()
+
+
+def _reconcile_tick() -> None:
+    from app.database import SessionLocal
+
+    db = SessionLocal()
+    try:
+        count = reconcile(db)
+        if count:
+            logger.info("shared sessions: reconciliation handled %s object(s)", count)
+    except SessionsStorageUnavailable as exc:
+        logger.warning("shared sessions: reconciliation skipped (%s)", str(exc)[:80])
+    except Exception as exc:
+        logger.error("shared sessions: reconciliation failed (%s)", type(exc).__name__)
+    finally:
+        db.rollback()
+        try:
+            from app.services.session_images import retry_missing_images
+            retry_missing_images(db)
+        except Exception as exc:
+            logger.warning("Session image retries skipped (%s)", type(exc).__name__)
+        finally:
+            db.rollback()
+            db.close()
 
 
 # ---------------------------------------------------------- notification ---

@@ -7,6 +7,7 @@ import { resetPlaybackWarming } from '../utils/playbackWarming'
 import type { AvatarIdentity } from '../components/MemberAvatar'
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { runSessionMutation } from './sessionMutex'
+import { clearBootstrapSeed, storeBootstrapSeed } from '../services/bootstrap'
 
 export interface AuthUser extends AvatarIdentity {
   user_id: number
@@ -40,6 +41,8 @@ const AuthContext = createContext<AuthState>({
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null)
   const [checking, setChecking] = useState(true)
+  const userRef = useRef<AuthUser | null>(null)
+  userRef.current = user
 
   const generation = useRef(0)
   const signingOut = useRef(false)
@@ -63,13 +66,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     const started = ++generation.current
     clearDerivedReads()
+    clearBootstrapSeed()
     try {
-      const res = await fetch('/api/v1/auth/me', { credentials: 'same-origin' })
+      // A session start (first load, login) mounts the shell widgets, so read
+      // their first payloads in the same request. A signed-in refresh (profile
+      // edit) only needs identity. 404 = backend without /bootstrap yet.
+      let res: Response | null = null
+      if (!userRef.current) {
+        res = await fetch('/api/v1/bootstrap', { credentials: 'same-origin' })
+        if (res.status === 404) res = null
+      }
+      const bootstrapped = res !== null
+      res ??= await fetch('/api/v1/auth/me', { credentials: 'same-origin' })
       if (started !== generation.current) return
       if (res.ok) {
-        const data = await res.json()
+        const body = await res.json()
         if (started !== generation.current) return
+        const data = bootstrapped ? body.me : body
         clearDerivedReads()
+        if (bootstrapped) storeBootstrapSeed(data.user_id, body)
         setUser({
           user_id: data.user_id,
           email: data.email,
@@ -110,6 +125,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const started = ++generation.current
     clearNavigationSession(user?.user_id)
     clearDerivedReads()
+    clearBootstrapSeed()
     setUser(null)
     setChecking(false)
     // Sign-out begins here: tear warm transfers down before the network

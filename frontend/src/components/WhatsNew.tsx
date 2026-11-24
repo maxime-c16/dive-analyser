@@ -5,6 +5,7 @@ import React, { createContext, useContext, useEffect, useRef, useState, useCallb
 import { createPortal } from 'react-dom'
 import { Sparkles, X } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
+import { takeBootstrapSeed } from '../services/bootstrap'
 
 export type UpdateNote = { id: string; date: string; title: string; body: string }
 type Manifest = { schema: number; version: string; frontend_sha: string; notes: UpdateNote[] }
@@ -67,8 +68,14 @@ function AccountUpdates({ accountId, children }: { accountId: number; children: 
   useEffect(() => {
     const abort = new AbortController()
     let loading = false
+    let seeded = takeBootstrapSeed<unknown>('updates', accountId)
     const load = async () => {
       if (loading || document.visibilityState === 'hidden') return
+      if (seeded !== undefined) {
+        const parsed = parseManifest(seeded)
+        seeded = undefined
+        if (parsed) { setManifest(parsed); return }
+      }
       loading = true
       try {
         const response = await fetch('/api/v1/updates', { credentials: 'same-origin', cache: 'no-store', signal: abort.signal })
@@ -103,7 +110,7 @@ function AccountUpdates({ accountId, children }: { accountId: number; children: 
       window.removeEventListener('storage', storage)
       document.removeEventListener('play', playing, true)
     }
-  }, [key])
+  }, [key, accountId])
 
   useEffect(() => {
     if (!manifest || !compatible || toast || panel || document.visibilityState === 'hidden') return

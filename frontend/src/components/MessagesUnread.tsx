@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { useAuth } from '../contexts/AuthContext'
 import { getUnreadCount } from '../services/messagesApi'
 import { primaryTabFor } from '../navigation/mobileNavigation'
+import { takeBootstrapSeed } from '../services/bootstrap'
 
 type MessagesUnreadContextValue = {
   /** Sum of unread_count across the inbox pages the badge polls. */
@@ -25,13 +26,13 @@ export function MessagesUnreadProvider({ children }: { children: React.ReactNode
   const { user } = useAuth()
   // Account changes remount the polling boundary, like NotificationsProvider.
   return user ? (
-    <AccountMessagesUnread key={user.user_id}>{children}</AccountMessagesUnread>
+    <AccountMessagesUnread key={user.user_id} userId={user.user_id}>{children}</AccountMessagesUnread>
   ) : (
     <>{children}</>
   )
 }
 
-function AccountMessagesUnread({ children }: { children: React.ReactNode }) {
+function AccountMessagesUnread({ userId, children }: { userId: number; children: React.ReactNode }) {
   const [unreadCount, setUnreadCount] = useState(0)
   const request = useRef(0)
 
@@ -52,7 +53,9 @@ function AccountMessagesUnread({ children }: { children: React.ReactNode }) {
   }, [])
 
   useEffect(() => {
-    void refresh()
+    const seeded = takeBootstrapSeed<{ unread_count?: unknown }>('messages_unread', userId)
+    if (typeof seeded?.unread_count === 'number') setUnreadCount(seeded.unread_count)
+    else void refresh()
     const timer = window.setInterval(() => { void refresh() }, 20_000)
     window.addEventListener('focus', refresh)
     document.addEventListener('visibilitychange', refresh)
@@ -61,7 +64,7 @@ function AccountMessagesUnread({ children }: { children: React.ReactNode }) {
       window.removeEventListener('focus', refresh)
       document.removeEventListener('visibilitychange', refresh)
     }
-  }, [refresh])
+  }, [refresh, userId])
 
   // Stable identity: consumers call it from effects and read receipts.
   const refreshNow = useCallback(() => { void refresh() }, [refresh])

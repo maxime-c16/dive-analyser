@@ -18,7 +18,7 @@ it('a transient authentication transport error keeps recovery data',async()=>{
 })
 it('logout clears only the current account recovery keys',async()=>{
   sessionStorage.setItem('message-draft:v1:1:3','old');sessionStorage.setItem('message-draft:v1:2:3','keep')
-  vi.stubGlobal('fetch',vi.fn().mockResolvedValue({ok:true,json:async()=>({user_id:1,email:'fixture@example.test',display_name:'Fixture',is_admin:false,divers:[]})}))
+  vi.stubGlobal('fetch',vi.fn().mockResolvedValue({ok:true,json:async()=>({me:{user_id:1,email:'fixture@example.test',display_name:'Fixture',is_admin:false,divers:[]}})}))
   render(<AuthProvider><State /></AuthProvider>);await screen.findByText('signed in');fireEvent.click(screen.getByRole('button',{name:'Logout'}))
   await waitFor(()=>expect(screen.getByRole('status')).toHaveTextContent('signed out'))
   expect(sessionStorage.getItem('message-draft:v1:1:3')).toBeNull();expect(sessionStorage.getItem('message-draft:v1:2:3')).toBe('keep')

@@ -7,7 +7,9 @@ import {
   ACHIEVEMENTS_CHECK_EVENT,
   getUnseenAchievements,
   markAchievementsSeen,
+  type UnseenAchievements,
 } from '../../services/achievementsApi'
+import { takeBootstrapSeed } from '../../services/bootstrap'
 import { achievementArt, achievementIcon, isKnownAchievement } from './achievementCatalog'
 import './achievements.css'
 
@@ -42,10 +44,10 @@ function AccountToaster({ userId }: { userId: number }) {
   const [current, setCurrent] = useState<string[] | null>(null)
   const queued = useRef(new Set<string>())
 
-  const check = useCallback(async (scheduled: boolean) => {
+  const check = useCallback(async (scheduled: boolean, seeded?: UnseenAchievements) => {
     if (scheduled && (document.visibilityState === 'hidden' || videoPlaying())) return
     try {
-      const { items } = await getUnseenAchievements()
+      const { items } = seeded ?? await getUnseenAchievements()
       const keys = items.map(item => item.key).filter(key => isKnownAchievement(key) && !queued.current.has(key))
       if (!keys.length) return
       keys.forEach(key => queued.current.add(key))
@@ -57,7 +59,8 @@ function AccountToaster({ userId }: { userId: number }) {
   }, [])
 
   useEffect(() => {
-    void check(true)
+    const seeded = takeBootstrapSeed<UnseenAchievements>('achievements_unseen', userId)
+    void check(true, Array.isArray(seeded?.items) ? seeded : undefined)
     const scheduled = () => void check(true)
     const requested = () => void check(false)
     const timer = window.setInterval(scheduled, 60_000)
@@ -68,7 +71,7 @@ function AccountToaster({ userId }: { userId: number }) {
       window.removeEventListener('focus', scheduled)
       window.removeEventListener(ACHIEVEMENTS_CHECK_EVENT, requested)
     }
-  }, [check])
+  }, [check, userId])
 
   useEffect(() => {
     if (current || queue.length === 0) return
