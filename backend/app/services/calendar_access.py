@@ -17,15 +17,34 @@ grants club publishing, staff powers or private event/roster reads.
 """
 from datetime import date, datetime
 from typing import Optional
+import weakref
 
-from sqlalchemy import and_, exists, false, or_
+from sqlalchemy import and_, exists, false, inspect, or_
 from sqlalchemy.orm import Session
 
 from app.models.calendar import (
-    Calendar, CalendarEvent, ClubMembership, EventInvitation, EventOccurrence,
+    Calendar, CalendarEvent, ClubMembership, ClubTrainingOpening, EventInvitation, EventOccurrence,
     EventResource, TrainingGroupMembership,
 )
 from app.models.user_auth import AppUser
+
+_OPENINGS_READY_ENGINES: weakref.WeakSet = weakref.WeakSet()
+
+
+def openings_schema_ready(db: Session) -> bool:
+    """True once club_training_openings exists; never caches False so applying
+    the additive migration takes effect immediately across workers."""
+    bind = db.get_bind()
+    engine = getattr(bind, "engine", bind)
+    try:
+        if engine in _OPENINGS_READY_ENGINES:
+            return True
+    except TypeError:
+        engine = None
+    ready = inspect(bind).has_table("club_training_openings")
+    if ready and engine is not None:
+        _OPENINGS_READY_ENGINES.add(engine)
+    return ready
 
 MAX_RESOURCE_RESULTS = 200
 STAFF_ROLES = ("coach", "manager")
@@ -139,7 +158,35 @@ def calendar_visible_clause(user: Optional[AppUser], on: Optional[date] = None):
         Calendar.kind == "federal"))
 
 
-def event_visible_clause(user: Optional[AppUser], on: Optional[date] = None):
+def _open_training_for_occurrence(uid: int, on: date):
+    """Occurrence-scoped read grant: another group's published/cancelled
+    training session inside an active ClubTrainingOpening for the member's
+    current training group."""
+    return and_(
+        CalendarEvent.status.in_(VISIBLE_EVENT_STATUSES),
+        CalendarEvent.event_type == "training",
+        CalendarEvent.audience == "group",
+        Calendar.kind == "group",
+        Calendar.club_id.isnot(None),
+        Calendar.training_group_id.isnot(None),
+        exists().where(and_(
+            ClubTrainingOpening.club_id == Calendar.club_id,
+            ClubTrainingOpening.eligible_group_id != Calendar.training_group_id,
+            ClubTrainingOpening.window_start <= EventOccurrence.window_start,
+            ClubTrainingOpening.window_end > EventOccurrence.window_start,
+            TrainingGroupMembership.club_id == ClubTrainingOpening.club_id,
+            TrainingGroupMembership.group_id == ClubTrainingOpening.eligible_group_id,
+            TrainingGroupMembership.user_id == uid,
+            TrainingGroupMembership.effective_from <= on,
+            or_(TrainingGroupMembership.effective_to.is_(None),
+                TrainingGroupMembership.effective_to > on),
+            ClubMembership.id == TrainingGroupMembership.club_membership_id,
+            ClubMembership.ended_at.is_(None),
+        )),
+    )
+
+
+def event_visible_clause(user: Optional[AppUser], on: Optional[date] = None, *, include_openings: bool = False):
     """The single read policy for events, occurrences and their resources.
 
     Requires CalendarEvent joined to Calendar in the enclosing query.
@@ -159,10 +206,27 @@ def event_visible_clause(user: Optional[AppUser], on: Optional[date] = None):
              or_(_member_of_calendar_club(uid, STAFF_ROLES), _assigned_to_calendar_group(uid, on))),
         and_(CalendarEvent.audience == "invited", invited))
     draft_editor = or_(_publisher_of_calendar_club(uid), Calendar.owner_user_id == uid)
-    return or_(
+    base = or_(
         organizer,
         and_(CalendarEvent.status.in_(VISIBLE_EVENT_STATUSES), audience),
         and_(CalendarEvent.status == "draft", draft_editor))
+    if not include_openings:
+        return base
+    return or_(base, exists().where(and_(
+        EventOccurrence.event_id == CalendarEvent.id,
+        _open_training_for_occurrence(uid, on),
+    )))
+
+
+def occurrence_visible_clause(user: Optional[AppUser], on: Optional[date] = None, *, include_openings: bool = False):
+    """Per-occurrence read policy (requires EventOccurrence, CalendarEvent, Calendar)."""
+    if not _usable(user):
+        return false()
+    on = on or today()
+    base = event_visible_clause(user, on, include_openings=False)
+    if not include_openings:
+        return base
+    return or_(base, _open_training_for_occurrence(user.id, on))
 
 
 def resource_visible_clause(user: Optional[AppUser]):
@@ -177,15 +241,17 @@ def resource_visible_clause(user: Optional[AppUser]):
 
 # --- Query builders --------------------------------------------------------
 
-def visible_events(db: Session, user: AppUser, on: Optional[date] = None):
+def visible_events(db: Session, user: AppUser, on: Optional[date] = None, *, include_openings: Optional[bool] = None):
+    allow_openings = openings_schema_ready(db) if include_openings is None else include_openings
     return db.query(CalendarEvent).join(Calendar, Calendar.id == CalendarEvent.calendar_id).filter(
-        event_visible_clause(user, on))
+        event_visible_clause(user, on, include_openings=allow_openings))
 
 
 def visible_occurrences(db: Session, user: AppUser, on: Optional[date] = None):
     return db.query(EventOccurrence, CalendarEvent, Calendar).join(
         CalendarEvent, CalendarEvent.id == EventOccurrence.event_id).join(
-        Calendar, Calendar.id == CalendarEvent.calendar_id).filter(event_visible_clause(user, on))
+        Calendar, Calendar.id == CalendarEvent.calendar_id).filter(
+        occurrence_visible_clause(user, on, include_openings=openings_schema_ready(db)))
 
 
 def visible_calendars(db: Session, user: AppUser, on: Optional[date] = None):
@@ -193,11 +259,13 @@ def visible_calendars(db: Session, user: AppUser, on: Optional[date] = None):
 
 
 def visible_event_resources(db: Session, user: AppUser, event_ids):
+    """Event-level resources require full event visibility, never per-occurrence openings."""
     if not event_ids:
         return []
     return db.query(EventResource).join(CalendarEvent, CalendarEvent.id == EventResource.event_id).join(
         Calendar, Calendar.id == CalendarEvent.calendar_id).filter(
-        EventResource.event_id.in_(list(event_ids)), event_visible_clause(user),
+        EventResource.event_id.in_(list(event_ids)),
+        event_visible_clause(user, include_openings=False),
         resource_visible_clause(user)).order_by(EventResource.id).limit(MAX_RESOURCE_RESULTS).all()
 
 

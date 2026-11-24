@@ -20,6 +20,7 @@ export interface Occurrence {
   venue_name: string | null; version: number; event: EventSummary; my_interest: Interest | null
   my_absence_reported: boolean; local_date: string; local_start: string | null; local_end: string | null
   imported: boolean; local_end_date: string; series_date: string | null; detached: boolean
+  open_access?: boolean
 }
 export interface Recurrence {
   weekdays: number[]; start_time: string; end_time: string; first_date: string; until_date: string
@@ -84,6 +85,19 @@ export interface RosterEntry {
 export interface Roster {
   club_id: number; my_role: Role | null; can_assign_groups: boolean; can_manage_members: boolean
   groups: Group[]; items: RosterEntry[]
+}
+export interface TrainingOpening {
+  id: number; club_id: number; eligible_group_id: number; eligible_group_name: string
+  competition_event_id: number | null; competition_title: string | null; label: string | null
+  starts_on: string; ends_on: string
+}
+export interface ClubTrainingOpenings { club_id: number; can_manage: boolean; items: TrainingOpening[] }
+export interface EventClubOpeningScope {
+  club_id: number; club_name: string; groups: Group[]; openings: TrainingOpening[]
+}
+export interface EventTrainingOpenings {
+  event_id: number; default_starts_on: string | null; default_ends_on: string | null
+  clubs: EventClubOpeningScope[]; next_cursor?: number | null
 }
 export interface Invitation { user_id: number; display_name: string; status: string; responded_at: string | null }
 export interface LinkableDive {
@@ -217,6 +231,15 @@ export const calendarApi = {
   deleteResults: (eventId: number) => request<void>(`/events/${eventId}/results`, { method: 'DELETE' }),
   roster: (clubId: number) => request<Roster>(`/clubs/${clubId}/members`),
   clubResources: (clubId: number) => request<Resource[]>(`/clubs/${clubId}/resources`),
+  clubTrainingOpenings: (clubId: number) => request<ClubTrainingOpenings>(`/clubs/${clubId}/training-openings`),
+  createTrainingOpening: (clubId: number, body: {
+    eligible_group_id: number; competition_event_id?: number | null; label?: string | null
+    starts_on?: string | null; ends_on?: string | null
+  }) => request<TrainingOpening>(`/clubs/${clubId}/training-openings`, json('POST', body)),
+  deleteTrainingOpening: (clubId: number, openingId: number) =>
+    request<void>(`/clubs/${clubId}/training-openings/${openingId}`, { method: 'DELETE' }),
+  eventTrainingOpenings: (eventId: number, afterClubId?: number | null) =>
+    request<EventTrainingOpenings>(`/events/${eventId}/training-openings${afterClubId ? `?after_club_id=${afterClubId}` : ''}`),
   assignGroup: (clubId: number, user_id: number, group_id: number | null, effective_from: string) =>
     request<unknown>(`/clubs/${clubId}/group-assignment`, json('PUT', { user_id, group_id, effective_from })),
   updateMembership: (clubId: number, membershipId: number, body: { role?: Role; can_publish?: boolean; can_assign_groups?: boolean }) =>

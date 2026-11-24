@@ -430,14 +430,22 @@ def revoke_invitation(db: Session, user: AppUser, event_id: int, invitee_id: int
         row.status, row.revoked_at = "revoked", datetime.utcnow()
         db.flush()
         target = db.get(AppUser, invitee_id)
-        still_visible = target is not None and access.visible_events(db, target).filter(
-            CalendarEvent.id == event.id).first() is not None
-        if not still_visible:  # no other grant: drop their active participation
+        still_full = target is not None and access.visible_events(
+            db, target, include_openings=False).filter(CalendarEvent.id == event.id).first() is not None
+        if not still_full:  # no full event grant: drop follow and non-visible occurrence participation
             occurrence_ids = db.query(EventOccurrence.id).filter(EventOccurrence.event_id == event.id)
-            db.query(OccurrenceInterest).filter(
+            keep_occ_ids = (
+                access.visible_occurrences(db, target).filter(EventOccurrence.event_id == event.id)
+                .with_entities(EventOccurrence.id).scalar_subquery()
+                if target is not None else None
+            )
+            interest_q = db.query(OccurrenceInterest).filter(
                 OccurrenceInterest.user_id == invitee_id,
-                OccurrenceInterest.occurrence_id.in_(occurrence_ids.scalar_subquery())).delete(
-                synchronize_session=False)
+                OccurrenceInterest.occurrence_id.in_(occurrence_ids.scalar_subquery()),
+            )
+            if keep_occ_ids is not None:
+                interest_q = interest_q.filter(OccurrenceInterest.occurrence_id.notin_(keep_occ_ids))
+            interest_q.delete(synchronize_session=False)
             db.query(CalendarEventFollow).filter_by(event_id=event.id, user_id=invitee_id).delete(
                 synchronize_session=False)
         db.flush()
@@ -483,7 +491,8 @@ def absence_allowed(db: Session, user: AppUser, event: CalendarEvent, calendar: 
     assigned group sessions, or club-wide training for any active member."""
     if occurrence_id is not None:
         from app.services.session_calendar import occurrence_members
-        return occurrence_members(db, occurrence_id, include_absent=True).filter(AppUser.id == user.id).first() is not None
+        return occurrence_members(db, occurrence_id, include_absent=True, include_open_visitors=False).filter(
+            AppUser.id == user.id).first() is not None
     if event.event_type != "training" or calendar.club_id is None or event.audience not in ("group", "club"):
         return False
     if access.active_membership(db, user, calendar.club_id) is None:
@@ -527,7 +536,17 @@ def follow_calendar(db: Session, user: AppUser, calendar_id: int, on: bool) -> N
 
 
 def follow_event(db: Session, user: AppUser, event_id: int, on: bool) -> None:
-    visible_event(db, user, event_id)
+    if on:
+        row = db.query(CalendarEvent).join(Calendar, Calendar.id == CalendarEvent.calendar_id).filter(
+            CalendarEvent.id == event_id,
+            access.event_visible_clause(user, include_openings=False),
+        ).one_or_none()
+        if row is None:
+            # Distinguishes opening-only visibility (403) from missing/hidden event (404).
+            visible_event(db, user, event_id)
+            fail(403, "forbidden", "Event-wide following is not available for temporary open sessions")
+    else:
+        visible_event(db, user, event_id)
     row = db.get(CalendarEventFollow, (event_id, user.id))
     if on and row is None:
         db.add(CalendarEventFollow(event_id=event_id, user_id=user.id))

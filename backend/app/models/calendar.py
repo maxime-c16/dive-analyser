@@ -603,3 +603,36 @@ class CalendarWorkerState(Base):
     failures = Column(Integer, nullable=False, default=0, server_default="0")
     last_stats = Column(JSON, nullable=False, default=dict, server_default="{}")
     __table_args__ = (MIGRATION_ONLY,)
+
+
+class ClubTrainingOpening(Base):
+    """Temporary open-training window for one club group (e.g. advanced divers
+    may join any group training session during the 2 calendar weeks before a
+    federal competition). Opt-in only: members keep opt-out on their own group
+    and opt in via OccurrenceInterest(state='interested') on other groups."""
+    __tablename__ = "club_training_openings"
+    id = Column(Integer, primary_key=True)
+    club_id = Column(Integer, ForeignKey("clubs.id", ondelete="RESTRICT"), nullable=False)
+    eligible_group_id = Column(Integer, nullable=False)
+    competition_event_id = Column(Integer, ForeignKey("calendar_events.id", ondelete="SET NULL"), nullable=True)
+    label = Column(String(200), nullable=True)
+    starts_on = Column(Date, nullable=False)
+    ends_on = Column(Date, nullable=False)
+    window_start = Column(DateTime, nullable=False)
+    window_end = Column(DateTime, nullable=False)
+    created_by_user_id = Column(Integer, ForeignKey("app_users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    __table_args__ = (
+        ForeignKeyConstraint(["eligible_group_id", "club_id"], ["training_groups.id", "training_groups.club_id"],
+                             ondelete="RESTRICT", name="fk_training_opening_group_club"),
+        CheckConstraint("ends_on >= starts_on", name="ck_training_opening_dates"),
+        CheckConstraint("window_end > window_start", name="ck_training_opening_window"),
+        Index("uq_training_opening_comp_group", "club_id", "eligible_group_id", "competition_event_id", unique=True,
+              postgresql_where=text("competition_event_id IS NOT NULL"),
+              sqlite_where=text("competition_event_id IS NOT NULL")),
+        Index("ix_training_openings_club_window", "club_id", "window_start", "window_end"),
+        Index("ix_training_openings_event", "competition_event_id",
+              postgresql_where=text("competition_event_id IS NOT NULL"),
+              sqlite_where=text("competition_event_id IS NOT NULL")),
+        MIGRATION_ONLY,
+    )

@@ -181,6 +181,9 @@ class OccurrenceOut(BaseModel):
     local_end_date: Optional[date] = None
     series_date: Optional[date] = None
     detached: bool = False
+    # True when a group training session from another group is opened to the
+    # caller via a ClubTrainingOpening (opt-in "I'm coming", never opt-out).
+    open_access: bool = False
 
 
 class OccurrencePage(BaseModel):
@@ -433,6 +436,47 @@ class ChangeOut(BaseModel):
     kind: str
     at: str
     fields: List[str]
+
+
+class TrainingOpeningCreate(BaseModel):
+    eligible_group_id: int = Field(..., gt=0)
+    competition_event_id: Optional[int] = Field(None, gt=0)
+    label: Optional[str] = Field(None, max_length=200)
+    starts_on: Optional[date] = None
+    ends_on: Optional[date] = None
+
+
+class TrainingOpeningOut(BaseModel):
+    id: int
+    club_id: int
+    eligible_group_id: int
+    eligible_group_name: str
+    competition_event_id: Optional[int] = None
+    competition_title: Optional[str] = None
+    label: Optional[str] = None
+    starts_on: date
+    ends_on: date
+
+
+class ClubTrainingOpeningsOut(BaseModel):
+    club_id: int
+    can_manage: bool = False
+    items: List[TrainingOpeningOut] = []
+
+
+class EventClubOpeningScope(BaseModel):
+    club_id: int
+    club_name: str
+    groups: List[GroupOut] = []
+    openings: List[TrainingOpeningOut] = []
+
+
+class EventTrainingOpeningsOut(BaseModel):
+    event_id: int
+    default_starts_on: Optional[date] = None
+    default_ends_on: Optional[date] = None
+    clubs: List[EventClubOpeningScope] = []
+    next_cursor: Optional[int] = None
 
 
 EventDetail.model_rebuild()

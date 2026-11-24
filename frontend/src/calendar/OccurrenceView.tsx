@@ -5,7 +5,7 @@ import {
   Star, Trophy, UserRound, Users, XCircle,
 } from "lucide-react";
 import {
-  CalendarError, calendarApi, type EventDetail, type Invitation, type LinkableDive,
+  CalendarError, calendarApi, type EventDetail, type EventTrainingOpenings, type Invitation, type LinkableDive,
   type OccurrenceDetail,
 } from "./api";
 import { lastDay, parisToday, sourceOf, spanDays } from "./model";
@@ -80,8 +80,10 @@ export default function OccurrenceView({ ctx, occurrenceId }: { ctx: CalendarCon
     ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([occ.venue_name, event.venue_address].filter(Boolean).join(", "))}` : null);
 
 
+  const isOpenPending = !!occ.open_access && occ.my_interest !== "interested";
+
   return (
-    <article className={`cal-detail cal-src-${src}`} aria-busy={busy}>
+    <article className={`cal-detail cal-src-${src}${isOpenPending ? " is-open" : ""}`} aria-busy={busy}>
       <header className="cal-hero ca-arrive">
         <div className="cal-date-tile" aria-hidden="true">
           <span>{fmt(occ.local_date, { month: "short" }).replace(".", "")}</span>
@@ -89,7 +91,7 @@ export default function OccurrenceView({ ctx, occurrenceId }: { ctx: CalendarCon
           <small>{fmt(occ.local_date, { weekday: "short" }).replace(".", "")}{multiDay ? `–${fmt(lastDay(occ), { weekday: "short" }).replace(".", "")}` : ""}</small>
         </div>
         <div className="cal-hero-text">
-          <span className="cal-tag"><i className="cal-dot" />{group ? `${t.group} ${group}` : t[src]}</span>
+          <span className="cal-tag"><i className={`cal-dot${isOpenPending ? " is-open" : ""}`} />{group ? `${isOpenPending ? "+ " : ""}${t.group} ${group}` : t[src]}</span>
           <h1>{event.title}</h1>
           <p>
             <span className="sr-only">{fmt(occ.local_date, { weekday: "long", day: "numeric", month: "long", year: "numeric" })} · </span>
@@ -121,6 +123,18 @@ export default function OccurrenceView({ ctx, occurrenceId }: { ctx: CalendarCon
           <button type="button" className="is-declined" aria-pressed={occ.my_absence_reported} disabled={busy || !open}
             onClick={() => act(() => calendarApi.setAbsence(occ.id, !occ.my_absence_reported), { my_absence_reported: !occ.my_absence_reported })}>
             {occ.my_absence_reported ? t.cancelAbsence : t.reportAbsence}
+          </button>
+        </div>
+      )}
+
+      {occ.open_access && !occ.can_report_absence && event.status !== "draft" && (
+        <div className="cal-rsvp is-big">
+          <button type="button" className="is-interested" aria-pressed={occ.my_interest === "interested"} disabled={busy || !open}
+            onClick={() => {
+              const next = occ.my_interest === "interested" ? null : "interested";
+              act(() => calendarApi.setInterest(occ.id, next), { my_interest: next });
+            }}>
+            {occ.my_interest === "interested" ? <><Check size={16} aria-hidden="true" />{t.goingShort}</> : t.joinSession}
           </button>
         </div>
       )}
@@ -220,11 +234,13 @@ export default function OccurrenceView({ ctx, occurrenceId }: { ctx: CalendarCon
       )}
 
       <section className="ca-panel cal-list">
-        <div className="cal-list-row">
-          <Star size={18} aria-hidden="true" /><span className="cal-list-main"><b>{t.followChanges}</b></span>
-          <button type="button" role="switch" className="cal-switch" aria-checked={event.following} aria-label={t.followChanges} disabled={busy}
-            onClick={() => act(() => calendarApi.followEvent(event.id, !event.following), undefined, { following: !event.following })} />
-        </div>
+        {(!occ.open_access || event.can_edit) && (
+          <div className="cal-list-row">
+            <Star size={18} aria-hidden="true" /><span className="cal-list-main"><b>{t.followChanges}</b></span>
+            <button type="button" role="switch" className="cal-switch" aria-checked={event.following} aria-label={t.followChanges} disabled={busy}
+              onClick={() => act(() => calendarApi.followEvent(event.id, !event.following), undefined, { following: !event.following })} />
+          </div>
+        )}
         <a className="cal-list-row" href={`/api/v1/calendar/occurrences/${occ.id}/export.ics`} download>
           <CalendarPlus size={18} aria-hidden="true" /><span className="cal-list-main"><b>{t.addToCalendar}</b></span><ChevronRight size={16} aria-hidden="true" />
         </a>
@@ -258,7 +274,134 @@ export default function OccurrenceView({ ctx, occurrenceId }: { ctx: CalendarCon
       {event.can_edit && event.audience === "invited" && !cancelled && (
         <Invitations eventId={event.id} clubId={event.club_id} />
       )}
+      {event.event_type === "competition" && event.status === "published" && !cancelled && (
+        <OpenTrainingPanel key={event.id} eventId={event.id} onChanged={ctx.refresh} />
+      )}
     </article>
+  );
+}
+
+/** Club staff: open all club training sessions to one group for the 2 calendar weeks before this competition. */
+function OpenTrainingPanel({ eventId, onChanged }: { eventId: number; onChanged: () => void }) {
+  const { t, lang } = useCalendarStrings();
+  const [data, setData] = useState<EventTrainingOpenings | null>(null);
+  const [groupByClub, setGroupByClub] = useState<Record<number, string>>({});
+  const [startsOn, setStartsOn] = useState("");
+  const [endsOn, setEndsOn] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [revision, setRevision] = useState(0);
+
+  useEffect(() => {
+    let live = true;
+    calendarApi.eventTrainingOpenings(eventId)
+      .then((res) => {
+        if (!live) return;
+        setData(res);
+        setStartsOn((cur) => cur || res.default_starts_on || "");
+        setEndsOn((cur) => cur || res.default_ends_on || "");
+      })
+      .catch(() => { if (live) setData((cur) => cur ?? null); });
+    return () => { live = false; };
+  }, [eventId, revision]);
+
+  if (!data || !data.clubs.length) return null;
+  const fmt = (d: string) => new Intl.DateTimeFormat(lang, { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" }).format(utc(d));
+
+  const loadMore = async () => {
+    if (!data.next_cursor || loadingMore) return;
+    setLoadingMore(true);
+    setError(null);
+    try {
+      const next = await calendarApi.eventTrainingOpenings(eventId, data.next_cursor);
+      setData((cur) => {
+        if (!cur || cur.event_id !== eventId) return cur;
+        const seen = new Set(cur.clubs.map((c) => c.club_id));
+        const extra = next.clubs.filter((c) => !seen.has(c.club_id));
+        return { ...cur, clubs: [...cur.clubs, ...extra], next_cursor: next.next_cursor ?? null };
+      });
+    } catch {
+      setError(t.retrySave);
+    } finally { setLoadingMore(false); }
+  };
+
+  const add = async (clubId: number, groupId: number) => {
+    setBusy(true);
+    setError(null);
+    try {
+      await calendarApi.createTrainingOpening(clubId, {
+        eligible_group_id: groupId,
+        competition_event_id: eventId,
+        starts_on: startsOn || null,
+        ends_on: endsOn || null,
+      });
+      setRevision((r) => r + 1);
+      onChanged();
+    } catch (e) {
+      setError(e instanceof CalendarError && e.code === "opening_exists" ? t.openTrainingExists
+        : e instanceof CalendarError && e.status === 403 ? t.forbidden : t.retrySave);
+    } finally { setBusy(false); }
+  };
+
+  const remove = async (clubId: number, openingId: number) => {
+    setBusy(true);
+    setError(null);
+    try {
+      await calendarApi.deleteTrainingOpening(clubId, openingId);
+      setRevision((r) => r + 1);
+      onChanged();
+    } catch (e) {
+      setError(e instanceof CalendarError && e.status === 403 ? t.forbidden : t.retrySave);
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <section className="ca-panel cal-list">
+      <div className="ca-panel-h"><h2>{t.openTraining}</h2></div>
+      {data.clubs.map((club) => {
+        const openedIds = new Set(club.openings.map((o) => o.eligible_group_id));
+        const available = club.groups.filter((g) => !openedIds.has(g.id));
+        const selected = groupByClub[club.club_id] ?? (available[0] ? String(available[0].id) : "");
+        return (
+          <div key={club.club_id}>
+            {club.openings.map((op) => (
+              <div key={op.id} className="cal-list-row">
+                <Users size={18} aria-hidden="true" />
+                <span className="cal-list-main">
+                  <b>{op.eligible_group_name}{data.clubs.length > 1 ? ` · ${club.club_name}` : ""}</b>
+                  <small>{t.dateRange(fmt(op.starts_on), fmt(op.ends_on))}</small>
+                </span>
+                <button type="button" className="ca-pill is-danger" disabled={busy}
+                  onClick={() => remove(club.club_id, op.id)}>{t.openTrainingRemove}</button>
+              </div>
+            ))}
+            {available.length > 0 && (
+              <form className="cal-opening-form" onSubmit={(e) => {
+                e.preventDefault();
+                if (selected) add(club.club_id, Number(selected));
+              }}>
+                <select aria-label={t.group} value={selected}
+                  onChange={(e) => setGroupByClub((prev) => ({ ...prev, [club.club_id]: e.target.value }))}>
+                  {available.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+                </select>
+                <input type="date" aria-label={t.openTrainingFrom} value={startsOn} onChange={(e) => setStartsOn(e.target.value)} required />
+                <input type="date" aria-label={t.openTrainingTo} value={endsOn} onChange={(e) => setEndsOn(e.target.value)} required />
+                <button type="submit" className="ca-pill" disabled={busy || !selected || !startsOn || !endsOn}>{t.openTrainingAdd}</button>
+              </form>
+            )}
+          </div>
+        );
+      })}
+      {data.next_cursor != null && (
+        <div className="cal-list-row">
+          <button type="button" className="ca-pill" disabled={loadingMore || busy} onClick={loadMore}>
+            {t.openTrainingMore}
+          </button>
+        </div>
+      )}
+      {error && <p role="alert" className="cal-notice is-bad">{error}</p>}
+    </section>
   );
 }
 

@@ -53,10 +53,11 @@ export default function Calendar() {
   const [calendars, setCalendars] = useState<CalendarInfo[]>([]);
   const [searching, setSearching] = useState(false);
   const [answers, setAnswers] = useState<Record<number, boolean>>({});
+  const [interestAnswers, setInterestAnswers] = useState<Record<number, "interested" | null>>({});
   const [answerBusy, setAnswerBusy] = useState(false);
   const [answerError, setAnswerError] = useState(false);
   const [monthDirection, setMonthDirection] = useState<"next" | "previous" | null>(null);
-  const refresh = useCallback(() => { setAnswers({}); setRevision((r) => r + 1); }, []);
+  const refresh = useCallback(() => { setAnswers({}); setInterestAnswers({}); setRevision((r) => r + 1); }, []);
 
   useEffect(() => {
     const tick = () => setNow(new Date());
@@ -108,17 +109,22 @@ export default function Calendar() {
     update({ date: first.slice(0, 7) === today.slice(0, 7) ? today : first });
   };
 
-  const withAnswers = (items: Occurrence[]) => items.map((o) => (o.id in answers ? { ...o, my_absence_reported: answers[o.id] } : o));
+  const withAnswers = (items: Occurrence[]) => items.map((o) => {
+    const patch: Partial<Occurrence> = {};
+    if (o.id in answers) patch.my_absence_reported = answers[o.id];
+    if (o.id in interestAnswers) patch.my_interest = interestAnswers[o.id];
+    return o.id in answers || o.id in interestAnswers ? { ...o, ...patch } : o;
+  });
   const keep = (o: Occurrence) => (!source || sourceOf(o) === source) && matches(o, q);
   const upcoming = useMemo(() => Array.isArray(upcomingData)
     ? sortOccurrences(withAnswers(upcomingData).filter((o) => lastDay(o) >= today && keep(o))) : [],
-  [upcomingData, answers, today, source, q]);
+  [upcomingData, answers, interestAnswers, today, source, q]);
   const past = useMemo(() => Array.isArray(pastData)
     ? sortOccurrences(withAnswers(pastData).filter((o) => lastDay(o) < today && keep(o))) : [],
-  [pastData, answers, today, source, q]);
+  [pastData, answers, interestAnswers, today, source, q]);
   const inMonth = useMemo(() => Array.isArray(monthData)
     ? sortOccurrences(withAnswers(monthData).filter((o) => overlapsMonth(o, month) && keep(o))) : [],
-  [monthData, answers, month, source, q]);
+  [monthData, answers, interestAnswers, month, source, q]);
   const filtered = !!source || !!q.trim();
   const ctx: CalendarContext = { me: me ?? [], calendars, refresh };
   const search = location.search;
@@ -131,6 +137,17 @@ export default function Calendar() {
     setAnswerError(false);
     calendarApi.setAbsence(o.id, next).then(refresh).catch(() => {
       setAnswers((a) => { const { [o.id]: _drop, ...rest } = a; return rest; });
+      setAnswerError(true);
+    }).finally(() => setAnswerBusy(false));
+  };
+  const toggleJoin = (o: Occurrence) => {
+    if (answerBusy) return;
+    setAnswerBusy(true);
+    const next = o.my_interest === "interested" ? null : "interested";
+    setInterestAnswers((a) => ({ ...a, [o.id]: next }));
+    setAnswerError(false);
+    calendarApi.setInterest(o.id, next).then(refresh).catch(() => {
+      setInterestAnswers((a) => { const { [o.id]: _drop, ...rest } = a; return rest; });
       setAnswerError(true);
     }).finally(() => setAnswerBusy(false));
   };
@@ -215,11 +232,13 @@ export default function Calendar() {
   const nextCard = next && (() => {
     const n = daysBetween(today, next.local_date);
     const group = next.event.calendar_kind === "group" ? next.event.calendar_name : null;
+    const isOpen = !!next.open_access;
+    const isJoined = isOpen && next.my_interest === "interested";
     return (
-      <div className={`cal-next cal-src-${sourceOf(next)}${intro ? " ca-pop" : ""}`}>
+      <div className={`cal-next cal-src-${sourceOf(next)}${isOpen ? " is-open" : ""}${isJoined ? " is-joined" : ""}${intro ? " ca-pop" : ""}`}>
         <Link className="cal-next-link" to={`/calendar/o/${next.id}${search}`}>
           <span className="cal-next-top">
-            <span className="cal-tag"><i className="cal-dot" />{t.nextUp}{group && !next.event.title.toLocaleLowerCase().includes(group.toLocaleLowerCase()) ? ` · ${group}` : ""}</span>
+            <span className="cal-tag"><i className={`cal-dot${isOpen && !isJoined ? " is-open" : ""}`} />{t.nextUp}{group && !next.event.title.toLocaleLowerCase().includes(group.toLocaleLowerCase()) ? ` · ${isOpen && !isJoined ? `+ ${group}` : group}` : ""}</span>
             <span className="cal-count">{n === 0 ? t.today : n}{n > 0 && <small>{t.daysLeft(n)}</small>}</span>
           </span>
           <span className="cal-next-title">{next.event.title}</span>
@@ -230,9 +249,16 @@ export default function Calendar() {
           </span>
         </Link>
         <div className="cal-rsvp" role="group" aria-label={t.yourResponse}>
-          {next.event.event_type === 'training' && ctx.me.some(c => c.club.id === next.event.club_id && (next.event.audience === 'club' || c.group?.id === next.event.training_group_id)) && <button type="button" className="is-declined" disabled={answerBusy} aria-pressed={next.my_absence_reported} onClick={() => answer(next)}>
-            {next.my_absence_reported ? t.cancelAbsence : t.reportAbsence}
-          </button>}
+          {next.open_access ? (
+            <button type="button" className="is-interested" disabled={answerBusy}
+              aria-pressed={next.my_interest === "interested"} onClick={() => toggleJoin(next)}>
+              {next.my_interest === "interested" ? t.goingShort : t.joinSession}
+            </button>
+          ) : next.event.event_type === 'training' && ctx.me.some(c => c.club.id === next.event.club_id && (next.event.audience === 'club' || c.group?.id === next.event.training_group_id)) && (
+            <button type="button" className="is-declined" disabled={answerBusy} aria-pressed={next.my_absence_reported} onClick={() => answer(next)}>
+              {next.my_absence_reported ? t.cancelAbsence : t.reportAbsence}
+            </button>
+          )}
         </div>
       </div>
     );
@@ -254,7 +280,7 @@ export default function Calendar() {
           aria-pressed={day === date} aria-current={day === today ? "date" : undefined}
           aria-label={`${label}${list.length ? ` · ${list.map((o) => o.event.title).join(", ")}` : ""}`}>
           <span className="cal-cell-n">{i}</span>
-          <span className="cal-cell-dots">{dots.map((o) => <i key={o.id} className={`cal-dot cal-src-${sourceOf(o)}`} />)}</span>
+          <span className="cal-cell-dots">{dots.map((o) => <i key={o.id} className={`cal-dot cal-src-${sourceOf(o)}${o.open_access && o.my_interest !== "interested" ? " is-open" : ""}`} />)}</span>
           {span && <span className={`cal-cell-span cal-src-${sourceOf(span)}${day === span.local_date ? " is-start" : ""}${day === lastDay(span) ? " is-end" : ""}`} />}
         </button>,
       );

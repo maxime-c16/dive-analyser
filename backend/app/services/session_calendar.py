@@ -12,9 +12,10 @@ import logging
 from sqlalchemy import and_, exists, or_, case, func
 
 from app.models.calendar import (Calendar, CalendarEvent, EventOccurrence, ClubMembership,
-    TrainingGroupMembership, OccurrenceAbsenceReport, OccurrenceInterest)
+    ClubTrainingOpening, TrainingGroupMembership, OccurrenceAbsenceReport, OccurrenceInterest)
 from app.models.session import Session as TrainingSession
 from app.models.user_auth import AppUser
+from app.services import calendar_access as access
 
 logger = logging.getLogger(__name__)
 MARGIN = timedelta(minutes=30)
@@ -41,8 +42,15 @@ def matching_occurrence(db, recorded_at):
                EventOccurrence.id).first()
 
 
-def occurrence_members(db, occurrence_id, *, include_absent=False):
-    """SQL full-scope eligibility; callers count or keyset-page before loading."""
+def occurrence_members(db, occurrence_id, *, include_absent=False, include_open_visitors=True):
+    """SQL full-scope eligibility; callers count or keyset-page before loading.
+
+    For group training sessions, default-expected members are those assigned to
+    the session's group on its local day (minus absences). When
+    `include_open_visitors=True`, active club members whose group has an open
+    ClubTrainingOpening covering this occurrence AND who opted in with
+    OccurrenceInterest(state='interested') are also included.
+    """
     row = db.query(EventOccurrence, CalendarEvent, Calendar).join(CalendarEvent, CalendarEvent.id == EventOccurrence.event_id).join(Calendar, Calendar.id == CalendarEvent.calendar_id).filter(
         EventOccurrence.id == occurrence_id).first()
     if row is None:
@@ -55,10 +63,40 @@ def occurrence_members(db, occurrence_id, *, include_absent=False):
         ClubMembership.club_id == c.club_id, ClubMembership.user_id == AppUser.id,
         ClubMembership.status == 'active', ClubMembership.ended_at.is_(None))))
     if e.audience == 'group':
-        q = q.filter(exists().where(and_(TrainingGroupMembership.user_id == AppUser.id,
+        assigned = exists().where(and_(
+            TrainingGroupMembership.user_id == AppUser.id,
             TrainingGroupMembership.group_id == c.training_group_id,
             TrainingGroupMembership.effective_from <= day,
-            or_(TrainingGroupMembership.effective_to.is_(None), TrainingGroupMembership.effective_to > day))))
+            or_(TrainingGroupMembership.effective_to.is_(None), TrainingGroupMembership.effective_to > day),
+            ClubMembership.id == TrainingGroupMembership.club_membership_id,
+            ClubMembership.status == 'active',
+            ClubMembership.ended_at.is_(None),
+        ))
+        if include_open_visitors and c.training_group_id is not None and access.openings_schema_ready(db):
+            open_visitor = and_(
+                exists().where(and_(
+                    ClubTrainingOpening.club_id == c.club_id,
+                    ClubTrainingOpening.eligible_group_id != c.training_group_id,
+                    ClubTrainingOpening.window_start <= o.window_start,
+                    ClubTrainingOpening.window_end > o.window_start,
+                    TrainingGroupMembership.club_id == ClubTrainingOpening.club_id,
+                    TrainingGroupMembership.group_id == ClubTrainingOpening.eligible_group_id,
+                    TrainingGroupMembership.user_id == AppUser.id,
+                    TrainingGroupMembership.effective_from <= day,
+                    or_(TrainingGroupMembership.effective_to.is_(None), TrainingGroupMembership.effective_to > day),
+                    ClubMembership.id == TrainingGroupMembership.club_membership_id,
+                    ClubMembership.status == 'active',
+                    ClubMembership.ended_at.is_(None),
+                )),
+                exists().where(and_(
+                    OccurrenceInterest.occurrence_id == o.id,
+                    OccurrenceInterest.user_id == AppUser.id,
+                    OccurrenceInterest.state == 'interested',
+                )),
+            )
+            q = q.filter(or_(assigned, open_visitor))
+        else:
+            q = q.filter(assigned)
     if not include_absent:
         q = q.filter(~exists().where(and_(OccurrenceAbsenceReport.user_id == AppUser.id,
             OccurrenceAbsenceReport.occurrence_id == o.id, OccurrenceAbsenceReport.withdrawn_at.is_(None))),
