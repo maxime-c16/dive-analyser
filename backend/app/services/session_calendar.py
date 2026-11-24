@@ -67,12 +67,6 @@ def occurrence_members(db, occurrence_id, *, include_absent=False, include_open_
             TrainingGroupMembership.group_id == c.training_group_id,
             TrainingGroupMembership.effective_from <= day,
             or_(TrainingGroupMembership.effective_to.is_(None), TrainingGroupMembership.effective_to > day)))
-        if not include_absent:
-            assigned = and_(assigned,
-                ~exists().where(and_(OccurrenceAbsenceReport.user_id == AppUser.id,
-                    OccurrenceAbsenceReport.occurrence_id == o.id, OccurrenceAbsenceReport.withdrawn_at.is_(None))),
-                ~exists().where(and_(OccurrenceInterest.user_id == AppUser.id,
-                    OccurrenceInterest.occurrence_id == o.id, OccurrenceInterest.state == 'declined')))
         if include_open_visitors and c.training_group_id is not None and access.openings_schema_ready(db):
             open_visitor = and_(
                 exists().where(and_(
@@ -95,7 +89,7 @@ def occurrence_members(db, occurrence_id, *, include_absent=False, include_open_
             q = q.filter(or_(assigned, open_visitor))
         else:
             q = q.filter(assigned)
-    elif not include_absent:
+    if not include_absent:
         q = q.filter(~exists().where(and_(OccurrenceAbsenceReport.user_id == AppUser.id,
             OccurrenceAbsenceReport.occurrence_id == o.id, OccurrenceAbsenceReport.withdrawn_at.is_(None))),
             ~exists().where(and_(OccurrenceInterest.user_id == AppUser.id,

@@ -313,3 +313,136 @@ def test_calendar_still_works_when_openings_table_missing(cal, monkeypatch):
     res = bob.get("/api/v1/calendar/occurrences", params={"from": q_from, "to": q_to})
     assert res.status_code == 200
     assert bob.get(f"/api/v1/calendar/clubs/{club_id}/training-openings").status_code == 503
+
+
+def test_open_access_and_event_scopes_not_truncated_across_clubs(cal):
+    """Two clubs with >100 total openings must never truncate open_access or event scopes."""
+    from app.models.calendar import ClubTrainingOpening
+    s = _setup_kcpm_window(cal)
+    db = cal["db"]
+    admin = db.get(AppUser, cal["users"]["admin"].id)
+    manager = db.get(AppUser, cal["users"]["manager"].id)
+    bob = db.get(AppUser, cal["users"]["bob"].id)
+    club_k = cal["clubs"]["k"]
+    club_o = cal["clubs"]["o"]
+    g_conf_k = cal["groups"]["b"]
+    g_other_a = cal["groups"]["o"]
+
+    # Manager and Bob also belong to club_o; club_o has two groups (g_other_a = Débutants, g_other_b = Confirmés).
+    membership.admin_add_membership(db, admin, club_o.id, manager.id, "manager")
+    membership.admin_add_membership(db, admin, club_o.id, bob.id, "member")
+    g_other_b = membership.create_group(db, manager, club_o.id, "other-b", "Other Confirmés")
+    membership.assign_group(db, manager, club_o.id, bob.id, g_other_b.id, TODAY - timedelta(days=30))
+
+    # Create a training occurrence in club_o's other group (g_other_a) inside the 2-week window.
+    cal_other_a = db.query(Calendar).filter_by(kind="group", training_group_id=g_other_a.id).one()
+    ev_other_a = CalendarEvent(
+        calendar_id=cal_other_a.id, event_type="training", audience="group", status="published",
+        title="Other Débutants", timezone="Europe/Paris",
+    )
+    db.add(ev_other_a)
+    db.flush()
+    inside_day = max(s["win_start"] + timedelta(days=1), TODAY + timedelta(days=2))
+    if inside_day > s["win_end"]:
+        inside_day = s["win_end"]
+    occ_other_a = EventOccurrence(
+        event_id=ev_other_a.id, occurrence_key="other-inside", is_all_day=False,
+        starts_at=_paris_utc(inside_day, 18), ends_at=_paris_utc(inside_day, 20),
+        window_start=_paris_utc(inside_day, 18), window_end=_paris_utc(inside_day, 20),
+    )
+    db.add(occ_other_a)
+
+    # Fill club_k to its full per-club cap (100 openings, including one per extra group on comp_id)
+    # so a global 100-row cap would drop club_o's opening.
+    ws, we = openings.utc_bounds_for_local_dates(s["win_start"], s["win_end"], "Europe/Paris")
+    for i in range(openings.MAX_OPENINGS_PER_CLUB):
+        extra_g = membership.create_group(db, manager, club_k.id, f"extra-{i}", f"Extra {i}") if i < 100 else g_conf_k
+        db.add(ClubTrainingOpening(
+            club_id=club_k.id,
+            eligible_group_id=g_conf_k.id if i == 0 else extra_g.id,
+            competition_event_id=s["comp_id"],
+            starts_on=s["win_start"], ends_on=s["win_end"],
+            window_start=ws, window_end=we,
+        ))
+    # Now add club_o's opening AFTER the 100 rows of club_k (higher ID).
+    db.add(ClubTrainingOpening(
+        club_id=club_o.id,
+        eligible_group_id=g_other_b.id,
+        competition_event_id=s["comp_id"],
+        starts_on=s["win_start"], ends_on=s["win_end"],
+        window_start=ws, window_end=we,
+    ))
+    occ_other_id = occ_other_a.id
+    club_o_id = club_o.id
+    db.commit()
+    db.expunge_all()
+
+    # 1. Bob sees club_o's session with open_access=True (not dropped by a global 100-row cap).
+    bob_client = cal["login"]("bob")
+    q_from = (s["win_start"] - timedelta(days=5)).isoformat() + "T00:00:00Z"
+    q_to = (s["comp_day"] + timedelta(days=3)).isoformat() + "T00:00:00Z"
+    items = {o["id"]: o for o in bob_client.get("/api/v1/calendar/occurrences", params={"from": q_from, "to": q_to}).json()["items"]}
+    assert occ_other_id in items and items[occ_other_id]["open_access"] is True
+
+    # 2. Manager sees club_o's opening in event_training_openings alongside club_k's 100 openings.
+    mgr_client = cal["login"]("manager")
+    scopes = mgr_client.get(f"/api/v1/calendar/events/{s['comp_id']}/training-openings").json()
+    by_club = {c["club_id"]: c for c in scopes["clubs"]}
+    assert len(by_club[club_o_id]["openings"]) == 1
+
+
+def test_transferred_member_active_absence_excludes_open_visitor(cal):
+    """A member who reported absence while assigned to group A, then transferred to
+    eligible group B and opted in, stays excluded from occurrence_members (matching alerts)."""
+    s = _setup_kcpm_window(cal)
+    db = cal["db"]
+    club_id = cal["clubs"]["k"].id
+    g_conf_id = cal["groups"]["b"].id
+    alice_id = cal["users"]["alice"].id
+
+    # Manager opens club training sessions to Confirmés (group B).
+    mgr = cal["login"]("manager")
+    assert mgr.post(
+        f"/api/v1/calendar/clubs/{club_id}/training-openings",
+        json={"eligible_group_id": g_conf_id, "competition_event_id": s["comp_id"]},
+        headers=_headers(),
+    ).status_code == 201
+
+    # Alice (currently in group A = Débutants) reports absence on deb_inside.
+    alice = cal["login"]("alice")
+    assert alice.put(
+        f"/api/v1/calendar/occurrences/{s['deb_inside_id']}/absence",
+        json={"absent": True},
+        headers=_headers(),
+    ).status_code == 200
+
+    # Coach transfers Alice from group A to group B (Confirmés) effective today (before deb_inside).
+    coach = cal["login"]("coach")
+    assert coach.put(
+        f"/api/v1/calendar/clubs/{club_id}/group-assignment",
+        json={"user_id": alice_id, "group_id": g_conf_id, "effective_from": TODAY.isoformat()},
+        headers=_headers(),
+    ).status_code == 200
+
+    # Alice (now an eligible visitor in Confirmés) opts in with "Je viens".
+    alice = cal["login"]("alice")
+    joined = alice.put(
+        f"/api/v1/calendar/occurrences/{s['deb_inside_id']}/interest",
+        json={"state": "interested"},
+        headers=_headers(),
+    )
+    assert joined.status_code == 200
+
+    # Because her prior absence report is still active, occurrence_members & going exclude her
+    # — matching calendar_alerts.suppression_reason == "absent".
+    assert joined.json()["going"]["interested"] == 0
+    assert {u.id for u in session_calendar.occurrence_members(db, s["deb_inside_id"]).all()} == set()
+    Session = sessionmaker(bind=db.get_bind(), expire_on_commit=False)
+    deb_row = db.get(EventOccurrence, s["deb_inside_id"])
+    ev_row = db.get(CalendarEvent, s["ev_deb_id"])
+    due = alerts.reminder_due(deb_row, ev_row)
+    alerts.plan_reminders(Session, due + timedelta(minutes=5), batch=50)
+    rem = db.query(CalendarAlertDelivery).filter_by(
+        kind="reminder", user_id=alice_id, occurrence_id=s["deb_inside_id"]
+    ).one()
+    assert alerts.suppression_reason(db, rem, due + timedelta(minutes=10)) == "absent"

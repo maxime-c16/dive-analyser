@@ -13,7 +13,7 @@ from datetime import date, datetime, time, timedelta, timezone
 from typing import Dict, Iterable, List, Optional, Set, Tuple
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import and_, func, or_
+from sqlalchemy import and_, exists, func, or_
 from sqlalchemy.orm import Session
 
 from app.models.calendar import (
@@ -243,7 +243,7 @@ def event_opening_scopes(db: Session, user: AppUser, event_id: int) -> dict:
     openings_rows = db.query(ClubTrainingOpening).filter(
         ClubTrainingOpening.club_id.in_(club_ids),
         ClubTrainingOpening.competition_event_id == event.id,
-    ).order_by(ClubTrainingOpening.id).limit(MAX_OPENINGS_PER_CLUB).all()
+    ).order_by(ClubTrainingOpening.id).limit(len(club_ids) * MAX_OPENINGS_PER_CLUB).all()
     openings_by_club: Dict[int, list] = {cid: [] for cid in club_ids}
     for item in _serialize_openings(db, openings_rows):
         openings_by_club[item["club_id"]].append(item)
@@ -304,31 +304,26 @@ def open_access_occurrence_ids(db: Session, user: AppUser, rows: Iterable[tuple]
     if not other_group:
         return set()
 
-    min_start = min(o.window_start for o, _c in other_group)
-    max_start = max(o.window_start for o, _c in other_group)
+    occ_ids = [o.id for o, _c in other_group]
     target_clubs = {c.club_id for _o, c in other_group}
-    target_groups = {my_groups[cid] for cid in target_clubs}
-
-    windows_by_club: Dict[int, List[Tuple[datetime, datetime]]] = {}
-    for cid, gid, ws, we in db.query(
-        ClubTrainingOpening.club_id,
-        ClubTrainingOpening.eligible_group_id,
-        ClubTrainingOpening.window_start,
-        ClubTrainingOpening.window_end,
+    pair_cond = or_(*(
+        and_(
+            ClubTrainingOpening.club_id == cid,
+            ClubTrainingOpening.eligible_group_id == my_groups[cid],
+        )
+        for cid in target_clubs
+    ))
+    matched = db.query(EventOccurrence.id).join(
+        CalendarEvent, CalendarEvent.id == EventOccurrence.event_id
+    ).join(
+        Calendar, Calendar.id == CalendarEvent.calendar_id
     ).filter(
-        ClubTrainingOpening.club_id.in_(target_clubs),
-        ClubTrainingOpening.eligible_group_id.in_(target_groups),
-        ClubTrainingOpening.window_start <= max_start,
-        ClubTrainingOpening.window_end > min_start,
-    ).limit(MAX_OPENINGS_PER_CLUB):
-        if my_groups.get(cid) == gid:
-            windows_by_club.setdefault(cid, []).append((ws, we))
-
-    if not windows_by_club:
-        return set()
-
-    return {
-        o.id
-        for o, c in other_group
-        if any(ws <= o.window_start < we for ws, we in windows_by_club.get(c.club_id, ()))
-    }
+        EventOccurrence.id.in_(occ_ids),
+        exists().where(and_(
+            ClubTrainingOpening.club_id == Calendar.club_id,
+            pair_cond,
+            ClubTrainingOpening.window_start <= EventOccurrence.window_start,
+            ClubTrainingOpening.window_end > EventOccurrence.window_start,
+        )),
+    ).limit(len(occ_ids)).all()
+    return {oid for (oid,) in matched}
