@@ -446,3 +446,119 @@ def test_transferred_member_active_absence_excludes_open_visitor(cal):
         kind="reminder", user_id=alice_id, occurrence_id=s["deb_inside_id"]
     ).one()
     assert alerts.suppression_reason(db, rem, due + timedelta(minutes=10)) == "absent"
+
+
+def test_event_detail_withholds_series_recurrence_when_only_open_access(cal):
+    """Access via a temporary opening must not expose series-wide recurrence metadata."""
+    from datetime import time
+    from app.models.calendar import CalendarEventRecurrence, CalendarRecurrenceExclusion
+
+    s = _setup_kcpm_window(cal)
+    db = cal["db"]
+    club_id = cal["clubs"]["k"].id
+    g_conf_id = cal["groups"]["b"].id
+
+    ev_deb = db.get(CalendarEvent, s["ev_deb_id"])
+    ev_deb.recurrence_rule = "FREQ=WEEKLY;BYDAY=TU"
+    db.add(CalendarEventRecurrence(
+        event_id=ev_deb.id, weekdays=2, start_time=time(19, 0), end_time=time(21, 0),
+        first_date=TODAY - timedelta(days=30), until_date=TODAY + timedelta(days=120),
+        pattern_from=TODAY - timedelta(days=30),
+    ))
+    db.add(CalendarRecurrenceExclusion(event_id=ev_deb.id, local_date=TODAY + timedelta(days=45)))
+    db.commit()
+    db.expunge_all()
+
+    mgr = cal["login"]("manager")
+    assert mgr.post(
+        f"/api/v1/calendar/clubs/{club_id}/training-openings",
+        json={"eligible_group_id": g_conf_id, "competition_event_id": s["comp_id"]},
+        headers=_headers(),
+    ).status_code == 201
+
+    # Bob (Confirmés, open-access only) sees only occurrences in the window, with series metadata withheld.
+    bob = cal["login"]("bob")
+    bob_ev = bob.get(f"/api/v1/calendar/events/{s['ev_deb_id']}").json()
+    assert bob_ev["recurrence_rule"] is None
+    assert bob_ev["recurrence"] is None
+    assert bob_ev["itinerary"] == []
+    assert bob_ev["changes"] == []
+    assert s["deb_inside_id"] in {o["id"] for o in bob_ev["occurrences"]}
+    assert s["deb_after_id"] not in {o["id"] for o in bob_ev["occurrences"]}
+
+    # Alice (assigned to Débutants) still sees full series recurrence.
+    alice = cal["login"]("alice")
+    alice_ev = alice.get(f"/api/v1/calendar/events/{s['ev_deb_id']}").json()
+    assert alice_ev["recurrence_rule"] == "FREQ=WEEKLY;BYDAY=TU"
+    assert alice_ev["recurrence"] is not None
+    assert len(alice_ev["recurrence"]["excluded_dates"]) == 1
+
+
+def test_club_openings_redacts_competition_title_when_audience_becomes_private(cal):
+    """If a linked competition later changes to invited-only, non-invitee members must not see its title."""
+    s = _setup_kcpm_window(cal)
+    db = cal["db"]
+    club_id = cal["clubs"]["k"].id
+    g_conf_id = cal["groups"]["b"].id
+
+    # Published club competition linked to an opening.
+    club_comp = CalendarEvent(
+        calendar_id=cal["cals"]["k"].id, event_type="competition", audience="club",
+        status="published", title="Sélectif Club", timezone="Europe/Paris",
+    )
+    db.add(club_comp)
+    db.flush()
+    db.add(EventOccurrence(
+        event_id=club_comp.id, occurrence_key="sel-club", is_all_day=True,
+        start_date=s["comp_day"], end_date=s["comp_day"] + timedelta(days=1),
+        window_start=_paris_utc(s["comp_day"], 0), window_end=_paris_utc(s["comp_day"] + timedelta(days=1), 0),
+    ))
+    comp_id = club_comp.id
+    db.commit()
+    db.expunge_all()
+
+    mgr = cal["login"]("manager")
+    created = mgr.post(
+        f"/api/v1/calendar/clubs/{club_id}/training-openings",
+        json={"eligible_group_id": g_conf_id, "competition_event_id": comp_id},
+        headers=_headers(),
+    )
+    assert created.status_code == 201
+
+    # Bob sees the title while audience is "club".
+    bob = cal["login"]("bob")
+    items = bob.get(f"/api/v1/calendar/clubs/{club_id}/training-openings").json()["items"]
+    assert items[0]["competition_title"] == "Sélectif Club"
+
+    # Publisher later changes the competition to invited-only (Bob is not invited).
+    ev = db.get(CalendarEvent, comp_id)
+    ev.audience = "invited"
+    db.commit()
+    db.expunge_all()
+
+    items_after = bob.get(f"/api/v1/calendar/clubs/{club_id}/training-openings").json()["items"]
+    assert items_after[0]["competition_title"] is None
+    assert items_after[0]["competition_event_id"] is None
+
+
+def test_event_opening_scopes_paginates_clubs_via_cursor(cal, monkeypatch):
+    """Club scopes paginate with after_club_id without dropping or duplicating clubs."""
+    s = _setup_kcpm_window(cal)
+    db = cal["db"]
+    admin = db.get(AppUser, cal["users"]["admin"].id)
+    manager = db.get(AppUser, cal["users"]["manager"].id)
+    club_k_id, club_o_id = cal["clubs"]["k"].id, cal["clubs"]["o"].id
+    membership.admin_add_membership(db, admin, club_o_id, manager.id, "manager")
+    db.commit()
+    db.expunge_all()
+
+    monkeypatch.setattr(openings, "CLUB_SCOPE_PAGE_SIZE", 1)
+    mgr = cal["login"]("manager")
+    p1 = mgr.get(f"/api/v1/calendar/events/{s['comp_id']}/training-openings").json()
+    assert len(p1["clubs"]) == 1 and p1["next_cursor"] == p1["clubs"][0]["club_id"]
+    p2 = mgr.get(
+        f"/api/v1/calendar/events/{s['comp_id']}/training-openings",
+        params={"after_club_id": p1["next_cursor"]},
+    ).json()
+    assert len(p2["clubs"]) == 1 and p2["next_cursor"] is None
+    assert {p1["clubs"][0]["club_id"], p2["clubs"][0]["club_id"]} == {club_k_id, club_o_id}

@@ -476,6 +476,7 @@ class EventTrainingOpeningsOut(BaseModel):
     default_starts_on: Optional[date] = None
     default_ends_on: Optional[date] = None
     clubs: List[EventClubOpeningScope] = []
+    next_cursor: Optional[int] = None
 
 
 EventDetail.model_rebuild()

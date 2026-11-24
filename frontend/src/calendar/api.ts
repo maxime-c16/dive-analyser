@@ -97,7 +97,7 @@ export interface EventClubOpeningScope {
 }
 export interface EventTrainingOpenings {
   event_id: number; default_starts_on: string | null; default_ends_on: string | null
-  clubs: EventClubOpeningScope[]
+  clubs: EventClubOpeningScope[]; next_cursor?: number | null
 }
 export interface Invitation { user_id: number; display_name: string; status: string; responded_at: string | null }
 export interface LinkableDive {
@@ -238,7 +238,23 @@ export const calendarApi = {
   }) => request<TrainingOpening>(`/clubs/${clubId}/training-openings`, json('POST', body)),
   deleteTrainingOpening: (clubId: number, openingId: number) =>
     request<void>(`/clubs/${clubId}/training-openings/${openingId}`, { method: 'DELETE' }),
-  eventTrainingOpenings: (eventId: number) => request<EventTrainingOpenings>(`/events/${eventId}/training-openings`),
+  async eventTrainingOpenings(eventId: number): Promise<EventTrainingOpenings> {
+    let cursor: number | null = null
+    let result: EventTrainingOpenings | null = null
+    for (let page = 0; page < 20; page++) {
+      const q = cursor ? `?after_club_id=${cursor}` : ''
+      const data: EventTrainingOpenings = await request(`/events/${eventId}/training-openings${q}`)
+      if (result === null) {
+        result = { ...data, clubs: [...data.clubs] }
+      } else {
+        result.clubs.push(...data.clubs)
+        result.next_cursor = data.next_cursor ?? null
+      }
+      cursor = data.next_cursor ?? null
+      if (!cursor) break
+    }
+    return result ?? { event_id: eventId, default_starts_on: null, default_ends_on: null, clubs: [], next_cursor: null }
+  },
   assignGroup: (clubId: number, user_id: number, group_id: number | null, effective_from: string) =>
     request<unknown>(`/clubs/${clubId}/group-assignment`, json('PUT', { user_id, group_id, effective_from })),
   updateMembership: (clubId: number, membershipId: number, body: { role?: Role; can_publish?: boolean; can_assign_groups?: boolean }) =>

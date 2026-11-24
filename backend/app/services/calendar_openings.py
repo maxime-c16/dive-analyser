@@ -26,6 +26,8 @@ from app.services.calendar_membership import _usable_club, fail
 
 MAX_OPENING_DAYS = 60
 MAX_OPENINGS_PER_CLUB = 100
+MAX_GROUPS_PER_CLUB = 500  # enforced by calendar_membership.create_group
+CLUB_SCOPE_PAGE_SIZE = 20
 
 
 def default_opening_window(competition_start: date) -> Tuple[date, date]:
@@ -82,20 +84,25 @@ def _club_publisher(db: Session, actor: AppUser, club_id: int) -> Tuple[Club, Cl
     return club, own
 
 
-def _serialize_openings(db: Session, rows: List[ClubTrainingOpening]) -> List[dict]:
+def _serialize_openings(db: Session, viewer: AppUser, rows: List[ClubTrainingOpening]) -> List[dict]:
     if not rows:
         return []
     group_ids = {r.eligible_group_id for r in rows}
     event_ids = {r.competition_event_id for r in rows if r.competition_event_id is not None}
     groups = {g.id: g.name for g in db.query(TrainingGroup).filter(TrainingGroup.id.in_(group_ids))} if group_ids else {}
-    events = {e.id: e.title for e in db.query(CalendarEvent).filter(CalendarEvent.id.in_(event_ids))} if event_ids else {}
+    # Re-check competition visibility at read time so an event changed to
+    # invited/private after linking never discloses its title to non-invitees.
+    events = {
+        e.id: e.title
+        for e in access.visible_events(db, viewer).filter(CalendarEvent.id.in_(event_ids))
+    } if event_ids else {}
     return [
         dict(
             id=r.id,
             club_id=r.club_id,
             eligible_group_id=r.eligible_group_id,
             eligible_group_name=groups.get(r.eligible_group_id, ""),
-            competition_event_id=r.competition_event_id,
+            competition_event_id=r.competition_event_id if r.competition_event_id in events else None,
             competition_title=events.get(r.competition_event_id) if r.competition_event_id else None,
             label=r.label,
             starts_on=r.starts_on,
@@ -113,7 +120,7 @@ def list_club_openings(db: Session, user: AppUser, club_id: int) -> dict:
     rows = db.query(ClubTrainingOpening).filter(
         ClubTrainingOpening.club_id == club_id,
     ).order_by(ClubTrainingOpening.starts_on.desc(), ClubTrainingOpening.id.desc()).limit(MAX_OPENINGS_PER_CLUB).all()
-    return dict(club_id=club_id, can_manage=access.can_publish(own), items=_serialize_openings(db, rows))
+    return dict(club_id=club_id, can_manage=access.can_publish(own), items=_serialize_openings(db, user, rows))
 
 
 def _validate_competition_for_club(db: Session, actor: AppUser, club: Club, event_id: int) -> CalendarEvent:
@@ -190,7 +197,7 @@ def create_opening(
     )
     db.add(row)
     db.flush()
-    return _serialize_openings(db, [row])[0]
+    return _serialize_openings(db, actor, [row])[0]
 
 
 def delete_opening(db: Session, actor: AppUser, club_id: int, opening_id: int) -> None:
@@ -205,39 +212,53 @@ def delete_opening(db: Session, actor: AppUser, club_id: int, opening_id: int) -
     db.flush()
 
 
-def event_opening_scopes(db: Session, user: AppUser, event_id: int) -> dict:
-    """For a competition event, return club scopes where the caller can publish,
-    their groups, existing openings linked to this event, and default 2-week dates."""
+def event_opening_scopes(db: Session, user: AppUser, event_id: int, *, after_club_id: int = 0) -> dict:
+    """For a published competition event, return a keyset-paged slice of clubs
+    where the caller can publish, their active groups, existing openings linked
+    to this event, and default 2-week dates."""
     row = access.visible_events(db, user).add_entity(Calendar).filter(CalendarEvent.id == event_id).one_or_none()
     if row is None:
         fail(404, "event_not_found", "Event not found")
     event, cal = row
     if event.event_type != "competition" or event.status != "published":
-        return dict(event_id=event.id, default_starts_on=None, default_ends_on=None, clubs=[])
+        return dict(event_id=event.id, default_starts_on=None, default_ends_on=None, clubs=[], next_cursor=None)
 
     comp_day = competition_start_date(db, event)
     default_start, default_end = default_opening_window(comp_day) if comp_day else (None, None)
 
-    memberships = db.query(ClubMembership, Club).join(Club, Club.id == ClubMembership.club_id).filter(
+    query = db.query(ClubMembership, Club).join(Club, Club.id == ClubMembership.club_id).filter(
         ClubMembership.user_id == user.id,
         ClubMembership.ended_at.is_(None),
         Club.archived_at.is_(None),
+        Club.id > after_club_id,
         or_(ClubMembership.role == "manager", and_(ClubMembership.role == "coach", ClubMembership.can_publish.is_(True))),
-    ).order_by(Club.id).limit(50).all()
+    )
+    # Filter competition eligibility in SQL before paging so ineligible clubs cannot starve later pages.
+    if not (event.audience == "community" or cal.kind == "federal"):
+        if cal.club_id is not None and event.audience == "club":
+            query = query.filter(Club.id == cal.club_id)
+        else:
+            return dict(event_id=event.id, default_starts_on=default_start, default_ends_on=default_end,
+                        clubs=[], next_cursor=None)
 
-    eligible_clubs = [
-        club for _m, club in memberships
-        if (event.audience == "community" or cal.kind == "federal" or (cal.club_id == club.id and event.audience == "club"))
-    ]
+    rows = query.order_by(Club.id).limit(CLUB_SCOPE_PAGE_SIZE + 1).all()
+    more = len(rows) > CLUB_SCOPE_PAGE_SIZE
+    eligible_clubs = [club for _m, club in rows[:CLUB_SCOPE_PAGE_SIZE]]
+    next_cursor = eligible_clubs[-1].id if more else None
     if not eligible_clubs:
-        return dict(event_id=event.id, default_starts_on=default_start, default_ends_on=default_end, clubs=[])
+        return dict(event_id=event.id, default_starts_on=default_start, default_ends_on=default_end,
+                    clubs=[], next_cursor=None)
 
     club_ids = [c.id for c in eligible_clubs]
     groups_by_club: Dict[int, list] = {cid: [] for cid in club_ids}
+    # create_group enforces MAX_GROUPS_PER_CLUB per club, so len(club_ids) * MAX_GROUPS_PER_CLUB
+    # is complete for this page while staying strictly bounded.
     for g in db.query(TrainingGroup).filter(
         TrainingGroup.club_id.in_(club_ids),
         TrainingGroup.archived_at.is_(None),
-    ).order_by(TrainingGroup.name, TrainingGroup.id).limit(500):
+    ).order_by(TrainingGroup.club_id, TrainingGroup.name, TrainingGroup.id).limit(
+        len(club_ids) * MAX_GROUPS_PER_CLUB
+    ):
         groups_by_club[g.club_id].append(dict(id=g.id, club_id=g.club_id, slug=g.slug, name=g.name))
 
     openings_rows = db.query(ClubTrainingOpening).filter(
@@ -245,7 +266,7 @@ def event_opening_scopes(db: Session, user: AppUser, event_id: int) -> dict:
         ClubTrainingOpening.competition_event_id == event.id,
     ).order_by(ClubTrainingOpening.id).limit(len(club_ids) * MAX_OPENINGS_PER_CLUB).all()
     openings_by_club: Dict[int, list] = {cid: [] for cid in club_ids}
-    for item in _serialize_openings(db, openings_rows):
+    for item in _serialize_openings(db, user, openings_rows):
         openings_by_club[item["club_id"]].append(item)
 
     return dict(
@@ -261,6 +282,7 @@ def event_opening_scopes(db: Session, user: AppUser, event_id: int) -> dict:
             )
             for c in eligible_clubs
         ],
+        next_cursor=next_cursor,
     )
 
 

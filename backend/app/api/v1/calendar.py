@@ -289,19 +289,28 @@ def event_detail(event_id: int, user: AppUser = Depends(get_current_user), db: S
     if row is None:
         raise HTTPException(404, "Event not found")
     e, c = row
+    has_full_event_access = db.query(CalendarEvent.id).join(
+        Calendar, Calendar.id == CalendarEvent.calendar_id
+    ).filter(
+        CalendarEvent.id == e.id,
+        access.event_visible_clause(user, include_openings=False),
+    ).first() is not None
     occ = access.visible_occurrences(db, user).filter(
         EventOccurrence.event_id == e.id).order_by(EventOccurrence.window_start, EventOccurrence.id).limit(MAX_LIMIT).all()
     organizer = db.get(AppUser, e.organizer_user_id) if e.organizer_user_id else None
     invitation = db.query(EventInvitation.status).filter_by(event_id=e.id, invitee_user_id=user.id).scalar()
     return s.EventDetail(
         **event_summary(e, c), description=e.description, venue_name=e.venue_name, venue_address=e.venue_address,
-        map_url=e.map_url, recurrence_rule=e.recurrence_rule, organizer_user_id=e.organizer_user_id,
+        map_url=e.map_url, recurrence_rule=e.recurrence_rule if has_full_event_access else None,
+        organizer_user_id=e.organizer_user_id,
         organizer_name=organizer.display_name if organizer else None, my_invitation=invitation,
         resources=[resource_out(r) for r in access.visible_event_resources(db, user, [e.id])],
         occurrences=occurrence_payloads(db, user, occ),
         following=db.get(CalendarEventFollow, (e.id, user.id)) is not None,
-        can_edit=events.can_edit(db, user, c), changes=recent_changes(db, e.id),
-        recurrence=recurrence.recurrence_out(db, e), itinerary=recurrence.itinerary_out(db, e.id),
+        can_edit=events.can_edit(db, user, c),
+        changes=recent_changes(db, e.id) if has_full_event_access else [],
+        recurrence=recurrence.recurrence_out(db, e) if has_full_event_access else None,
+        itinerary=recurrence.itinerary_out(db, e.id) if has_full_event_access else [],
         imported=recurrence.is_imported(db, e.id))
 
 
@@ -396,9 +405,14 @@ def delete_club_training_opening(
 
 
 @router.get("/events/{event_id}/training-openings", response_model=s.EventTrainingOpeningsOut)
-def event_training_openings(event_id: int, user: AppUser = Depends(get_current_user), db: Session = Depends(get_db)):
+def event_training_openings(
+    event_id: int,
+    after_club_id: int = Query(0, ge=0),
+    user: AppUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     _require_openings_schema(db)
-    return openings.event_opening_scopes(db, user, event_id)
+    return openings.event_opening_scopes(db, user, event_id, after_club_id=after_club_id)
 
 
 # --- Task05: alert pipeline readiness (app administrators) -------------------------
