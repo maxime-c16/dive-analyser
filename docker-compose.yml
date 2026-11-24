@@ -14,7 +14,10 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-CHANGE_ME_USE_RUNTIME_ENV}
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-diving} -d ${POSTGRES_DB:-diving_analyzer_db}"]
-      interval: 10s
+      # 30s: each probe makes Docker rewrite the container state file on the
+      # HDD. Cost: a cold `up` of the whole stack waits up to 30s for the
+      # backend (deploys recreate the backend alone and are unaffected).
+      interval: 30s
       timeout: 5s
       retries: 5
     # Resource limits - conservative

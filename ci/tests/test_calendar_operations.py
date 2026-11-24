@@ -9,7 +9,9 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 class CalendarWorkerWrapperTests(unittest.TestCase):
-    def run_wrapper(self, run_code, health_code):
+    """The wrapper runs one `tick` (run + readiness) and propagates its exit code."""
+
+    def run_wrapper(self, tick_code):
         with tempfile.TemporaryDirectory() as directory:
             base = Path(directory)
             docker = base / "docker"
@@ -17,33 +19,27 @@ class CalendarWorkerWrapperTests(unittest.TestCase):
 if [ "$*" = "compose version" ]; then exit 0; fi
 printf '%s\\n' "$*" >> "$CALL_LOG"
 case "$*" in
-  *" run") exit "$RUN_CODE" ;;
-  *" status --json") exit "$HEALTH_CODE" ;;
+  *" tick") exit "$TICK_CODE" ;;
   *) exit 90 ;;
 esac
 ''')
             docker.chmod(0o700)
             log = base / "calls"
-            env = dict(os.environ, PATH=f"{base}:{os.environ['PATH']}", CALL_LOG=str(log),
-                       RUN_CODE=str(run_code), HEALTH_CODE=str(health_code))
+            env = dict(os.environ, PATH=f"{base}:{os.environ['PATH']}", CALL_LOG=str(log), TICK_CODE=str(tick_code))
             result = subprocess.run(["bash", str(ROOT / "ops/calendar-alerts.sh")], env=env, capture_output=True)
             return result.returncode, log.read_text().splitlines()
 
-    def test_success_checks_health(self):
-        code, calls = self.run_wrapper(0, 0)
+    def test_success_is_one_process(self):
+        code, calls = self.run_wrapper(0)
         self.assertEqual(code, 0)
-        self.assertEqual(len(calls), 2)
-        self.assertTrue(calls[-1].endswith("status --json"))
+        self.assertEqual(len(calls), 1)
+        self.assertTrue(calls[0].endswith("calendar_alerts_worker.py tick"))
 
     def test_disabled_or_unready_health_fails_timer(self):
-        code, calls = self.run_wrapper(0, 2)
-        self.assertEqual(code, 2)
-        self.assertEqual(len(calls), 2)
+        self.assertEqual(self.run_wrapper(2)[0], 2)
 
-    def test_worker_failure_stops_before_health(self):
-        code, calls = self.run_wrapper(1, 0)
-        self.assertEqual(code, 1)
-        self.assertEqual(len(calls), 1)
+    def test_worker_failure_fails_timer(self):
+        self.assertEqual(self.run_wrapper(1)[0], 1)
 
 
 class CalendarWorkerTimingTests(unittest.TestCase):

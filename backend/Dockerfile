@@ -26,9 +26,11 @@ RUN adduser -D diver && chown diver:diver /app
 COPY --chown=diver:diver . .
 USER diver
 
-# Health check (BusyBox wget avoids spawning Python + requests every 10s;
+# Health check (BusyBox wget avoids spawning Python + requests on each probe;
 # -Y off bypasses any http_proxy env var so loopback probes stay direct)
-HEALTHCHECK --interval=10s --timeout=5s --retries=3 \
+# 30s, not 10s: Docker rewrites the container state file (write + fsync +
+# rename) after every probe, and the host disk is a 5400 rpm HDD.
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
     CMD wget -q -Y off -T 2 -O /dev/null http://127.0.0.1:8000/health || exit 1
 
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
