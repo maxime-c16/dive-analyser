@@ -72,7 +72,7 @@ it('opens on the viewer\'s own event, highlights their row and links the account
 it('previews a PDF before saving and reports a sheet dated outside the event', async () => {
   vi.mocked(calendarApi.results).mockResolvedValue({can_import: true, available: false, results: null})
   vi.mocked(calendarApi.previewResults).mockResolvedValue({meet_date: '2026-11-22', date_matches: false,
-    events: [{title: 'E', board: '3m', entries: 3}], entry_count: 3, dive_count: 6, warnings: ['Line 9: x'], replaces: false, linked_count: 2})
+    events: [{title: 'E', board: '3m', entries: 3}], entry_count: 3, dive_count: 6, warnings: [{kind: 'line_ignored' as const, line: 9}], warnings_truncated: true, replaces: false, linked_count: 2})
   vi.mocked(calendarApi.saveResults).mockResolvedValue({...page, can_import: true})
   const {container} = view()
   await screen.findByRole('button', {name: /Importer les résultats/})
@@ -81,6 +81,8 @@ it('previews a PDF before saving and reports a sheet dated outside the event', a
   expect(await screen.findByText('1 épreuves · 3 plongeurs · 6 plongeons')).toBeInTheDocument()
   expect(screen.getByText(/hors des dates/)).toBeInTheDocument()
   expect(screen.getByText('1 lignes à vérifier')).toBeInTheDocument()
+  expect(screen.getByText('Ligne 9 : non reconnue, ignorée')).toBeInTheDocument()
+  expect(screen.getByText('D’autres lignes à vérifier ne sont pas listées.')).toBeInTheDocument()
   expect(screen.getByText('2 reliés à un compte')).toBeInTheDocument()
   expect(calendarApi.saveResults).not.toHaveBeenCalled()
   fireEvent.click(screen.getByRole('button', {name: 'Enregistrer les résultats'}))
@@ -92,7 +94,7 @@ it('previews a PDF before saving and reports a sheet dated outside the event', a
 it('explains a rejected file and ignores a slower preview of an earlier pick', async () => {
   vi.mocked(calendarApi.results).mockResolvedValue({can_import: true, available: false, results: null})
   const preview = (dives: number) => ({meet_date: null, date_matches: null, events: [{title: 'E', board: '3m', entries: 1}],
-    entry_count: 1, dive_count: dives, warnings: [] as string[], replaces: false, linked_count: 0})
+    entry_count: 1, dive_count: dives, warnings: [], warnings_truncated: false, replaces: false, linked_count: 0})
   let releaseFirst: (v: ReturnType<typeof preview>) => void = () => undefined
   vi.mocked(calendarApi.previewResults)
     .mockRejectedValueOnce(new CalendarError(422, 'not_pdf', ''))
@@ -137,4 +139,51 @@ it('lets an administrator relink a person, forbid a link or return to automatic'
   // The row stays open across the reload.
   fireEvent.click(await screen.findByRole('button', {name: 'Ne jamais relier'}))
   await waitFor(() => expect(calendarApi.setResultLink).toHaveBeenLastCalledWith(10, null))
+})
+
+it('moves between event tabs with the arrow keys (one tab stop)', async () => {
+  view()
+  const first = await screen.findByRole('tab', {name: 'Elite - Dames - 3m'})
+  const second = screen.getByRole('tab', {name: 'Elite - Messieurs - HV'})
+  expect(first).toHaveAttribute('tabindex', '0')
+  expect(second).toHaveAttribute('tabindex', '-1')
+  expect(screen.getByRole('tabpanel')).toHaveAttribute('aria-labelledby', first.id)
+  fireEvent.keyDown(first, {key: 'ArrowRight'})
+  await waitFor(() => expect(screen.getByRole('tab', {name: 'Elite - Messieurs - HV'})).toHaveAttribute('aria-selected', 'true'))
+  expect(screen.getByRole('tabpanel')).toHaveAttribute('aria-labelledby', second.id)
+  fireEvent.keyDown(second, {key: 'ArrowRight'})  // wraps around
+  await waitFor(() => expect(screen.getByRole('tab', {name: 'Elite - Dames - 3m'})).toHaveAttribute('aria-selected', 'true'))
+})
+
+it('never leaves a stale account selectable and shows empty and failed searches', async () => {
+  const women = page.results!.events[0]
+  vi.mocked(calendarApi.results).mockResolvedValue({...page, can_manage_links: true,
+    results: {...page.results!, events: [{...women, entries: [{...women.entries[0], linkable: true, link_source: null}]}]}})
+  vi.mocked(calendarApi.meetAccounts)
+    .mockResolvedValueOnce({items: [{user_id: 9, display_name: 'Nana', avatar_url: null, avatar_hud: 'orbit', diver_names: []}]})
+    .mockResolvedValueOnce({items: []})
+    .mockRejectedValueOnce(new Error('offline'))
+  view()
+  fireEvent.click(await screen.findByRole('button', {name: /Anna TESTA/}))
+  fireEvent.click(screen.getByRole('button', {name: 'Relier à un compte'}))
+  const box = screen.getByRole('searchbox')
+  fireEvent.change(box, {target: {value: 'nan'}})
+  expect(await screen.findByRole('button', {name: /Nana/}, {timeout: 2000})).toBeInTheDocument()
+  fireEvent.change(box, {target: {value: 'nanx'}})
+  expect(screen.queryByRole('button', {name: /Nana/})).toBeNull()  // gone at once, before the next answer
+  expect(await screen.findByText('Aucun compte ne correspond', {}, {timeout: 2000})).toBeInTheDocument()
+  fireEvent.change(box, {target: {value: 'nany'}})
+  expect(await screen.findByText('La recherche a échoué. Réessayez.', {}, {timeout: 2000})).toBeInTheDocument()
+})
+
+it('keeps Discard disabled while a save is in flight', async () => {
+  vi.mocked(calendarApi.results).mockResolvedValue({can_import: true, available: false, results: null})
+  vi.mocked(calendarApi.previewResults).mockResolvedValue({meet_date: null, date_matches: null, events: [],
+    entry_count: 1, dive_count: 1, warnings: [], warnings_truncated: false, replaces: false, linked_count: 0})
+  vi.mocked(calendarApi.saveResults).mockImplementation(() => new Promise(() => undefined))
+  const {container} = view()
+  await screen.findByRole('button', {name: /Importer les résultats/})
+  fireEvent.change(container.querySelector('input[type=file]')!, {target: {files: [new File(['%PDF'], 'a.pdf')]}})
+  fireEvent.click(await screen.findByRole('button', {name: 'Enregistrer les résultats'}))
+  expect(screen.getByRole('button', {name: 'Abandonner'})).toBeDisabled()
 })

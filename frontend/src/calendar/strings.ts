@@ -266,6 +266,21 @@ export const strings = {
     neverLink: "Never link",
     backToAuto: "Back to automatic",
     searchAccounts: "Search an account",
+    searching: "Searching…",
+    noAccountFound: "No matching account",
+    searchFailed: "Search failed. Try again.",
+    meetError_busy: "Another import is being read. Try again in a moment.",
+    warningsMore: "More lines to check were not listed.",
+    meetWarning: {
+      dive_ignored: (w: { line?: number }) => `Line ${w.line}: dive row not read, skipped`,
+      line_ignored: (w: { line?: number }) => `Line ${w.line}: not recognised, skipped`,
+      points_mismatch: (w: { diver?: string; dive?: number; printed?: string; expected?: string }) =>
+        `${w.diver}, dive ${w.dive}: points ${w.printed} printed, ${w.expected} expected`,
+      total_mismatch: (w: { diver?: string; dive?: number; printed?: string; expected?: string }) =>
+        `${w.diver}, dive ${w.dive}: total ${w.printed} printed, ${w.expected} expected`,
+      place_beyond_entries: (w: { diver?: string; event?: string; printed?: string }) =>
+        `${w.diver} (${w.event}): place ${w.printed} is higher than the number of divers`,
+    },
   },
   fr: {
     downloadIcs: "Télécharger cet événement (.ics)",
@@ -531,6 +546,21 @@ export const strings = {
     neverLink: "Ne jamais relier",
     backToAuto: "Revenir à l’automatique",
     searchAccounts: "Rechercher un compte",
+    searching: "Recherche…",
+    noAccountFound: "Aucun compte ne correspond",
+    searchFailed: "La recherche a échoué. Réessayez.",
+    meetError_busy: "Un autre import est en cours de lecture. Réessayez dans un instant.",
+    warningsMore: "D’autres lignes à vérifier ne sont pas listées.",
+    meetWarning: {
+      dive_ignored: (w: { line?: number }) => `Ligne ${w.line} : plongeon illisible, ignoré`,
+      line_ignored: (w: { line?: number }) => `Ligne ${w.line} : non reconnue, ignorée`,
+      points_mismatch: (w: { diver?: string; dive?: number; printed?: string; expected?: string }) =>
+        `${w.diver}, plongeon ${w.dive} : ${w.printed} points imprimés, ${w.expected} attendus`,
+      total_mismatch: (w: { diver?: string; dive?: number; printed?: string; expected?: string }) =>
+        `${w.diver}, plongeon ${w.dive} : total ${w.printed} imprimé, ${w.expected} attendu`,
+      place_beyond_entries: (w: { diver?: string; event?: string; printed?: string }) =>
+        `${w.diver} (${w.event}) : place ${w.printed} supérieure au nombre de plongeurs`,
+    },
   },
 };
 export type Strings = (typeof strings)["en"];

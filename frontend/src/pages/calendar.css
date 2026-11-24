@@ -339,3 +339,8 @@
 .meet-link-candidate { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 4px 8px; border: 0; border-radius: 10px; background: none; color: var(--app-text); text-align: left; }
 .meet-link-candidate:active, .meet-link-candidate:hover { background: var(--app-panel-elevated); }
 .meet-link-candidate:disabled { opacity: .45; }
+.meet-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
+.meet-profile { min-height: 44px; margin-top: -10px; margin-bottom: 0; }
+.meet-link-state { margin: 4px 8px; font-size: 13px; color: var(--app-muted); }
+.meet-link-state.is-bad { color: var(--cal-bad); }
+.meet-warnings p { margin: 6px 0 0; font-size: 13px; color: var(--app-muted); }

@@ -123,9 +123,15 @@ export interface MeetAccountCandidate extends MeetAccount { diver_names: string[
 export interface MeetEvent { id: number; title: string; board: string; entries: MeetEntry[] }
 export interface MeetResults { source_name: string; meet_date: string | null; imported_at: string; events: MeetEvent[] }
 export interface MeetResultsPage { can_import: boolean; available: boolean; results: MeetResults | null; can_manage_links?: boolean }
+/** Parser warning; `kind` is stable and translated by the client. */
+export interface MeetWarning {
+  kind: 'dive_ignored' | 'line_ignored' | 'points_mismatch' | 'total_mismatch' | 'place_beyond_entries'
+  line?: number; diver?: string; event?: string; dive?: number; printed?: string; expected?: string
+}
 export interface MeetPreview {
   meet_date: string | null; date_matches: boolean | null; events: { title: string; board: string; entries: number }[]
-  entry_count: number; dive_count: number; warnings: string[]; replaces: boolean; linked_count: number
+  entry_count: number; dive_count: number; warnings: MeetWarning[]; warnings_truncated: boolean; replaces: boolean
+  linked_count: number
 }
 
 export class CalendarError extends Error {

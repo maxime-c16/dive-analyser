@@ -18,7 +18,18 @@ uncertain stays plain text.
 
 Administrators override this per person (`meet_person_links`, keyed by
 `person_key`): tie to an account, or never link. Decisions apply to every
-meet, past and future, and their accounts leave the automatic pool.
+meet, past and future, and an account tied by an administrator to anyone
+leaves the automatic pool everywhere.
+
+`person_key` is the federation licence when the sheet prints one, otherwise
+folded name + birth year (0 when not printed) + folded sheet club. Known
+limits, kept on purpose: the same diver on a sheet without the year, or
+after changing club, is a different person for decisions; the admin decides
+again there. Namesakes in different clubs never share a decision.
+
+Imports and administrator decisions serialize on one transaction lock
+(`lock_links`) so a concurrent import cannot republish a link an
+administrator just removed.
 """
 from __future__ import annotations
 
@@ -27,6 +38,7 @@ import unicodedata
 from collections import defaultdict
 from typing import Iterable, Optional
 
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.models.calendar import Club, ClubMembership
@@ -126,12 +138,32 @@ def _candidates(full: set[str], given: str, users: dict, club_id: int) -> list[i
     return []
 
 
-def person_key(diver_name: str, birth_year: Optional[int]) -> Optional[str]:
+LINKS_LOCK_ID = 0x6D656574  # "meet"
+
+
+def lock_links(db: Session) -> None:
+    """Serialize imports and administrator link decisions (PostgreSQL)."""
+    if db.get_bind().dialect.name == "postgresql":
+        db.execute(text("SELECT pg_advisory_xact_lock(:k)"), {"k": LINKS_LOCK_ID})
+
+
+def person_key(diver_name: str, birth_year: Optional[int], club_name: str = "",
+               licence: Optional[str] = None) -> Optional[str]:
     """Stable identity of a sheet row across meets; None for synchro pairs."""
     if " / " in diver_name:
         return None
+    if licence:
+        return f"lic:{fold(licence)}"[:160]
     given, surname = split_name(diver_name)
-    return f"{given} {surname}".strip()[:150] + f"|{birth_year or 0}"
+    return f"{given} {surname}".strip()[:100] + f"|{birth_year or 0}|" + fold(club_name)[:50]
+
+
+def key_of(entry) -> Optional[str]:
+    """Stored rows carry their key; parsed rows compute it (licence included)."""
+    stored = getattr(entry, "person_key", None)
+    if stored:
+        return stored
+    return person_key(entry.diver_name, entry.birth_year, entry.club_name, getattr(entry, "licence", None))
 
 
 def decisions(db: Session, keys: Iterable[str]) -> dict[str, Optional[int]]:
@@ -147,10 +179,12 @@ def decisions(db: Session, keys: Iterable[str]) -> dict[str, Optional[int]]:
 def resolve(db: Session, entries: list) -> dict[int, tuple[Optional[int], str]]:
     """Index in `entries` -> (user_id, source) for every row that has a link
     decision: 'admin' rows (user_id may be None) win over 'auto' matches."""
-    keys = [person_key(e.diver_name, e.birth_year) for e in entries]
+    from app.models.meet_results import MeetPersonLink
+    keys = [key_of(e) for e in entries]
     decided = decisions(db, keys)
     out: dict[int, tuple[Optional[int], str]] = {i: (decided[k], "admin") for i, k in enumerate(keys) if k in decided}
-    taken = {uid for uid in decided.values() if uid is not None}
+    # Every account an administrator tied to anyone, on any sheet (indexed).
+    taken = {uid for (uid,) in db.query(MeetPersonLink.user_id).filter(MeetPersonLink.user_id.isnot(None)).distinct()}
     rest = [i for i in range(len(entries)) if i not in out]
     auto = auto_links(db, [entries[i] for i in rest], exclude_users=taken)
     out.update({rest[j]: (uid, "auto") for j, uid in auto.items()})

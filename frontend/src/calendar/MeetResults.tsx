@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { ChevronDown, ChevronRight, FileUp, Trash2 } from "lucide-react";
 import {
-  CalendarError, calendarApi, type EventDetail, type MeetAccountCandidate, type MeetEntry, type MeetPreview, type MeetResultsPage,
+  CalendarError, calendarApi, type EventDetail, type MeetAccountCandidate, type MeetEntry, type MeetPreview, type MeetWarning, type MeetResultsPage,
 } from "./api";
 import { useCalendarStrings } from "./useStrings";
 import PageLoading from "../components/PageLoading";
@@ -57,6 +57,16 @@ export default function MeetResults({ eventId }: { eventId: number }) {
     setOpen(null);
     setParams((p) => { const next = new URLSearchParams(p); next.set("epreuve", String(id)); return next; }, { replace: true });
   };
+  // Arrow keys / Home / End move between event tabs and select (ARIA tabs pattern).
+  const onTabKey = (e: React.KeyboardEvent) => {
+    const i = events.findIndex((ev) => ev.id === current?.id);
+    const to = e.key === "ArrowRight" ? i + 1 : e.key === "ArrowLeft" ? i - 1 : e.key === "Home" ? 0 : e.key === "End" ? events.length - 1 : null;
+    if (to === null || i < 0) return;
+    e.preventDefault();
+    const next = events[(to + events.length) % events.length];
+    select(next.id);
+    window.requestAnimationFrame(() => document.getElementById(`meet-tab-${next.id}`)?.focus());
+  };
 
   return (
     <article className="cal-detail cal-src-competition meet">
@@ -76,14 +86,16 @@ export default function MeetResults({ eventId }: { eventId: number }) {
       {current && (
         <>
           {events.length > 1 && (
-            <div ref={tabs} className="meet-events" role="tablist" aria-label={t.results}>
+            <div ref={tabs} className="meet-events" role="tablist" aria-label={t.results} onKeyDown={onTabKey}>
               {events.map((e) => (
-                <button key={e.id} data-id={e.id} type="button" role="tab" className="ca-pill" aria-selected={e.id === current.id}
-                  aria-pressed={e.id === current.id} onClick={() => select(e.id)}>{e.title}</button>
+                <button key={e.id} id={`meet-tab-${e.id}`} data-id={e.id} type="button" role="tab" className="ca-pill"
+                  aria-selected={e.id === current.id} aria-controls="meet-panel" tabIndex={e.id === current.id ? 0 : -1}
+                  onClick={() => select(e.id)}>{e.title}</button>
               ))}
             </div>
           )}
-          <section className="ca-panel meet-board" role="tabpanel" aria-label={current.title}>
+          <section id="meet-panel" className="ca-panel meet-board" role="tabpanel"
+            {...(events.length > 1 ? { "aria-labelledby": `meet-tab-${current.id}` } : { "aria-label": current.title })}>
             <ol className="meet-ranking">
               {current.entries.map((entry) => (
                 <Entry key={entry.id} entry={entry} open={open === entry.id} manage={!!page.can_manage_links}
@@ -120,9 +132,13 @@ function Entry({ entry, open, toggle, manage, reload }: {
         <span className="meet-who">
           <b>{entry.diver_name}</b>
           <small>{[entry.club_name, entry.birth_year].filter(Boolean).join(" · ")}</small>
+          {(entry.status || entry.guest) && (
+            <span className="meet-chips">
+              {entry.status && <span className="cal-chip is-bad">{t[`status_${entry.status}`]}</span>}
+              {entry.guest && <span className="cal-chip">{t.guest}</span>}
+            </span>
+          )}
         </span>
-        {entry.status && <span className="cal-chip is-bad">{t[`status_${entry.status}`]}</span>}
-        {entry.guest && <span className="cal-chip">{t.guest}</span>}
         <span className="meet-total">{fmt.two(entry.total)}</span>
         <ChevronDown size={16} aria-hidden="true" className="meet-chevron" />
       </button>
@@ -158,15 +174,21 @@ function LinkManager({ entry, reload }: { entry: MeetEntry; reload: () => void }
   const { t } = useCalendarStrings();
   const [searching, setSearching] = useState(false);
   const [term, setTerm] = useState("");
-  const [found, setFound] = useState<MeetAccountCandidate[]>([]);
+  // Results always belong to the current query: cleared on every keystroke,
+  // so a stale candidate can never be picked (a link applies to every meet).
+  const [search, setSearch] = useState<{ status: "idle" | "loading" | "done" | "failed"; items: MeetAccountCandidate[] }>(
+    { status: "idle", items: [] });
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
   useEffect(() => {
     const q = term.trim();
-    if (q.length < 2) { setFound([]); return; }
+    if (q.length < 2) { setSearch({ status: "idle", items: [] }); return; }
+    setSearch({ status: "loading", items: [] });
     const controller = new AbortController();
     const timer = window.setTimeout(() => {
-      calendarApi.meetAccounts(q, controller.signal).then((r) => setFound(r.items)).catch(() => undefined);
+      calendarApi.meetAccounts(q, controller.signal)
+        .then((r) => { if (!controller.signal.aborted) setSearch({ status: "done", items: r.items }); })
+        .catch(() => { if (!controller.signal.aborted) setSearch({ status: "failed", items: [] }); });
     }, 250);
     return () => { window.clearTimeout(timer); controller.abort(); };
   }, [term]);
@@ -202,7 +224,10 @@ function LinkManager({ entry, reload }: { entry: MeetEntry; reload: () => void }
             <span className="sr-only">{t.searchAccounts}</span>
             <input type="search" autoFocus placeholder={t.searchAccounts} value={term} onChange={(e) => setTerm(e.target.value)} />
           </label>
-          {found.map((a) => (
+          {search.status === "loading" && <p className="meet-link-state" role="status">{t.searching}</p>}
+          {search.status === "done" && search.items.length === 0 && <p className="meet-link-state" role="status">{t.noAccountFound}</p>}
+          {search.status === "failed" && <p className="meet-link-state is-bad" role="alert">{t.searchFailed}</p>}
+          {search.items.map((a) => (
             <button key={a.user_id} type="button" className="meet-link-candidate" disabled={busy || a.user_id === entry.account?.user_id}
               onClick={() => act(() => calendarApi.setResultLink(entry.id, a.user_id))}>
               <MemberAvatar member={a} size={28} />
@@ -279,12 +304,13 @@ function ImportPanel({ eventId, hasResults, onSaved }: {
           {preview.warnings.length > 0 && (
             <details className="meet-warnings">
               <summary>{t.linesToCheck(preview.warnings.length)}</summary>
-              <ul>{preview.warnings.map((w, i) => <li key={i}>{w}</li>)}</ul>
+              <ul>{preview.warnings.map((w, i) => <li key={i}>{(t.meetWarning[w.kind] as (x: MeetWarning) => string)?.(w) ?? w.kind}</li>)}</ul>
+              {preview.warnings_truncated && <p>{t.warningsMore}</p>}
             </details>
           )}
           <div className="cal-pills">
             <button type="button" className="ca-pill is-primary" disabled={busy} onClick={save}>{t.saveResults}</button>
-            <button type="button" className="ca-pill" onClick={reset}>{t.discardImport}</button>
+            <button type="button" className="ca-pill" disabled={busy} onClick={reset}>{t.discardImport}</button>
           </div>
         </div>
       )}

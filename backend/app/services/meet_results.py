@@ -27,7 +27,7 @@ from app.models.meet_results import MeetPersonLink, MeetResult, MeetResultDive, 
 from app.models.user_auth import AppUser, UserDiverAccess
 from app.services import calendar_events as events
 from app.services.calendar_events import fail
-from app.services.meet_result_links import person_key, resolve
+from app.services.meet_result_links import key_of, lock_links, resolve
 from app.services.meet_results_pdf import ParsedMeet
 from app.services.member_avatar import avatar_identity
 
@@ -41,27 +41,46 @@ def can_import(db: Session, user: AppUser, event: CalendarEvent, calendar: Calen
     return event.event_type == "competition" and events.can_edit(db, user, calendar)
 
 
-def date_matches(db: Session, event_id: int, meet_date: Optional[date]) -> Optional[bool]:
-    """Whether the sheet's printed date falls on one of the event's days
-    (±1 day for time zones). None when the sheet has no date."""
+def check_import(db: Session, user: AppUser, event_id: int) -> None:
+    """Cheap authorization before an upload is read (re-checked under lock on write)."""
+    event, calendar = events.visible_event(db, user, event_id)
+    _require_competition(event)
+    if not events.can_edit(db, user, calendar):
+        fail(403, "forbidden", "Only the organizer or an authorized club publisher can change this event")
+    db.rollback()
+
+
+def date_matches(db: Session, event: CalendarEvent, meet_date: Optional[date]) -> Optional[bool]:
+    """Whether the sheet's printed date is one of the event's local days.
+    None when the sheet has no date."""
     if meet_date is None:
         return None
-    rows = db.query(EventOccurrence.window_start, EventOccurrence.window_end).filter(
-        EventOccurrence.event_id == event_id).limit(200).all()
-    return any(start.date() - timedelta(days=1) <= meet_date <= end.date() for start, end in rows)
+    rows = db.query(EventOccurrence).filter(EventOccurrence.event_id == event.id).limit(200).all()
+    for o in rows:
+        if o.is_all_day:
+            first, last = o.start_date, o.end_date - timedelta(days=1)  # end date is exclusive
+        else:
+            first = events.utc_to_local(o.starts_at, event.timezone).date()
+            last = events.utc_to_local(o.ends_at, event.timezone).date()
+        if first <= meet_date <= last:
+            return True
+    return False
 
 
 def preview(db: Session, user: AppUser, event_id: int, parsed: ParsedMeet) -> dict:
     event, _calendar = events.editable_event(db, user, event_id)
     _require_competition(event)
     replaces = db.query(MeetResult.id).filter(MeetResult.calendar_event_id == event.id).first() is not None
+    # Count only links this importer could see on the page: a preview must not
+    # reveal whether a hidden account matches a name on the sheet.
+    linked = {uid for uid, _src in resolve(db, _flat(parsed)).values() if uid}
     out = {
         "meet_date": parsed.meet_date.isoformat() if parsed.meet_date else None,
-        "date_matches": date_matches(db, event.id, parsed.meet_date),
+        "date_matches": date_matches(db, event, parsed.meet_date),
         "events": [{"title": e.title, "board": e.board, "entries": len(e.entries)} for e in parsed.events],
         "entry_count": parsed.entry_count, "dive_count": parsed.dive_count,
-        "warnings": parsed.warnings, "replaces": replaces,
-        "linked_count": len({uid for uid, _src in resolve(db, _flat(parsed)).values() if uid}),
+        "warnings": parsed.warnings, "warnings_truncated": parsed.warnings_truncated, "replaces": replaces,
+        "linked_count": len(_visible_accounts(db, user, linked)),
     }
     db.rollback()  # release the event lock; nothing was written
     return out
@@ -74,6 +93,7 @@ def _flat(parsed: ParsedMeet) -> list:
 def replace(db: Session, user: AppUser, event_id: int, parsed: ParsedMeet, source_name: str, raw: bytes) -> None:
     event, _calendar = events.editable_event(db, user, event_id)
     _require_competition(event)
+    lock_links(db)
     # Bulk SQL delete: ON DELETE CASCADE removes the previous events/entries/dives.
     db.query(MeetResult).filter(MeetResult.calendar_event_id == event.id).delete(synchronize_session=False)
     result = MeetResult(calendar_event_id=event.id, source_name=source_name[:200] or "results.pdf",
@@ -91,7 +111,7 @@ def replace(db: Session, user: AppUser, event_id: int, parsed: ParsedMeet, sourc
                                 status=en.status, guest=en.guest), en)
                for row, e in zip(rows, parsed.events) for j, en in enumerate(e.entries)]
     for i, (row, _en) in enumerate(entries):
-        row.person_key = person_key(row.diver_name, row.birth_year)
+        row.person_key = key_of(_en)
         row.user_id, row.link_source = links.get(i, (None, None))
     db.add_all([m for m, _ in entries])
     db.flush()
@@ -184,15 +204,12 @@ def relink_meet(db: Session, result_id: int) -> None:
         row.user_id, row.link_source = links.get(i, (None, None))
 
 
-def _affected_meets(db: Session, key: str, user_ids: set[int]) -> list[int]:
-    """Meets where this person appears, or where these accounts are linked."""
-    cond = MeetResultEntry.person_key == key
-    if user_ids:
-        cond = or_(cond, MeetResultEntry.user_id.in_(user_ids))
-    ids = [rid for (rid,) in db.query(MeetResultEvent.result_id).join(
-        MeetResultEntry, MeetResultEntry.event_id == MeetResultEvent.id).filter(cond).distinct().limit(MAX_RELINK_MEETS + 1)]
+def _all_meets(db: Session) -> list[int]:
+    """Every meet: a decision changes who is in the automatic pool, so a
+    suppressed or freed match can be anywhere, not only where this person is."""
+    ids = [rid for (rid,) in db.query(MeetResult.id).order_by(MeetResult.id).limit(MAX_RELINK_MEETS + 1)]
     if len(ids) > MAX_RELINK_MEETS:
-        fail(409, "too_many_meets", "This person appears in too many meets to relink at once")
+        fail(409, "too_many_meets", "Too many meets to relink at once")
     return ids
 
 
@@ -213,9 +230,9 @@ def set_link(db: Session, admin: AppUser, entry_id: int, user_id: Optional[int])
     entry = _admin_entry(db, admin, entry_id)
     if user_id is not None and db.query(AppUser.id).filter(AppUser.id == user_id, AppUser.is_active.is_(True)).first() is None:
         fail(422, "account_not_found", "Account not found")
+    lock_links(db)
     key = entry.person_key
     decision = db.query(MeetPersonLink).filter(MeetPersonLink.person_key == key).with_for_update().one_or_none()
-    previous = decision.user_id if decision else None
     if decision is None:
         decision = MeetPersonLink(person_key=key)
         db.add(decision)
@@ -225,20 +242,20 @@ def set_link(db: Session, admin: AppUser, entry_id: int, user_id: Optional[int])
     except IntegrityError:
         db.rollback()
         fail(409, "conflict", "Conflicting concurrent change")
-    for rid in _affected_meets(db, key, {u for u in (user_id, previous, entry.user_id) if u}):
+    for rid in _all_meets(db):
         relink_meet(db, rid)
 
 
 def clear_link(db: Session, admin: AppUser, entry_id: int) -> None:
     """Drop the administrator decision: this person is matched automatically again."""
     entry = _admin_entry(db, admin, entry_id)
+    lock_links(db)
     decision = db.query(MeetPersonLink).filter(MeetPersonLink.person_key == entry.person_key).with_for_update().one_or_none()
     if decision is None:
         return
-    freed = {u for u in (decision.user_id, entry.user_id) if u}
     db.delete(decision)
     db.flush()
-    for rid in _affected_meets(db, entry.person_key, freed):
+    for rid in _all_meets(db):
         relink_meet(db, rid)
 
 

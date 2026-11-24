@@ -47,10 +47,17 @@ _TOKEN = r"\d+(?:,\d+)?(?=\s|$)"
 _HEADER = re.compile(r"^N°\s+Hauteur")
 _DIVE = re.compile(rf"^(?P<code>\d{{2,4}}[A-D])\s+(?P<nums>{_TOKEN}(?:\s+{_TOKEN})+)(?P<rest>.*)$")
 _PENALTY = re.compile(r"^ ?(?P<pen>[1-4])(?=\D|$)")
-_DIVER = re.compile(r"^(?P<name>.+?)\s+--\s+(?P<club>.*?)(?:\s+#\S+)?(?:\s+(?P<place>\d{1,3}))?$")
+_DIVER = re.compile(r"^(?P<name>.+?)\s+--\s+(?P<club>.*?)(?:\s+#(?P<licence>\S+))?(?:\s+(?P<place>\d{1,3}))?$")
 _YEAR = re.compile(r"\s+\((?P<year>(?:19|20)\d{2})\)$")
 _ONE_DECIMAL = re.compile(r"^\d+,\d$")
 _TWO_DECIMALS = re.compile(r"^\d+,\d\d$")
+# Storage precision (models/meet_results.py): anything else is not stored as printed.
+_HEIGHT = re.compile(r"^\d{1,2}(?:,\d)?$")        # NUMERIC(3,1)
+_DD = re.compile(r"^\d,\d$")                       # NUMERIC(3,1), < 10
+_CUMUL = re.compile(r"^\d{1,4},\d$")               # NUMERIC(5,1)
+_POINTS = re.compile(r"^\d{1,4},\d\d$")           # NUMERIC(6,2)
+_RUNNING = re.compile(r"^\d{1,5},\d\d$")          # NUMERIC(7,2)
+_SYNCHRO = re.compile(r"synchro", re.IGNORECASE)
 _NOISE = re.compile(r"^(Codes des pénalités|Penalty codes|https?://|Résultats détaillés$|\d+\.\d+\.\d+\.\d+$)")
 # Suffixes DiveRecorder appends to the club (English and French builds).
 _STATUS = {"disqualified": "disqualified", "disqualifié": "disqualified", "withdrew": "withdrawn",
@@ -91,6 +98,7 @@ class ParsedEntry:
     club_name: str
     status: Optional[str] = None  # disqualified | withdrawn | knocked_out
     guest: bool = False
+    licence: Optional[str] = None  # federation licence, when the sheet prints one (not stored)
     dives: list[ParsedDive] = field(default_factory=list)
 
     @property
@@ -109,7 +117,9 @@ class ParsedEvent:
 class ParsedMeet:
     meet_date: Optional[date]
     events: list[ParsedEvent]
-    warnings: list[str]
+    # Structured, translated by the client: {"kind", "line"?, "diver"?, "event"?, "dive"?, "printed"?, "expected"?}
+    warnings: list[dict]
+    warnings_truncated: bool = False
 
     @property
     def entry_count(self) -> int:
@@ -148,7 +158,7 @@ def _diver(line: str) -> Optional[tuple[ParsedEntry, bool]]:
     place = int(m.group("place")) if m.group("place") else 0
     return ParsedEntry(rank=place or None, diver_name=name[:120],
                        birth_year=int(year.group("year")) if year else None, club_name=club[:120],
-                       status=status, guest=guest), m.group("place") is not None
+                       status=status, guest=guest, licence=m.group("licence")), m.group("place") is not None
 
 
 def _dive(m: re.Match) -> Optional[ParsedDive]:
@@ -157,6 +167,9 @@ def _dive(m: re.Match) -> Optional[ParsedDive]:
     k = next((i for i in range(3, len(tokens) - 1) if _TWO_DECIMALS.match(tokens[i])), None)
     if k is None or not _TWO_DECIMALS.match(tokens[k + 1]) or not _ONE_DECIMAL.match(tokens[k - 1]):
         return None
+    if not (_HEIGHT.match(tokens[0]) and _DD.match(tokens[1]) and _CUMUL.match(tokens[k - 1])
+            and _POINTS.match(tokens[k]) and _RUNNING.match(tokens[k + 1])):
+        return None  # outside what is stored exactly: never round silently
     marks = tokens[2:k - 1] + [t for t in tokens[k + 2:] if "," in t]  # synchro J8–J11 follow the total
     if not marks or len(marks) > MAX_JUDGES or not all(_ONE_DECIMAL.match(t) for t in marks):
         return None
@@ -189,7 +202,8 @@ def pdf_text(raw: bytes) -> str:
 
 def parse_text(text: str) -> ParsedMeet:
     events: list[ParsedEvent] = []
-    warnings: list[str] = []
+    warnings: list[dict] = []
+    truncated = False
     meet_date: Optional[date] = None
     event: Optional[ParsedEvent] = None
     entry: Optional[ParsedEntry] = None
@@ -198,9 +212,12 @@ def parse_text(text: str) -> ParsedMeet:
     entries = dives = 0
     pair_open = False  # last diver line printed a place and no dive followed yet
 
-    def warn(msg: str) -> None:
+    def warn(kind: str, **details) -> None:
+        nonlocal truncated
         if len(warnings) < MAX_WARNINGS:
-            warnings.append(msg)
+            warnings.append({"kind": kind, **{k: v for k, v in details.items() if v is not None}})
+        else:
+            truncated = True
 
     for lineno, raw_line in enumerate(text.splitlines(), 1):
         line = raw_line.strip()
@@ -232,15 +249,15 @@ def parse_text(text: str) -> ParsedMeet:
         if m:
             dive = _dive(m)
             if entry is None or dive is None:
-                warn(f"Line {lineno}: dive row not understood, ignored")
+                warn("dive_ignored", line=lineno)
                 continue
             previous = entry.dives[-1].running_total if entry.dives else Decimal("0")
-            label = f"{entry.diver_name}, {event.title}, dive {len(entry.dives) + 1}"
+            where = {"diver": entry.diver_name, "event": event.title, "dive": len(entry.dives) + 1}
             # Synchro panels (>7 judges) weight the sum, so only individual rows check points.
             if len(dive.judge_half_steps) <= 7 and (dive.cumul * dive.dd).quantize(_CENT) != dive.points:
-                warn(f"{label}: points {dive.points} differ from {dive.cumul} × {dive.dd}")
+                warn("points_mismatch", **where, printed=str(dive.points), expected=str((dive.cumul * dive.dd).quantize(_CENT)))
             if previous + dive.points != dive.running_total:
-                warn(f"{label}: running total {dive.running_total} differs from {previous} + {dive.points}")
+                warn("total_mismatch", **where, printed=str(dive.running_total), expected=str(previous + dive.points))
             dives += 1
             if dives > MAX_DIVES:
                 raise MeetPdfError("too_large", f"At most {MAX_DIVES} dives")
@@ -250,7 +267,8 @@ def parse_text(text: str) -> ParsedMeet:
         found = _diver(line) if event is not None else None
         if found is not None:
             parsed, has_place = found
-            if pair_open and not has_place and entry is not None and not entry.dives:
+            # Line B of a synchro pair: only in a synchro event, right after a line A with a place.
+            if pair_open and not has_place and entry is not None and not entry.dives and _SYNCHRO.search(event.title):
                 # Second line of a synchro pair: same result, two divers.
                 entry.diver_name = f"{entry.diver_name} / {parsed.diver_name}"[:120]
                 if parsed.club_name != entry.club_name:
@@ -261,8 +279,9 @@ def parse_text(text: str) -> ParsedMeet:
                 pair_open = False
                 continue
             last = event.entries[-1].rank if event.entries else None
-            if continuing and parsed.rank is not None and last is not None and parsed.rank <= last:
-                # Same title, places restart: a separate round, not a page continuation.
+            if continuing and parsed.rank is not None and last is not None and (parsed.rank < last or parsed.rank == 1):
+                # Same title, places restart: a separate round, not a page continuation
+                # (an equal place across the page break is a tie and continues).
                 event = ParsedEvent(title=event.title, board=event.board)
                 events.append(event)
             continuing = False
@@ -274,12 +293,20 @@ def parse_text(text: str) -> ParsedMeet:
             pair_open = has_place
             continue
         if event is not None:
-            warn(f"Line {lineno}: not recognised, ignored")
+            # Unknown row inside an event: never attach the dives that follow to the previous diver.
+            if entry is not None:
+                entry, pair_open = None, False
+            warn("line_ignored", line=lineno)
 
     events = [e for e in events if e.entries]
     if not events:
         raise MeetPdfError("no_results", "No DiveRecorder results were found in this PDF")
-    return ParsedMeet(meet_date=meet_date, events=events, warnings=warnings)
+    for e in events:
+        for en in e.entries:
+            if en.rank is not None and en.rank > len(e.entries):
+                # Likely a club name ending in a number read as the place (unranked diver).
+                warn("place_beyond_entries", diver=en.diver_name, event=e.title, printed=str(en.rank))
+    return ParsedMeet(meet_date=meet_date, events=events, warnings=warnings, warnings_truncated=truncated)
 
 
 def parse_pdf(raw: bytes) -> ParsedMeet:

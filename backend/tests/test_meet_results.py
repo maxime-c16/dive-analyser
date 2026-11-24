@@ -71,7 +71,9 @@ def test_arithmetic_mismatch_is_a_warning_not_a_rewrite():
     meet = parse_text(text(HEADER, "E - 3m", "Ann A (2001) -- C 1", "201B 3 1,8 6,0 6,0 6,0   18,0 30,00 31,00  x"))
     dive = meet.events[0].entries[0].dives[0]
     assert (dive.points, dive.running_total) == (Decimal("30.00"), Decimal("31.00"))
-    assert len(meet.warnings) == 2
+    assert [w["kind"] for w in meet.warnings] == ["points_mismatch", "total_mismatch"]
+    assert meet.warnings[0] == {"kind": "points_mismatch", "diver": "Ann A", "event": "E - 3m", "dive": 1,
+                                "printed": "30.00", "expected": "32.40"}
 
 
 def test_rejects_files_without_results():
@@ -303,3 +305,128 @@ def test_truncated_candidate_set_links_nobody(cal, monkeypatch):  # noqa: F811
     assert links.auto_links(db, [_entry("Alice MARTIN")]) == {0: u["alice"].id}
     monkeypatch.setattr(links, "MAX_CANDIDATE_ROWS", 2)  # the club has more active members than that
     assert links.auto_links(db, [_entry("Alice MARTIN")]) == {}
+
+
+# --- Council round 1 regressions ------------------------------------------------
+
+DIVE = "201B 3 1,8 6,0 6,0 6,0   18,0 32,40 32,40  x"
+
+
+def test_unknown_row_never_hands_dives_to_the_previous_diver():
+    meet = parse_text(text(HEADER, "E - 3m", "Ann A (2001) -- C 1", DIVE, "Bea B (2002) ?? C 2", DIVE))
+    ann = meet.events[0].entries[0]
+    assert len(ann.dives) == 1
+    assert [w["kind"] for w in meet.warnings] == ["line_ignored", "dive_ignored"]
+
+
+def test_pairs_only_in_synchro_events_and_ties_across_pages_continue():
+    solo = parse_text(text(HEADER, "Elite - 3m", "Ann A (2001) -- C 1", "Bea B (2002) -- C", DIVE))
+    assert [e.diver_name for e in solo.events[0].entries] == ["Ann A", "Bea B"]
+    tie = parse_text(text(HEADER, "E - 3m", "Ann A (2001) -- C 1", DIVE, "Bea B (2002) -- C 2", DIVE,
+                          HEADER, "E - 3m", "Cid C (2003) -- C 2", DIVE))
+    assert len(tie.events) == 1 and [e.rank for e in tie.events[0].entries] == [1, 2, 2]
+
+
+def test_values_storage_cannot_hold_are_refused_and_odd_places_flagged():
+    meet = parse_text(text(HEADER, "E - 3m", "Ann A (2001) -- C 1", DIVE.replace("201B 3 ", "201B 3,55 "),
+                           "Paul P -- CN Paris 15"))
+    assert meet.events[0].entries[0].dives == []
+    kinds = [w["kind"] for w in meet.warnings]
+    assert kinds == ["dive_ignored", "place_beyond_entries"]
+    assert meet.warnings[1]["printed"] == "15" and meet.warnings_truncated is False
+
+
+def test_warnings_report_truncation():
+    lines = [HEADER, "E - 3m", "Ann A (2001) -- C 1"] + ["junk"] * 60
+    meet = parse_text(text(*lines))
+    assert len(meet.warnings) == 50 and meet.warnings_truncated is True
+
+
+def test_person_key_uses_licence_else_club_scoped_name():
+    from app.services.meet_result_links import person_key
+    assert person_key("Ann A", 2001, "Club X", "12345") == person_key("Ann A", None, "Club Y", "12345")
+    assert person_key("Ann A", 2001, "Club X") != person_key("Ann A", 2001, "Club Y")
+    assert person_key("Ann A / Bea B", None, "C") is None
+    parsed = parse_text(text(HEADER, "E - 3m", "Ann A (2001) -- Club X  #12345 1", DIVE))
+    assert parsed.events[0].entries[0].licence == "12345"
+
+
+def test_admin_tied_account_leaves_the_pool_in_meets_without_that_person(cal):  # noqa: F811
+    u = cal["users"]
+    first = _club_meet(cal, "Meet P", [HEADER, "E - 3m", "Mathilde ROUX (2003) -- KCPM Montreuil 1", DIVE])
+    second = _club_meet(cal, "Meet Q", [HEADER, "E - 3m", "Alice MARTIN (2001) -- KCPM Montreuil 1", DIVE])
+    assert _rows(cal, "admin", second)["Alice MARTIN"]["account"]["user_id"] == u["alice"].id
+    admin = cal["login"]("admin")
+    mathilde = _rows(cal, "admin", first)["Mathilde ROUX"]["id"]
+    assert admin.put(f"/api/v1/calendar/results/entries/{mathilde}/link", json={"user_id": u["alice"].id}).status_code == 204
+    # Meet Q has no Mathilde, yet her account must leave its automatic pool...
+    assert _rows(cal, "admin", second)["Alice MARTIN"]["account"] is None
+    # ...including for later imports.
+    third = _club_meet(cal, "Meet R", [HEADER, "E - 3m", "Alice MARTIN (2001) -- KCPM Montreuil 1", DIVE])
+    assert _rows(cal, "admin", third)["Alice MARTIN"]["account"] is None
+    # Clearing frees it everywhere, including meets without Mathilde.
+    assert admin.delete(f"/api/v1/calendar/results/entries/{mathilde}/link").status_code == 204
+    for eid in (second, third):
+        assert _rows(cal, "admin", eid)["Alice MARTIN"]["account"]["user_id"] == u["alice"].id
+
+
+def test_namesakes_in_other_clubs_do_not_share_a_decision(cal):  # noqa: F811
+    eid = _club_meet(cal, "Meet S", [HEADER, "E - 3m", "Alice MARTIN (2001) -- KCPM Montreuil 1", DIVE,
+                                     "Alice MARTIN (2001) -- Club Lointain 2", DIVE])
+    rows = cal["login"]("admin").get(url(eid)).json()["results"]["events"][0]["entries"]
+    ours, theirs = rows
+    assert cal["login"]("admin").put(f"/api/v1/calendar/results/entries/{theirs['id']}/link",
+                                     json={"user_id": None}).status_code == 204
+    after = cal["login"]("admin").get(url(eid)).json()["results"]["events"][0]["entries"]
+    assert after[0]["account"]["user_id"] == cal["users"]["alice"].id and after[0]["link_source"] == "auto"
+    assert after[1]["account"] is None and after[1]["link_source"] == "admin"
+
+
+def test_preview_counts_only_links_the_importer_can_see(cal):  # noqa: F811
+    db = cal["db"]
+    event = _event(db, cal["cals"]["o"], "Other meet", "club", event_type="competition")
+    _occ(db, event, "other-1", 1)
+    db.commit()
+    eid = event.id
+    sheet = [HEADER, "E - 3m", "Alice MARTIN (2001) -- KCPM Montreuil 1", DIVE]
+    body = cal["login"]("omanager").post(url(eid, "/preview"), content=make_pdf(sheet), headers=PDF)
+    assert body.status_code == 200, body.text
+    assert body.json()["linked_count"] == 0  # Alice matched, but is not this importer's to see
+
+
+def test_upload_is_refused_before_it_is_read(cal, meet, monkeypatch):  # noqa: F811
+    read = []
+    monkeypatch.setattr(meet_api, "parse_pdf", lambda raw: read.append(raw))
+    alice = meet["login"]("alice")
+    assert alice.post(url(meet["meet_id"], "/preview"), content=b"%PDF-1.4 x", headers=PDF).status_code == 403
+    assert alice.put(url(meet["meet_id"]), content=b"%PDF-1.4 x", headers=PDF).status_code == 403
+    assert read == []
+
+
+def test_parse_slots_are_bounded(meet, monkeypatch):
+    import threading
+    slots = threading.BoundedSemaphore(1)
+    slots.acquire()
+    monkeypatch.setattr(meet_api, "_parse_slots", slots)
+    busy = meet["login"]("coach").post(url(meet["meet_id"], "/preview"), content=make_pdf(), headers=PDF)
+    assert busy.status_code == 429 and busy.json()["detail"]["code"] == "busy"
+
+
+def test_date_check_uses_the_event_local_days(cal):  # noqa: F811
+    from datetime import datetime as dt
+    from app.models.calendar import EventOccurrence
+    from app.services.meet_results import date_matches
+    db = cal["db"]
+    allday = _event(db, cal["cals"]["k"], "All day meet", "club", event_type="competition")
+    db.add(EventOccurrence(event_id=allday.id, occurrence_key="a", is_all_day=True, start_date=date(2026, 11, 22),
+                           end_date=date(2026, 11, 23), window_start=dt(2026, 11, 21, 23), window_end=dt(2026, 11, 22, 23)))
+    late = _event(db, cal["cals"]["k"], "Late meet", "club", event_type="competition")
+    # 23:30 UTC on the 21st is 00:30 on the 22nd in Paris.
+    db.add(EventOccurrence(event_id=late.id, occurrence_key="l", starts_at=dt(2026, 11, 21, 23, 30),
+                           ends_at=dt(2026, 11, 22, 1), window_start=dt(2026, 11, 21, 23, 30), window_end=dt(2026, 11, 22, 1)))
+    db.commit()
+    assert date_matches(db, allday, date(2026, 11, 22)) is True
+    assert date_matches(db, allday, date(2026, 11, 21)) is False
+    assert date_matches(db, allday, date(2026, 11, 23)) is False
+    assert date_matches(db, late, date(2026, 11, 22)) is True
+    assert date_matches(db, late, date(2026, 11, 21)) is False

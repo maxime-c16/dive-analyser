@@ -1,10 +1,13 @@
 """Official meet results on competition events (under the calendar gate).
 
-Upload is the raw PDF body (Content-Type: application/pdf), read with a byte
-budget before any parsing, then parsed and stored off the event loop. The
+Upload is the raw PDF body (Content-Type: application/pdf). Permission is
+checked before the body is read; the body is read with a byte budget; at
+most MAX_PARSES PDFs are decoded at once (busy -> 429); parsing and storage
+run off the event loop and re-check permission under the event lock. The
 same file is sent twice: once to preview, once to save; the server parses it
 each time, so the stored rows never come from client-side JSON.
 """
+import threading
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
@@ -22,6 +25,8 @@ from app.services import meet_results as service
 from app.services.meet_results_pdf import MeetPdfError, parse_pdf
 
 MAX_PDF_BYTES = 8 * 1024 * 1024
+MAX_PARSES = 2
+_parse_slots = threading.BoundedSemaphore(MAX_PARSES)
 _schema_ready = False
 
 
@@ -48,10 +53,14 @@ async def _pdf_body(request: Request) -> bytes:
 
 
 def _parse(raw: bytes):
+    if not _parse_slots.acquire(blocking=False):
+        raise HTTPException(429, detail={"code": "busy", "message": "Another import is being read; try again"})
     try:
         return parse_pdf(raw)
     except MeetPdfError as exc:
         raise HTTPException(422, detail={"code": exc.code, "message": str(exc)}) from exc
+    finally:
+        _parse_slots.release()
 
 
 @router.get("/events/{event_id}/results")
@@ -63,6 +72,7 @@ def get_results(event_id: int, summary: bool = False, user: AppUser = Depends(ge
 @router.post("/events/{event_id}/results/preview")
 async def preview_results(event_id: int, request: Request, user: AppUser = Depends(writer),
                           db: Session = Depends(get_db)):
+    await run_in_threadpool(service.check_import, db, user, event_id)
     raw = await _pdf_body(request)
 
     def run():
@@ -73,6 +83,7 @@ async def preview_results(event_id: int, request: Request, user: AppUser = Depen
 @router.put("/events/{event_id}/results")
 async def save_results(event_id: int, request: Request, name: str = Query("", max_length=200),
                        user: AppUser = Depends(writer), db: Session = Depends(get_db)):
+    await run_in_threadpool(service.check_import, db, user, event_id)
     raw = await _pdf_body(request)
 
     def run():
