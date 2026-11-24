@@ -1,10 +1,10 @@
 [Unit]
-Description=Run the Dive Analyser historical media migration tick every minute
+Description=Run the Dive Analyser historical media migration tick every 10 minutes
 
 [Timer]
 OnBootSec=2min
-OnUnitInactiveSec=1min
-AccuracySec=5s
+OnUnitInactiveSec=10min
+AccuracySec=30s
 Persistent=false
 Unit=dive-media-migration.service
 

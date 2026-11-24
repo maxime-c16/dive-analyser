@@ -98,7 +98,9 @@ function AccountUpdates({ accountId, children }: { accountId: number; children: 
     }
     const playing = () => setToast(null)
     refresh()
-    const timer = window.setInterval(refresh, 60_000)
+    // Release notes only change on deploys; focus/visibility refreshes catch
+    // them promptly without polling a ~14 KB manifest every minute while idle.
+    const timer = window.setInterval(refresh, 30 * 60_000)
     window.addEventListener('focus', refresh)
     document.addEventListener('visibilitychange', refresh)
     window.addEventListener('storage', storage)

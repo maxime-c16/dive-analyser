@@ -10,6 +10,7 @@ on:
 
 permissions:
   contents: write
+  packages: write
 
 # Serialize release runs so concurrent merges compute their version after the
 # preceding run has pushed its tag, rather than both racing to the same number.
@@ -20,7 +21,7 @@ concurrency:
 jobs:
   release:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
@@ -50,6 +51,59 @@ jobs:
           echo "version=$v" >> "$GITHUB_OUTPUT"
           echo "skip=false" >> "$GITHUB_OUTPUT"
           python3 ci/version.py body > /tmp/release-body.md
+
+      # Build and push GHCR images BEFORE pushing the release tag so
+      # ops/auto-deploy.sh on deb-serv pulls prebuilt images instead of
+      # running heavy Docker builds on the 2-core / 5400 rpm host.
+      - name: Set up Docker Buildx
+        if: steps.version.outputs.skip == 'false'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        if: steps.version.outputs.skip == 'false'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push frontend image
+        if: steps.version.outputs.skip == 'false'
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile.deploy
+          platforms: linux/amd64
+          provenance: false
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/dive-analyser-frontend:sha-${{ github.sha }}
+            ghcr.io/${{ github.repository_owner }}/dive-analyser-frontend:latest
+          build-args: |
+            APP_SHA=${{ github.sha }}
+          labels: |
+            dive.analyser/sha=${{ github.sha }}
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,mode=max,scope=frontend
+
+      - name: Build and push backend image
+        if: steps.version.outputs.skip == 'false'
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          platforms: linux/amd64
+          provenance: false
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/dive-analyser-backend:sha-${{ github.sha }}
+            ghcr.io/${{ github.repository_owner }}/dive-analyser-backend:latest
+          labels: |
+            dive.analyser/sha=${{ github.sha }}
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,mode=max,scope=backend
 
       - name: Tag and publish release
         if: steps.version.outputs.skip == 'false'

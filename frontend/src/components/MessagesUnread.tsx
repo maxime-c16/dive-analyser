@@ -56,7 +56,7 @@ function AccountMessagesUnread({ userId, children }: { userId: number; children:
     const seeded = takeBootstrapSeed<{ unread_count?: unknown }>('messages_unread', userId)
     if (typeof seeded?.unread_count === 'number') setUnreadCount(seeded.unread_count)
     else void refresh()
-    const timer = window.setInterval(() => { void refresh() }, 20_000)
+    const timer = window.setInterval(() => { void refresh() }, 60_000)
     window.addEventListener('focus', refresh)
     document.addEventListener('visibilitychange', refresh)
     return () => {

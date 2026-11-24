@@ -28,7 +28,7 @@ function videoPlaying(): boolean {
  * Celebrates unlocks with a transient toast. Unlocks are recorded server-side
  * by the member's own actions (and by other members' likes/comments on their
  * dives), so this only asks the server what is still unseen: on load, on
- * focus, every minute, and shortly after any successful write (see
+ * focus, every 5 minutes, and shortly after any successful write (see
  * installAchievementProbe). Keys are marked seen as soon as they are queued so
  * a reload or a second tab never replays them. Scheduled polls skip a tick
  * while a clip plays, like the notification badge.
@@ -63,7 +63,7 @@ function AccountToaster({ userId }: { userId: number }) {
     void check(true, Array.isArray(seeded?.items) ? seeded : undefined)
     const scheduled = () => void check(true)
     const requested = () => void check(false)
-    const timer = window.setInterval(scheduled, 60_000)
+    const timer = window.setInterval(scheduled, 300_000)
     window.addEventListener('focus', scheduled)
     window.addEventListener(ACHIEVEMENTS_CHECK_EVENT, requested)
     return () => {

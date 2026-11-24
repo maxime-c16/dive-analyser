@@ -67,7 +67,7 @@ while [ $# -gt 0 ]; do
         --force) FORCE=1 ;;
         --server-gate) SERVER_GATE=1 ;;
         --full) AUTO_SCOPE=0 ;;
-        --skip-gate|--frontend-only|--backend-only) DEPLOY_FLAGS+=("$1") ;;
+        --skip-gate|--frontend-only|--backend-only|--local-build) DEPLOY_FLAGS+=("$1") ;;
         *) ci_die "unknown option: $1" ;;
     esac
     shift
@@ -92,7 +92,7 @@ run_on() {
         [ $# -gt 0 ] && quoted="$(printf '%q ' "$@")"
         # ssh does not forward the environment; pass ours explicitly.
         ssh -o BatchMode=yes -o ConnectTimeout=10 "$ssh_alias" \
-            "SHIP_FROM=$(printf '%q' "${SHIP_FROM:-}") DIVE_GATE_PROOF=$(printf '%q' "${DIVE_GATE_PROOF:-}") bash -s -- $quoted" <<<"$script"
+            "SHIP_FROM=$(printf '%q' "${SHIP_FROM:-}") DIVE_GATE_PROOF=$(printf '%q' "${DIVE_GATE_PROOF:-}") DIVE_FORCE_LOCAL_BUILD=$(printf '%q' "${DIVE_FORCE_LOCAL_BUILD:-}") DIVE_IMAGE_REGISTRY=$(printf '%q' "${DIVE_IMAGE_REGISTRY:-}") bash -s -- $quoted" <<<"$script"
     fi
 }
 

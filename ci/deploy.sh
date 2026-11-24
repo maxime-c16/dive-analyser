@@ -20,7 +20,7 @@
 # script checks the real TLS endpoints instead.
 #
 # Usage:
-#   ci/deploy.sh [--skip-gate] [--frontend-only|--backend-only] [--dry-run]
+#   ci/deploy.sh [--skip-gate] [--frontend-only|--backend-only] [--local-build] [--dry-run]
 
 set -uo pipefail
 
@@ -42,6 +42,7 @@ COMPOSE="${DIVE_COMPOSE_CMD:-docker-compose}"
 PROJECT="${DIVE_COMPOSE_PROJECT:-dive-analyser}"
 FRONTEND_IMAGE="${DIVE_FRONTEND_IMAGE:-dive-analyser-frontend}"
 BACKEND_IMAGE="${DIVE_BACKEND_IMAGE:-dive-analyser-backend}"
+IMAGE_REGISTRY="${DIVE_IMAGE_REGISTRY:-ghcr.io/maxime-c16}"
 
 # Overridable so the pipeline can be rehearsed against a sandbox stack instead
 # of the live one.
@@ -56,18 +57,21 @@ FUNNEL_API_PROBE="${DIVE_FUNNEL_API_PROBE:-http://127.0.0.1:6091/api/v1/auth/me}
 SKIP_GATE=0
 ONLY=""
 DRY_RUN=0
+LOCAL_BUILD="${DIVE_FORCE_LOCAL_BUILD:-0}"
 
 for arg in "$@"; do
     case "$arg" in
-        --skip-gate)    SKIP_GATE=1 ;;
+        --skip-gate)     SKIP_GATE=1 ;;
         --frontend-only) ONLY="frontend" ;;
         --backend-only)  ONLY="backend" ;;
+        --local-build)   LOCAL_BUILD=1 ;;
         --dry-run)       DRY_RUN=1 ;;
         -h|--help)       sed -n '2,20p' "$0"; exit 0 ;;
         *) ci_die "unknown option: $arg" ;;
     esac
 done
 
+full_sha="$(git -C "$ROOT" rev-parse HEAD 2>/dev/null || echo unknown)"
 sha="$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo unknown)"
 cd "$ROOT" || ci_die "cannot cd to $ROOT"
 
@@ -194,12 +198,37 @@ rollback() {
     exit 1
 }
 
-# ------------------------------------------------------------ 4. build
+# ------------------------------------------------------------ 4. pull or build
+
+# Prefer prebuilt GHCR images pushed by .github/workflows/release.yml so
+# deb-serv avoids heavy local Docker builds on 2 cores + 5400 rpm HDD.
+# Verify the image's dive.analyser/sha label matches this exact commit before
+# accepting it; fall back seamlessly to local docker build if unavailable.
+try_pull_image() {
+    local local_image="$1" remote_ref="$2" step_name="$3"
+    [ "$LOCAL_BUILD" -eq 0 ] && [ -n "$IMAGE_REGISTRY" ] && [ "$full_sha" != "unknown" ] || return 1
+    if ! ci_run "$step_name" docker pull "$remote_ref"; then
+        ci_warn "could not pull $remote_ref — falling back to local docker build"
+        return 1
+    fi
+    local label
+    label="$(docker image inspect "$remote_ref" --format '{{index .Config.Labels "dive.analyser/sha"}}' 2>/dev/null || true)"
+    if [ -z "$label" ] || [ "$label" != "$full_sha" ]; then
+        ci_warn "pulled $remote_ref label '${label:-none}' != $full_sha — falling back to local build"
+        docker image rm "$remote_ref" >/dev/null 2>&1 || true
+        return 1
+    fi
+    docker tag "$remote_ref" "$local_image:sha-$sha" || return 1
+    return 0
+}
 
 if [ "$ONLY" != "backend" ]; then
-    ci_step "build: frontend production image"
+    ci_step "image: frontend production image"
+    fe_remote="$IMAGE_REGISTRY/$FRONTEND_IMAGE:sha-$full_sha"
     if [ "$DRY_RUN" -eq 1 ]; then
-        ci_warn "would run: docker build -f frontend/Dockerfile.deploy -t $FRONTEND_IMAGE:sha-$sha frontend"
+        ci_warn "would pull $fe_remote (fallback: docker build -f frontend/Dockerfile.deploy -t $FRONTEND_IMAGE:sha-$sha frontend)"
+    elif try_pull_image "$FRONTEND_IMAGE" "$fe_remote" pull-frontend; then
+        ci_ok "frontend image pulled ($fe_remote -> $FRONTEND_IMAGE:sha-$sha)"
     else
         # The daemon's layer cache once shipped a stale frontend bundle
         # (COPY/npm-run-build cache-hit on changed sources), so /register +
@@ -211,8 +240,8 @@ if [ "$ONLY" != "backend" ]; then
         ci_run build-frontend docker build \
             -f "$ROOT/frontend/Dockerfile.deploy" \
             -t "$FRONTEND_IMAGE:sha-$sha" \
-            --label "dive.analyser/sha=$sha" \
-            --build-arg "APP_SHA=$(git -C "$ROOT" rev-parse HEAD)" \
+            --label "dive.analyser/sha=$full_sha" \
+            --build-arg "APP_SHA=$full_sha" \
             "$ROOT/frontend" \
             || ci_die "frontend image build failed — previous images untouched"
         ci_ok "frontend image built ($FRONTEND_IMAGE:sha-$sha)"
@@ -220,14 +249,17 @@ if [ "$ONLY" != "backend" ]; then
 fi
 
 if [ "$ONLY" != "frontend" ]; then
-    ci_step "build: backend image"
+    ci_step "image: backend image"
+    be_remote="$IMAGE_REGISTRY/$BACKEND_IMAGE:sha-$full_sha"
     if [ "$DRY_RUN" -eq 1 ]; then
-        ci_warn "would run: docker build -f backend/Dockerfile -t $BACKEND_IMAGE:sha-$sha backend"
+        ci_warn "would pull $be_remote (fallback: docker build -f backend/Dockerfile -t $BACKEND_IMAGE:sha-$sha backend)"
+    elif try_pull_image "$BACKEND_IMAGE" "$be_remote" pull-backend; then
+        ci_ok "backend image pulled ($be_remote -> $BACKEND_IMAGE:sha-$sha)"
     else
         ci_run build-backend docker build \
             -f "$ROOT/backend/Dockerfile" \
             -t "$BACKEND_IMAGE:sha-$sha" \
-            --label "dive.analyser/sha=$sha" \
+            --label "dive.analyser/sha=$full_sha" \
             "$ROOT/backend" \
             || ci_die "backend image build failed — previous images untouched"
         ci_ok "backend image built ($BACKEND_IMAGE:sha-$sha)"
@@ -335,8 +367,11 @@ ci_ok "update catalog published"
 # Keep the previous image as a rollback target, drop older build tags so the
 # 172 GB free disk does not creep away under us.
 if [ "$DRY_RUN" -eq 0 ]; then
-    stale="$(docker images -q "$FRONTEND_IMAGE" -f 'label=dive.analyser/sha' 2>/dev/null | head -n -2 || true)"
-    for img in $stale; do docker image rm -f "$img" >/dev/null 2>&1 || true; done
+    for repo in "$FRONTEND_IMAGE" "$BACKEND_IMAGE" \
+                "$IMAGE_REGISTRY/$FRONTEND_IMAGE" "$IMAGE_REGISTRY/$BACKEND_IMAGE"; do
+        stale="$(docker images -q "$repo" -f 'label=dive.analyser/sha' 2>/dev/null | awk '!seen[$0]++' | tail -n +3 || true)"
+        for img in $stale; do docker image rm -f "$img" >/dev/null 2>&1 || true; done
+    done
 fi
 
 printf '\n%s✓ deployed sha=%s%s\n' "$C_GRN" "$sha" "$C_OFF"
