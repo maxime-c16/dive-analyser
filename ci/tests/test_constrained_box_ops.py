@@ -136,6 +136,11 @@ class ConstrainedBoxOpsTest(unittest.TestCase):
             good = subprocess.run(["bash", "-c", harness], env={**base_env, "FAKE_LABEL": full_sha}, capture_output=True, text=True)
             self.assertEqual(good.returncode, 0, good.stdout + good.stderr)
 
+    def test_ship_forwards_local_build_and_registry_env_over_ssh(self):
+        ship = (ROOT / "ci/ship.sh").read_text()
+        self.assertIn('DIVE_FORCE_LOCAL_BUILD=$(printf \'%q\' "${DIVE_FORCE_LOCAL_BUILD:-}")', ship)
+        self.assertIn('DIVE_IMAGE_REGISTRY=$(printf \'%q\' "${DIVE_IMAGE_REGISTRY:-}")', ship)
+
 
 if __name__ == "__main__":
     unittest.main()
