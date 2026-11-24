@@ -101,6 +101,28 @@ export interface EventInput {
   itinerary?: ItineraryItem[]; registration_url?: string | null
 }
 
+// Official meet results (backend/app/api/v1/meet_results.py). Numbers are the
+// published sheet's, never recomputed here (docs/SCORING.md §4).
+export interface MeetDive {
+  dive_code: string; height: number; dd: number; judges: number[]; cumul: number; points: number
+  running_total: number; penalty: number | null
+}
+export interface MeetEntry {
+  id: number; rank: number | null; diver_name: string; birth_year: number | null; club_name: string; total: number
+  status: 'disqualified' | 'withdrawn' | 'knocked_out' | null; guest: boolean; dives: MeetDive[]
+  /** The viewer's own row (automatic, unambiguous account match). */
+  is_me: boolean
+  /** Linked account, shown to the account itself and its club mates only. */
+  account: { user_id: number; display_name: string; avatar_url: string | null; avatar_hud: 'orbit' | 'reticle' | 'depth' } | null
+}
+export interface MeetEvent { id: number; title: string; board: string; entries: MeetEntry[] }
+export interface MeetResults { source_name: string; meet_date: string | null; imported_at: string; events: MeetEvent[] }
+export interface MeetResultsPage { can_import: boolean; available: boolean; results: MeetResults | null }
+export interface MeetPreview {
+  meet_date: string | null; date_matches: boolean | null; events: { title: string; board: string; entries: number }[]
+  entry_count: number; dive_count: number; warnings: string[]; replaces: boolean; linked_count: number
+}
+
 export class CalendarError extends Error {
   constructor(public status: number, public code: string, message: string) { super(message) }
 }
@@ -110,7 +132,7 @@ const BASE = '/api/v1/calendar'
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const response = await fetch(BASE + path, {
     credentials: 'same-origin', cache: 'no-store', ...init,
-    headers: { ...(init.body ? { 'Content-Type': 'application/json' } : {}), ...(init.headers || {}) },
+    headers: { ...(typeof init.body === 'string' ? { 'Content-Type': 'application/json' } : {}), ...(init.headers || {}) },
   })
   if (response.status === 204) return undefined as T
   const data = await response.json().catch(() => null)
@@ -123,6 +145,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   return data as T
 }
 const json = (method: string, body?: unknown): RequestInit => ({ method, body: body === undefined ? undefined : JSON.stringify(body) })
+const pdf = (method: string, file: Blob): RequestInit => ({ method, body: file, headers: { 'Content-Type': 'application/pdf' } })
 
 export const calendarApi = {
   me: () => request<{ clubs: MyClub[] }>('/me'),
@@ -168,6 +191,12 @@ export const calendarApi = {
   dives: (occurrenceId: number) => request<{ items: LinkableDive[] }>(`/occurrences/${occurrenceId}/dives`),
   linkDive: (occurrenceId: number, diveId: number, on: boolean) =>
     request<{ items: LinkableDive[] }>(`/occurrences/${occurrenceId}/dives/${diveId}`, { method: on ? 'PUT' : 'DELETE' }),
+  results: (eventId: number, summary = false) =>
+    request<MeetResultsPage>(`/events/${eventId}/results${summary ? '?summary=true' : ''}`),
+  previewResults: (eventId: number, file: Blob) => request<MeetPreview>(`/events/${eventId}/results/preview`, pdf('POST', file)),
+  saveResults: (eventId: number, file: File) =>
+    request<MeetResultsPage>(`/events/${eventId}/results?${new URLSearchParams({ name: file.name.slice(0, 200) })}`, pdf('PUT', file)),
+  deleteResults: (eventId: number) => request<void>(`/events/${eventId}/results`, { method: 'DELETE' }),
   roster: (clubId: number) => request<Roster>(`/clubs/${clubId}/members`),
   clubResources: (clubId: number) => request<Resource[]>(`/clubs/${clubId}/resources`),
   assignGroup: (clubId: number, user_id: number, group_id: number | null, effective_from: string) =>

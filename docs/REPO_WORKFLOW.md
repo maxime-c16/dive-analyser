@@ -271,6 +271,14 @@ and feature first. No Mac service is required.
 See [the media playback runbook](MEDIA_PLAYBACK.md) for measurements, worker
 concurrency, DNS validation, staged rollout, and rollback.
 
+### Meet results
+
+Apply `backend/migrations/add_meet_results.sql` **after** the calendar
+migrations and **before** deploying the backend that ships it (additive,
+idempotent). Without it, `/calendar/events/{id}/results` answers 503 and the
+rest of the calendar is unaffected. No flag beyond `CALENDAR_ENABLED`, no
+worker, no Mac service. The backend image gains `pypdf` (pure Python).
+
 ### Personal dive series
 
 Apply `backend/migrations/add_dive_series.sql` **before** deploying the

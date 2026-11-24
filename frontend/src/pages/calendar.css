@@ -287,3 +287,45 @@
 .cal-count { font-size:16px; line-height:1.4; font-weight:600; letter-spacing:0; white-space:nowrap; color:var(--app-muted); }
 .cal-count small { font-size:13px; }
 @media(max-width:599px) { .cal-next { padding:12px; } .cal-next-title { font-size:19px; } }
+
+/* ---- Meet results ---- */
+.meet .meet-title { margin: 2px 0 0; font-size: 26px; font-weight: 650; line-height: 1.15; letter-spacing: -.02em; color: var(--app-text); overflow-wrap: anywhere; }
+.meet .meet-date { margin: 0; font-size: 15px; color: var(--app-muted); }
+@media (min-width: 640px) { .meet .meet-title { font-size: 30px; } }
+.meet-events { display: flex; gap: 8px; margin: 0 -16px; padding: 2px 16px; overflow-x: auto; scrollbar-width: none; }
+.meet-events::-webkit-scrollbar { display: none; }
+.meet-events .ca-pill { color: var(--app-text); }
+.meet-events .ca-pill[aria-selected=true] { border-color: var(--cal-competition); color: var(--cal-competition); background: color-mix(in srgb, var(--cal-competition) 12%, transparent); }
+.meet-board { padding: 4px 0; }
+.meet-ranking, .meet-dives { margin: 0; padding: 0; list-style: none; }
+.meet-entry + .meet-entry { border-top: 1px solid var(--app-border); }
+.meet-entry-row { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 60px; padding: 8px 16px; border: 0; background: none; color: var(--app-text); text-align: left; }
+.meet-entry-row:active { background: var(--app-panel-elevated); }
+.meet-rank { display: grid; flex: none; place-items: center; width: 32px; height: 32px; border-radius: 999px; background: var(--app-panel-elevated); font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--app-muted); }
+.meet-rank.is-p1 { background: #f5c542; color: #1f1600; }
+.meet-rank.is-p2 { background: #c9d1d9; color: #111820; }
+.meet-rank.is-p3 { background: #d08b54; color: #1e0f04; }
+.meet-who { display: grid; flex: 1; min-width: 0; }
+.meet-who b { display: -webkit-box; overflow: hidden; font-size: 15px; font-weight: 600; line-height: 1.25; overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.meet-who small { overflow: hidden; font-size: 13px; color: var(--app-muted); text-overflow: ellipsis; white-space: nowrap; }
+.meet-total { flex: none; font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--app-text); }
+.meet-chevron { flex: none; color: var(--app-muted); transition: transform .2s; }
+.meet-entry.is-open .meet-chevron { transform: rotate(180deg); }
+.meet-dives { display: grid; gap: 2px; padding: 0 12px 12px 60px; }
+.meet-dive { display: grid; grid-template-columns: 74px minmax(0, 1fr) auto; align-items: center; gap: 10px; min-height: 44px; padding: 4px 10px; border-radius: 10px; background: var(--app-panel-elevated); }
+.meet-dive-code, .meet-points { display: grid; font-variant-numeric: tabular-nums; }
+.meet-dive-code b { font-size: 14px; }
+.meet-dive-code small, .meet-points small { font-size: 12px; color: var(--app-muted); }
+.meet-points { justify-items: end; }
+.meet-points b { font-size: 14px; }
+.meet-judges { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-size: 13px; color: var(--app-muted); font-variant-numeric: tabular-nums; }
+@media (max-width: 480px) { .meet-dives { padding-left: 12px; } }
+.meet-preview { display: grid; gap: 8px; padding: 12px 16px; }
+.meet-preview > small { color: var(--app-muted); overflow-wrap: anywhere; }
+.meet-warnings summary { cursor: pointer; font-size: 14px; color: var(--cal-maybe); }
+.meet-warnings ul { margin: 6px 0 0; padding-left: 18px; font-size: 13px; color: var(--app-muted); }
+.ca-pill.is-primary { border-color: var(--cal-competition); background: var(--cal-competition); color: #160b2e; font-weight: 600; }
+.meet-entry.is-me { background: linear-gradient(90deg, color-mix(in srgb, var(--app-accent) 14%, transparent), transparent 70%); box-shadow: inset 3px 0 0 var(--app-accent); }
+.meet-entry-row .member-avatar { flex: none; }
+.meet-profile { display: inline-flex; align-items: center; gap: 4px; margin: -4px 0 8px 60px; color: var(--app-accent); font-size: 13px; font-weight: 600; text-decoration: none; }
+@media (max-width: 480px) { .meet-profile { margin-left: 16px; } }

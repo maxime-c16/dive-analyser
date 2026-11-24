@@ -1,0 +1,11 @@
+{
+  "id": "meet-results-import",
+  "date": "2026-11-24",
+  "title": "Les résultats de compétition dans le calendrier",
+  "body": "Importez le PDF des résultats détaillés d’une compétition : chaque épreuve affiche son classement, et un appui sur un plongeur montre ses plongeons, les notes des juges et les pénalités, tels que publiés. Les plongeurs du club reconnus sans ambiguïté sont reliés à leur compte, et votre ligne est mise en avant.",
+  "audience": "all",
+  "components": [
+    "frontend",
+    "backend"
+  ]
+}

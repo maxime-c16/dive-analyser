@@ -1,0 +1,157 @@
+"""Store and read official meet results for a competition calendar event.
+
+Writers: only `replace` and `delete`, both under the calendar event's row
+lock (`calendar_events.editable_event`) and the same publish permission as
+editing the event. Readers see results exactly when they can see the event.
+Reads are bounded by the import caps in meet_results_pdf (a fixed number of
+queries, independent of row count).
+
+Account links (services/meet_result_links) are made at import. A link is
+shown only to the linked account itself and to viewers sharing an active club
+with it: the sheet's full name tied to an app identity is club knowledge,
+not something a community-wide event should reveal.
+"""
+from __future__ import annotations
+
+import hashlib
+from datetime import date, timedelta
+from typing import Optional
+
+from sqlalchemy.orm import Session
+
+from app.models.calendar import Calendar, CalendarEvent, ClubMembership, EventOccurrence
+from app.models.meet_results import MeetResult, MeetResultDive, MeetResultEntry, MeetResultEvent
+from app.models.user_auth import AppUser
+from app.services import calendar_events as events
+from app.services.calendar_events import fail
+from app.services.meet_result_links import auto_links
+from app.services.meet_results_pdf import ParsedMeet
+from app.services.member_avatar import avatar_identity
+
+
+def _require_competition(event: CalendarEvent) -> None:
+    if event.event_type != "competition":
+        fail(422, "not_competition", "Results can only be attached to a competition")
+
+
+def can_import(db: Session, user: AppUser, event: CalendarEvent, calendar: Calendar) -> bool:
+    return event.event_type == "competition" and events.can_edit(db, user, calendar)
+
+
+def date_matches(db: Session, event_id: int, meet_date: Optional[date]) -> Optional[bool]:
+    """Whether the sheet's printed date falls on one of the event's days
+    (±1 day for time zones). None when the sheet has no date."""
+    if meet_date is None:
+        return None
+    rows = db.query(EventOccurrence.window_start, EventOccurrence.window_end).filter(
+        EventOccurrence.event_id == event_id).limit(200).all()
+    return any(start.date() - timedelta(days=1) <= meet_date <= end.date() for start, end in rows)
+
+
+def preview(db: Session, user: AppUser, event_id: int, parsed: ParsedMeet) -> dict:
+    event, _calendar = events.editable_event(db, user, event_id)
+    _require_competition(event)
+    replaces = db.query(MeetResult.id).filter(MeetResult.calendar_event_id == event.id).first() is not None
+    out = {
+        "meet_date": parsed.meet_date.isoformat() if parsed.meet_date else None,
+        "date_matches": date_matches(db, event.id, parsed.meet_date),
+        "events": [{"title": e.title, "board": e.board, "entries": len(e.entries)} for e in parsed.events],
+        "entry_count": parsed.entry_count, "dive_count": parsed.dive_count,
+        "warnings": parsed.warnings, "replaces": replaces,
+        "linked_count": len({uid for uid in auto_links(db, _flat(parsed)).values()}),
+    }
+    db.rollback()  # release the event lock; nothing was written
+    return out
+
+
+def _flat(parsed: ParsedMeet) -> list:
+    return [en for e in parsed.events for en in e.entries]
+
+
+def replace(db: Session, user: AppUser, event_id: int, parsed: ParsedMeet, source_name: str, raw: bytes) -> None:
+    event, _calendar = events.editable_event(db, user, event_id)
+    _require_competition(event)
+    # Bulk SQL delete: ON DELETE CASCADE removes the previous events/entries/dives.
+    db.query(MeetResult).filter(MeetResult.calendar_event_id == event.id).delete(synchronize_session=False)
+    result = MeetResult(calendar_event_id=event.id, source_name=source_name[:200] or "results.pdf",
+                        source_sha256=hashlib.sha256(raw).hexdigest(), meet_date=parsed.meet_date,
+                        imported_by_user_id=user.id)
+    db.add(result)
+    db.flush()
+    rows = [MeetResultEvent(result_id=result.id, position=i, title=e.title, board=e.board)
+            for i, e in enumerate(parsed.events)]
+    db.add_all(rows)
+    db.flush()
+    links = auto_links(db, _flat(parsed))
+    entries = [(MeetResultEntry(event_id=row.id, position=j, rank=en.rank, diver_name=en.diver_name,
+                                birth_year=en.birth_year, club_name=en.club_name, total=en.total,
+                                status=en.status, guest=en.guest), en)
+               for row, e in zip(rows, parsed.events) for j, en in enumerate(e.entries)]
+    for i, (row, _en) in enumerate(entries):
+        row.user_id = links.get(i)
+    db.add_all([m for m, _ in entries])
+    db.flush()
+    db.add_all([MeetResultDive(entry_id=m.id, position=k, dive_code=d.dive_code, height=d.height, dd=d.dd,
+                               judge_half_steps=d.judge_half_steps, cumul=d.cumul, points=d.points,
+                               running_total=d.running_total, penalty=d.penalty)
+                for m, en in entries for k, d in enumerate(en.dives)])
+
+
+def delete(db: Session, user: AppUser, event_id: int) -> None:
+    event, _calendar = events.editable_event(db, user, event_id)
+    if db.query(MeetResult).filter(MeetResult.calendar_event_id == event.id).delete(synchronize_session=False) == 0:
+        fail(404, "results_not_found", "No results for this event")
+
+
+def _num(value) -> float:
+    return float(value)
+
+
+def _visible_accounts(db: Session, viewer: AppUser, user_ids: set[int]) -> dict[int, dict]:
+    """Linked accounts the viewer may see: themselves, or a shared active club."""
+    if not user_ids:
+        return {}
+    active = (ClubMembership.status == "active", ClubMembership.ended_at.is_(None))
+    mine = {cid for (cid,) in db.query(ClubMembership.club_id).filter(ClubMembership.user_id == viewer.id, *active)}
+    shared = {uid for (uid,) in db.query(ClubMembership.user_id).filter(
+        ClubMembership.user_id.in_(user_ids), ClubMembership.club_id.in_(mine or {-1}), *active)}
+    allowed = (shared | {viewer.id}) & user_ids
+    rows = db.query(AppUser).filter(AppUser.id.in_(allowed), AppUser.is_active.is_(True)).all() if allowed else []
+    return {u.id: {"user_id": u.id, "display_name": u.display_name, **avatar_identity(u)} for u in rows}
+
+
+def read(db: Session, user: AppUser, event_id: int, summary: bool = False) -> dict:
+    """`summary` answers only whether results exist (one indexed lookup)."""
+    event, calendar = events.visible_event(db, user, event_id)
+    result = db.query(MeetResult).filter(MeetResult.calendar_event_id == event.id).one_or_none()
+    out = {"can_import": can_import(db, user, event, calendar), "available": result is not None, "results": None}
+    if result is None or summary:
+        return out
+    meet_events = db.query(MeetResultEvent).filter(MeetResultEvent.result_id == result.id).order_by(
+        MeetResultEvent.position).all()
+    entries = db.query(MeetResultEntry).join(MeetResultEvent, MeetResultEvent.id == MeetResultEntry.event_id).filter(
+        MeetResultEvent.result_id == result.id).order_by(MeetResultEntry.event_id, MeetResultEntry.position).all()
+    dives = db.query(MeetResultDive).join(MeetResultEntry, MeetResultEntry.id == MeetResultDive.entry_id).join(
+        MeetResultEvent, MeetResultEvent.id == MeetResultEntry.event_id).filter(
+        MeetResultEvent.result_id == result.id).order_by(MeetResultDive.entry_id, MeetResultDive.position).all()
+    dives_by_entry: dict[int, list] = {}
+    for d in dives:
+        dives_by_entry.setdefault(d.entry_id, []).append({
+            "dive_code": d.dive_code, "height": _num(d.height), "dd": _num(d.dd),
+            "judges": [h / 2 for h in d.judge_half_steps], "cumul": _num(d.cumul), "points": _num(d.points),
+            "running_total": _num(d.running_total), "penalty": d.penalty})
+    accounts = _visible_accounts(db, user, {en.user_id for en in entries if en.user_id})
+    entries_by_event: dict[int, list] = {}
+    for en in entries:
+        entries_by_event.setdefault(en.event_id, []).append({
+            "id": en.id, "rank": en.rank, "diver_name": en.diver_name, "birth_year": en.birth_year,
+            "club_name": en.club_name, "total": _num(en.total), "status": en.status,
+            "guest": en.guest, "is_me": en.user_id == user.id, "account": accounts.get(en.user_id),
+            "dives": dives_by_entry.get(en.id, [])})
+    out["results"] = {
+        "source_name": result.source_name, "meet_date": result.meet_date.isoformat() if result.meet_date else None,
+        "imported_at": result.imported_at.isoformat() + "Z",
+        "events": [{"id": e.id, "title": e.title, "board": e.board, "entries": entries_by_event.get(e.id, [])}
+                   for e in meet_events],
+    }
+    return out

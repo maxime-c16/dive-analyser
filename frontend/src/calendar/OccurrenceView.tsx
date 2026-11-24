@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
-  CalendarClock, CalendarPlus, Check, ChevronRight, Clock, ExternalLink, Globe, MapPin, Pencil, Plus, Repeat, Send,
+  CalendarClock, CalendarPlus, Check, ChevronRight, Clock, ExternalLink, Globe, MapPin, Medal, Pencil, Plus, Repeat, Send,
   Star, Trophy, UserRound, Users, XCircle,
 } from "lucide-react";
 import {
@@ -128,6 +128,8 @@ export default function OccurrenceView({ ctx, occurrenceId }: { ctx: CalendarCon
       {occ.shared_session_id && <Link className="cal-series" to={`/sessions/shared/${occ.shared_session_id}`}>
         {t.openSharedSession}<ChevronRight size={18} aria-hidden="true" />
       </Link>}
+
+      {event.event_type === "competition" && <ResultsLink eventId={event.id} search={search} />}
 
       {event.event_type === "competition" && (
         <Link className="cal-series" to={`/series?event=${event.id}`}>
@@ -257,6 +259,24 @@ export default function OccurrenceView({ ctx, occurrenceId }: { ctx: CalendarCon
         <Invitations eventId={event.id} clubId={event.club_id} />
       )}
     </article>
+  );
+}
+
+/** Shown once results exist, or to whoever can import them. */
+function ResultsLink({ eventId, search }: { eventId: number; search: string }) {
+  const { t } = useCalendarStrings();
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    let live = true;
+    setShow(false);
+    calendarApi.results(eventId, true).then((r) => { if (live) setShow(r.available || r.can_import); }).catch(() => undefined);
+    return () => { live = false; };
+  }, [eventId]);
+  if (!show) return null;
+  return (
+    <Link className="cal-series" to={`/calendar/e/${eventId}/results${search}`}>
+      <Medal size={20} aria-hidden="true" /><span>{t.results}</span><ChevronRight size={18} aria-hidden="true" />
+    </Link>
   );
 }
 

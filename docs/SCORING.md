@@ -6,7 +6,7 @@ If a change needs a new rule, add it here in the same PR.
 
 ## The rule in one line
 
-There are two notes, and they are never mixed: the **note perso** (the
+There are two notes, and they are never mixed (official meet results, §4, are a third thing): the **note perso** (the
 diver's own letters) and the **note du jury** (other members' votes). Each
 screen shows one of them, labelled as such.
 
@@ -104,6 +104,23 @@ These are 0–100 indices. Never show them next to a 0–10 note as if comparabl
 - **Personal Dive Value** (`services/personal_dive_value.py`): one dive of the
   primary diver; review priority from technique × DD, same-dive percentile,
   breakthrough, progression, consistency, novelty. Not an official score.
+
+## 4. Official meet results (not notes)
+
+Source: the meet's published DiveRecorder sheet ("Résultats détaillés" PDF),
+imported on a competition calendar event (`services/meet_results_pdf.py`,
+tables `meet_result_*`). Judge marks, sum, DD, points, running total, place
+and penalty code are stored exactly as printed. The app never recomputes,
+averages or re-ranks them, and never shows them next to a note perso or a
+note du jury as if they were the same scale.
+
+- Judge marks are stored in half steps (`judge_half_steps`, 0–20), like jury
+  votes, but they are a separate table and never enter jury aggregates.
+- The import checks the sheet's own arithmetic (points = sum × DD for panels
+  of up to 7 judges; running total = previous + points) and reports
+  mismatches as warnings. It stores the printed values either way.
+- Exit states (`disqualified`, `withdrawn`, `knocked_out`) and guests come
+  from the suffix DiveRecorder prints after the club.
 
 ## Checklist for a scoring change
 
