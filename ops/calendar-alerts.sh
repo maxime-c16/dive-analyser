@@ -7,5 +7,6 @@ if docker compose version >/dev/null 2>&1; then
 else
     compose=(docker-compose)
 fi
-"${compose[@]}" exec -T backend python scripts/calendar_alerts_worker.py run
-"${compose[@]}" exec -T backend python scripts/calendar_alerts_worker.py status --json
+# One process per minute: run, then readiness (exit 2 if not ready). Prints a
+# single line while healthy, the full status report otherwise.
+"${compose[@]}" exec -T backend python scripts/calendar_alerts_worker.py tick

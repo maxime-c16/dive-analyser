@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 """Calendar alerts worker CLI (Task05). See app/services/calendar_alerts.py.
 
-    run [--batch N]                 one bounded run (schedule every minute)
+    run [--batch N]                 one bounded run
+    tick [--batch N]                run + status in one process (the minutely timer);
+                                    one line when healthy, full report otherwise
     status [--json]                 readiness, queues, dead letters (exit 2 if not ready)
     requeue-dead --table outbox|delivery [--id N]   explicit operator retry
 
@@ -38,6 +40,8 @@ def main(argv=None) -> int:
     sub = parser.add_subparsers(dest="cmd", required=True)
     run = sub.add_parser("run")
     run.add_argument("--batch", type=int, default=calendar_alerts.DEFAULT_BATCH)
+    tick = sub.add_parser("tick")
+    tick.add_argument("--batch", type=int, default=calendar_alerts.DEFAULT_BATCH)
     status = sub.add_parser("status")
     status.add_argument("--json", action="store_true")
     requeue = sub.add_parser("requeue-dead")
@@ -54,6 +58,8 @@ def main(argv=None) -> int:
             return 1
         print(json.dumps(result, sort_keys=True))
         return 2 if result["status"] == "schema_missing" else 0
+    if args.cmd == "tick":
+        return _tick(factory, args.batch)
     with factory() as db:
         if args.cmd == "status":
             report = calendar_alerts.health(db)
@@ -75,6 +81,36 @@ def main(argv=None) -> int:
         count = calendar_alerts.requeue_dead(db, args.table, args.id)
         print(json.dumps({"requeued": count}))
         return 0
+
+
+def _tick(factory, batch) -> int:
+    """`run` then `status --json`, with the same exit codes as running both.
+
+    The timer fires every minute. Two `docker compose exec` calls started two
+    Python processes (each importing the app from a slow disk) and the status
+    printed ~40 journal lines a minute. One process, one line when healthy.
+    """
+    try:
+        result = calendar_alerts.run_once(factory, batch=batch, push_limit=1)
+    except Exception as exc:  # noqa: BLE001 - type only (no bound parameters in logs)
+        print(json.dumps({"status": "failed", "error": type(exc).__name__}))
+        return 1
+    if result["status"] == "schema_missing":
+        print(json.dumps(result, sort_keys=True))
+        return 2
+    with factory() as db:
+        report = calendar_alerts.health(db)
+        if report["schema"]:
+            report["dead_letters"] = calendar_alerts.dead_letters(db)
+    healthy = (report["ready"] or report.get("standby")) and not report.get("problems") \
+        and not report.get("dead_letters")
+    if healthy:
+        print(json.dumps({"run": result, "ready": report["ready"], "standby": report.get("standby", False),
+                          "worker": report.get("worker")}, sort_keys=True, default=str))
+    else:
+        print(json.dumps(result, sort_keys=True))
+        print(json.dumps(report, indent=2, sort_keys=True, default=str))
+    return 0 if report["ready"] or report.get("standby") else 2
 
 
 if __name__ == "__main__":
