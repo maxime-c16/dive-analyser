@@ -294,3 +294,12 @@ def test_admin_can_forbid_a_link_and_only_admins_manage(cal):  # noqa: F811
     assert row["account"] is None and row["link_source"] == "admin"
     assert _rows(cal, "alice", eid)["Alice MARTIN"]["is_me"] is False
     assert admin.put(link, json={"user_id": None}, headers={"Origin": "https://evil.invalid"}).status_code == 403
+
+
+def test_truncated_candidate_set_links_nobody(cal, monkeypatch):  # noqa: F811
+    """A cap hit must never turn an ambiguous name into a unique match."""
+    from app.services import meet_result_links as links
+    db, u = cal["db"], cal["users"]
+    assert links.auto_links(db, [_entry("Alice MARTIN")]) == {0: u["alice"].id}
+    monkeypatch.setattr(links, "MAX_CANDIDATE_ROWS", 2)  # the club has more active members than that
+    assert links.auto_links(db, [_entry("Alice MARTIN")]) == {}

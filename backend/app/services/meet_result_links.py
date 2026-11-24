@@ -34,6 +34,22 @@ from app.models.diver import Diver, DiverAlias
 from app.models.user_auth import AppUser, UserDiverAccess
 
 MIN_CLUB_PREFIX = 8
+# Candidate sets are loaded whole. If one exceeds its cap, matching fails
+# closed (no automatic link) instead of deciding from a truncated set, where a
+# missing namesake would make an ambiguous name look unique.
+MAX_CLUBS = 500
+MAX_CANDIDATE_ROWS = 5000
+
+
+class _Truncated(Exception):
+    pass
+
+
+def _bounded(query, cap: int) -> list:
+    rows = query.limit(cap + 1).all()
+    if len(rows) > cap:
+        raise _Truncated
+    return rows
 
 
 def fold(value: str) -> str:
@@ -57,7 +73,7 @@ def split_name(name: str) -> tuple[str, str]:
 
 
 def _club_ids(db: Session, sheet_clubs: Iterable[str]) -> dict[str, int]:
-    clubs = db.query(Club.id, Club.name, Club.short_name).filter(Club.archived_at.is_(None)).limit(500).all()
+    clubs = _bounded(db.query(Club.id, Club.name, Club.short_name).filter(Club.archived_at.is_(None)), MAX_CLUBS)
     out = {}
     for sheet in sheet_clubs:
         f = fold(sheet)
@@ -70,25 +86,25 @@ def _club_ids(db: Session, sheet_clubs: Iterable[str]) -> dict[str, int]:
 
 def _names_by_user(db: Session, club_ids: set[int]) -> dict[int, tuple[set[str], set[str]]]:
     """user_id -> (account names, owned diver names + aliases), folded."""
-    rows = db.query(AppUser.id, AppUser.display_name, ClubMembership.club_id).join(
+    rows = _bounded(db.query(AppUser.id, AppUser.display_name, ClubMembership.club_id).join(
         ClubMembership, ClubMembership.user_id == AppUser.id).filter(
         ClubMembership.club_id.in_(club_ids), ClubMembership.status == "active", ClubMembership.ended_at.is_(None),
-        AppUser.is_active.is_(True)).limit(5000).all()
+        AppUser.is_active.is_(True)), MAX_CANDIDATE_ROWS)
     names: dict[int, tuple[set[str], set[str]]] = {}
     clubs_of: dict[int, set[int]] = defaultdict(set)
     for uid, display, cid in rows:
         names.setdefault(uid, ({fold(display)}, set()))
         clubs_of[uid].add(cid)
     if names:
-        owned = db.query(UserDiverAccess.user_id, Diver.id, Diver.display_name).join(
+        owned = _bounded(db.query(UserDiverAccess.user_id, Diver.id, Diver.display_name).join(
             Diver, Diver.id == UserDiverAccess.diver_id).filter(
-            UserDiverAccess.user_id.in_(names), UserDiverAccess.access_kind == "OWNER").all()
+            UserDiverAccess.user_id.in_(names), UserDiverAccess.access_kind == "OWNER"), MAX_CANDIDATE_ROWS)
         diver_users = defaultdict(set)
         for uid, did, dname in owned:
             names[uid][1].add(fold(dname))
             diver_users[did].add(uid)
-        aliases = db.query(DiverAlias.diver_id, DiverAlias.alias).filter(
-            DiverAlias.diver_id.in_(diver_users)).limit(5000) if diver_users else []
+        aliases = _bounded(db.query(DiverAlias.diver_id, DiverAlias.alias).filter(
+            DiverAlias.diver_id.in_(diver_users)), MAX_CANDIDATE_ROWS) if diver_users else []
         for did, alias in aliases:
             for uid in diver_users[did]:
                 names[uid][1].add(fold(alias))
@@ -145,10 +161,14 @@ def auto_links(db: Session, entries: list, exclude_users: frozenset | set = froz
     """Map index in `entries` (objects with diver_name, birth_year, club_name)
     to the one account it unambiguously belongs to. Accounts an administrator
     already tied to someone (`exclude_users`) are never candidates."""
-    clubs = _club_ids(db, {e.club_name for e in entries if " / " not in e.diver_name})
-    if not clubs:
+    try:
+        clubs = _club_ids(db, {e.club_name for e in entries if " / " not in e.diver_name})
+        if not clubs:
+            return {}
+        everyone = _names_by_user(db, set(clubs.values()))
+    except _Truncated:
         return {}
-    users = {uid: v for uid, v in _names_by_user(db, set(clubs.values())).items() if uid not in exclude_users}
+    users = {uid: v for uid, v in everyone.items() if uid not in exclude_users}
     person_user: dict[tuple, Optional[int]] = {}
     person_of: dict[int, tuple] = {}
     for i, e in enumerate(entries):
