@@ -234,11 +234,13 @@ export default function OccurrenceView({ ctx, occurrenceId }: { ctx: CalendarCon
       )}
 
       <section className="ca-panel cal-list">
-        <div className="cal-list-row">
-          <Star size={18} aria-hidden="true" /><span className="cal-list-main"><b>{t.followChanges}</b></span>
-          <button type="button" role="switch" className="cal-switch" aria-checked={event.following} aria-label={t.followChanges} disabled={busy}
-            onClick={() => act(() => calendarApi.followEvent(event.id, !event.following), undefined, { following: !event.following })} />
-        </div>
+        {(!occ.open_access || event.can_edit) && (
+          <div className="cal-list-row">
+            <Star size={18} aria-hidden="true" /><span className="cal-list-main"><b>{t.followChanges}</b></span>
+            <button type="button" role="switch" className="cal-switch" aria-checked={event.following} aria-label={t.followChanges} disabled={busy}
+              onClick={() => act(() => calendarApi.followEvent(event.id, !event.following), undefined, { following: !event.following })} />
+          </div>
+        )}
         <a className="cal-list-row" href={`/api/v1/calendar/occurrences/${occ.id}/export.ics`} download>
           <CalendarPlus size={18} aria-hidden="true" /><span className="cal-list-main"><b>{t.addToCalendar}</b></span><ChevronRight size={16} aria-hidden="true" />
         </a>
@@ -287,6 +289,7 @@ function OpenTrainingPanel({ eventId, onChanged }: { eventId: number; onChanged:
   const [startsOn, setStartsOn] = useState("");
   const [endsOn, setEndsOn] = useState("");
   const [busy, setBusy] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [revision, setRevision] = useState(0);
 
@@ -299,12 +302,29 @@ function OpenTrainingPanel({ eventId, onChanged }: { eventId: number; onChanged:
         setStartsOn((cur) => cur || res.default_starts_on || "");
         setEndsOn((cur) => cur || res.default_ends_on || "");
       })
-      .catch(() => { if (live) setData(null); });
+      .catch(() => { if (live) setData((cur) => cur ?? null); });
     return () => { live = false; };
   }, [eventId, revision]);
 
   if (!data || !data.clubs.length) return null;
   const fmt = (d: string) => new Intl.DateTimeFormat(lang, { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" }).format(utc(d));
+
+  const loadMore = async () => {
+    if (!data.next_cursor || loadingMore) return;
+    setLoadingMore(true);
+    setError(null);
+    try {
+      const next = await calendarApi.eventTrainingOpenings(eventId, data.next_cursor);
+      setData((cur) => {
+        if (!cur || cur.event_id !== eventId) return cur;
+        const seen = new Set(cur.clubs.map((c) => c.club_id));
+        const extra = next.clubs.filter((c) => !seen.has(c.club_id));
+        return { ...cur, clubs: [...cur.clubs, ...extra], next_cursor: next.next_cursor ?? null };
+      });
+    } catch {
+      setError(t.retrySave);
+    } finally { setLoadingMore(false); }
+  };
 
   const add = async (clubId: number, groupId: number) => {
     setBusy(true);
@@ -373,6 +393,13 @@ function OpenTrainingPanel({ eventId, onChanged }: { eventId: number; onChanged:
           </div>
         );
       })}
+      {data.next_cursor != null && (
+        <div className="cal-list-row">
+          <button type="button" className="ca-pill" disabled={loadingMore || busy} onClick={loadMore}>
+            {t.openTrainingMore}
+          </button>
+        </div>
+      )}
       {error && <p role="alert" className="cal-notice is-bad">{error}</p>}
     </section>
   );

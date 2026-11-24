@@ -84,3 +84,25 @@ it('lets club publishers open training windows from a competition page', async (
   fireEvent.click(await screen.findByRole('button', {name: 'Retirer'}))
   await waitFor(() => expect(calendarApi.deleteTrainingOpening).toHaveBeenCalledWith(1, 99))
 })
+
+it('paginates additional clubs when eventTrainingOpenings returns next_cursor', async () => {
+  const compEvent = {...event, id: 25, title: 'Nationale Été', event_type: 'competition', calendar_kind: 'federal'}
+  vi.mocked(calendarApi.event).mockResolvedValue(compEvent as never)
+  vi.mocked(calendarApi.results).mockResolvedValue({available: false, can_import: false, results: null})
+  vi.mocked(calendarApi.occurrence).mockResolvedValue({id: 26, event: compEvent, local_date: '2026-06-14',
+    local_end_date: '2026-06-14', is_all_day: true, status: 'scheduled', can_report_absence: false,
+    my_absence_reported: false, changes: [], going: {interested: 0, maybe: 0, people: []}} as never)
+  vi.mocked(calendarApi.eventTrainingOpenings).mockImplementation(async (_, cursor) => (cursor ? {
+    event_id: 25, default_starts_on: '2026-06-01', default_ends_on: '2026-06-13', next_cursor: null,
+    clubs: [{club_id: 2, club_name: 'Club B', groups: [{id: 4, club_id: 2, slug: 'conf-b', name: 'Confirmés B'}], openings: []}],
+  } : {
+    event_id: 25, default_starts_on: '2026-06-01', default_ends_on: '2026-06-13', next_cursor: 1,
+    clubs: [{club_id: 1, club_name: 'Club A', groups: [{id: 2, club_id: 1, slug: 'conf-a', name: 'Confirmés A'}], openings: []}],
+  }) as never)
+
+  render(<MemoryRouter><OccurrenceView occurrenceId={26} ctx={{me: [], calendars: [], refresh: vi.fn()}}/></MemoryRouter>)
+  fireEvent.click(await screen.findByRole('button', {name: 'Afficher plus de clubs'}))
+  await waitFor(() => expect(calendarApi.eventTrainingOpenings).toHaveBeenLastCalledWith(25, 1))
+  expect(await screen.findByRole('option', {name: 'Confirmés B'})).toBeInTheDocument()
+  expect(screen.queryByRole('button', {name: 'Afficher plus de clubs'})).toBeNull()
+})

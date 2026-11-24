@@ -528,7 +528,17 @@ def follow_calendar(db: Session, user: AppUser, calendar_id: int, on: bool) -> N
 
 
 def follow_event(db: Session, user: AppUser, event_id: int, on: bool) -> None:
-    visible_event(db, user, event_id)
+    if on:
+        row = db.query(CalendarEvent).join(Calendar, Calendar.id == CalendarEvent.calendar_id).filter(
+            CalendarEvent.id == event_id,
+            access.event_visible_clause(user, include_openings=False),
+        ).one_or_none()
+        if row is None:
+            # Distinguishes opening-only visibility (403) from missing/hidden event (404).
+            visible_event(db, user, event_id)
+            fail(403, "forbidden", "Event-wide following is not available for temporary open sessions")
+    else:
+        visible_event(db, user, event_id)
     row = db.get(CalendarEventFollow, (event_id, user.id))
     if on and row is None:
         db.add(CalendarEventFollow(event_id=event_id, user_id=user.id))

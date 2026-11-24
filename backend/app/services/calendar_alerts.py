@@ -474,8 +474,23 @@ def expand_one(db: Session, outbox: CalendarAlertOutbox, now: datetime) -> int:
         everyone += _group_members(db, event, calendar, now.date())
         for uid in everyone:
             per_user.setdefault(uid, set()).update(affected)
-        for (uid,) in db.query(CalendarEventFollow.user_id).filter(
-                CalendarEventFollow.event_id == event.id).limit(MAX_RECIPIENTS):
+        follower_ids = [uid for (uid,) in db.query(CalendarEventFollow.user_id).filter(
+            CalendarEventFollow.event_id == event.id).limit(MAX_RECIPIENTS)]
+        if follower_ids and event.event_type == "training" and event.audience == "group" and calendar.club_id is not None:
+            # Event-wide follow alerts must never leak outside-window group sessions
+            # to opening-only visitors (e.g. a member who followed before transferring
+            # groups). Only full event viewers (group members already in per_user,
+            # club staff, or organizer) may receive event-wide follow alerts.
+            allowed_followers = {uid for (uid,) in db.query(ClubMembership.user_id).filter(
+                ClubMembership.club_id == calendar.club_id,
+                ClubMembership.ended_at.is_(None),
+                ClubMembership.role.in_(access.STAFF_ROLES),
+                ClubMembership.user_id.in_(follower_ids),
+            ).limit(MAX_RECIPIENTS)}
+            if event.organizer_user_id in follower_ids:
+                allowed_followers.add(event.organizer_user_id)
+            follower_ids = [uid for uid in follower_ids if uid in allowed_followers]
+        for uid in follower_ids:
             if uid not in per_user:
                 follow_only.add(uid)
                 per_user[uid] = set(affected)

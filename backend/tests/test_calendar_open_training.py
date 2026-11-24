@@ -562,3 +562,46 @@ def test_event_opening_scopes_paginates_clubs_via_cursor(cal, monkeypatch):
     ).json()
     assert len(p2["clubs"]) == 1 and p2["next_cursor"] is None
     assert {p1["clubs"][0]["club_id"], p2["clubs"][0]["club_id"]} == {club_k_id, club_o_id}
+
+
+def test_opening_only_visitor_cannot_follow_whole_event_or_get_outside_change_alerts(cal):
+    """Opening-only visitors cannot subscribe to event-wide follow alerts, and a
+    stale follow row from before a group transfer never leaks outside-window changes."""
+    from app.models.calendar import CalendarAlertOutbox, CalendarEventFollow
+
+    s = _setup_kcpm_window(cal)
+    db = cal["db"]
+    club_id = cal["clubs"]["k"].id
+    g_conf_id = cal["groups"]["b"].id
+    bob_id = cal["users"]["bob"].id
+
+    mgr = cal["login"]("manager")
+    assert mgr.post(
+        f"/api/v1/calendar/clubs/{club_id}/training-openings",
+        json={"eligible_group_id": g_conf_id, "competition_event_id": s["comp_id"]},
+        headers=_headers(),
+    ).status_code == 201
+
+    # Bob (opening-only visitor on ev_deb) cannot follow the whole series.
+    bob = cal["login"]("bob")
+    assert bob.put(f"/api/v1/calendar/events/{s['ev_deb_id']}/follow", headers=_headers()).status_code == 403
+
+    # Even if Bob has a pre-existing follow row (e.g. from before transferring out of Débutants),
+    # editing an outside-window occurrence must not deliver a calendar_follow alert to him.
+    db.add(CalendarEventFollow(event_id=s["ev_deb_id"], user_id=bob_id))
+    db.commit()
+    db.expunge_all()
+
+    coach = cal["login"]("coach")
+    occ_after = db.get(EventOccurrence, s["deb_after_id"])
+    assert coach.patch(
+        f"/api/v1/calendar/occurrences/{s['deb_after_id']}",
+        json={"expected_version": occ_after.version, "venue_name": "Autre Piscine"},
+        headers=_headers(),
+    ).status_code == 200
+
+    outbox = db.query(CalendarAlertOutbox).filter_by(event_id=s["ev_deb_id"]).order_by(CalendarAlertOutbox.id.desc()).first()
+    alerts.expand_one(db, outbox, datetime.utcnow())
+    db.commit()
+    leaked = db.query(CalendarAlertDelivery).filter_by(user_id=bob_id, event_id=s["ev_deb_id"]).all()
+    assert leaked == []

@@ -238,23 +238,8 @@ export const calendarApi = {
   }) => request<TrainingOpening>(`/clubs/${clubId}/training-openings`, json('POST', body)),
   deleteTrainingOpening: (clubId: number, openingId: number) =>
     request<void>(`/clubs/${clubId}/training-openings/${openingId}`, { method: 'DELETE' }),
-  async eventTrainingOpenings(eventId: number): Promise<EventTrainingOpenings> {
-    let cursor: number | null = null
-    let result: EventTrainingOpenings | null = null
-    for (let page = 0; page < 20; page++) {
-      const q = cursor ? `?after_club_id=${cursor}` : ''
-      const data: EventTrainingOpenings = await request(`/events/${eventId}/training-openings${q}`)
-      if (result === null) {
-        result = { ...data, clubs: [...data.clubs] }
-      } else {
-        result.clubs.push(...data.clubs)
-        result.next_cursor = data.next_cursor ?? null
-      }
-      cursor = data.next_cursor ?? null
-      if (!cursor) break
-    }
-    return result ?? { event_id: eventId, default_starts_on: null, default_ends_on: null, clubs: [], next_cursor: null }
-  },
+  eventTrainingOpenings: (eventId: number, afterClubId?: number | null) =>
+    request<EventTrainingOpenings>(`/events/${eventId}/training-openings${afterClubId ? `?after_club_id=${afterClubId}` : ''}`),
   assignGroup: (clubId: number, user_id: number, group_id: number | null, effective_from: string) =>
     request<unknown>(`/clubs/${clubId}/group-assignment`, json('PUT', { user_id, group_id, effective_from })),
   updateMembership: (clubId: number, membershipId: number, body: { role?: Role; can_publish?: boolean; can_assign_groups?: boolean }) =>
