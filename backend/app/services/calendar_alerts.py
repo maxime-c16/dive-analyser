@@ -675,7 +675,8 @@ def suppression_reason(db: Session, d: CalendarAlertDelivery, now: datetime) -> 
     if d.occurrence_id:
         visible = access.visible_occurrences(db, user).filter(EventOccurrence.id == d.occurrence_id).first()
     else:
-        visible = access.visible_events(db, user).filter(CalendarEvent.id == d.event_id).first()
+        # Event-wide deliveries (no occurrence_id) require full event visibility, never per-occurrence openings.
+        visible = access.visible_events(db, user, include_openings=False).filter(CalendarEvent.id == d.event_id).first()
     if visible is None:
         return "no_access"
     if d.kind == "reminder":

@@ -430,14 +430,22 @@ def revoke_invitation(db: Session, user: AppUser, event_id: int, invitee_id: int
         row.status, row.revoked_at = "revoked", datetime.utcnow()
         db.flush()
         target = db.get(AppUser, invitee_id)
-        still_visible = target is not None and access.visible_events(db, target).filter(
-            CalendarEvent.id == event.id).first() is not None
-        if not still_visible:  # no other grant: drop their active participation
+        still_full = target is not None and access.visible_events(
+            db, target, include_openings=False).filter(CalendarEvent.id == event.id).first() is not None
+        if not still_full:  # no full event grant: drop follow and non-visible occurrence participation
             occurrence_ids = db.query(EventOccurrence.id).filter(EventOccurrence.event_id == event.id)
-            db.query(OccurrenceInterest).filter(
+            keep_occ_ids = (
+                access.visible_occurrences(db, target).filter(EventOccurrence.event_id == event.id)
+                .with_entities(EventOccurrence.id).scalar_subquery()
+                if target is not None else None
+            )
+            interest_q = db.query(OccurrenceInterest).filter(
                 OccurrenceInterest.user_id == invitee_id,
-                OccurrenceInterest.occurrence_id.in_(occurrence_ids.scalar_subquery())).delete(
-                synchronize_session=False)
+                OccurrenceInterest.occurrence_id.in_(occurrence_ids.scalar_subquery()),
+            )
+            if keep_occ_ids is not None:
+                interest_q = interest_q.filter(OccurrenceInterest.occurrence_id.notin_(keep_occ_ids))
+            interest_q.delete(synchronize_session=False)
             db.query(CalendarEventFollow).filter_by(event_id=event.id, user_id=invitee_id).delete(
                 synchronize_session=False)
         db.flush()

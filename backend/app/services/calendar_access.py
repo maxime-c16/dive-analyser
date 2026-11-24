@@ -241,9 +241,10 @@ def resource_visible_clause(user: Optional[AppUser]):
 
 # --- Query builders --------------------------------------------------------
 
-def visible_events(db: Session, user: AppUser, on: Optional[date] = None):
+def visible_events(db: Session, user: AppUser, on: Optional[date] = None, *, include_openings: Optional[bool] = None):
+    allow_openings = openings_schema_ready(db) if include_openings is None else include_openings
     return db.query(CalendarEvent).join(Calendar, Calendar.id == CalendarEvent.calendar_id).filter(
-        event_visible_clause(user, on, include_openings=openings_schema_ready(db)))
+        event_visible_clause(user, on, include_openings=allow_openings))
 
 
 def visible_occurrences(db: Session, user: AppUser, on: Optional[date] = None):
@@ -258,12 +259,13 @@ def visible_calendars(db: Session, user: AppUser, on: Optional[date] = None):
 
 
 def visible_event_resources(db: Session, user: AppUser, event_ids):
+    """Event-level resources require full event visibility, never per-occurrence openings."""
     if not event_ids:
         return []
     return db.query(EventResource).join(CalendarEvent, CalendarEvent.id == EventResource.event_id).join(
         Calendar, Calendar.id == CalendarEvent.calendar_id).filter(
         EventResource.event_id.in_(list(event_ids)),
-        event_visible_clause(user, include_openings=openings_schema_ready(db)),
+        event_visible_clause(user, include_openings=False),
         resource_visible_clause(user)).order_by(EventResource.id).limit(MAX_RESOURCE_RESULTS).all()
 
 

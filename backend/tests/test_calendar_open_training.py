@@ -605,3 +605,66 @@ def test_opening_only_visitor_cannot_follow_whole_event_or_get_outside_change_al
     db.commit()
     leaked = db.query(CalendarAlertDelivery).filter_by(user_id=bob_id, event_id=s["ev_deb_id"]).all()
     assert leaked == []
+
+
+def test_opening_only_visitor_does_not_receive_event_level_resources_or_event_wide_alerts(cal):
+    """Event-level resources (URLs/deadlines) and event-wide alert deliveries
+    require full event visibility, never per-occurrence training openings."""
+    from app.models.calendar import EventResource
+
+    s = _setup_kcpm_window(cal)
+    db = cal["db"]
+    club_id = cal["clubs"]["k"].id
+    g_conf_id = cal["groups"]["b"].id
+    bob_id = cal["users"]["bob"].id
+
+    db.add(EventResource(
+        event_id=s["ev_deb_id"], kind="registration", label="Groupe A Sheet",
+        url="https://example.test/groupe-a-private", restricted_to_club=False,
+    ))
+    db.add(EventResource(
+        event_id=s["ev_deb_id"], kind="club_chat", label="Groupe A Chat",
+        url="https://example.test/groupe-a-chat", restricted_to_club=True,
+    ))
+    db.commit()
+    db.expunge_all()
+
+    mgr = cal["login"]("manager")
+    assert mgr.post(
+        f"/api/v1/calendar/clubs/{club_id}/training-openings",
+        json={"eligible_group_id": g_conf_id, "competition_event_id": s["comp_id"]},
+        headers=_headers(),
+    ).status_code == 201
+
+    # Alice (full member of Débutants) sees both resources on occurrence and event detail.
+    alice = cal["login"]("alice")
+    alice_occ = alice.get(f"/api/v1/calendar/occurrences/{s['deb_inside_id']}").json()
+    alice_ev = alice.get(f"/api/v1/calendar/events/{s['ev_deb_id']}").json()
+    assert {"Groupe A Sheet", "Groupe A Chat"}.issubset({r["label"] for r in alice_occ["resources"]})
+    assert {"Groupe A Sheet", "Groupe A Chat"}.issubset({r["label"] for r in alice_ev["resources"]})
+
+    # Bob (opening-only visitor from Confirmés) receives NO event-level resources on either route.
+    bob = cal["login"]("bob")
+    bob_occ = bob.get(f"/api/v1/calendar/occurrences/{s['deb_inside_id']}").json()
+    bob_ev = bob.get(f"/api/v1/calendar/events/{s['ev_deb_id']}").json()
+    assert bob_occ["open_access"] is True
+    assert bob_occ["resources"] == []
+    assert bob_ev["resources"] == []
+
+    # Event-wide alert delivery (occurrence_id=None) is suppressed as no_access for Bob.
+    now = datetime.utcnow()
+    ev_delivery = CalendarAlertDelivery(
+        delivery_key=f"test-ev-wide-{bob_id}-{s['ev_deb_id']}",
+        user_id=bob_id,
+        kind="change",
+        notif_type="calendar_follow",
+        event_id=s["ev_deb_id"],
+        occurrence_id=None,
+        details={},
+        due_at=now - timedelta(minutes=1),
+        next_attempt_at=now - timedelta(minutes=1),
+        expires_at=now + timedelta(hours=2),
+    )
+    db.add(ev_delivery)
+    db.commit()
+    assert alerts.suppression_reason(db, ev_delivery, now) == "no_access"
