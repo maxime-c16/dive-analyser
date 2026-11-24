@@ -1,8 +1,9 @@
 """Store and read official meet results for a competition calendar event.
 
-Writers: only `replace` and `delete`, both under the calendar event's row
-lock (`calendar_events.editable_event`) and the same publish permission as
-editing the event. Readers see results exactly when they can see the event.
+Writers: `replace` and `delete` (under the calendar event's row lock and the
+same publish permission as editing the event), and the administrator link
+decisions `set_link` / `clear_link`. Imports and link decisions also share
+one transaction lock (`meet_result_links.lock_links`). Readers see results exactly when they can see the event.
 Reads are bounded by the import caps in meet_results_pdf (a fixed number of
 queries, independent of row count).
 
@@ -55,7 +56,8 @@ def date_matches(db: Session, event: CalendarEvent, meet_date: Optional[date]) -
     None when the sheet has no date."""
     if meet_date is None:
         return None
-    rows = db.query(EventOccurrence).filter(EventOccurrence.event_id == event.id).limit(200).all()
+    rows = db.query(EventOccurrence).filter(EventOccurrence.event_id == event.id,
+                                            EventOccurrence.status != "cancelled").limit(200).all()
     for o in rows:
         if o.is_all_day:
             first, last = o.start_date, o.end_date - timedelta(days=1)  # end date is exclusive
@@ -68,8 +70,11 @@ def date_matches(db: Session, event: CalendarEvent, meet_date: Optional[date]) -
 
 
 def preview(db: Session, user: AppUser, event_id: int, parsed: ParsedMeet) -> dict:
-    event, _calendar = events.editable_event(db, user, event_id)
+    # Read-only: same permission as saving, without the event row lock.
+    event, calendar = events.visible_event(db, user, event_id)
     _require_competition(event)
+    if not events.can_edit(db, user, calendar):
+        fail(403, "forbidden", "Only the organizer or an authorized club publisher can change this event")
     replaces = db.query(MeetResult.id).filter(MeetResult.calendar_event_id == event.id).first() is not None
     # Count only links this importer could see on the page: a preview must not
     # reveal whether a hidden account matches a name on the sheet.
@@ -82,7 +87,7 @@ def preview(db: Session, user: AppUser, event_id: int, parsed: ParsedMeet) -> di
         "warnings": parsed.warnings, "warnings_truncated": parsed.warnings_truncated, "replaces": replaces,
         "linked_count": len(_visible_accounts(db, user, linked)),
     }
-    db.rollback()  # release the event lock; nothing was written
+    db.rollback()  # nothing was written
     return out
 
 
@@ -96,7 +101,7 @@ def replace(db: Session, user: AppUser, event_id: int, parsed: ParsedMeet, sourc
     lock_links(db)
     # Bulk SQL delete: ON DELETE CASCADE removes the previous events/entries/dives.
     db.query(MeetResult).filter(MeetResult.calendar_event_id == event.id).delete(synchronize_session=False)
-    result = MeetResult(calendar_event_id=event.id, source_name=source_name[:200] or "results.pdf",
+    result = MeetResult(calendar_event_id=event.id, source_name=source_name.strip()[:200] or "results.pdf",
                         source_sha256=hashlib.sha256(raw).hexdigest(), meet_date=parsed.meet_date,
                         imported_by_user_id=user.id)
     db.add(result)
@@ -194,12 +199,12 @@ def read(db: Session, user: AppUser, event_id: int, summary: bool = False) -> di
 MAX_RELINK_MEETS = 200
 
 
-def relink_meet(db: Session, result_id: int) -> None:
+def relink_meet(db: Session, result_id: int, cache: Optional[dict] = None) -> None:
     """Recompute every row's account link in one meet from the current admin
     decisions plus automatic matching (the same rule as at import)."""
     rows = db.query(MeetResultEntry).join(MeetResultEvent, MeetResultEvent.id == MeetResultEntry.event_id).filter(
         MeetResultEvent.result_id == result_id).order_by(MeetResultEntry.event_id, MeetResultEntry.position).all()
-    links = resolve(db, rows)
+    links = resolve(db, rows, cache)
     for i, row in enumerate(rows):
         row.user_id, row.link_source = links.get(i, (None, None))
 
@@ -242,8 +247,9 @@ def set_link(db: Session, admin: AppUser, entry_id: int, user_id: Optional[int])
     except IntegrityError:
         db.rollback()
         fail(409, "conflict", "Conflicting concurrent change")
+    cache: dict = {}
     for rid in _all_meets(db):
-        relink_meet(db, rid)
+        relink_meet(db, rid, cache)
 
 
 def clear_link(db: Session, admin: AppUser, entry_id: int) -> None:
@@ -255,17 +261,21 @@ def clear_link(db: Session, admin: AppUser, entry_id: int) -> None:
         return
     db.delete(decision)
     db.flush()
+    cache: dict = {}
     for rid in _all_meets(db):
-        relink_meet(db, rid)
+        relink_meet(db, rid, cache)
 
 
 def account_candidates(db: Session, q: str, limit: int = 10) -> list[dict]:
     """Active accounts whose name, or an owned diver's name, contains `q`."""
-    needle = f"%{q.strip().lower()}%"
+    q = q.strip().lower().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    if len(q) < 2:
+        return []
+    needle = f"%{q}%"
     owned = db.query(UserDiverAccess.user_id).join(Diver, Diver.id == UserDiverAccess.diver_id).filter(
-        UserDiverAccess.access_kind == "OWNER", func.lower(Diver.display_name).like(needle))
+        UserDiverAccess.access_kind == "OWNER", func.lower(Diver.display_name).like(needle, escape="\\"))
     users = db.query(AppUser).filter(AppUser.is_active.is_(True), or_(
-        func.lower(AppUser.display_name).like(needle), AppUser.id.in_(owned))).order_by(
+        func.lower(AppUser.display_name).like(needle, escape="\\"), AppUser.id.in_(owned))).order_by(
         AppUser.display_name, AppUser.id).limit(limit).all()
     divers: dict[int, list[str]] = {}
     if users:

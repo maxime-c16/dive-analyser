@@ -50,7 +50,7 @@ it('shows each event ranking as printed, with dives, penalties and exit states',
 
   fireEvent.click(screen.getByRole('tab', {name: 'Elite - Messieurs - HV'}))
   expect(screen.getByRole('tab', {name: 'Elite - Messieurs - HV'})).toHaveAttribute('aria-selected', 'true')
-  const dan = screen.getByRole('button', {name: /Dan DEMO/})
+  const dan = screen.getByText('Dan DEMO').closest('.meet-entry-row') as HTMLElement
   expect(within(dan).getByText('Abandon')).toBeInTheDocument()
   expect(within(dan).getByText('Invité·e')).toBeInTheDocument()
 })
@@ -78,9 +78,9 @@ it('previews a PDF before saving and reports a sheet dated outside the event', a
   await screen.findByRole('button', {name: /Importer les résultats/})
   const file = new File(['%PDF-1.4'], 'idf.pdf', {type: 'application/pdf'})
   fireEvent.change(container.querySelector('input[type=file]')!, {target: {files: [file]}})
-  expect(await screen.findByText('1 épreuves · 3 plongeurs · 6 plongeons')).toBeInTheDocument()
+  expect(await screen.findByText('1 épreuve · 3 plongeurs · 6 plongeons')).toBeInTheDocument()
   expect(screen.getByText(/hors des dates/)).toBeInTheDocument()
-  expect(screen.getByText('1 lignes à vérifier')).toBeInTheDocument()
+  expect(screen.getByText('1 ligne à vérifier')).toBeInTheDocument()
   expect(screen.getByText('Ligne 9 : non reconnue, ignorée')).toBeInTheDocument()
   expect(screen.getByText('D’autres lignes à vérifier ne sont pas listées.')).toBeInTheDocument()
   expect(screen.getByText('2 reliés à un compte')).toBeInTheDocument()
@@ -108,7 +108,7 @@ it('explains a rejected file and ignores a slower preview of an earlier pick', a
 
   fireEvent.change(input, {target: {files: [new File(['%PDF'], 'old.pdf')]}})
   fireEvent.change(input, {target: {files: [new File(['%PDF'], 'new.pdf')]}})
-  expect(await screen.findByText('1 épreuves · 1 plongeurs · 2 plongeons')).toBeInTheDocument()
+  expect(await screen.findByText('1 épreuve · 1 plongeur · 2 plongeons')).toBeInTheDocument()
   releaseFirst(preview(99))
   await new Promise((r) => setTimeout(r, 0))
   expect(screen.queryByText(/99 plongeons/)).toBeNull()
@@ -186,4 +186,24 @@ it('keeps Discard disabled while a save is in flight', async () => {
   fireEvent.change(container.querySelector('input[type=file]')!, {target: {files: [new File(['%PDF'], 'a.pdf')]}})
   fireEvent.click(await screen.findByRole('button', {name: 'Enregistrer les résultats'}))
   expect(screen.getByRole('button', {name: 'Abandonner'})).toBeDisabled()
+})
+
+it('returns a manually linked person to automatic matching', async () => {
+  const women = page.results!.events[0]
+  vi.mocked(calendarApi.results).mockResolvedValue({...page, can_manage_links: true,
+    results: {...page.results!, events: [{...women, entries: [{...women.entries[0], linkable: true, link_source: 'admin', account: null}]}]}})
+  vi.mocked(calendarApi.clearResultLink).mockResolvedValue(undefined)
+  view()
+  fireEvent.click(await screen.findByRole('button', {name: /Anna TESTA/}))
+  expect(screen.getByText('Jamais relié')).toBeInTheDocument()
+  expect(screen.queryByRole('button', {name: 'Ne jamais relier'})).toBeNull()
+  fireEvent.click(screen.getByRole('button', {name: 'Revenir à l’automatique'}))
+  await waitFor(() => expect(calendarApi.clearResultLink).toHaveBeenCalledWith(10))
+})
+
+it('does not offer to expand a row with nothing behind it', async () => {
+  view()
+  fireEvent.click(await screen.findByRole('tab', {name: 'Elite - Messieurs - HV'}))
+  expect(screen.queryByRole('button', {name: /Dan DEMO/})).toBeNull()
+  expect(screen.getByText('Dan DEMO')).toBeInTheDocument()
 })

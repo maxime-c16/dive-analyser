@@ -89,8 +89,10 @@ def _club_ids(db: Session, sheet_clubs: Iterable[str]) -> dict[str, int]:
     out = {}
     for sheet in sheet_clubs:
         f = fold(sheet)
-        hits = {cid for cid, name, short in clubs
-                if (len(f) >= MIN_CLUB_PREFIX and fold(name).startswith(f)) or (short and f == fold(short))}
+        # An exact name or short name wins over a truncated prefix ("Club X" vs "Club X Nord").
+        hits = {cid for cid, name, short in clubs if f == fold(name) or (short and f == fold(short))}
+        if not hits:
+            hits = {cid for cid, name, short in clubs if len(f) >= MIN_CLUB_PREFIX and fold(name).startswith(f)}
         if len(hits) == 1:
             out[sheet] = hits.pop()
     return out
@@ -176,30 +178,39 @@ def decisions(db: Session, keys: Iterable[str]) -> dict[str, Optional[int]]:
         MeetPersonLink.person_key.in_(keys)).all())
 
 
-def resolve(db: Session, entries: list) -> dict[int, tuple[Optional[int], str]]:
+def resolve(db: Session, entries: list, cache: Optional[dict] = None) -> dict[int, tuple[Optional[int], str]]:
     """Index in `entries` -> (user_id, source) for every row that has a link
-    decision: 'admin' rows (user_id may be None) win over 'auto' matches."""
+    decision: 'admin' rows (user_id may be None) win over 'auto' matches.
+    `cache` (one per request) shares candidate lookups across meets."""
     from app.models.meet_results import MeetPersonLink
     keys = [key_of(e) for e in entries]
     decided = decisions(db, keys)
     out: dict[int, tuple[Optional[int], str]] = {i: (decided[k], "admin") for i, k in enumerate(keys) if k in decided}
-    # Every account an administrator tied to anyone, on any sheet (indexed).
-    taken = {uid for (uid,) in db.query(MeetPersonLink.user_id).filter(MeetPersonLink.user_id.isnot(None)).distinct()}
+    cache = {} if cache is None else cache
+    if "taken" not in cache:
+        # Every account an administrator tied to anyone, on any sheet (indexed).
+        cache["taken"] = {uid for (uid,) in db.query(MeetPersonLink.user_id).filter(
+            MeetPersonLink.user_id.isnot(None)).distinct()}
     rest = [i for i in range(len(entries)) if i not in out]
-    auto = auto_links(db, [entries[i] for i in rest], exclude_users=taken)
+    auto = auto_links(db, [entries[i] for i in rest], exclude_users=cache["taken"], cache=cache)
     out.update({rest[j]: (uid, "auto") for j, uid in auto.items()})
     return out
 
 
-def auto_links(db: Session, entries: list, exclude_users: frozenset | set = frozenset()) -> dict[int, int]:
+def auto_links(db: Session, entries: list, exclude_users: frozenset | set = frozenset(),
+               cache: Optional[dict] = None) -> dict[int, int]:
     """Map index in `entries` (objects with diver_name, birth_year, club_name)
     to the one account it unambiguously belongs to. Accounts an administrator
     already tied to someone (`exclude_users`) are never candidates."""
+    cache = {} if cache is None else cache
     try:
         clubs = _club_ids(db, {e.club_name for e in entries if " / " not in e.diver_name})
         if not clubs:
             return {}
-        everyone = _names_by_user(db, set(clubs.values()))
+        club_set = frozenset(clubs.values())
+        if club_set not in cache:
+            cache[club_set] = _names_by_user(db, set(club_set))
+        everyone = cache[club_set]
     except _Truncated:
         return {}
     users = {uid: v for uid, v in everyone.items() if uid not in exclude_users}

@@ -110,12 +110,18 @@ export default function MeetResults({ eventId }: { eventId: number }) {
   );
 }
 
+const formats = new Map<string, { two: (n: number) => string; one: (n: number) => string; any: (n: number) => string }>();
 function useNumber() {
   const { lang } = useCalendarStrings();
-  const two = new Intl.NumberFormat(lang, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const one = new Intl.NumberFormat(lang, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
-  const any = new Intl.NumberFormat(lang, { maximumFractionDigits: 1 });
-  return { two: (n: number) => two.format(n), one: (n: number) => one.format(n), any: (n: number) => any.format(n) };
+  let f = formats.get(lang);
+  if (!f) {
+    const two = new Intl.NumberFormat(lang, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const one = new Intl.NumberFormat(lang, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+    const any = new Intl.NumberFormat(lang, { maximumFractionDigits: 1 });
+    f = { two: (n) => two.format(n), one: (n) => one.format(n), any: (n) => any.format(n) };
+    formats.set(lang, f);
+  }
+  return f;
 }
 
 function Entry({ entry, open, toggle, manage, reload }: {
@@ -124,9 +130,12 @@ function Entry({ entry, open, toggle, manage, reload }: {
   const { t } = useCalendarStrings();
   const fmt = useNumber();
   const podium = entry.rank && entry.rank <= 3 && !entry.status ? ` is-p${entry.rank}` : "";
+  // A row with nothing behind it (no dives, nothing to manage or open) is not a button.
+  const expandable = entry.dives.length > 0 || !!entry.account || (manage && !!entry.linkable);
+  const Row = expandable ? "button" : "div";
   return (
     <li className={`meet-entry${open ? " is-open" : ""}${entry.is_me ? " is-me" : ""}`}>
-      <button type="button" className="meet-entry-row" aria-expanded={open} onClick={toggle}>
+      <Row {...(expandable ? { type: "button" as const, "aria-expanded": open, onClick: toggle } : {})} className="meet-entry-row">
         <span className={`meet-rank${podium}`}>{entry.rank ?? "–"}</span>
         {entry.account && <MemberAvatar member={entry.account} size={32} />}
         <span className="meet-who">
@@ -140,8 +149,8 @@ function Entry({ entry, open, toggle, manage, reload }: {
           )}
         </span>
         <span className="meet-total">{fmt.two(entry.total)}</span>
-        <ChevronDown size={16} aria-hidden="true" className="meet-chevron" />
-      </button>
+        {expandable ? <ChevronDown size={16} aria-hidden="true" className="meet-chevron" /> : <span className="meet-chevron" />}
+      </Row>
       {open && manage && entry.linkable && <LinkManager entry={entry} reload={reload} />}
       {open && !manage && entry.account && (
         <Link className="meet-profile" to={`/users/${entry.account.user_id}`}>
@@ -156,7 +165,8 @@ function Entry({ entry, open, toggle, manage, reload }: {
                 <b>{d.dive_code}</b>
                 <small>{fmt.any(d.height)} m · {fmt.one(d.dd)}</small>
               </span>
-              <span className="meet-judges" aria-label={`${t.judges} ${d.judges.map(fmt.one).join(", ")}`}>
+              <span className="meet-judges">
+                <span className="sr-only">{t.judges} </span>
                 {d.judges.map((j, k) => <span key={k}>{fmt.one(j)}</span>)}
                 {d.penalty ? <span className="cal-chip is-warn">{t.penalty[d.penalty] ?? d.penalty}</span> : null}
               </span>
@@ -287,7 +297,7 @@ function ImportPanel({ eventId, hasResults, onSaved }: {
   return (
     <section className="ca-panel cal-list meet-import" aria-busy={busy}>
       <input ref={input} type="file" accept="application/pdf,.pdf" hidden
-        onChange={(e) => pick(e.target.files?.[0] ?? null)} />
+        onChange={(e) => { pick(e.target.files?.[0] ?? null); e.target.value = ""; }} />
       {!preview && (
         <button type="button" className="cal-list-row" disabled={busy} onClick={() => input.current?.click()}>
           <FileUp size={18} aria-hidden="true" />

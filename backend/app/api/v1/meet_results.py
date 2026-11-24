@@ -43,6 +43,9 @@ router = APIRouter(prefix="/calendar", dependencies=[Depends(calendar_gate), Dep
 
 
 async def _pdf_body(request: Request) -> bytes:
+    declared = request.headers.get("content-length")
+    if declared and declared.isdigit() and int(declared) > MAX_PDF_BYTES:
+        raise HTTPException(413, detail={"code": "too_large", "message": "The PDF must be at most 8 MB"})
     chunks, size = [], 0
     async for chunk in request.stream():
         size += len(chunk)

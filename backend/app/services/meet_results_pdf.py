@@ -40,6 +40,7 @@ MAX_EVENTS = 100
 MAX_ENTRIES = 2000
 MAX_DIVES = 20000
 MAX_WARNINGS = 50
+MAX_TEXT_CHARS = 2_000_000  # cumulative extracted text; a real 3-page sheet is ~10k
 MAX_JUDGES = 11
 
 # A number is followed by whitespace or the end: a digit glued to text is a penalty code.
@@ -187,16 +188,27 @@ def pdf_text(raw: bytes) -> str:
     """Text layer of a PDF, page by page. Bounded by MAX_PAGES."""
     if not raw.startswith(b"%PDF-"):
         raise MeetPdfError("not_pdf", "The file is not a PDF")
+    import zlib
     from pypdf import PdfReader
-    from pypdf.errors import PdfReadError
+    from pypdf.errors import DependencyError, PyPdfError
     try:
         reader = PdfReader(BytesIO(raw))
+        if reader.is_encrypted:
+            raise MeetPdfError("unreadable_pdf", "Encrypted PDFs are not supported")
         if len(reader.pages) > MAX_PAGES:
             raise MeetPdfError("too_many_pages", f"At most {MAX_PAGES} pages")
-        return "\n".join(page.extract_text() or "" for page in reader.pages)
+        parts, size = [], 0
+        for page in reader.pages:
+            text = page.extract_text() or ""
+            size += len(text)
+            if size > MAX_TEXT_CHARS:
+                raise MeetPdfError("too_large", "The PDF holds too much text")
+            parts.append(text)
+        return "\n".join(parts)
     except MeetPdfError:
         raise
-    except (PdfReadError, ValueError, KeyError, TypeError, AttributeError, InvalidOperation, RecursionError) as exc:
+    except (PyPdfError, DependencyError, zlib.error, NotImplementedError, ValueError, KeyError, TypeError,
+            AttributeError, IndexError, InvalidOperation, RecursionError, OverflowError) as exc:
         raise MeetPdfError("unreadable_pdf", "The PDF could not be read") from exc
 
 
@@ -267,8 +279,11 @@ def parse_text(text: str) -> ParsedMeet:
         found = _diver(line) if event is not None else None
         if found is not None:
             parsed, has_place = found
-            # Line B of a synchro pair: only in a synchro event, right after a line A with a place.
-            if pair_open and not has_place and entry is not None and not entry.dives and _SYNCHRO.search(event.title):
+            # Synchro events print pairs as line A (with the place) then line B (never a
+            # place): line B is the next diver line after A, whatever it ends with.
+            if pair_open and entry is not None and not entry.dives and _SYNCHRO.search(event.title):
+                if has_place:  # digits that ended line B's club, not a place
+                    parsed.club_name = f"{parsed.club_name} {parsed.rank or 0}".strip()[:120]
                 # Second line of a synchro pair: same result, two divers.
                 entry.diver_name = f"{entry.diver_name} / {parsed.diver_name}"[:120]
                 if parsed.club_name != entry.club_name:
@@ -282,6 +297,8 @@ def parse_text(text: str) -> ParsedMeet:
             if continuing and parsed.rank is not None and last is not None and (parsed.rank < last or parsed.rank == 1):
                 # Same title, places restart: a separate round, not a page continuation
                 # (an equal place across the page break is a tie and continues).
+                if len(events) >= MAX_EVENTS:
+                    raise MeetPdfError("too_large", f"At most {MAX_EVENTS} events")
                 event = ParsedEvent(title=event.title, board=event.board)
                 events.append(event)
             continuing = False

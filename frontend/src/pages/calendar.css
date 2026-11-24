@@ -324,7 +324,7 @@
 .meet-preview > small { color: var(--app-muted); overflow-wrap: anywhere; }
 .meet-warnings summary { cursor: pointer; font-size: 14px; color: var(--cal-maybe); }
 .meet-warnings ul { margin: 6px 0 0; padding-left: 18px; font-size: 13px; color: var(--app-muted); }
-.ca-pill.is-primary { border-color: var(--cal-competition); background: var(--cal-competition); color: #160b2e; font-weight: 600; }
+.meet .ca-pill.is-primary { border-color: var(--cal-competition); background: var(--cal-competition); color: #160b2e; font-weight: 600; }
 .meet-entry.is-me { background: linear-gradient(90deg, color-mix(in srgb, var(--app-accent) 14%, transparent), transparent 70%); box-shadow: inset 3px 0 0 var(--app-accent); }
 .meet-entry-row .member-avatar { flex: none; }
 .meet-profile { display: inline-flex; align-items: center; gap: 4px; margin: -4px 0 8px 60px; color: var(--app-accent); font-size: 13px; font-weight: 600; text-decoration: none; }
@@ -344,3 +344,7 @@
 .meet-link-state { margin: 4px 8px; font-size: 13px; color: var(--app-muted); }
 .meet-link-state.is-bad { color: var(--cal-bad); }
 .meet-warnings p { margin: 6px 0 0; font-size: 13px; color: var(--app-muted); }
+/* Small avatars in result rows: face only (as in other dense lists). */
+.meet .member-avatar-hud { display: none; }
+.meet .member-avatar-face { inset: 0; }
+div.meet-entry-row { cursor: default; }

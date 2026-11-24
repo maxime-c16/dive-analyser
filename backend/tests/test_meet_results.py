@@ -430,3 +430,69 @@ def test_date_check_uses_the_event_local_days(cal):  # noqa: F811
     assert date_matches(db, allday, date(2026, 11, 23)) is False
     assert date_matches(db, late, date(2026, 11, 22)) is True
     assert date_matches(db, late, date(2026, 11, 21)) is False
+
+
+def test_unreadable_and_encrypted_pdfs_are_coded_errors(monkeypatch):
+    from app.services import meet_results_pdf as pdf
+    with pytest.raises(MeetPdfError) as err:
+        pdf.pdf_text(b"%PDF-1.4\n%%EOF garbage")
+    assert err.value.code == "unreadable_pdf"
+
+    class Encrypted:
+        is_encrypted = True
+        pages = []
+    monkeypatch.setattr("pypdf.PdfReader", lambda _stream: Encrypted())
+    with pytest.raises(MeetPdfError) as err:
+        pdf.pdf_text(b"%PDF-1.4 x")
+    assert err.value.code == "unreadable_pdf"
+
+
+def test_synchro_line_b_ending_in_digits_stays_in_the_pair():
+    meet = parse_text(text(HEADER, "Synchro - Dames - 3m", "Ann A (2001) -- Club X 1", "Bea B (2002) -- Club 93",
+                           "301B 3 1,9 6,0 6,0 6,0 6,5 6,5 6,0 6,0   30,0 34,20 34,20 6,0 6,5 6,0 6,0  r",
+                           "Cid C (2003) -- Club X 2", "Dee D (2004) -- Club X"))
+    first, second = meet.events[0].entries
+    assert (first.diver_name, first.club_name, first.rank) == ("Ann A / Bea B", "Club X / Club 93", 1)
+    assert (second.diver_name, second.rank) == ("Cid C / Dee D", 2)  # a withdrawn pair (no dives) still pairs
+
+
+def test_link_admin_errors_hidden_event_and_pairs(cal):  # noqa: F811
+    db = cal["db"]
+    pair = _club_meet(cal, "Meet T", [HEADER, "Synchro - 3m", "Ann A (2001) -- KCPM Montreuil 1", "Bea B (2002) -- KCPM Montreuil", DIVE])
+    entry = cal["login"]("admin").get(url(pair)).json()["results"]["events"][0]["entries"][0]
+    assert entry["linkable"] is False
+    res = cal["login"]("admin").put(f"/api/v1/calendar/results/entries/{entry['id']}/link", json={"user_id": None})
+    assert res.status_code == 422 and res.json()["detail"]["code"] == "pair_not_linkable"
+    # A meet on another club's club-only calendar is hidden from this admin: same 404 as missing.
+    hidden = _event(db, cal["cals"]["o"], "Hidden meet", "club", event_type="competition")
+    _occ(db, hidden, "hidden-1", 1)
+    db.commit()
+    hid = hidden.id
+    assert cal["login"]("omanager").put(url(hid), content=make_pdf([HEADER, "E - 3m", "Zed Z (2001) -- X 1", DIVE]),
+                                        headers=PDF).status_code == 200
+    db.expire_all()
+    hidden_entry = db.query(MeetResultEntry.id).join(MeetResultEvent).join(MeetResult).filter(
+        MeetResult.calendar_event_id == hid).scalar()
+    res = cal["login"]("admin").put(f"/api/v1/calendar/results/entries/{hidden_entry}/link", json={"user_id": None})
+    assert res.status_code == 404
+    missing = cal["login"]("admin").put("/api/v1/calendar/results/entries/999999/link", json={"user_id": None})
+    assert missing.status_code == 404
+
+
+def test_alias_match_like_escaping_and_exact_club_preference(cal):  # noqa: F811
+    from app.models.calendar import Club
+    from app.models.diver import Diver, DiverAlias
+    from app.models.user_auth import UserDiverAccess
+    from app.services.meet_result_links import auto_links
+    from app.services.meet_results import account_candidates
+    db, u = cal["db"], cal["users"]
+    d = Diver(display_name="ZOE", canonical_name="zoe")
+    db.add(d); db.flush()
+    db.add_all([UserDiverAccess(user_id=u["una"].id, diver_id=d.id, access_kind="OWNER"),
+                DiverAlias(diver_id=d.id, alias="Zoélie", canonical_alias="zoelie")])
+    # A longer club name starting with ours must not make our exact name ambiguous.
+    db.add(Club(slug="kcpm-nord", name="KCPM Montreuil Nord", timezone="Europe/Paris"))
+    db.commit()
+    assert auto_links(db, [_entry("Zoélie DURAND", club="KCPM Montreuil")]) == {0: u["una"].id}
+    assert account_candidates(db, "%%") == [] and account_candidates(db, "__") == []
+    assert [a["user_id"] for a in account_candidates(db, "zo")] == [u["una"].id]  # via the owned diver
