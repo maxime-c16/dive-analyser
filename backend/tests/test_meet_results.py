@@ -593,3 +593,17 @@ def test_streamed_upload_without_length_is_bounded(meet, monkeypatch):
             yield b"%PDF-" + b"x" * 40
     res = meet["login"]("coach").post(url(meet["meet_id"], "/preview"), content=chunks(), headers=PDF)
     assert res.status_code == 413
+
+
+def test_admin_decision_reaches_every_meet_across_batches(cal, monkeypatch):  # noqa: F811
+    """No ceiling: relinking walks all meets in batches (here, one per batch)."""
+    from app.services import meet_results as service
+    monkeypatch.setattr(service, "RELINK_BATCH", 1)
+    sheet = [HEADER, "E - 3m", "Alice MARTIN (2001) -- KCPM Montreuil 1", DIVE]
+    meets = [_club_meet(cal, f"Batch {i}", sheet) for i in range(4)]
+    admin = cal["login"]("admin")
+    entry = _rows(cal, "admin", meets[0])["Alice MARTIN"]["id"]
+    assert admin.put(f"/api/v1/calendar/results/entries/{entry}/link", json={"user_id": None}).status_code == 204
+    assert all(_rows(cal, "admin", m)["Alice MARTIN"]["link_source"] == "admin" for m in meets)
+    assert admin.delete(f"/api/v1/calendar/results/entries/{entry}/link").status_code == 204
+    assert all(_rows(cal, "admin", m)["Alice MARTIN"]["link_source"] == "auto" for m in meets)

@@ -212,10 +212,10 @@ def read(db: Session, user: AppUser, event_id: int, summary: bool = False) -> di
 
 # --- Administrator link management --------------------------------------------
 
-MAX_RELINK_MEETS = 1000
+RELINK_BATCH = 100
 
 
-def relink_meet(db: Session, result_id: int, cache: Optional[dict] = None) -> None:
+def relink_meet(db: Session, result_id: int, cache: Optional[dict] = None) -> list:
     """Recompute every row's account link in one meet from the current admin
     decisions plus automatic matching (the same rule as at import)."""
     rows = db.query(MeetResultEntry).join(MeetResultEvent, MeetResultEvent.id == MeetResultEntry.event_id).filter(
@@ -223,15 +223,28 @@ def relink_meet(db: Session, result_id: int, cache: Optional[dict] = None) -> No
     links = resolve(db, rows, cache)
     for i, row in enumerate(rows):
         row.user_id, row.link_source = links.get(i, (None, None))
+    return rows
 
 
-def _all_meets(db: Session) -> list[int]:
-    """Every meet: a decision changes who is in the automatic pool, so a
-    suppressed or freed match can be anywhere, not only where this person is."""
-    ids = [rid for (rid,) in db.query(MeetResult.id).order_by(MeetResult.id).limit(MAX_RELINK_MEETS + 1)]
-    if len(ids) > MAX_RELINK_MEETS:
-        fail(409, "too_many_meets", "Too many meets to relink at once")
-    return ids
+def relink_all(db: Session) -> None:
+    """Recompute links in every meet: a decision changes who is in the
+    automatic pool, so a suppressed or freed match can be anywhere. Walks
+    meets by id in batches (no ceiling); each meet's rows are flushed and
+    released before the next, so memory stays bounded by one batch of ids
+    plus one meet. Candidate lookups are shared through one cache."""
+    cache: dict = {}
+    after = 0
+    while True:
+        ids = [rid for (rid,) in db.query(MeetResult.id).filter(MeetResult.id > after).order_by(
+            MeetResult.id).limit(RELINK_BATCH)]
+        if not ids:
+            return
+        for rid in ids:
+            rows = relink_meet(db, rid, cache)
+            db.flush()
+            for row in rows:
+                db.expunge(row)
+        after = ids[-1]
 
 
 def _admin_entry(db: Session, admin: AppUser, entry_id: int) -> MeetResultEntry:
@@ -263,9 +276,7 @@ def set_link(db: Session, admin: AppUser, entry_id: int, user_id: Optional[int])
     except IntegrityError:
         db.rollback()
         fail(409, "conflict", "Conflicting concurrent change")
-    cache: dict = {}
-    for rid in _all_meets(db):
-        relink_meet(db, rid, cache)
+    relink_all(db)
 
 
 def clear_link(db: Session, admin: AppUser, entry_id: int) -> None:
@@ -278,9 +289,7 @@ def clear_link(db: Session, admin: AppUser, entry_id: int) -> None:
     if decision is not None:
         db.delete(decision)
         db.flush()
-    cache: dict = {}
-    for rid in _all_meets(db):
-        relink_meet(db, rid, cache)
+    relink_all(db)
 
 
 def account_candidates(db: Session, q: str, limit: int = 10) -> list[dict]:
