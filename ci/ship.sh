@@ -67,7 +67,7 @@ while [ $# -gt 0 ]; do
         --force) FORCE=1 ;;
         --server-gate) SERVER_GATE=1 ;;
         --full) AUTO_SCOPE=0 ;;
-        --skip-gate|--frontend-only|--backend-only) DEPLOY_FLAGS+=("$1") ;;
+        --skip-gate|--frontend-only|--backend-only|--local-build) DEPLOY_FLAGS+=("$1") ;;
         *) ci_die "unknown option: $1" ;;
     esac
     shift

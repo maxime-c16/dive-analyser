@@ -3,6 +3,21 @@ services:
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
+    # HDD-friendly WAL/checkpoint tuning for deb-serv's 5400 rpm drive:
+    # zstd WAL compression and 15 min checkpoints cut random platter writes;
+    # synchronous_commit=off removes per-tx fsync stalls (bounds crash loss
+    # to ~600 ms of committed writes, never DB corruption).
+    command:
+      - postgres
+      - -c
+      - wal_compression=zstd
+      - -c
+      - checkpoint_timeout=15min
+      - -c
+      - checkpoint_completion_target=0.9
+      - -c
+      - synchronous_commit=off
+    cpu_shares: 1536
     ports:
       - "127.0.0.1:5433:5432"
     volumes:
@@ -32,9 +47,11 @@ services:
 
   # FastAPI Backend
   backend:
+    image: dive-analyser-backend:latest
     # uvicorn is PID 1 and never reaps orphans: health-check children that
     # time out pile up as zombies. tini (init) reaps them.
     init: true
+    cpu_shares: 1536
     # The host's Google resolver times out from this bridge network, causing
     # original playback HEAD checks to fail before a storage redirect. Docker
     # keeps internal service discovery; use reachable upstreams for B2/SMTP.

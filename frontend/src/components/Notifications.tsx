@@ -27,7 +27,7 @@ type NotificationsContextValue = {
   unreadCount: number
   loading: boolean
   error: NotificationsError
-  /** Bumps on every successful provider load (initial, 60s poll, focus). */
+  /** Bumps on every successful provider load (initial, 3m poll, focus). */
   refreshTick: number
   refresh: () => void
   markRead: (id: number) => Promise<void>
@@ -66,10 +66,10 @@ function videoPlaying(): boolean {
 }
 
 /**
- * Shared inbox state: one 60s poll feeds both the nav badge and the
- * /notifications page. Badge-only by design — no toast per notification,
- * so video playback is never interrupted; the scheduled poll simply skips
- * a tick while a clip is playing (same convention as WhatsNew).
+ * Shared inbox state: one 3m poll (plus focus/visibility refreshes) feeds both
+ * the nav badge and the /notifications page. Badge-only by design — no toast
+ * per notification, so video playback is never interrupted; the scheduled poll
+ * simply skips a tick while a clip is playing (same convention as WhatsNew).
  */
 export function NotificationsProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth()
@@ -131,7 +131,7 @@ function AccountNotifications({ userId, children }: { userId: number; children: 
     const refresh = () => {
       void load()
     }
-    const timer = window.setInterval(refresh, 60_000)
+    const timer = window.setInterval(refresh, 180_000)
     window.addEventListener('focus', refresh)
     document.addEventListener('visibilitychange', refresh)
     return () => {
