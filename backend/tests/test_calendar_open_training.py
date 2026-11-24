@@ -668,3 +668,49 @@ def test_opening_only_visitor_does_not_receive_event_level_resources_or_event_wi
     db.add(ev_delivery)
     db.commit()
     assert alerts.suppression_reason(db, ev_delivery, now) == "no_access"
+
+
+def test_left_and_rejoined_member_stale_group_assignment_does_not_grant_open_visitor_membership(cal):
+    """Leaving a club before an old group assignment's effective_to and rejoining
+    unassigned must NOT allow the stale assignment to match open_visitor in
+    session_calendar.occurrence_members."""
+    from app.models.calendar import ClubMembership, TrainingGroupMembership
+
+    s = _setup_kcpm_window(cal)
+    db = cal["db"]
+    club_id = cal["clubs"]["k"].id
+    g_conf_id = cal["groups"]["b"].id
+    alice_id, bob_id = cal["users"]["alice"].id, cal["users"]["bob"].id
+
+    mgr = cal["login"]("manager")
+    assert mgr.post(
+        f"/api/v1/calendar/clubs/{club_id}/training-openings",
+        json={"eligible_group_id": g_conf_id, "competition_event_id": s["comp_id"]},
+        headers=_headers(),
+    ).status_code == 201
+
+    # Bob opts in while an active Confirmés member.
+    bob = cal["login"]("bob")
+    assert bob.put(
+        f"/api/v1/calendar/occurrences/{s['deb_inside_id']}/interest",
+        json={"state": "interested"},
+        headers=_headers(),
+    ).status_code == 200
+    assert {u.id for u in session_calendar.occurrence_members(db, s["deb_inside_id"]).all()} == {alice_id, bob_id}
+
+    # Bob leaves the club while his old Confirmés assignment has a future effective_to,
+    # then rejoins the club under a new active ClubMembership without a group assignment.
+    old_m = db.query(ClubMembership).filter_by(club_id=club_id, user_id=bob_id, ended_at=None).one()
+    old_tgm = db.query(TrainingGroupMembership).filter_by(club_membership_id=old_m.id).one()
+    old_tgm.effective_to = s["comp_day"] + timedelta(days=30)
+    old_m.status = "left"
+    old_m.ended_at = datetime.utcnow()
+    db.flush()
+    db.add(ClubMembership(club_id=club_id, user_id=bob_id, role="member", status="active", source="signup"))
+    db.commit()
+    db.expunge_all()
+
+    # Neither calendar_access nor session_calendar.occurrence_members accepts the stale assignment.
+    bob = cal["login"]("bob")
+    assert bob.get(f"/api/v1/calendar/occurrences/{s['deb_inside_id']}").status_code == 404
+    assert {u.id for u in session_calendar.occurrence_members(db, s["deb_inside_id"]).all()} == {alice_id}

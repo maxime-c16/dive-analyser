@@ -63,10 +63,15 @@ def occurrence_members(db, occurrence_id, *, include_absent=False, include_open_
         ClubMembership.club_id == c.club_id, ClubMembership.user_id == AppUser.id,
         ClubMembership.status == 'active', ClubMembership.ended_at.is_(None))))
     if e.audience == 'group':
-        assigned = exists().where(and_(TrainingGroupMembership.user_id == AppUser.id,
+        assigned = exists().where(and_(
+            TrainingGroupMembership.user_id == AppUser.id,
             TrainingGroupMembership.group_id == c.training_group_id,
             TrainingGroupMembership.effective_from <= day,
-            or_(TrainingGroupMembership.effective_to.is_(None), TrainingGroupMembership.effective_to > day)))
+            or_(TrainingGroupMembership.effective_to.is_(None), TrainingGroupMembership.effective_to > day),
+            ClubMembership.id == TrainingGroupMembership.club_membership_id,
+            ClubMembership.status == 'active',
+            ClubMembership.ended_at.is_(None),
+        ))
         if include_open_visitors and c.training_group_id is not None and access.openings_schema_ready(db):
             open_visitor = and_(
                 exists().where(and_(
@@ -79,6 +84,9 @@ def occurrence_members(db, occurrence_id, *, include_absent=False, include_open_
                     TrainingGroupMembership.user_id == AppUser.id,
                     TrainingGroupMembership.effective_from <= day,
                     or_(TrainingGroupMembership.effective_to.is_(None), TrainingGroupMembership.effective_to > day),
+                    ClubMembership.id == TrainingGroupMembership.club_membership_id,
+                    ClubMembership.status == 'active',
+                    ClubMembership.ended_at.is_(None),
                 )),
                 exists().where(and_(
                     OccurrenceInterest.occurrence_id == o.id,
