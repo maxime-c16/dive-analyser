@@ -153,6 +153,8 @@ from app.models.calendar import (
     CalendarWorkerState,
 )
 
+from app.models.meet_results import MeetResult, MeetResultEvent, MeetResultEntry, MeetResultDive, MeetPersonLink
+
 from app.models.dive_series import DiveSeries
 
 from app.models.judge_room import JudgeRoomResult, JudgeRoomRating, JudgeShadowPreference

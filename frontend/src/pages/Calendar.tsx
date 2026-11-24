@@ -9,6 +9,7 @@ import OccurrenceView from "../calendar/OccurrenceView";
 import EventForm, { OccurrenceForm } from "../calendar/EventForm";
 import ScheduleEditor from "../calendar/ScheduleEditor";
 import ClubAdmin from "../calendar/ClubAdmin";
+import MeetResults from "../calendar/MeetResults";
 import PageLoading from "../components/PageLoading";
 import { Segmented } from "../components/code-analysis/parts";
 import "../components/code-analysis/codeAnalysis.css";
@@ -144,6 +145,7 @@ export default function Calendar() {
   const scheduleMatch = path.match(/^o\/(\d+)\/schedule$/);
   const editMatch = path.match(/^e\/(\d+)\/edit$/);
   const clubMatch = path.match(/^club\/(\d+)$/);
+  const resultsMatch = path.match(/^e\/(\d+)\/results$/);
   if (path === "new") content = <div className="calendar-legacy"><EventForm ctx={ctx} defaultDate={date} /></div>;
   else if (editMatch) content = <div className="calendar-legacy"><EventForm ctx={ctx} eventId={Number(editMatch[1])} defaultDate={date} /></div>;
   else if (scheduleMatch) content = <div className="calendar-legacy"><ScheduleEditor ctx={ctx} occurrenceId={Number(scheduleMatch[1])} /></div>;
@@ -158,7 +160,8 @@ export default function Calendar() {
         <OccurrenceView ctx={ctx} occurrenceId={id} />
       </div>
     );
-  } else if (clubMatch) content = <div className="calendar-legacy"><ClubAdmin ctx={ctx} clubId={Number(clubMatch[1])} /></div>;
+  } else if (resultsMatch) content = <MeetResults key={resultsMatch[1]} eventId={Number(resultsMatch[1])} />;
+  else if (clubMatch) content = <div className="calendar-legacy"><ClubAdmin ctx={ctx} clubId={Number(clubMatch[1])} /></div>;
   else if (path) content = <p role="alert">{t.unavailable}</p>;
 
   if (content) {

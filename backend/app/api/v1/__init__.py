@@ -87,6 +87,8 @@ v1_router.include_router(clip_downloads.router, tags=['clip-downloads'])
 
 from app.api.v1 import calendar
 v1_router.include_router(calendar.router, tags=['calendar'])
+from app.api.v1 import meet_results
+v1_router.include_router(meet_results.router, tags=['calendar'])
 
 from app.api.v1 import calendar_admin
 v1_router.include_router(calendar_admin.router, tags=["admin"])
