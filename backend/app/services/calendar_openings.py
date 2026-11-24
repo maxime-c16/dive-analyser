@@ -75,7 +75,7 @@ def competition_start_date(db: Session, event: CalendarEvent) -> Optional[date]:
 
 
 def _club_publisher(db: Session, actor: AppUser, club_id: int) -> Tuple[Club, ClubMembership]:
-    club = _usable_club(db, club_id)
+    club = _usable_club(db, club_id)  # locks Club row FOR UPDATE until caller commits
     own = access.active_membership(db, actor, club_id)
     if own is None:
         fail(404, "club_not_found", "Club not found")
@@ -151,11 +151,12 @@ def create_opening(
     starts_on: Optional[date],
     ends_on: Optional[date],
 ) -> dict:
-    club, _own = _club_publisher(db, actor, club_id)
+    club, _own = _club_publisher(db, actor, club_id)  # Club row locked FOR UPDATE via _usable_club
     group = db.get(TrainingGroup, eligible_group_id)
     if group is None or group.club_id != club_id or group.archived_at is not None:
         fail(422, "invalid_group", "Group does not belong to this club")
 
+    # Serialized by the Club FOR UPDATE lock above until the caller commits.
     count = db.query(func.count(ClubTrainingOpening.id)).filter(
         ClubTrainingOpening.club_id == club_id,
     ).scalar() or 0

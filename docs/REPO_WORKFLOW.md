@@ -279,6 +279,16 @@ idempotent). Without it, `/calendar/events/{id}/results` answers 503 and the
 rest of the calendar is unaffected. No flag beyond `CALENDAR_ENABLED`, no
 worker, no Mac service. The backend image gains `pypdf` (pure Python).
 
+### Club open-training windows
+
+Apply `backend/migrations/add_calendar_open_training.sql` **after** the
+calendar migrations and **before** deploying the backend that ships it
+(additive, idempotent). Without it, `/calendar/clubs/{id}/training-openings`
+and `/calendar/events/{id}/training-openings` answer 503 and the rest of the
+calendar keeps working unchanged. No flag beyond `CALENDAR_ENABLED`, no
+worker, no nginx/proxy change, and no Mac service. Keep the additive table on
+app rollback.
+
 ### Personal dive series
 
 Apply `backend/migrations/add_dive_series.sql` **before** deploying the
