@@ -12,7 +12,7 @@ client then falls back to that widget's own request.
 """
 import logging
 
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, Request, Response
 from sqlalchemy.orm import Session
 
 from app.api.v1 import achievements, auth, messages, notifications, updates
@@ -23,10 +23,20 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+def _session_user(request: Request, db: Session = Depends(get_db)) -> AppUser:
+    """The user member_access_context already resolved for this request.
+
+    That router-wide dependency resolves the session on every /api/v1 call;
+    resolving it again here would add a round trip to the one this route saves.
+    """
+    user = getattr(request.state, "member_user", None)
+    return user if user is not None else auth.get_current_user(request, db)
+
+
 @router.get("/bootstrap")
 def bootstrap(
     response: Response,
-    user: AppUser = Depends(auth.get_current_user),
+    user: AppUser = Depends(_session_user),
     db: Session = Depends(get_db),
 ):
     payload = {"me": auth.me(response, user, db)}

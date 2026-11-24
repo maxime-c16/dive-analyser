@@ -64,3 +64,15 @@ def test_failing_section_is_omitted_not_fatal(workspace, monkeypatch):
     assert "messages_unread" not in body
     assert body["me"]["email"] == "alice@example.test"
     assert {"notifications", "achievements_unseen", "updates"} <= set(body)
+
+
+def test_session_is_resolved_once_per_request(workspace, monkeypatch):
+    from app.services import sessions
+
+    _, login, _, _, _ = workspace
+    client = login("alice")
+    calls = []
+    real = sessions.resolve_session
+    monkeypatch.setattr(sessions, "resolve_session", lambda *a, **k: calls.append(1) or real(*a, **k))
+    assert client.get("/api/v1/bootstrap").status_code == 200
+    assert len(calls) == 1
