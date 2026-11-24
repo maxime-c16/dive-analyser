@@ -183,13 +183,15 @@ def decisions(db: Session, keys: Iterable[str]) -> dict[str, Optional[int]]:
         MeetPersonLink.person_key.in_(keys)).all())
 
 
-def resolve(db: Session, entries: list, cache: Optional[dict] = None) -> dict[int, tuple[Optional[int], str]]:
-    """Index in `entries` -> (user_id, source) for every row that has a link
-    decision: 'admin' rows (user_id may be None) win over 'auto' matches.
-    `cache` (one per request) shares candidate lookups across meets."""
-    from app.models.meet_results import MeetPersonLink
+def resolve(db: Session, entries: list, cache: Optional[dict] = None,
+            decided: Optional[dict] = None) -> dict[int, tuple[Optional[int], str]]:
+    """Index in `entries` (one meet) -> (user_id, source) for every row that
+    has a link decision: 'admin' rows (user_id may be None) win over 'auto'
+    matches. `cache` shares candidate lookups across meets; `decided` lets a
+    caller prefetch the decisions of several meets in one query."""
     keys = [key_of(e) for e in entries]
-    decided = decisions(db, keys)
+    if decided is None:
+        decided = decisions(db, keys)
     out: dict[int, tuple[Optional[int], str]] = {i: (decided[k], "admin") for i, k in enumerate(keys) if k in decided}
     cache = {} if cache is None else cache
     rest = [i for i in range(len(entries)) if i not in out]

@@ -598,7 +598,7 @@ def test_streamed_upload_without_length_is_bounded(meet, monkeypatch):
 def test_admin_decision_reaches_every_meet_across_batches(cal, monkeypatch):  # noqa: F811
     """No ceiling: relinking walks all meets in batches (here, one per batch)."""
     from app.services import meet_results as service
-    monkeypatch.setattr(service, "RELINK_BATCH", 1)
+    monkeypatch.setattr(service, "RELINK_ROWS", 1)  # one meet per batch
     sheet = [HEADER, "E - 3m", "Alice MARTIN (2001) -- KCPM Montreuil 1", DIVE]
     meets = [_club_meet(cal, f"Batch {i}", sheet) for i in range(4)]
     admin = cal["login"]("admin")
@@ -607,3 +607,24 @@ def test_admin_decision_reaches_every_meet_across_batches(cal, monkeypatch):  # 
     assert all(_rows(cal, "admin", m)["Alice MARTIN"]["link_source"] == "admin" for m in meets)
     assert admin.delete(f"/api/v1/calendar/results/entries/{entry}/link").status_code == 204
     assert all(_rows(cal, "admin", m)["Alice MARTIN"]["link_source"] == "auto" for m in meets)
+
+
+def test_relink_queries_grow_with_batches_not_meets(cal, monkeypatch):  # noqa: F811
+    from sqlalchemy import event as sa_event
+    from app.services import meet_results as service
+    sheet = [HEADER, "E - 3m", "Alice MARTIN (2001) -- KCPM Montreuil 1", DIVE]
+    for i in range(6):
+        _club_meet(cal, f"Count {i}", sheet)
+    db = cal["db"]
+    statements = []
+    listener = lambda *args: statements.append(args[2])  # noqa: E731
+    sa_event.listen(db.get_bind(), "before_cursor_execute", listener)
+    try:
+        service.relink_all(db)
+        db.rollback()
+    finally:
+        sa_event.remove(db.get_bind(), "before_cursor_execute", listener)
+    selects = [s for s in statements if s.lstrip().upper().startswith("SELECT")]
+    # One batch: sizes, rows, decisions, clubs, candidate pool (members, divers,
+    # claimed), then the empty next-batch probe — independent of the 6 meets.
+    assert len(selects) <= 9, selects

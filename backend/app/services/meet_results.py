@@ -28,7 +28,7 @@ from app.models.meet_results import MeetPersonLink, MeetResult, MeetResultDive, 
 from app.models.user_auth import AppUser, UserDiverAccess
 from app.services import calendar_events as events
 from app.services.calendar_events import fail
-from app.services.meet_result_links import key_of, lock_links, resolve
+from app.services.meet_result_links import decisions, key_of, lock_links, resolve
 from app.services.meet_results_pdf import ParsedMeet
 from app.services.member_avatar import avatar_identity
 
@@ -212,39 +212,50 @@ def read(db: Session, user: AppUser, event_id: int, summary: bool = False) -> di
 
 # --- Administrator link management --------------------------------------------
 
-RELINK_BATCH = 100
-
-
-def relink_meet(db: Session, result_id: int, cache: Optional[dict] = None) -> list:
-    """Recompute every row's account link in one meet from the current admin
-    decisions plus automatic matching (the same rule as at import)."""
-    rows = db.query(MeetResultEntry).join(MeetResultEvent, MeetResultEvent.id == MeetResultEntry.event_id).filter(
-        MeetResultEvent.result_id == result_id).order_by(MeetResultEntry.event_id, MeetResultEntry.position).all()
-    links = resolve(db, rows, cache)
-    for i, row in enumerate(rows):
-        row.user_id, row.link_source = links.get(i, (None, None))
-    return rows
+RELINK_MEETS = 100     # meets considered per batch
+RELINK_ROWS = 5000     # result rows loaded per batch (a meet has at most 2,000)
 
 
 def relink_all(db: Session) -> None:
     """Recompute links in every meet: a decision changes who is in the
-    automatic pool, so a suppressed or freed match can be anywhere. Walks
-    meets by id in batches (no ceiling); each meet's rows are flushed and
-    released before the next, so memory stays bounded by one batch of ids
-    plus one meet. Candidate lookups are shared through one cache."""
-    cache: dict = {}
+    automatic pool, so a suppressed or freed match can be anywhere.
+
+    Walks meets by id in batches of at most RELINK_ROWS rows. Per batch: one
+    query sizes the batch, one loads its rows, one loads their admin
+    decisions, and candidate pools are loaded once into a cache that lives
+    for that batch only. Rows are flushed and released before the next batch,
+    so retained memory is one batch and queries grow with batches, not meets."""
     after = 0
     while True:
-        ids = [rid for (rid,) in db.query(MeetResult.id).filter(MeetResult.id > after).order_by(
-            MeetResult.id).limit(RELINK_BATCH)]
-        if not ids:
+        sizes = db.query(MeetResult.id, func.count(MeetResultEntry.id)).outerjoin(
+            MeetResultEvent, MeetResultEvent.result_id == MeetResult.id).outerjoin(
+            MeetResultEntry, MeetResultEntry.event_id == MeetResultEvent.id).filter(
+            MeetResult.id > after).group_by(MeetResult.id).order_by(MeetResult.id).limit(RELINK_MEETS).all()
+        if not sizes:
             return
-        for rid in ids:
-            rows = relink_meet(db, rid, cache)
-            db.flush()
-            for row in rows:
-                db.expunge(row)
-        after = ids[-1]
+        batch, total = [], 0
+        for rid, count in sizes:
+            if batch and total + count > RELINK_ROWS:
+                break
+            batch.append(rid)
+            total += count
+        loaded = db.query(MeetResultEntry, MeetResultEvent.result_id).join(
+            MeetResultEvent, MeetResultEvent.id == MeetResultEntry.event_id).filter(
+            MeetResultEvent.result_id.in_(batch)).order_by(
+            MeetResultEvent.result_id, MeetResultEntry.event_id, MeetResultEntry.position).all()
+        by_meet: dict[int, list] = {}
+        for row, rid in loaded:
+            by_meet.setdefault(rid, []).append(row)
+        decided = decisions(db, {key_of(row) for row, _rid in loaded})
+        cache: dict = {}
+        for rows in by_meet.values():
+            links = resolve(db, rows, cache, decided)
+            for i, row in enumerate(rows):
+                row.user_id, row.link_source = links.get(i, (None, None))
+        db.flush()
+        for row, _rid in loaded:
+            db.expunge(row)
+        after = batch[-1]
 
 
 def _admin_entry(db: Session, admin: AppUser, entry_id: int) -> MeetResultEntry:
