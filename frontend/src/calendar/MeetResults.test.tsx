@@ -207,3 +207,14 @@ it('does not offer to expand a row with nothing behind it', async () => {
   expect(screen.queryByRole('button', {name: /Dan DEMO/})).toBeNull()
   expect(screen.getByText('Dan DEMO')).toBeInTheDocument()
 })
+
+it('shows warning numbers in the reader\'s locale', async () => {
+  vi.mocked(calendarApi.results).mockResolvedValue({can_import: true, available: false, results: null})
+  vi.mocked(calendarApi.previewResults).mockResolvedValue({meet_date: null, date_matches: null, events: [],
+    entry_count: 1, dive_count: 1, warnings: [{kind: 'total_mismatch', diver: 'Ann A', dive: 2, printed: '120.50', expected: '119.5'}],
+    warnings_truncated: false, replaces: false, linked_count: 0})
+  const {container} = view()
+  await screen.findByRole('button', {name: /Importer les résultats/})
+  fireEvent.change(container.querySelector('input[type=file]')!, {target: {files: [new File(['%PDF'], 'a.pdf')]}})
+  expect(await screen.findByText('Ann A, plongeon 2 : total 120,50 imprimé, 119,50 attendu')).toBeInTheDocument()
+})

@@ -291,6 +291,13 @@ function ImportPanel({ eventId, hasResults, onSaved }: {
     setConfirming(false);
     onSaved({ can_import: true, available: false, results: null });
   });
+  const fmt = useNumber();
+  // Server values are plain decimals ("120.50"): show them in the reader's locale.
+  const warningText = (w: MeetWarning) => {
+    const money = (v?: string) => (v && !Number.isNaN(Number(v)) ? fmt.two(Number(v)) : v);
+    const render = t.meetWarning[w.kind] as ((x: MeetWarning) => string) | undefined;
+    return render ? render({ ...w, printed: w.kind === "place_beyond_entries" ? w.printed : money(w.printed), expected: money(w.expected) }) : w.kind;
+  };
   const day = (d: string) => new Intl.DateTimeFormat(lang, { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })
     .format(new Date(`${d}T12:00:00Z`));
 
@@ -314,7 +321,7 @@ function ImportPanel({ eventId, hasResults, onSaved }: {
           {preview.warnings.length > 0 && (
             <details className="meet-warnings">
               <summary>{t.linesToCheck(preview.warnings.length)}</summary>
-              <ul>{preview.warnings.map((w, i) => <li key={i}>{(t.meetWarning[w.kind] as (x: MeetWarning) => string)?.(w) ?? w.kind}</li>)}</ul>
+              <ul>{preview.warnings.map((w, i) => <li key={i}>{warningText(w)}</li>)}</ul>
               {preview.warnings_truncated && <p>{t.warningsMore}</p>}
             </details>
           )}
