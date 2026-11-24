@@ -5,6 +5,7 @@ import { I18nProvider } from '../../i18n/I18nProvider'
 import { ACHIEVEMENTS_CHECK_EVENT } from '../../services/achievementsApi'
 import AchievementToaster from './AchievementToaster'
 import AchievementsPanel from './AchievementsPanel'
+import { storeBootstrapSeed } from '../../services/bootstrap'
 
 vi.mock('../../contexts/AuthContext', () => ({
   useAuth: () => ({ user: { user_id: 7, email: 'alex@example.com', is_admin: false } }),
@@ -110,4 +111,12 @@ describe('AchievementsPanel', () => {
     renderWithApp(<AchievementsPanel userId={9} isSelf={false} />)
     expect(await screen.findByText('No achievements unlocked yet.')).toBeInTheDocument()
   })
+})
+
+it('celebrates a bootstrap-seeded unlock without re-reading the unseen list', async () => {
+  const fetchMock = stubApi(() => undefined)
+  storeBootstrapSeed(7, { achievements_unseen: { items: [{ key: 'first_comment', unlocked_at: '2026-10-09T10:00:00Z' }] } })
+  renderWithApp(<AchievementToaster />)
+  expect(await screen.findByRole('status')).toHaveTextContent('First comment')
+  expect(fetchMock.mock.calls.map(([url]) => String(url))).toEqual(['/api/v1/users/me/achievements/seen'])
 })

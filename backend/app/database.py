@@ -2,7 +2,7 @@
 
 from time import perf_counter
 
-from sqlalchemy import create_engine, event, Engine
+from sqlalchemy import create_engine, event, Engine, text
 from sqlalchemy.orm import sessionmaker, Session, declarative_base
 from sqlalchemy.pool import StaticPool
 import logging
@@ -69,7 +69,15 @@ def init_db():
     of starting a new backend image.
     """
     tables = [t for t in Base.metadata.sorted_tables if not t.info.get("sql_migration_only")]
-    Base.metadata.create_all(bind=engine, tables=tables)
+    if engine.dialect.name != "postgresql":
+        Base.metadata.create_all(bind=engine, tables=tables)
+    else:
+        # Every uvicorn worker runs this at startup. PostgreSQL DDL is
+        # transactional: the second worker waits on the lock, then finds the
+        # tables the first one created instead of racing on CREATE TABLE.
+        with engine.begin() as connection:
+            connection.execute(text("SELECT pg_advisory_xact_lock(834930)"))
+            Base.metadata.create_all(bind=connection, tables=tables)
     logger.info("Database initialized")
 
 

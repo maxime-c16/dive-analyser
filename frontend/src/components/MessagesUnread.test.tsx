@@ -4,6 +4,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { I18nProvider } from '../i18n/I18nProvider'
 import { MessagesUnreadBadge, MessagesUnreadProvider, useMessagesUnread, useMessagesUnreadAria } from './MessagesUnread'
+import { storeBootstrapSeed } from '../services/bootstrap'
 
 vi.mock('../contexts/AuthContext', () => ({
   useAuth: () => ({ user: { user_id: 7, email: 'alex@example.com', is_admin: false } }),
@@ -133,4 +134,11 @@ describe('MessagesUnread badge', () => {
     expect(screen.getByTestId('unread-count')).toHaveTextContent('0')
     expect(screen.queryByTestId('messages-unread-badge')).toBeNull()
   })
+})
+
+it('uses the session bootstrap count instead of a first request', async () => {
+  storeBootstrapSeed(7, { messages_unread: { unread_count: 5 } })
+  renderAt('/dives')
+  expect(await screen.findByTestId('messages-unread-badge')).toHaveTextContent('5')
+  expect(fetch).not.toHaveBeenCalled()
 })

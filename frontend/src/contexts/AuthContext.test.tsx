@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { AuthProvider, useAuth } from './AuthContext'
+import { takeBootstrapSeed } from '../services/bootstrap'
 
 vi.mock('../navigation/sessionContext', () => ({ clearNavigationSession: vi.fn() }))
 vi.mock('../services/libraryCache', () => ({ clearLibraryCache: vi.fn() }))
@@ -17,7 +18,9 @@ function deferred<T>() {
 }
 
 const account = (id: number) => ({ user_id: id, email: `${id}@example.test`, role: 'friend', divers: [] })
-const response = (id: number) => ({ ok: true, json: async () => account(id) }) as Response
+// Serves both shapes: /bootstrap nests identity under `me`, /auth/me is flat.
+const body = (id: number) => ({ ...account(id), me: account(id) })
+const response = (id: number) => ({ ok: true, json: async () => body(id) }) as Response
 
 function Probe() {
   const auth = useAuth()
@@ -49,13 +52,13 @@ it.each(['success', 'denial', 'transport error'] as const)(
 )
 
 it('ignores a superseded refresh even when its response body finishes last', async () => {
-  const body = deferred<ReturnType<typeof account>>()
-  vi.mocked(fetch).mockResolvedValueOnce({ ok: true, json: () => body.promise } as Response)
+  const late = deferred<ReturnType<typeof body>>()
+  vi.mocked(fetch).mockResolvedValueOnce({ ok: true, json: () => late.promise } as Response)
     .mockResolvedValueOnce(response(2))
   render(<AuthProvider><Probe /></AuthProvider>)
   await act(async () => {})
   await act(async () => { fireEvent.click(screen.getByText('Refresh')) })
-  await act(async () => { body.resolve(account(1)) })
+  await act(async () => { late.resolve(body(1)) })
   expect(screen.getByLabelText('account')).toHaveTextContent('2')
 })
 
@@ -79,7 +82,7 @@ it('queues a refresh issued during a pending logout until the logout settles', a
   expect(fetch).toHaveBeenCalledTimes(3)
   await act(async () => { logout.resolve({ ok: true } as Response) })
   expect(fetch).toHaveBeenCalledTimes(4)
-  expect(fetch).toHaveBeenLastCalledWith('/api/v1/auth/me', { credentials: 'same-origin' })
+  expect(fetch).toHaveBeenLastCalledWith('/api/v1/bootstrap', { credentials: 'same-origin' })
   await act(async () => {})
   expect(screen.getByLabelText('account')).toHaveTextContent('2')
 })
@@ -97,4 +100,38 @@ it('shares one logout request between concurrent sign-out calls', async () => {
   expect(vi.mocked(fetch).mock.calls.filter(([url]) => url === '/api/v1/auth/logout')).toHaveLength(1)
   await act(async () => { logout.resolve({ ok: true } as Response) })
   expect(screen.getByLabelText('account')).toHaveTextContent('signed out')
+})
+
+it('starts a session with one bootstrap read and seeds the shell once', async () => {
+  vi.mocked(fetch).mockResolvedValueOnce({ ok: true, json: async () => ({
+    me: account(7), messages_unread: { unread_count: 3 }, notifications: { items: [], unread_count: 0, has_more: false },
+  }) } as Response)
+  render(<AuthProvider><Probe /></AuthProvider>)
+  await act(async () => {})
+  expect(screen.getByLabelText('account')).toHaveTextContent('7')
+  expect(fetch).toHaveBeenCalledTimes(1)
+  expect(fetch).toHaveBeenCalledWith('/api/v1/bootstrap', { credentials: 'same-origin' })
+  expect(takeBootstrapSeed('messages_unread', 8)).toBeUndefined()
+  expect(takeBootstrapSeed('messages_unread', 7)).toEqual({ unread_count: 3 })
+  expect(takeBootstrapSeed('messages_unread', 7)).toBeUndefined()
+  expect(takeBootstrapSeed('achievements_unseen', 7)).toBeUndefined()
+})
+
+it('falls back to /auth/me when the backend has no bootstrap route', async () => {
+  vi.mocked(fetch).mockResolvedValueOnce({ ok: false, status: 404 } as Response)
+    .mockResolvedValueOnce({ ok: true, json: async () => account(4) } as Response)
+  render(<AuthProvider><Probe /></AuthProvider>)
+  await act(async () => {})
+  expect(screen.getByLabelText('account')).toHaveTextContent('4')
+  expect(vi.mocked(fetch).mock.calls.map(([url]) => url)).toEqual(['/api/v1/bootstrap', '/api/v1/auth/me'])
+  expect(takeBootstrapSeed('notifications', 4)).toBeUndefined()
+})
+
+it('refreshes a signed-in identity without re-reading the shell', async () => {
+  vi.mocked(fetch).mockResolvedValueOnce(response(1)).mockResolvedValueOnce({ ok: true, json: async () => account(1) } as Response)
+  render(<AuthProvider><Probe /></AuthProvider>)
+  await act(async () => {})
+  await act(async () => { fireEvent.click(screen.getByText('Refresh')) })
+  expect(vi.mocked(fetch).mock.calls.map(([url]) => url)).toEqual(['/api/v1/bootstrap', '/api/v1/auth/me'])
+  expect(screen.getByLabelText('account')).toHaveTextContent('1')
 })

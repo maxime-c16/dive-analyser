@@ -30,7 +30,12 @@ access tests rather than inferring permissions from a role label.
 - Enforce byte/disk/concurrency budgets before consumption, including framework
   multipart parsing and old routes. Bound streaming reads and deadlines;
   cancel rejected response bodies and clean staging on errors/cancellation.
-- On the single uvicorn worker, trace synchronous ORM/network/file work through
+- The backend runs two uvicorn workers (separate processes). Shared state
+  belongs in PostgreSQL; a background loop started from the lifespan runs in
+  every worker, so guard singleton work with an advisory lock (see
+  `upload_queue.process_one`, `session_videos._reconcile_tick_exclusive`).
+  Module-level caches are per worker: never rely on one for invalidation.
+- On each uvicorn worker, trace synchronous ORM/network/file work through
   helpers and background tasks. Use an appropriate threadpool/session boundary
   or durable worker; `async def` alone does not offload blocking operations.
 

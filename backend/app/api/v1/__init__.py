@@ -102,3 +102,6 @@ v1_router.include_router(technique_history.router)
 
 from . import technique_adjustments
 v1_router.include_router(technique_adjustments.router)
+
+from app.api.v1 import bootstrap
+v1_router.include_router(bootstrap.router, tags=['bootstrap'])
