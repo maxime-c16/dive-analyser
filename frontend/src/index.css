@@ -334,6 +334,17 @@ button:disabled { cursor:default; }
 
 /* Media cards retain their aspect ratio while previews are prepared. */
 
+@media (min-width: 1024px) {
+  .workspace-top {
+    padding-top: calc(1.5rem + env(safe-area-inset-top));
+  }
+
+  .workspace-heading {
+    min-height: calc(2.75rem + 1rem + 1px);
+    padding-bottom: 1rem;
+  }
+}
+
 /* One corner language. Newer surfaces are rounded (10–16px); older Tailwind
    panels, link-buttons and fields were square. Anything that sets its own
    rounded-* class keeps it, and single-edge borders (tab rows, dividers)

@@ -41,21 +41,8 @@
 .mobile-tab-active { color: var(--app-accent); background: color-mix(in srgb, var(--app-accent) 10%, var(--app-panel)); box-shadow: none; }
 .mobile-tab-bar { border-radius: 20px; box-shadow: 0 4px 16px rgb(0 0 0 / .2); }
 .mobile-tab { border-radius: 14px; }
-@media (max-width: 639px) { .library-heading { gap: 8px; padding-bottom: 12px; } .library-heading > .basis-full { height: 0; } .library-heading h1 { font-size: 26px; } }
-
 @media (max-width: 639px) {
-  .library-heading { display:grid; grid-template-columns:minmax(0,1fr) 44px 96px; align-items:center; gap:12px 8px; }
-  .library-heading h1 { grid-column:1; grid-row:1; }
-  .library-heading > .mobile-shell-actions { grid-column:3; grid-row:1; }
-  .library-heading > .add-videos-trigger { grid-column:2; grid-row:1; padding:0; }
-  .library-heading > .add-videos-trigger span { display:none; }
-  .library-heading > .basis-full { display:none; }
-  .library-heading > div.h-11 { grid-column:1 / -1; grid-row:2; margin-right:52px; border-radius:12px; }
-  .library-heading > button:not(.add-videos-trigger) { grid-column:3; grid-row:2; justify-self:end; }
-  .library-heading > [role=status] { grid-column:1 / -1; }
-  .library-heading > div.h-11 button { padding-inline:6px; white-space:nowrap; }
   .mobile-tab { font-size:11px; }
-
 }
 
 @media (max-width: 340px) { .mobile-tab-bar { left:4px; right:4px; } .mobile-tab { letter-spacing:-.02em; } }
@@ -65,14 +52,6 @@
 @media (max-width: 359px) {
   .mobile-tab-bar { display:grid; }
   .calendar-five-tabs { grid-template-columns:.82fr 1fr 1.08fr 1fr 1.1fr; }
-  .library-heading { grid-template-columns:44px minmax(0,1fr) 44px; }
-  .library-heading h1 { grid-column:1 / -1; grid-row:1; max-width:calc(100% - 104px); font-size:24px; }
-  .library-heading > .add-videos-trigger { grid-column:1; grid-row:2; width:44px; }
-  .library-heading > .mobile-shell-actions { grid-column:2 / -1; grid-row:1; justify-self:end; }
-  .library-heading > div.h-11 { grid-column:2; grid-row:2; margin-right:0; }
-  .library-heading > div.h-11 button { font-size:12px; padding-inline:2px; }
-  .library-heading > button:not(.add-videos-trigger) { grid-column:3; grid-row:2; }
-
 }
 
 .mobile-label-compact { display:none; }
