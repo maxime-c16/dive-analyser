@@ -49,10 +49,15 @@ RECONCILE_MAX_INGESTS = 20
 # through the idempotent ingest claim.
 _reconcile_start_after: Optional[str] = None
 _probe_slots = threading.BoundedSemaphore(2)
+_download_checks = threading.BoundedSemaphore(4)
 
 
 class SessionsStorageUnavailable(Exception):
     """The sessions bucket credential is missing or the provider failed."""
+
+
+class SessionDownloadBusy(Exception):
+    """All attachment probes in this worker are occupied."""
 
 
 # --------------------------------------------------------------------- B2 ---
@@ -107,6 +112,26 @@ def presign_get(bucket: str, key: str, ttl: int, *, content_type: str | None = N
         raise
     except Exception as exc:  # never include the URL or credential
         raise SessionsStorageUnavailable(type(exc).__name__) from None
+
+
+def prepare_download(bucket: str, key: str, ttl: int) -> str:
+    """Check the actual attachment URL without reading the original."""
+    import requests
+
+    if not _download_checks.acquire(blocking=False):
+        raise SessionDownloadBusy
+    try:
+        url = presign_get(bucket, key, ttl, download_name=PurePosixPath(key).name)
+        with requests.get(url, headers={"Range": "bytes=0-0"}, stream=True,
+                          timeout=(3, 4), allow_redirects=False) as response:
+            if (response.status_code != 206 or response.headers.get("Content-Length") != "1"
+                    or not response.headers.get("Content-Range", "").startswith("bytes 0-0/")):
+                raise SessionsStorageUnavailable("Attachment unavailable")
+        return url
+    except (requests.RequestException, OSError) as exc:
+        raise SessionsStorageUnavailable(type(exc).__name__) from None
+    finally:
+        _download_checks.release()
 
 
 def _safe_filename(name: str) -> str:

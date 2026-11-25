@@ -14,13 +14,14 @@ const buttonClass = 'touch-target inline-flex w-full items-center justify-center
 
 /** Same panel, controls and spacing as Login/Invite; one decision per screen. */
 function AccountPanel({ title, onBack, children }: { title: string; onBack?: () => void; children: ReactNode }) {
+  const { t } = useTranslation()
   const heading = useRef<HTMLHeadingElement>(null)
   useEffect(() => { heading.current?.focus() }, [title])
   return <main className="session-auth flex items-center justify-center bg-app px-4 py-4">
     <section className="session-auth-panel w-full max-w-sm border border-app bg-app-panel p-8">
       <div className="mb-6 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-app-accent" aria-hidden /><span className="text-lg font-semibold text-app-text">Dive Analyser</span></div>
-        {onBack && <button type="button" aria-label="Retour" onClick={onBack} className="touch-target inline-flex items-center justify-center text-app-muted"><ArrowLeft size={20} /></button>}
+        {onBack && <button type="button" aria-label={t('sessionVideo.onboardingBack')} onClick={onBack} className="touch-target inline-flex items-center justify-center text-app-muted"><ArrowLeft size={20} /></button>}
       </div>
       <h1 ref={heading} tabIndex={-1} className="mb-6 text-xl font-semibold text-app-text focus:outline-none">{title}</h1>
       {children}
@@ -67,7 +68,7 @@ export default function SessionOnboarding({ shareId, initialStep, onBack, onComp
       setClubs(current => (append ? [...current, ...data.items] : data.items))
       setClubsNext(data.next_after)
     } catch {
-      if (alive.current && !ctrl.signal.aborted) setError('Groupes indisponibles')
+      if (alive.current && !ctrl.signal.aborted) setError(t('sessionVideo.onboardingGroupsError'))
     } finally {
       if (alive.current && clubsAbort.current === ctrl) { clubsAbort.current = null; setLoadingGroups(false) }
     }
@@ -91,7 +92,7 @@ export default function SessionOnboarding({ shareId, initialStep, onBack, onComp
       }
       if (alive.current && !ctrl.signal.aborted) setGroups(all)
     })()
-      .catch(() => { if (alive.current && !ctrl.signal.aborted) setError('Groupes indisponibles') })
+      .catch(() => { if (alive.current && !ctrl.signal.aborted) setError(t('sessionVideo.onboardingGroupsError')) })
       .finally(() => { if (alive.current && groupsAbort.current === ctrl) { groupsAbort.current = null; setLoadingGroups(false) } })
     return () => { ctrl.abort() }
   }, [shareId, club])
@@ -119,67 +120,67 @@ export default function SessionOnboarding({ shareId, initialStep, onBack, onComp
       }))
       if (!alive.current) return
       setPassword(''); setDestination(data.path); changeStep('email')
-    } catch { if (alive.current) setError('Inscription impossible. Connectez-vous si vous avez déjà un compte.') }
+    } catch { if (alive.current) setError(t('sessionVideo.onboardingSignupError')) }
     finally { if (alive.current) setBusy(false) }
   }
 
-  if (step === 'email') return <AccountPanel title="Les prochaines séances">
+  if (step === 'email') return <AccountPanel title={t('sessionVideo.onboardingUpcoming')}>
     <label className="mb-6 flex cursor-pointer items-center gap-3 select-none">
       <input type="checkbox" className="h-4 w-4 shrink-0 accent-app-accent" checked={emailEnabled} disabled={busy}
         onChange={async event => {
           const enabled = event.target.checked
           setBusy(true); setError('')
           try { await api.put('/api/v1/session-preferences', { enabled }); if (alive.current) setEmailEnabled(enabled) }
-          catch { if (alive.current) setError('Préférence non enregistrée') }
+          catch { if (alive.current) setError(t('sessionVideo.onboardingEmailError')) }
           finally { if (alive.current) setBusy(false) }
         }} />
-      <span className="text-sm text-app-text">Recevoir un e-mail pour mon groupe</span>
+      <span className="text-sm text-app-text">{t('sessionVideo.onboardingEmailPref')}</span>
     </label>
     {alert}
     <button className={buttonClass} disabled={busy} onClick={async () => {
       setBusy(true)
       try { await refresh(); onComplete(destination) }
-      catch { if (alive.current) { setError('Connexion impossible'); setBusy(false) } }
-    }}><Bell size={16} aria-hidden />Ouvrir la séance</button>
+      catch { if (alive.current) { setError(t('login.networkError')); setBusy(false) } }
+    }}><Bell size={16} aria-hidden />{t('sessionVideo.onboardingOpen')}</button>
   </AccountPanel>
 
-  if (step === 'club') return <AccountPanel title="Mon club" onBack={() => changeStep('account')}>
+  if (step === 'club') return <AccountPanel title={t('sessionVideo.onboardingClubTitle')} onBack={() => changeStep('account')}>
     <form onSubmit={event => { event.preventDefault(); changeStep('group') }}>
-      <select aria-label="Club" className={`${fieldClass} mb-6`} required value={club} disabled={loadingGroups}
+      <select aria-label={t('sessionVideo.onboardingClub')} className={`${fieldClass} mb-6`} required value={club} disabled={loadingGroups}
         onChange={event => { setClub(event.target.value); setGroup('') }}>
-        <option value="">Choisir un club</option>
+        <option value="">{t('sessionVideo.onboardingChooseClub')}</option>
         {clubs.map(c => <option key={c.club_id} value={c.club_id}>{c.club}</option>)}
       </select>
-      {clubsNext !== null && <button type="button" className="touch-target mb-6 border border-app px-3 text-sm" disabled={loadingGroups} onClick={() => void loadClubs(clubsNext, true)}>Afficher plus de clubs</button>}
+      {clubsNext !== null && <button type="button" className="touch-target mb-6 border border-app px-3 text-sm" disabled={loadingGroups} onClick={() => void loadClubs(clubsNext, true)}>{t('sessionVideo.onboardingMoreClubs')}</button>}
       {alert}
-      <button className={buttonClass} disabled={!club || loadingGroups}>Continuer</button>
+      <button className={buttonClass} disabled={!club || loadingGroups}>{t('sessionVideo.onboardingContinue')}</button>
     </form>
   </AccountPanel>
 
-  if (step === 'group') return <AccountPanel title="Mon groupe" onBack={() => changeStep('club')}>
+  if (step === 'group') return <AccountPanel title={t('sessionVideo.onboardingGroupTitle')} onBack={() => changeStep('club')}>
     <form onSubmit={event => { event.preventDefault(); void signup() }}>
-      <select aria-label="Groupe" className={`${fieldClass} mb-6`} required value={group} onChange={event => setGroup(event.target.value)}>
-        <option value="">Choisir un groupe</option>
+      <select aria-label={t('sessionVideo.onboardingGroup')} className={`${fieldClass} mb-6`} required value={group} onChange={event => setGroup(event.target.value)}>
+        <option value="">{t('sessionVideo.onboardingChooseGroup')}</option>
         {groups.filter(item => String(item.club_id) === club).map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
       </select>
       {alert}
-      <button className={buttonClass} disabled={busy || !group}><UserPlus size={16} aria-hidden />{busy ? 'Création…' : 'Créer mon compte'}</button>
+      <button className={buttonClass} disabled={busy || !group}><UserPlus size={16} aria-hidden />{busy ? t('sessionVideo.onboardingCreating') : t('sessionVideo.onboardingAccount')}</button>
     </form>
   </AccountPanel>
 
   const isLogin = step === 'login'
-  return <AccountPanel title={isLogin ? 'Se connecter' : 'Créer mon compte'} onBack={onBack}>
+  return <AccountPanel title={isLogin ? t('sessionVideo.signIn') : t('sessionVideo.onboardingAccount')} onBack={onBack}>
     <form onSubmit={event => { event.preventDefault(); if (isLogin) void login(); else changeStep('club') }}>
-      {!isLogin && <div className="mb-4"><label htmlFor="session-name" className={labelClass}>Nom</label>
+      {!isLogin && <div className="mb-4"><label htmlFor="session-name" className={labelClass}>{t('sessionVideo.onboardingName')}</label>
         <input id="session-name" className={fieldClass} autoComplete="name" required maxLength={100} value={name} onChange={event => setName(event.target.value)} /></div>}
-      <div className="mb-4"><label htmlFor="session-email" className={labelClass}>E-mail</label>
+      <div className="mb-4"><label htmlFor="session-email" className={labelClass}>{t('login.email')}</label>
         <input id="session-email" type="email" className={fieldClass} autoComplete="username" placeholder="you@example.com" required value={email} onChange={event => setEmail(event.target.value)} /></div>
-      <div className="mb-4"><label htmlFor="session-password" className={labelClass}>Mot de passe</label>
+      <div className="mb-4"><label htmlFor="session-password" className={labelClass}>{t('login.password')}</label>
         <input id="session-password" type="password" className={fieldClass} autoComplete={isLogin ? 'current-password' : 'new-password'} placeholder="••••••••••" minLength={isLogin ? 1 : 10} required value={password} onChange={event => setPassword(event.target.value)} /></div>
       {isLogin && <label className="mb-5 flex cursor-pointer items-center gap-2.5 select-none"><input type="checkbox" checked={remember} onChange={event => setRemember(event.target.checked)} className="h-4 w-4 accent-app-accent" /><span className="text-sm text-app-muted">{t('login.staySignedIn')}</span></label>}
       {alert}
-      <button className={buttonClass} disabled={busy}>{isLogin && <LogIn size={16} aria-hidden />}{isLogin ? (busy ? t('login.signingIn') : 'Se connecter') : 'Continuer'}</button>
+      <button className={buttonClass} disabled={busy}>{isLogin && <LogIn size={16} aria-hidden />}{isLogin ? (busy ? t('login.signingIn') : t('sessionVideo.signIn')) : t('sessionVideo.onboardingContinue')}</button>
     </form>
-    <button type="button" className="touch-target mt-5 block w-full text-center text-sm text-app-accent hover:underline" onClick={() => { setPassword(''); changeStep(isLogin ? 'account' : 'login') }}>{isLogin ? 'Créer un compte' : 'Se connecter'}</button>
+    <button type="button" className="touch-target mt-5 block w-full text-center text-sm text-app-accent hover:underline" onClick={() => { setPassword(''); changeStep(isLogin ? 'account' : 'login') }}>{isLogin ? t('sessionVideo.createAccount') : t('sessionVideo.signIn')}</button>
   </AccountPanel>
 }

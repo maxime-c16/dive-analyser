@@ -182,6 +182,22 @@ def download(video_id: int, user: AppUser = Depends(get_current_user), db: Sessi
     return download_redirect(ready_video(db, video_id, user))
 
 
+@router.get('/session-videos/{video_id}/download/prepare', dependencies=[Depends(require_enabled)])
+def prepare_video_download(video_id: int, response: Response, user: AppUser = Depends(get_current_user),
+                           db: Session = Depends(get_db)):
+    video = ready_video(db, video_id, user)
+    bucket, key = video.bucket, video.object_key
+    db.rollback()  # Release the read transaction before waiting for storage.
+    try:
+        url = service.prepare_download(bucket, key, get_settings().sessions_playback_ttl_seconds)
+    except service.SessionDownloadBusy:
+        raise HTTPException(429, "Download checks busy", headers={"Retry-After": "2", "Cache-Control": "private, no-store"}) from None
+    except service.SessionsStorageUnavailable:
+        raise HTTPException(503, UNAVAILABLE) from None
+    secure_headers(response)
+    return {'url': url}
+
+
 @router.post('/session-videos/{video_id}/playback-issues', status_code=204,
              dependencies=[Depends(require_enabled), Depends(same_origin)])
 def member_issue(video_id: int, payload: IssueInput, request: Request,
