@@ -17,8 +17,9 @@ export function RatingBar({ ratings }: { ratings: Partial<Record<string, number>
 export function ScoreChip({ id, performance, score, label, onOpen, current }: {
   id: number; performance: string | null | undefined; score: number; label: string; onOpen: (id: number) => void; current?: boolean
 }) {
-  return <button type="button" className={`ca-chip ca-r-${performance || 'F'}`} data-attempt-id={id} aria-label={label} title={label}
-    aria-current={current || undefined} onClick={event => { event.stopPropagation(); onOpen(id) }}>{Math.round(score)}</button>
+  // An ungraded clip is not a failed one: neutral chip and a dash, still clickable.
+  return <button type="button" className={performance ? `ca-chip ca-r-${performance}` : 'ca-chip is-ungraded'} data-attempt-id={id} aria-label={`${label} · ${performance ? fmtScore(score) : '—'}`} title={label}
+    aria-current={current || undefined} onClick={event => { event.stopPropagation(); onOpen(id) }}>{performance ? fmtScore(score) : '—'}</button>
 }
 
 export function Sparkline({ values, width = 84, height = 30 }: { values: number[]; width?: number; height?: number }) {

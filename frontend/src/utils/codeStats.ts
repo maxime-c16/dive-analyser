@@ -59,10 +59,10 @@ export const scoreBand = gradeForScore
 export const DAY_MS = 86_400_000
 
 /** Median of the last six weeks against the four and a half months before, like the code cards. */
-export function recentTrend<T>(items: T[], score: (item: T) => number, date: (item: T) => number, now = Date.now()): number | null {
+export function recentTrend<T>(items: T[], score: (item: T) => number, date: (item: T) => number, now = Date.now(), minimum = 4): number | null {
   const recent = items.filter(item => now - date(item) <= 42 * DAY_MS).map(score)
   const baseline = items.filter(item => now - date(item) > 42 * DAY_MS && now - date(item) <= 182 * DAY_MS).map(score)
-  if (recent.length < 4 || baseline.length < 4) return null
+  if (recent.length < minimum || baseline.length < minimum) return null
   return (median(recent) as number) - (median(baseline) as number)
 }
 

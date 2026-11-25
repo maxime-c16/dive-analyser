@@ -58,7 +58,7 @@ beforeEach(() => {
 it('offers Corrections as the third Scores mode and restores the dives view', async () => {
   auth.user = { user_id: 1, is_admin: true }
   renderPage('/dives/analysis/5122D')
-  await userEvent.click(await screen.findByRole('button', { name: 'Corrections' }))
+  await userEvent.click(await screen.findByRole('button', { name: 'Before / after' }))
   expect(screen.getByText('Keep the head neutral')).toBeInTheDocument()
   expect(screen.getByTestId('location')).toHaveTextContent('mode=corrections')
   await userEvent.click(screen.getByRole('button', { name: 'Attempts' }))
@@ -73,7 +73,7 @@ it('keeps Corrections accessible when a month contains only immutable history da
   })
   renderPage('/dives/analysis/5122D?month=2026-01')
   expect(await screen.findByRole('button', { name: 'Show all' })).toBeInTheDocument()
-  await userEvent.click(screen.getByRole('button', { name: 'Corrections' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Before / after' }))
   expect(screen.getByText('1 rated dive on the chart · score 4.5')).toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Show all' })).not.toBeInTheDocument()
 })
@@ -82,7 +82,7 @@ it('summarises every attempt of the code and highlights the dive it came from', 
   renderPage('/dives/analysis/5122D?attempt=6')
   expect(await screen.findByRole('heading', { name: '5122D' })).toBeInTheDocument()
   expect(getCodeAttemptsResult).toHaveBeenCalledWith('5122D', 'self', null, null)
-  expect(screen.getByText(/12 attempts · 6 sessions/)).toBeInTheDocument()
+  expect(screen.getByText(/12 graded attempts/)).toBeInTheDocument()
   const focus = screen.getByText(/This dive/).closest('button')!
   expect(within(focus).getByText('10.0')).toBeInTheDocument()
   expect(within(focus).getByText('#1 of 12')).toBeInTheDocument()
@@ -165,9 +165,9 @@ it('height filters narrow the whole page and keep the scroll position', async ()
   renderPage('/dives/analysis/5122D')
   await screen.findByRole('heading', { name: '5122D' })
   const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined)
-  await userEvent.click(screen.getAllByRole('button', { name: '1m' })[0])
+  await userEvent.click(screen.getAllByRole('button', { name: /^1m/ })[0])
   expect(screen.getByTestId('location')).toHaveTextContent('h=1m')
-  expect(screen.getByText(/11 attempts/)).toBeInTheDocument()
+  expect(screen.getByText(/11 graded attempts/)).toBeInTheDocument()
   expect(scrollTo).not.toHaveBeenCalled()
 })
 
@@ -178,12 +178,10 @@ it('keeps an ungraded dive in counts but out of every score view', async () => {
   ] as never, capped: false })
   renderPage('/dives/analysis/5122D')
   expect(await screen.findByRole('heading', { name: '5122D' })).toBeInTheDocument()
-  // Counts still cover every attempt; scores only the twelve graded ones.
-  expect(screen.getByText(/13 attempts · 7 sessions/)).toBeInTheDocument()
-  await waitFor(() => {
-    expect(screen.getByText('5.2')).toBeInTheDocument()
-    expect(screen.getByText('42%')).toBeInTheDocument()
-  }, { timeout: 3000 })
+  // Sessions still count every attempt; scores cover only the twelve graded ones.
+  expect(screen.getByText(/12 graded attempts/)).toBeInTheDocument()
+  expect(screen.getByText(/12 graded attempts/).closest('p')).toHaveTextContent('personal median 4.5')
+  expect(screen.getByRole('button', { name: 'Show all 7 sessions' })).toBeInTheDocument()
   // The newest dive is ungraded, so the Latest representative falls back to
   // the newest graded dive (id 12, an M) instead of showing a 0.0 score.
   const latestRep = screen.getByRole('button', { name: /Latest/ })
@@ -217,4 +215,48 @@ it('keeps the complete Scores panel when a technique period becomes active', asy
   await userEvent.click(screen.getByRole('button', { name: 'Record test technique' }))
   expect(screen.getByRole('heading', { name: 'Scores' })).toBeInTheDocument()
   expect(screen.getByRole('group', { name: 'Chart view' })).toBeInTheDocument()
+})
+
+it('opens a busy code on its last three months and a rare one on its whole history', async () => {
+  const busy = Array.from({ length: 40 }, (_, index) => ({ ...attempts[index % 12], id: 100 + index, dive_datetime: day(40 - index), session_id: 100 + index }))
+  vi.mocked(getCodeAttemptsResult).mockResolvedValue({ items: busy as never, capped: false })
+  renderPage('/dives/analysis/5122D')
+  await screen.findByRole('heading', { name: '5122D' })
+  expect(screen.getByRole('button', { name: '3 months' })).toHaveAttribute('aria-pressed', 'true')
+  // Choosing the default again keeps the URL clean; another period is written explicitly.
+  await userEvent.click(screen.getByRole('button', { name: 'All' }))
+  expect(screen.getByTestId('location')).toHaveTextContent('period=all')
+})
+
+it('keeps strangers’ public dives out of the scores in the all-divers scope', async () => {
+  auth.user = { user_id: 1, display_name: 'Test diver', is_admin: false, divers: [{ diver_id: 1, access_kind: 'OWNER' }] }
+  vi.mocked(getCodeAttemptsResult).mockResolvedValue({ items: [
+    ...attempts.map(item => ({ ...item, diver_id: 1 })),
+    { ...attempts[0], id: 99, diver_id: 2, performance: 'P', dive_datetime: day(1), session_id: 99 },
+  ] as never, capped: false })
+  renderPage('/dives/analysis/5122D')
+  await screen.findByRole('heading', { name: '5122D' })
+  expect(screen.getByText(/personal median/).closest('p')).toHaveTextContent('12 graded attempts')
+})
+
+it('shows an ungraded session clip as a neutral dash, not a failed 0', async () => {
+  vi.mocked(getCodeAttemptsResult).mockResolvedValue({ items: [
+    ...attempts,
+    { ...attempts[0], id: 13, performance: '', dive_datetime: day(1), session_id: 7 },
+  ] as never, capped: false })
+  const { container } = renderPage('/dives/analysis/5122D')
+  await screen.findByRole('heading', { name: '5122D' })
+  const chip = container.querySelector('[data-attempt-id="13"]')!
+  expect(chip).toHaveTextContent('—')
+  expect(chip).toHaveClass('is-ungraded')
+})
+
+it('opening an older clip widens the default period so the page still describes it', async () => {
+  const busy = Array.from({ length: 40 }, (_, index) => ({ ...attempts[index % 12], id: 100 + index, dive_datetime: day(40 - index), session_id: 100 + index }))
+  const old = { ...attempts[0], id: 500, performance: 'P', dive_datetime: day(200), session_id: 500 }
+  vi.mocked(getCodeAttemptsResult).mockResolvedValue({ items: [old, ...busy] as never, capped: false })
+  renderPage('/dives/analysis/5122D?attempt=500')
+  await screen.findByRole('heading', { name: '5122D' })
+  expect(screen.getByRole('button', { name: '1 year' })).toHaveAttribute('aria-pressed', 'true')
+  expect(within(screen.getByText(/This dive/).closest('button')!).getByText('#1 of 41')).toBeInTheDocument()
 })

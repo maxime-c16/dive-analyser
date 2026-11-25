@@ -36,8 +36,9 @@
 .ca-rbar span { transform-origin: left; animation: ca-grow 700ms cubic-bezier(.2, .9, .3, 1) both; }
 @keyframes ca-grow { from { transform: scaleX(0); } }
 .ca-chips { display: flex; flex-wrap: wrap; gap: 4px; }
-.ca-chip { display: grid; place-items: center; min-width: 26px; height: 26px; min-height: 0; padding: 0 4px; border: 0; border-radius: 6px; font-size: 11px; font-weight: 700; color: rgba(0, 0, 0, .78); font-variant-numeric: tabular-nums; transition: transform .15s; }
+.ca-chip { display: grid; place-items: center; min-width: 32px; height: 26px; min-height: 0; padding: 0 4px; border: 0; border-radius: 6px; font-size: 11px; font-weight: 700; color: rgba(0, 0, 0, .78); font-variant-numeric: tabular-nums; transition: transform .15s; }
 .ca-chip:hover, .ca-chip:focus-visible { transform: scale(1.12); outline: 2px solid rgba(255, 255, 255, .55); outline-offset: 1px; }
+.ca-chip.is-ungraded { background: var(--app-panel-elevated); color: var(--app-muted); }
 .ca-thumb { position: relative; overflow: hidden; border-radius: 10px; border: 1px solid var(--app-border); background: var(--app-panel-elevated); }
 
 /* ---- Code cards (Library › par code) ---- */
@@ -67,9 +68,6 @@
 .ca-hero { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin-top: 10px; }
 .ca-hero-code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 48px; font-weight: 800; line-height: 1; letter-spacing: -.03em; color: var(--app-text); }
 .ca-hero-name { max-width: 40ch; margin-top: 6px; font-size: 14px; color: var(--app-muted); }
-.ca-hero-trend { flex: none; text-align: right; }
-.ca-hero-trend strong { display: block; font-size: 22px; }
-.ca-hero-trend span { font-size: 12px; color: var(--app-muted); }
 .ca-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; overflow: hidden; border: 1px solid var(--app-border); border-radius: var(--ca-r); background: var(--app-border); }
 .ca-kpi { padding: 12px 12px 14px; background: var(--app-panel); }
 .ca-kpi dt { font-size: 12px; color: var(--app-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -143,14 +141,17 @@ button.ca-bar:hover, .ca-bar[aria-pressed=true] { background: var(--app-panel-el
 @keyframes ca-shimmer { to { background-position: -200% 0; } }
 
 @media (min-width: 1024px) {
-  .ca-page { grid-template-columns: minmax(0, 1fr) 340px; align-items: start; column-gap: 20px; }
+  .ca-page { grid-template-columns: minmax(0, 1fr) 340px; grid-template-rows: auto 1fr; align-items: start; column-gap: 20px; }
   .ca-span { grid-column: 1 / -1; }
+  /* Header and filters share column 1 so the aside starts at the top instead of leaving a void beside the title. */
+  .ca-lead { grid-column: 1; display: grid; gap: 14px; min-width: 0; }
+  .ca-page:not(:has(> .ca-aside)) .ca-lead { grid-column: 1 / -1; }
   .ca-main { grid-column: 1; display: grid; gap: 14px; min-width: 0; }
-  .ca-aside { grid-column: 2; position: sticky; top: 16px; display: grid; gap: 14px; }
+  .ca-aside { grid-column: 2; grid-row: 1 / span 2; display: grid; gap: 14px; }
   .ca-reps { grid-auto-flow: row; grid-template-columns: 1fr 1fr; margin: 0; padding: 0; overflow: visible; }
   .ca-hero-code { font-size: 64px; }
 }
-@media (max-width: 1023px) { .ca-main, .ca-aside { display: contents; } }
+@media (max-width: 1023px) { .ca-lead, .ca-main, .ca-aside { display: contents; } }
 @media (min-width: 700px) and (max-width: 1023px) { .ca-two { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start; } }
 .ca-two { min-width: 0; }
 @media (max-width: 699px) { .ca-two { display: grid; gap: 14px; } }
@@ -337,3 +338,31 @@ button.ca-comm-row:active { transform: scale(.985); }
   border-radius: 2px;
   background: repeating-linear-gradient(135deg, transparent 0 3px, var(--app-muted) 3px 4px);
 }
+
+/* Headline: one personal median, then the trend for one height with what it compares. */
+.ca-verdict { display: grid; gap: 2px; margin-top: 10px; font-size: 15px; color: var(--app-muted); }
+.ca-verdict b { font-weight: 700; }
+.ca-verdict p:first-child b { font-size: 20px; }
+.ca-verdict .ca-sample { margin: 4px 0 0; }
+.ca-filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.ca-heights { display: flex; flex-wrap: wrap; gap: 8px; }
+.ca-pill small { margin-left: 6px; font-size: 12px; font-weight: 700; }
+.ca-slot:empty { display: none; }
+.ca-near { display: grid; }
+.ca-near-row { display: grid; grid-template-columns: 52px minmax(0, 1fr) 36px; gap: 10px; align-items: center; margin: 0 -8px; padding: 8px; border-radius: 10px; color: inherit; font-size: 13px; text-decoration: none; }
+.ca-near-row + .ca-near-row { border-top: 1px solid var(--app-border); }
+a.ca-near-row:hover { background: var(--app-panel-elevated); }
+.ca-near-row.is-self { background: color-mix(in srgb, var(--app-accent) 12%, transparent); }
+.ca-near-code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 800; color: var(--app-text); }
+.ca-near-name { display: grid; min-width: 0; overflow: hidden; color: var(--app-text); text-overflow: ellipsis; white-space: nowrap; }
+.ca-near-name > span, .ca-near-name small { overflow: hidden; text-overflow: ellipsis; }
+.ca-near-name small { color: var(--app-muted); font-size: 12px; }
+.ca-near-row b { text-align: right; }
+@media (max-width: 1023px) { .ca-pill, .ca-seg button { min-height: 44px; } }
+
+.ca-medline-label { fill: var(--app-accent); font-size: 11px; font-weight: 700; paint-order: stroke; stroke: var(--app-panel); stroke-width: 4px; stroke-linejoin: round; pointer-events: none; }
+@media (max-width: 1023px) { .ca-chip { min-width: 36px; height: 32px; font-size: 12px; } }
+/* Phones: shorter posters so three clips and the chart fit the first screen. */
+@media (max-width: 1023px) { .ca-reps { grid-auto-columns: minmax(104px, 1fr); } .ca-rep .ca-thumb { aspect-ratio: 1; } .ca-rep-cap { padding: 6px 8px 8px; } .ca-rep-cap b { font-size: 13px; } }
+/* Desktop: when the screen is tall enough, videos and adjustments stay in view while reading sessions and nearby dives. */
+@media (min-width: 1024px) and (min-height: 900px) { .ca-aside { position: sticky; top: 16px; align-self: start; } }
