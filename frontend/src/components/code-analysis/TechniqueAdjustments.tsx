@@ -13,14 +13,14 @@ import { format, parseISO } from 'date-fns'
 import { appLocale } from '../../utils/dateLocale'
 import { attemptScore, type Attempt } from '../../utils/attemptPresentation'
 import { fmtScore, median, scoreBand } from '../../utils/codeStats'
-import { compareTechniqueHistoryOrder, techniqueHistoryOrder } from './techniqueDates'
+import { compareTechniqueHistoryOrder, techniqueHistoryOrder, techniqueTimestamp } from './techniqueDates'
 
 type Context={code:string;apparatus:string;height:string;position:string;sync:boolean}
 type Adjustment=AdjustmentChoice & {track_revision:number;start_id:number;end_id:number|null;uncertain_until:string|null}
 const families=['1','2','3','4','51','52','53','54']
 const localNow=()=>new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,16)
-/** Code-page list: each adjustment shows its effect on the score; `slot` renders the list elsewhere on the page. */
-export type AdjustmentsLook={slot?:HTMLElement|null;attempts:Attempt[]}
+/** Code-page list: each adjustment shows its effect on the score; `slot` renders the list elsewhere on the page. `capped` marks the attempts as a bounded newest-window, so effects measured against a truncated past stay unshown. */
+export type AdjustmentsLook={slot?:HTMLElement|null;attempts:Attempt[];capped?:boolean}
 export default function TechniqueAdjustments({diver,context,viewer,scores,contextPicker,contextLabel,layout}:{diver:number;context:Context;viewer:string|number;scores?:ScorePanel;contextPicker?:ReactNode;contextLabel?:string;layout?:AdjustmentsLook}){
  const {t,i18n}=useTranslation(),base=`/api/v1/technique-adjustments/${diver}`,history=`/api/v1/technique-history/${diver}`
  const [pageAfter,setPageAfter]=useState(0)
@@ -115,10 +115,18 @@ export default function TechniqueAdjustments({diver,context,viewer,scores,contex
  </>
  const sameContext=(attempt:Attempt)=>attempt.diver_id===diver&&attempt.dive_code===context.code&&attempt.height===context.height&&attempt.platform_type===context.apparatus&&(attempt.position??'')===context.position&&Boolean(attempt.is_sync)===context.sync
  const pool=(layout?.attempts??[]).filter(attempt=>attempt.performance&&sameContext(attempt))
+ // Oldest loaded dive on the history ordering: a capped newest-window that
+ // starts after an adjustment's 6-month run-up cannot measure its effect —
+ // the run-up dives it drops are indistinguishable from dives that never happened.
+ const oldestLoaded=layout?.capped?layout.attempts.reduce<number|null>((oldest,attempt)=>{
+  const at=techniqueTimestamp(attempt.history_occurred_at??attempt.dive_datetime)
+  return Number.isFinite(at)&&(oldest==null||at<oldest)?at:oldest
+ },null):null
  // Effect = median of up to 20 graded dives in the 6 months before the start → median of the graded dives during it.
  const effect=(item:Adjustment)=>{
   // Same ordering as the Corrections chart (history date, then dive id), so both views split the dives identically.
   const start=techniqueHistoryOrder(item.start_at,item.start_id),stop=item.end_at?techniqueHistoryOrder(item.end_at,item.end_id??0):null
+  if(oldestLoaded!=null&&!(oldestLoaded<=start.at-182*86400000))return null
   const dives=pool.map(a=>({order:techniqueHistoryOrder(a.history_occurred_at??a.dive_datetime,a.id),value:attemptScore(a)})).sort((a,b)=>compareTechniqueHistoryOrder(a.order,b.order))
   const before=dives.filter(d=>compareTechniqueHistoryOrder(d.order,start)<0&&start.at-d.order.at<=182*86400000).slice(-20).map(d=>d.value)
   // An approximate start leaves its opening stretch uncertain: those dives count neither before nor during.

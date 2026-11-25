@@ -159,7 +159,9 @@ export default function CodeAnalysis() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   [all, focusAt])
   const requestedPeriod = params.get('period')
-  const period: Period = PERIODS.find(([key]) => key === requestedPeriod)?.[0] ?? defaultPeriod
+  // A month link arrives without a period: the adaptive default must not empty
+  // it — an explicit month shows its whole month, like the old default-all.
+  const period: Period = PERIODS.find(([key]) => key === requestedPeriod)?.[0] ?? (month ? 'all' : defaultPeriod)
   const items = useMemo(() => {
     const days = PERIODS.find(([key]) => key === period)?.[1] ?? Infinity
     return all.filter(item => now - ts(item) <= days * DAY_MS && (!height || item.height === height) && (!month || item.dive_datetime.startsWith(month)))
@@ -218,7 +220,10 @@ export default function CodeAnalysis() {
   // The trend compares one height with itself: mixing heights turns a switch from 3m to 1m into a fake drop.
   const trendHeight = height || latest?.height || ''
   // Same evidence bar as the adjustment effects (8 graded dives per side); a month view has no "last 6 weeks".
-  const trend = month ? null : recentTrend(all.filter(item => item.performance && (!trendHeight || item.height === trendHeight)), attemptScore, ts, now, 8)
+  // A capped newest-window can truncate the 20-week baseline: without the full
+  // run-up the hero trend would compare a full recent sample with a partial one.
+  const trendCut = attemptsCapped && all.length > 0 && ts(all[0]) > now - 182 * DAY_MS
+  const trend = month || trendCut ? null : recentTrend(all.filter(item => item.performance && (!trendHeight || item.height === trendHeight)), attemptScore, ts, now, 8)
   const nearbySource = communityHeight ? heightSummaries : summaries
   const related = useMemo(() => nearbySource && !diverId ? relatedCodes(code, nearbySource) : [], [code, nearbySource, diverId])
   const diver = diverId ? community?.members.find(member => member.diver_id === diverId) ?? null : null
@@ -426,7 +431,7 @@ export default function CodeAnalysis() {
     </div>
   </section>
   const workspace = user && !diverId
-    ? <TechniqueWorkspace key={`${user.user_id}-${code}`} code={code} viewer={user.user_id} height={height} scores={scorePanel} layout={{ slot: adjustmentSlot, attempts: all }} />
+    ? <TechniqueWorkspace key={`${user.user_id}-${code}`} code={code} viewer={user.user_id} height={height} scores={scorePanel} layout={{ slot: adjustmentSlot, attempts: all, capped: attemptsCapped }} />
     : scorePanel && <section className="ca-panel">{scorePanel.header}{scorePanel.content}</section>
   const slot = <div ref={setAdjustmentSlot} className="ca-slot" />
   const hasBody = items.length > 0 || Boolean(canViewCorrections && scorePanel)

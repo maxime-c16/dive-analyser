@@ -129,3 +129,23 @@ it('refreshes a conflicting revision from inside the dialog before another previ
  const attempts=post.mock.calls.filter(([url])=>url.endsWith('/end'))
  expect(attempts.map(([,body])=>body.revision)).toEqual([7,8])
 })
+
+const effectDay=(offset:number)=>new Date(Date.now()-offset*86_400_000).toISOString().slice(0,19)
+const effectWindow=[90,70,50,20,10,2].map((offset,index)=>({id:11+index,diver_id:1,dive_code:'5132D',performance:'G',performance_numeric:0,height:'1m',platform_type:'springboard',position:'D',is_sync:false,is_lineup:false,session_id:50+index,official_dd:1.9,dive_datetime:effectDay(offset)}))
+const effectEpisode={id:9,track_id:9,track_revision:1,label:'Hips up',scope:'5132D',start_at:effectDay(30),start_id:11,end_at:null,end_id:null,uncertain_until:null,anchor_id:1}
+
+it('measures the code-page effect from a complete window',async()=>{
+ post.mockResolvedValue({data:{items:[effectEpisode],revision:7,next:null}})
+ render(<TechniqueAdjustments diver={1} viewer={1} context={context} layout={{attempts:effectWindow}}/>)
+ await screen.findByText('Hips up')
+ expect(screen.getByText('3 before · 3 during')).toBeInTheDocument()
+})
+
+it('claims no effect when a capped window truncates the six-month run-up',async()=>{
+ // The same dives through a capped newest-window: dives older than the
+ // window edge are indistinguishable from dives that never happened (R96).
+ post.mockResolvedValue({data:{items:[effectEpisode],revision:7,next:null}})
+ render(<TechniqueAdjustments diver={1} viewer={1} context={context} layout={{attempts:effectWindow,capped:true}}/>)
+ await screen.findByText('Hips up')
+ expect(screen.getByText('too few grades')).toBeInTheDocument()
+})

@@ -260,3 +260,34 @@ it('opening an older clip widens the default period so the page still describes 
   expect(screen.getByRole('button', { name: '1 year' })).toHaveAttribute('aria-pressed', 'true')
   expect(within(screen.getByText(/This dive/).closest('button')!).getByText('#1 of 41')).toBeInTheDocument()
 })
+
+it('a month link shows the whole month even when the adaptive default is shorter', async () => {
+  // A heatmap month link arrives without a period: the adaptive 3-month
+  // default must not intersect the month filter and empty the view (R95).
+  const oldMonth = (() => { const d = new Date(); d.setMonth(d.getMonth() - 6); return d.toISOString().slice(0, 7) })()
+  const busy = Array.from({ length: 40 }, (_, index) => ({ ...attempts[index % 12], id: 100 + index, dive_datetime: day(40 - index), session_id: 100 + index }))
+  const old = Array.from({ length: 5 }, (_, index) => ({ ...attempts[index], id: 200 + index, dive_datetime: `${oldMonth}-0${index + 1}T10:00:00`, session_id: 200 + index }))
+  vi.mocked(getCodeAttemptsResult).mockResolvedValue({ items: [...old, ...busy] as never, capped: false })
+  renderPage(`/dives/analysis/5122D?month=${oldMonth}`)
+  await screen.findByRole('heading', { name: '5122D' })
+  expect(screen.getByText(/5 graded attempts/)).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Show all' })).not.toBeInTheDocument()
+})
+
+it('hides the hero trend when the capped window truncates its baseline', async () => {
+  // The 20-week baseline needs the full run-up: a capped newest-window
+  // covering only the recent weeks must not compare it with a partial past (R96).
+  const recent = Array.from({ length: 20 }, (_, index) => ({ ...attempts[index % 12], id: 300 + index, height: '1m', dive_datetime: day(100 - index * 5), session_id: 300 + index }))
+  vi.mocked(getCodeAttemptsResult).mockResolvedValue({ items: recent as never, capped: true })
+  renderPage('/dives/analysis/5122D')
+  await screen.findByRole('heading', { name: '5122D' })
+  expect(screen.queryByTitle('Median of the last 6 weeks compared with the 20 weeks before.')).not.toBeInTheDocument()
+})
+
+it('shows the hero trend for the same window when it is not capped', async () => {
+  const recent = Array.from({ length: 20 }, (_, index) => ({ ...attempts[index % 12], id: 300 + index, height: '1m', dive_datetime: day(100 - index * 5), session_id: 300 + index }))
+  vi.mocked(getCodeAttemptsResult).mockResolvedValue({ items: recent as never, capped: false })
+  renderPage('/dives/analysis/5122D')
+  await screen.findByRole('heading', { name: '5122D' })
+  expect(screen.getByTitle('Median of the last 6 weeks compared with the 20 weeks before.')).toBeInTheDocument()
+})
