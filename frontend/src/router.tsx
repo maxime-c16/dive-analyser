@@ -487,33 +487,27 @@ function Layout({ children }: { children: React.ReactNode }) {
       </a>
       <div className="flex min-h-screen w-full">
         <aside className="hidden w-64 shrink-0 border-r border-app lg:block" aria-label={t("nav.workspaceSidebarAria")}>
-          <div className="sticky top-0 flex h-dvh flex-col overflow-y-auto px-5 py-6 pt-safe">
-            <div className="shrink-0 border-b border-app pb-5">
-              <div className="text-xl font-semibold text-app-text">
-                Dive Analyser
-              </div>
+          <div className="workspace-top sticky top-0 flex h-dvh flex-col overflow-y-auto px-5 pb-6">
+            <div className="workspace-heading flex shrink-0 items-center gap-2 border-b border-app">
+              <img src="/icons/icon.svg" alt="" width={28} height={28} />
+              <span className="text-lg font-semibold tracking-tight">Dive Analyser</span>
             </div>
 
-            <nav className="mt-6 space-y-1" aria-label={t("nav.primaryNavigationAria")}>
+            <nav className="mt-4 space-y-1" aria-label={t("nav.primaryNavigationAria")}>
               {primaryNavItems.map((item) => (
                 <AppNavLink key={item.to} {...item} emphasis />
               ))}
             </nav>
 
             {!friend && (
-              <div className="mt-6">
+              <div className="mt-5 space-y-1 border-t border-app pt-3">
                 <NavigationDisclosure review />
-              </div>
-            )}
-
-            {!friend && (
-              <div className="mt-6">
                 <NavigationDisclosure />
               </div>
             )}
 
-            <div className="mt-auto shrink-0 border-t border-app pt-4">
-              <div className="mb-3 grid gap-2"><WhatsNewButton /><NotificationsButton /></div>
+            <div className="mt-auto shrink-0 pt-5">
+              <div className="mb-2 grid gap-2 border-t border-app pt-4"><WhatsNewButton /><NotificationsButton /></div>
               <IntentNavLink to="/account" aria-label={t("nav.account")} className={({ isActive }) => `flex min-h-11 w-full items-center gap-3 border px-3 py-2 text-sm hover:bg-app-panel-elevated ${isActive ? "border-app-accent bg-app-panel-elevated text-app-accent" : "border-app bg-app-panel text-app-text"}`}>
                 {user && <MemberAvatar member={user} size={24} />}
                 <span className="min-w-0 flex-1">
@@ -530,7 +524,7 @@ function Layout({ children }: { children: React.ReactNode }) {
         <div className="flex min-w-0 flex-1 flex-col">
           <MobileShell>
             <main id="main-content" tabIndex={-1} className="shell-main min-w-0 flex-1">
-              <div className="mx-auto w-full max-w-[1440px] px-4 py-5 sm:px-6 lg:px-8 lg:py-8">
+              <div className="workspace-top mx-auto w-full max-w-[1440px] px-4 py-5 sm:px-6 lg:px-8 lg:pb-8">
                 <Breadcrumbs />
                 {children}
               </div>

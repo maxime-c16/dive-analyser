@@ -41,6 +41,7 @@ import { Link } from "react-router-dom";
 import { Gift } from "lucide-react";
 import { canAcceptDeposits, listPendingBatches } from "../services/depositsApi";
 import PageLoading from "../components/PageLoading";
+import "./Dives.css";
 
 const ClipViewer = lazy(() => loadChunk(() => import("../components/clip-viewer/ClipViewer")));
 
@@ -947,13 +948,12 @@ function DiveLibrary() {
 
   return (
     <div className="mx-auto max-w-[1440px] pb-10">
-      <header className="library-heading flex flex-wrap items-center gap-x-2 gap-y-3 border-b border-app pb-3 sm:flex-nowrap sm:items-end sm:gap-4 sm:pb-5">
-        <h1 className="min-w-0 flex-1 text-3xl font-semibold tracking-tight text-app-text sm:text-4xl">
+      <header className="library-heading workspace-heading items-center gap-x-2 gap-y-3 border-b border-app pb-3 sm:pb-4">
+        <h1 className="min-w-0 text-3xl font-semibold leading-tight tracking-tight text-app-text">
           {t("nav.dives")}
         </h1>
         <MobileShellActions />
-        <div className="basis-full sm:hidden" aria-hidden />
-        <div className="flex h-11 flex-1 gap-1 border border-app bg-app-panel p-0.5 sm:hidden">
+        <div className="library-mobile-views flex h-11 gap-1 border border-app bg-app-panel p-0.5 sm:hidden">
           {(
             [
               ["grid", t("dives.viewClips")],
@@ -978,15 +978,15 @@ function DiveLibrary() {
           title={t("dives.refresh")}
           disabled={loading}
           onClick={() => { clearLibraryCache(); setReloadKey(key => key + 1); }}
-          className="touch-target inline-flex shrink-0 items-center justify-center border border-app bg-app-panel text-app-muted hover:text-app-text disabled:opacity-50"
+          className="library-refresh touch-target inline-flex shrink-0 items-center justify-center rounded-xl border border-app bg-app-panel text-app-muted hover:text-app-text disabled:opacity-50"
         >
           <RefreshCw className="h-4 w-4" />
         </button>
         <AddVideos onAdded={() => { clearLibraryCache(); setReloadKey(key => key + 1); }} />
       </header>
       <PendingBanner />
-      <section className="mt-4 space-y-2" aria-label={t("dives.filtersAria")}>
-        <div className="flex flex-wrap items-center gap-2">
+      <section className="library-tools mt-4 space-y-2" aria-label={t("dives.filtersAria")}>
+        <div className="flex flex-wrap items-center gap-2 sm:grid sm:grid-cols-[auto_minmax(0,1fr)_auto]">
           <div className={`${filtersOpen ? "flex" : "hidden"} order-last h-11 w-full gap-1 border border-app bg-app-panel p-1 sm:order-none sm:flex sm:w-auto sm:shrink-0`}>
             {(
               [
@@ -1005,7 +1005,7 @@ function DiveLibrary() {
               </button>
             ))}
           </div>
-          <label className="relative block min-w-0 flex-1 sm:min-w-[14rem]">
+          <label className="relative block min-w-0 flex-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-app-muted" />
             <input
               value={query}
@@ -1030,55 +1030,33 @@ function DiveLibrary() {
               </span>
             )}
           </button>
-          <div className="hidden shrink-0 items-center gap-1 sm:flex">
-            <button
-              type="button"
-              onClick={() => update({ view: "grid" })}
-              className={`touch-target inline-flex items-center justify-center border p-0 ${view === "grid" ? "border-app-accent text-app-accent" : "border-app text-app-muted"}`}
-              aria-label={t("dives.gridView")}
-              title={t("dives.gridView")}
-              aria-pressed={view === "grid"}
-            >
-              <LayoutGrid className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => update({ view: "list" })}
-              className={`touch-target inline-flex items-center justify-center border p-0 ${view === "list" ? "border-app-accent text-app-accent" : "border-app text-app-muted"}`}
-              aria-label={t("dives.listView")}
-              title={t("dives.listView")}
-              aria-pressed={view === "list"}
-            >
-              <List className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => update({ view: "codes" })}
-              className={`touch-target inline-flex items-center justify-center border p-0 ${view === "codes" ? "border-app-accent text-app-accent" : "border-app text-app-muted"}`}
-              aria-label={t("dives.codeView")}
-              title={t("dives.codeView")}
-              aria-pressed={view === "codes"}
-            >
-              <Hash className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => update({ view: "progress" })}
-              className={`touch-target inline-flex items-center justify-center border p-0 ${view === "progress" ? "border-app-accent text-app-accent" : "border-app text-app-muted"}`}
-              aria-label={t("codeAnalysis.progressTab")}
-              title={t("codeAnalysis.progressTab")}
-              aria-pressed={view === "progress"}
-            >
-              <TrendingUp className="h-4 w-4" />
-            </button>
+          <div className="hidden h-11 gap-1 border border-app bg-app-panel p-1 sm:flex">
+            {([
+              ["grid", "dives.gridView", LayoutGrid],
+              ["list", "dives.listView", List],
+              ["codes", "dives.codeView", Hash],
+              ["progress", "codeAnalysis.progressTab", TrendingUp],
+            ] as const).map(([value, label, Icon]) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => update({ view: value })}
+                className={`inline-flex w-9 items-center justify-center rounded-lg border ${view === value ? "border-app-accent bg-app-panel-elevated text-app-accent" : "border-transparent text-app-muted hover:bg-app-panel-elevated hover:text-app-text"}`}
+                aria-label={t(label)}
+                title={t(label)}
+                aria-pressed={view === value}
+              >
+                <Icon className="h-4 w-4" aria-hidden />
+              </button>
+            ))}
           </div>
         </div>
-        <div className={`${filtersOpen ? "grid" : "hidden"} grid-cols-2 items-center gap-2 sm:flex sm:flex-wrap`}>
+        <div className={`${filtersOpen ? "grid" : "hidden"} library-filters items-center gap-2 sm:grid`}>
           <select
             aria-label={t("dives.heightFilter")}
             value={heightFilter}
             onChange={(event) => update({ height: event.target.value })}
-            className="app-input h-11 w-full py-0 text-sm sm:w-auto"
+            className="app-input h-11 min-w-0 w-full truncate py-0 text-sm"
           >
             <option value="">{t("dives.allHeights")}</option>
             {heights.map((height) => (
@@ -1087,16 +1065,11 @@ function DiveLibrary() {
               </option>
             ))}
           </select>
-          {heightFacets?.partial && heightFacets.key === facetParamsKey && (
-            <span className="text-xs text-app-muted sm:w-auto" title={t("dives.heightsPartialAria")}>
-              {t("dives.heightsPartial")}
-            </span>
-          )}
           <select
             aria-label={t("dives.contextFilter")}
             value={contextFilter}
             onChange={(event) => update({ context: event.target.value })}
-            className="app-input h-11 w-full py-0 text-sm sm:w-auto"
+            className="app-input h-11 min-w-0 w-full truncate py-0 text-sm"
           >
             <option value="">{t("dives.contextAll")}</option>
             <option value="individual">{t("dives.contextIndividual")}</option>
@@ -1106,7 +1079,7 @@ function DiveLibrary() {
             aria-label={t("dives.ratingFilter")}
             value={performanceFilter}
             onChange={(event) => update({ performance: event.target.value })}
-            className="app-input h-11 w-full py-0 text-sm sm:w-auto"
+            className="app-input h-11 min-w-0 w-full truncate py-0 text-sm"
           >
             <option value="">{t("dives.allRatings")}</option>
             {PERFORMANCE.map((item) => (
@@ -1119,7 +1092,7 @@ function DiveLibrary() {
             aria-label={t("libraryUX.periodFilter")}
             value={period}
             onChange={(event) => update({ period: event.target.value || null })}
-            className="app-input h-11 w-full py-0 text-sm sm:w-auto"
+            className="app-input h-11 min-w-0 w-full truncate py-0 text-sm"
           >
             <option value="">{t("libraryUX.periodAll")}</option>
             {PERIODS.map(([key]) => (
@@ -1128,60 +1101,63 @@ function DiveLibrary() {
               </option>
             ))}
           </select>
-          <div
-            role="group"
-            aria-label={t("dives.modifiers")}
-            className="flex h-11 gap-1 border border-app bg-app-panel p-1"
-          >
-            {MODIFIERS.map((modifier) => (
-              <button
-                key={modifier}
-                type="button"
-                onClick={() =>
-                  update({
-                    modifiers: modifiers.includes(modifier)
-                      ? modifiers
-                          .filter((item) => item !== modifier)
-                          .join(",") || null
-                      : [...modifiers, modifier].join(","),
-                  })
-                }
-                aria-pressed={modifiers.includes(modifier)}
-                title={t(`dives.modifierDescriptions.${modifier}`)}
-                className={`min-h-0 min-w-10 flex-1 border px-2 text-xs ${modifiers.includes(modifier) ? "border-app-accent bg-app-panel-elevated text-app-accent" : "border-transparent text-app-muted"}`}
-              >
-                {modifier}
-              </button>
-            ))}
+          <div className="library-modifiers relative flex items-center gap-2 sm:justify-self-start">
+            <div role="group" aria-label={t("dives.modifiers")} className="flex h-11 flex-1 gap-1 border border-app bg-app-panel p-1">
+              {MODIFIERS.map((modifier) => (
+                <button
+                  key={modifier}
+                  type="button"
+                  onClick={() =>
+                    update({
+                      modifiers: modifiers.includes(modifier)
+                        ? modifiers
+                            .filter((item) => item !== modifier)
+                            .join(",") || null
+                        : [...modifiers, modifier].join(","),
+                    })
+                  }
+                  aria-pressed={modifiers.includes(modifier)}
+                  title={t(`dives.modifierDescriptions.${modifier}`)}
+                  className={`min-h-0 min-w-9 flex-1 border px-2 text-xs ${modifiers.includes(modifier) ? "border-app-accent bg-app-panel-elevated text-app-accent" : "border-transparent text-app-muted"}`}
+                >
+                  {modifier}
+                </button>
+              ))}
+            </div>
+            <details>
+              <summary aria-label={t("dives.modifierHelp")} title={t("dives.modifierHelp")} className="touch-target flex cursor-pointer list-none items-center justify-center border border-app bg-app-panel text-app-muted hover:text-app-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-app-accent [&::-webkit-details-marker]:hidden">
+                <HelpCircle className="h-4 w-4" aria-hidden="true" />
+              </summary>
+              <dl className="absolute left-0 top-full z-20 mt-2 w-80 max-w-[calc(100vw-2rem)] space-y-3 border border-app bg-app-panel-elevated p-4 text-sm shadow-lg">
+                {MODIFIERS.map(modifier => <div key={modifier}>
+                  <dt className="font-semibold text-app-text">{modifier} · {t(`dives.modifierNames.${modifier}`)}</dt>
+                  <dd className="mt-1 text-app-muted">{t(`dives.modifierDescriptions.${modifier}`)}</dd>
+                </div>)}
+                <div>
+                  <dt className="font-semibold text-app-text">SYNC · {t("dives.helpSyncName")}</dt>
+                  <dd className="mt-1 text-app-muted">{t("dives.helpSyncDescription")}</dd>
+                </div>
+                <div>
+                  <dt className="font-semibold text-app-text">DD · {t("dives.helpDdName")}</dt>
+                  <dd className="mt-1 text-app-muted">{t("dives.helpDdDescription")}</dd>
+                </div>
+                <div>
+                  <dt className="font-semibold text-app-text">{t("dives.ratingsItem")} (P/G/M/B/F)</dt>
+                  <dd className="mt-1 text-app-muted">{t("dives.ratingsScale")}</dd>
+                </div>
+              </dl>
+            </details>
           </div>
-          <details className="relative col-span-2 justify-self-start sm:col-span-1">
-            <summary aria-label={t("dives.modifierHelp")} title={t("dives.modifierHelp")} className="touch-target flex cursor-pointer list-none items-center justify-center border border-app bg-app-panel text-app-muted hover:text-app-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-app-accent [&::-webkit-details-marker]:hidden">
-              <HelpCircle className="h-4 w-4" aria-hidden="true" />
-            </summary>
-            <dl className="absolute left-0 top-full z-20 mt-2 w-80 max-w-[calc(100vw-2rem)] space-y-3 border border-app bg-app-panel-elevated p-4 text-sm shadow-lg sm:left-auto sm:right-0">
-              {MODIFIERS.map(modifier => <div key={modifier}>
-                <dt className="font-semibold text-app-text">{modifier} · {t(`dives.modifierNames.${modifier}`)}</dt>
-                <dd className="mt-1 text-app-muted">{t(`dives.modifierDescriptions.${modifier}`)}</dd>
-              </div>)}
-              <div>
-                <dt className="font-semibold text-app-text">SYNC · {t("dives.helpSyncName")}</dt>
-                <dd className="mt-1 text-app-muted">{t("dives.helpSyncDescription")}</dd>
-              </div>
-              <div>
-                <dt className="font-semibold text-app-text">DD · {t("dives.helpDdName")}</dt>
-                <dd className="mt-1 text-app-muted">{t("dives.helpDdDescription")}</dd>
-              </div>
-              <div>
-                <dt className="font-semibold text-app-text">{t("dives.ratingsItem")} (P/G/M/B/F)</dt>
-                <dd className="mt-1 text-app-muted">{t("dives.ratingsScale")}</dd>
-              </div>
-            </dl>
-          </details>
+          {heightFacets?.partial && heightFacets.key === facetParamsKey && (
+            <span className="col-span-full text-xs text-app-muted" title={t("dives.heightsPartialAria")}>
+              {t("dives.heightsPartial")}
+            </span>
+          )}
           <button
             type="button"
             onClick={reset}
             disabled={!activeFilters}
-            className="touch-target col-span-2 inline-flex items-center justify-center gap-2 px-2 text-sm text-app-muted hover:text-app-text disabled:hidden"
+            className="touch-target col-span-full inline-flex items-center justify-center gap-2 justify-self-start px-2 text-sm text-app-muted hover:text-app-text disabled:hidden sm:justify-self-end"
           >
             <SlidersHorizontal className="h-4 w-4" />
             {t("dives.resetFilters")}

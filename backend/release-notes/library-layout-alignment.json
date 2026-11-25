@@ -1,0 +1,8 @@
+{
+  "id": "library-layout-alignment",
+  "date": "2026-11-25",
+  "title": "A clearer Library layout",
+  "body": "The Library header lines up with the sidebar, and the view controls and filters stay grouped as the window narrows.",
+  "audience": "all",
+  "components": ["frontend"]
+}

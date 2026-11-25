@@ -943,6 +943,10 @@ deletedPeriod:"Deleted episode",anchorUnavailable:"Source attempt unavailable",l
     adding: 'Adding…',
   },
   releaseNotes: {
+    "library-layout-alignment": {
+      "title": "A clearer Library layout",
+      "body": "The Library header lines up with the sidebar, and the view controls and filters stay grouped as the window narrows."
+    },
     "evaluations-today-hub": {
       "title": "Evaluations drop you straight into today's dives",
       "body": "Open Evaluations and today's selection starts right away, picking up where you left off. When you're done, your score cards land on the judges' table next to the rest of the panel, with your judging style, your daily streak and a countdown to the next selection. My dives becomes a scoreboard with a simple selection switch, and History groups every vote by day."

@@ -943,6 +943,10 @@ deletedPeriod:"Période supprimée",anchorUnavailable:"Plongeon source indisponi
     adding: 'Ajout…',
   },
   releaseNotes: {
+    "library-layout-alignment": {
+      "title": "Une Bibliothèque mieux structurée",
+      "body": "L’en-tête de la Bibliothèque s’aligne avec le menu latéral. Les modes d’affichage et les filtres restent groupés quand la fenêtre se rétrécit."
+    },
     "evaluations-today-hub": {
       "title": "Les Évaluations vous accueillent avec les plongeons du jour",
       "body": "Ouvrez les Évaluations pour commencer la sélection du jour ou reprendre là où vous en étiez. Une fois la sélection terminée, vos cartons rejoignent ceux du jury, avec votre style de juge, votre série de jours consécutifs et le compte à rebours avant la prochaine sélection. Mes plongeons affiche les notes et un bouton pour participer aux sélections. L’Historique regroupe tous vos votes par jour."

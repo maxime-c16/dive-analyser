@@ -3,11 +3,35 @@ const nav = (page: Page) => page.locator('.mobile-tab-bar')
 const open = (page:Page, query = '') => page.goto(`/e2e/fixtures/navigation-review.html?${query}`)
 const go = (page:Page, path:string) => page.evaluate(path => (window as any).reviewRouter.navigate(path), path)
 const offset = (page:Page) => page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--mobile-nav-offset')))
-for (const lang of ['fr','en']) for (const width of [320,390,430,767,768,1023,1366,1440]) {
-  test(`${lang} ${width}px labels, active link, offset, last content`, async ({page}) => {
+for (const lang of ['fr','en']) for (const width of [320,390,430,767,768,1023,1024,1366,1440]) {
+  test(`${lang} ${width}px library layout, active link, offset and last content`, async ({page}) => {
     await page.setViewportSize({width,height:844}); await open(page,`lang=${lang}&long=1`)
-    await expect(page.getByRole('heading',{name:lang==='fr'?'Bibliothèque':'Library',level:1})).toBeVisible()
-    if (width>=1024) { await expect(nav(page)).toHaveCount(0);expect(await offset(page)).toBe(0);return }
+    const heading = page.getByRole('heading', { name: lang === 'fr' ? 'Bibliothèque' : 'Library', level: 1 })
+    const add = page.getByRole('button', { name: lang === 'fr' ? 'Ajouter des vidéos' : 'Add videos' })
+    await expect(heading).toBeVisible()
+    await expect(add).toBeVisible()
+    const titleBox = (await heading.boundingBox())!
+    const addBox = (await add.boundingBox())!
+    expect(titleBox.x + titleBox.width).toBeLessThanOrEqual(addBox.x)
+    expect(addBox.y + addBox.height / 2).toBeCloseTo(titleBox.y + titleBox.height / 2, 0)
+    if (width >= 1024) {
+      await expect(nav(page)).toHaveCount(0)
+      expect(await offset(page)).toBe(0)
+      const layout = await page.evaluate(() => {
+        const bounds = (selector: string) => document.querySelector(selector)!.getBoundingClientRect()
+        return {
+          sidebarDivider: bounds('aside .workspace-heading').bottom,
+          libraryDivider: bounds('.library-heading').bottom,
+          firstNavItem: bounds('aside nav a').top,
+          toolbar: bounds('.library-tools').top,
+          overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+        }
+      })
+      expect(layout.libraryDivider).toBeCloseTo(layout.sidebarDivider, 0)
+      expect(layout.toolbar).toBeCloseTo(layout.firstNavItem, 0)
+      expect(layout.overflow).toBe(0)
+      return
+    }
     await expect(nav(page)).toBeVisible();expect(await offset(page)).toBeGreaterThan(60)
     expect(await page.evaluate(()=>document.documentElement.scrollWidth-document.documentElement.clientWidth)).toBe(0)
     await expect(nav(page).getByRole('link')).toHaveCount(5)

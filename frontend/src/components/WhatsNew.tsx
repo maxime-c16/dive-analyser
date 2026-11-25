@@ -182,7 +182,7 @@ function AccountUpdates({ accountId, children }: { accountId: number; children: 
 export function WhatsNewButton({ compact = false }: { compact?: boolean }) {
   const { open, unread } = useContext(Context)
   const { t } = useTranslation()
-  return <button data-testid="whats-new-button" aria-label={t('whatsNew.buttonAria')} onClick={open} className={`flex min-h-11 items-center gap-2 border border-app px-3 text-sm text-app-accent ${compact ? '' : 'w-full text-left'}`}>
+  return <button data-testid="whats-new-button" aria-label={t('whatsNew.buttonAria')} onClick={open} className={`flex min-h-11 items-center gap-2 rounded-xl border border-app px-3 text-sm text-app-accent ${compact ? '' : 'w-full text-left hover:bg-app-panel'}`}>
     <Sparkles className="h-4 w-4 shrink-0" /><span className={compact ? 'hidden sm:inline' : ''}>{t('whatsNew.title')}</span>{unread && <span aria-label={t('whatsNew.unread')} className="ml-auto h-1.5 w-1.5 shrink-0 rounded-full bg-app-accent" />}
   </button>
 }

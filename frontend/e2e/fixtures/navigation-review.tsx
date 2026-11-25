@@ -28,6 +28,7 @@ window.fetch = async (input, init) => {
   if (url.includes('/api/v1/admin/clubs')) return (window as any).clubsReviewFetch(url, init)
   // Calendar API calls reach the network so browser tests can fulfil them (page.route).
   if (url.startsWith('/api/v1/calendar') || url.startsWith('/api/v1/auth/signup-clubs')) return nativeFetch(input, init)
+  if (url === '/api/v1/bootstrap') return new Response(null, { status: 404 })
   if (url.endsWith('/auth/me')) return Response.json({ user_id: 900001, email: 'fixture@example.test', display_name: 'Local reviewer', role: 'owner', is_admin: admin, divers: [{ diver_id: 1, access_kind: 'OWNER' }], features: { calendar: params.get('calendar') !== 'off' } })
   if (url.includes('/updates')) return Response.json({ schema: 1, version: 'v0.0.0', frontend_sha: 'a'.repeat(40), notes: params.get('path')?.startsWith('/calendar') ? [] : [{ id: 'local-review', date: '2026-10-09', title: 'Navigation simplifiée', body: 'Données locales pour vérifier la navigation et les overlays.' }] })
   if (url.includes('/messages/conversations')) {

@@ -215,7 +215,7 @@ export function NotificationsButton({ compact = false }: { compact?: boolean }) 
       data-testid="notifications-button"
       to="/notifications"
       aria-label={label}
-      className={`flex min-h-11 items-center gap-2 border border-app px-3 text-sm text-app-accent ${compact ? '' : 'w-full text-left'}`}
+      className={`flex min-h-11 items-center gap-2 rounded-xl border border-app px-3 text-sm text-app-accent ${compact ? '' : 'w-full text-left hover:bg-app-panel'}`}
     >
       <Bell className="h-4 w-4 shrink-0" aria-hidden />
       <span className={compact ? 'hidden sm:inline' : ''}>{t('notifications.title')}</span>
