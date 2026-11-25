@@ -1,6 +1,6 @@
 import TechniqueWorkspace from '../components/code-analysis/TechniqueWorkspace'
 import type { ScorePanel } from '../components/code-analysis/CorrectionScores'
-import React, { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { loadChunk } from '../utils/chunkLoad'
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
@@ -13,15 +13,14 @@ import ScoreChart, { type ChartPoint } from '../components/code-analysis/ScoreCh
 import CommunityPanel, { diverName, useMedia, type CommunityRow } from '../components/code-analysis/CommunityPanel'
 import MemberAvatar from '../components/MemberAvatar'
 import { MobileShellActions } from '../navigation/mobileShellActions'
-import { CountUp, RatingBar, ratingCounts, ScoreChip, Segmented, Sparkline } from '../components/code-analysis/parts'
+import { ScoreChip, Segmented } from '../components/code-analysis/parts'
 import { diveCodeName } from '../i18n/diveNames'
 import { clearLibraryCache, libraryKey } from '../services/libraryCache'
 import { getCodeCommunity, type CodeCommunity } from '../services/codeCommunityApi'
 import { clearCodeSummaryCache, getCodeAttemptsResult, getCodeSummaries, peekCodeAttemptsResult, peekCodeSummaries, type CodeSummary } from '../services/codeSummariesApi'
 import { attemptScore, type Attempt } from '../utils/attemptPresentation'
-import { DAY_MS, mean, median, quantile, recentTrend, rolling, scoreBand, smoothingWindow, type Extreme, fmtScore } from '../utils/codeStats'
+import { DAY_MS, median, quantile, recentTrend, rolling, scoreBand, smoothingWindow, type Extreme, fmtScore } from '../utils/codeStats'
 import { appLocale } from '../utils/dateLocale'
-import { GRADE_FLOORS } from '../utils/performanceScoring'
 
 const ClipViewer = lazy(() => loadChunk(() => import('../components/clip-viewer/ClipViewer')))
 
@@ -60,9 +59,11 @@ function relatedCodes(code: string, summaries: CodeSummary[]) {
     else if (code[0] === '5' && candidate.length === 4 && candidate[0] === code[1] && candidate[2] === code[2]) reasons.set(candidate, 'noTwist')
     else if (code[0] !== '5' && candidate.length === code.length && candidate[0] === code[0] && candidate.slice(-1) === code.slice(-1)) reasons.set(candidate, 'group')
   }
+  // Too few graded dives make a median noise: drop them before keeping the six most practised.
   const byCode = new Map(summaries.map(item => [item.dive_code, item]))
-  return [...reasons.entries()].map(([candidate, reason]) => ({ summary: byCode.get(candidate)!, reason }))
-    .sort((a, b) => b.summary.attempt_count - a.summary.attempt_count).slice(0, 6)
+  // Weakest first (ties: more graded dives), then the six to show: the list answers "what should I work on next".
+  return [...reasons.entries()].map(([candidate, reason]) => ({ summary: byCode.get(candidate)!, reason })).filter(({ summary }) => summary.scored_count >= 5)
+    .sort((a, b) => (a.summary.median ?? 0) - (b.summary.median ?? 0) || b.summary.scored_count - a.summary.scored_count).slice(0, 6)
 }
 
 export default function CodeAnalysis() {
@@ -95,9 +96,11 @@ export default function CodeAnalysis() {
   const [showAllSessions, setShowAllSessions] = useState(false)
   const [extreme, setExtreme] = useState<Extreme | null>(null)
   const [community, setCommunity] = useState<CodeCommunity | null>(null)
+  const [heightSummaries, setHeightSummaries] = useState<CodeSummary[] | null>(null)
   // The community follows the height filter only: periods would empty sparse histories.
   const communityHeight = params.get('h') || ''
   const desktop = useMedia('(min-width: 1024px)')
+  const [adjustmentSlot, setAdjustmentSlot] = useState<HTMLElement | null>(null)
 
   useEffect(() => {
     let live = true
@@ -111,6 +114,13 @@ export default function CodeAnalysis() {
     // diver's rows mounted with an unchanged all-scope value.
     return () => { live = false }
   }, [code, scope, diverId, reload, t, viewerKey])
+  // Nearby codes compare like with like: with a height filter, their medians come from that height only.
+  useEffect(() => {
+    let live = true
+    setHeightSummaries(null)
+    if (communityHeight && !diverId) getCodeSummaries({ diver_scope: scope, height: communityHeight }, viewerKey).then(data => { if (live) setHeightSummaries(data.codes) }).catch(() => undefined)
+    return () => { live = false }
+  }, [scope, communityHeight, diverId, viewerKey])
   useEffect(() => {
     let live = true
     setCommunity(null)
@@ -118,7 +128,6 @@ export default function CodeAnalysis() {
     return () => { live = false }
   }, [code, communityHeight, viewerKey])
 
-  const period = (params.get('period') as Period) || 'all'
   const height = params.get('h') || ''
   const month = params.get('month') || ''
   const canViewCorrections = Boolean(user && !diverId)
@@ -134,8 +143,25 @@ export default function CodeAnalysis() {
     setParams(next, { replace: !push, state: push ? { ...(location.state as object | null), codeClipOpened: true } : location.state, preventScrollReset: true })
   }
 
-  const all = useMemo(() => diverId ? (attempts ?? []).filter(item => item.diver_id === diverId) : attempts ?? [], [attempts, diverId])
+  // The 'all' scope also carries strangers' public dives: this page keeps the divers you follow; strangers stay in the community panel.
+  const followedIds = useMemo(() => new Set((user?.divers ?? []).map(diver => diver.diver_id)), [user])
+  const all = useMemo(() => diverId ? (attempts ?? []).filter(item => item.diver_id === diverId)
+    : scope === 'all' && followedIds.size ? (attempts ?? []).filter(item => item.diver_id != null && followedIds.has(item.diver_id)) : attempts ?? [],
+  [attempts, diverId, scope, followedIds])
   const now = Date.now()
+  // Default period adapts to the code: the shortest window holding 30 graded dives, so a busy code opens on recent work and a rare one on its whole history.
+  // Arriving from a clip, the window must also contain that clip so the page describes it.
+  const focusAt = useMemo(() => { const id = Number(params.get('attempt')) || null; const found = id ? all.find(item => item.id === id) : null; return found ? ts(found) : null }, [all, params])
+  const defaultPeriod: Period = useMemo(() => (['3m', '1y'] as const).find(key => {
+    const days = PERIODS.find(([value]) => value === key)![1]
+    return all.filter(item => item.performance && now - ts(item) <= days * DAY_MS).length >= 30 && (focusAt == null || now - focusAt <= days * DAY_MS)
+  }) ?? 'all',
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  [all, focusAt])
+  const requestedPeriod = params.get('period')
+  // A month link arrives without a period: the adaptive default must not empty
+  // it — an explicit month shows its whole month, like the old default-all.
+  const period: Period = PERIODS.find(([key]) => key === requestedPeriod)?.[0] ?? (month ? 'all' : defaultPeriod)
   const items = useMemo(() => {
     const days = PERIODS.find(([key]) => key === period)?.[1] ?? Infinity
     return all.filter(item => now - ts(item) <= days * DAY_MS && (!height || item.height === height) && (!month || item.dive_datetime.startsWith(month)))
@@ -164,25 +190,42 @@ export default function CodeAnalysis() {
     const monthLabel = (value: string) => format(parseISO(value), 'MMM yy', { locale: appLocale() }).replace('.', '')
     if (mode === 'sessions') return scoredGroups.map(group => {
       const values = group.map(attemptScore), mid = median(values) as number
-      return { key: group[0].id, month: group[0].dive_datetime.slice(0, 7), monthLabel: monthLabel(group[0].dive_datetime), value: mid, band: scoreBand(mid), lo: Math.min(...values), hi: Math.max(...values) }
+      return { key: group[0].id, occurredAt: ts(group[0]), month: group[0].dive_datetime.slice(0, 7), monthLabel: monthLabel(group[0].dive_datetime), value: mid, band: scoreBand(mid), lo: Math.min(...values), hi: Math.max(...values) }
     })
-    return scored.map(item => ({ key: item.id, month: item.dive_datetime.slice(0, 7), monthLabel: monthLabel(item.dive_datetime), value: attemptScore(item), band: item.performance || 'F' }))
+    return scored.map(item => ({ key: item.id, occurredAt: ts(item), month: item.dive_datetime.slice(0, 7), monthLabel: monthLabel(item.dive_datetime), value: attemptScore(item), band: item.performance || 'F' }))
   }, [scored, scoredGroups, mode, i18n.language])
   const smoothing = smoothingWindow(points.length, mode === 'sessions')
+  // Calendar spacing once the history spans two months, so long breaks look long; shorter spans keep one slot per dive.
+  const timeAxis = desktop && points.length > 1 && (points[points.length - 1].occurredAt ?? 0) - (points[0].occurredAt ?? 0) >= 60 * DAY_MS
 
   const pointOf = (id: number | null) => id == null ? -1 : mode === 'sessions' ? scoredGroups.findIndex(group => group.some(item => item.id === id)) : scored.findIndex(item => item.id === id)
-  const selectedIndex = points.length ? (() => { const index = pointOf(selId ?? focusId); return index >= 0 ? index : points.length - 1 })() : null
+  // A selection outside the filtered dives selects nothing rather than another dive.
+  const selectedIndex = points.length ? (() => { const wanted = selId ?? focusId; const index = pointOf(wanted); return index >= 0 ? index : wanted == null ? points.length - 1 : null })() : null
 
-  const med = median(scores), q1 = quantile(scores, 0.25), q3 = quantile(scores, 0.75)
+  const med = median(scores)
   const best = pick(scored, (a, b) => a > b)
   const latest = items[items.length - 1] ?? null
   const latestScored = scored[scored.length - 1] ?? null
   const typical = med == null ? null : pick(scored, (a, b) => Math.abs(a - med) < Math.abs(b - med))
-  const lowRecent = pick(scored.slice(-30), (a, b) => a < b)
-  const showReview = items.length >= 8 && lowRecent && q1 != null && q3 != null && attemptScore(lowRecent) < q1 - 0.5 * (q3 - q1) + 0.01 && lowRecent !== best
-  const reps = ([['best', best], ['latest', latestScored], ['typical', typical], ...(showReview ? [['review', lowRecent]] : [])] as Array<[string, Attempt | null]>).filter((entry): entry is [string, Attempt] => Boolean(entry[1]))
-  const trend = recentTrend(all.filter(item => item.performance), attemptScore, ts, now)
-  const related = useMemo(() => summaries && !diverId ? relatedCodes(code, summaries) : [], [code, summaries, diverId])
+  const lowest = pick(scored, (a, b) => a < b)
+  // Latest, best and lowest recent first: they answer "how was today" and "what to fix"; the median dive comes last.
+  // Best and lowest come from the same filtered dives; a clip filling two roles shows once with both names.
+  const reps = (([['latest', latestScored], ['best', best], ['review', lowest], ['typical', typical]] as Array<[string, Attempt | null]>)
+    .reduce<Array<[string[], Attempt]>>((list, [role, attempt]) => {
+      if (!attempt) return list
+      const same = list.find(([, kept]) => kept.id === attempt.id)
+      if (same) same[0].push(role); else list.push([[role], attempt])
+      return list
+    }, []))
+  // The trend compares one height with itself: mixing heights turns a switch from 3m to 1m into a fake drop.
+  const trendHeight = height || latest?.height || ''
+  // Same evidence bar as the adjustment effects (8 graded dives per side); a month view has no "last 6 weeks".
+  // A capped newest-window can truncate the 20-week baseline: without the full
+  // run-up the hero trend would compare a full recent sample with a partial one.
+  const trendCut = attemptsCapped && all.length > 0 && ts(all[0]) > now - 182 * DAY_MS
+  const trend = month || trendCut ? null : recentTrend(all.filter(item => item.performance && (!trendHeight || item.height === trendHeight)), attemptScore, ts, now, 8)
+  const nearbySource = communityHeight ? heightSummaries : summaries
+  const related = useMemo(() => nearbySource && !diverId ? relatedCodes(code, nearbySource) : [], [code, nearbySource, diverId])
   const diver = diverId ? community?.members.find(member => member.diver_id === diverId) ?? null : null
   // You in the community ranking: every graded attempt on YOUR divers only. The
   // page scope can be 'all', which also carries the other divers' public
@@ -248,19 +291,8 @@ export default function CodeAnalysis() {
 
   const name = diveCodeName(code, lang)
   const dd = all.find(item => item.official_dd)?.official_dd
-  const heightRows = heights.length > 1 ? heights.map(value => { const pool = all.filter(item => item.height === value); return { value, count: pool.length, median: median(pool.filter(item => item.performance).map(attemptScore)) as number } }).filter(row => row.count >= 3).sort((a, b) => b.count - a.count) : []
-  const phased = items.filter(item => item.performance && item.phase1_performance && item.phase2_performance)
-  const phaseRows = phased.length >= 5 ? (['phase1_performance', 'phase2_performance'] as const).map((key, index) => ({ key, label: t('codeAnalysis.phase', { n: index + 1 }), count: phased.length, median: median(phased.map(item => ({ F: 0, B: 2, M: 4.5, G: 7, P: 10 } as Record<string, number>)[item[key]!] ?? 0)) as number })) : []
   const shownSessions = [...sessions].reverse().slice(0, showAllSessions ? undefined : 6)
 
-  const bar = (label: React.ReactNode, count: number, value: number, pressed?: boolean, onClick?: () => void) => {
-    const content = <>
-      <span>{label}<small>{t('codeAnalysis.attemptsShort', { count })}</small></span>
-      <span className="ca-bar-track"><span className={`ca-bar-fill ca-r-${scoreBand(value)}`} style={{ width: `${Math.max(3, value * 10)}%` }} /></span>
-      <b>{fmtScore(value)}</b>
-    </>
-    return onClick ? <button type="button" className="ca-bar" aria-pressed={pressed} onClick={onClick}>{content}</button> : <div className="ca-bar">{content}</div>
-  }
 
   const calendarMonth = /^\d{4}-(0[1-9]|1[0-2])$/.test(month) ? new Date(`${month}-01T00:00:00Z`) : null
   const days = PERIODS.find(([key]) => key === period)?.[1] ?? Infinity
@@ -274,18 +306,17 @@ export default function CodeAnalysis() {
         options={scoreModes} /></div>,
     corrections: mode === 'corrections' ? { attempts: all, from: Number.isFinite(from) ? from : undefined, until } : undefined,
     content: <>
-      <ScoreChart points={points} smoothing={smoothing} selected={selectedIndex} label={t('codeAnalysis.chartLabel', { count: points.length, code })}
+      <ScoreChart simple timeScale={timeAxis} points={points} smoothing={smoothing} selected={selId == null && focusId == null ? null : selectedIndex} label={t('codeAnalysis.chartLabel', { count: points.length, code })}
         onSelect={(index, mark) => {
           setExtreme(mark ?? null)
           const id = mode === 'sessions' ? scoredGroups[index]?.[0]?.id : scored[index]?.id
           if (id) update({ sel: String(id) })
         }} />
-      <div className="ca-legend"><span><i />{t('codeAnalysis.legendMedian')}</span><span><i className="ca-legend-band" />{t('codeAnalysis.legendRange')}</span><span className="ca-t-P">▲ {t('codeAnalysis.peak')}</span><span className="ca-t-B">▼ {t('codeAnalysis.valley')}</span></div>
-      {preview && <div className="ca-preview" key={`${preview.attempt.id}-${extreme?.index ?? ''}`}>
+      {preview && selId != null && <div aria-live="polite" className="ca-preview" key={`${preview.attempt.id}-${extreme?.index ?? ''}`}>
         <span className="ca-thumb"><DiveThumbnail dive={preview.attempt} compact /></span>
         <div style={{ minWidth: 0 }}>
           <div><span className={`ca-preview-score ca-t-${preview.attempt.performance}`}>{fmtScore(attemptScore(preview.attempt))}</span> <span className="ca-flat">{preview.attempt.performance}{preview.attempt.phase1_performance && preview.attempt.phase2_performance ? ` · ${preview.attempt.phase1_performance}/${preview.attempt.phase2_performance}` : ''}</span></div>
-          <div className="ca-preview-sub">{date(preview.attempt.dive_datetime, 'd MMM · HH:mm')} · {preview.attempt.height} · {rankText(rank(preview.attempt, items), items.length)}</div>
+          <div className="ca-preview-sub">{date(preview.attempt.dive_datetime, 'd MMM · HH:mm')} · {preview.attempt.height} · {rankText(rank(preview.attempt, scored), scored.length)}</div>
           {preview.pool && extreme && <div className={`ca-preview-why ${extreme.kind === 'peak' ? 'ca-t-P' : 'ca-t-B'}`}>
             {t(extreme.kind === 'peak' ? 'codeAnalysis.peakExplain' : 'codeAnalysis.valleyExplain', { median: fmtScore(extreme.value), count: preview.pool.length, from: date(preview.pool[0].dive_datetime, 'd MMM'), to: date(preview.pool[preview.pool.length - 1].dive_datetime, 'd MMM') })}
           </div>}
@@ -295,81 +326,38 @@ export default function CodeAnalysis() {
     </>,
   } : undefined
 
-  return <>
-  <div className="ca ca-page ca-arrive">
-    <div className="ca-span">
-      {topbar}
-      <div className="ca-hero">
-        <div><h1 className="ca-hero-code">{code}</h1><p className="ca-hero-name">{name !== code ? name : ''}{dd ? <> · <span className="whitespace-nowrap">DD {fmtScore(dd)}</span></> : null}</p></div>
-        {analytics && <div className="ca-hero-trend">
-          {trend == null ? latest && <><strong className="ca-flat">{formatDistanceToNowStrict(parseISO(all[all.length - 1].dive_datetime), { locale: appLocale() })}</strong><span>{t('codeAnalysis.sinceLastAttempt')}</span></> : <>
-            <strong className={trend >= 0.5 ? 'ca-up' : trend <= -0.5 ? 'ca-down' : undefined}>{Math.abs(trend) < 0.5 ? t('codeAnalysis.stable') : `${trend > 0 ? '▲ +' : '▼ '}${fmtScore(trend)}`}</strong>
-            <span>{trend >= 0.5 ? t('codeAnalysis.rising') : trend <= -0.5 ? t('codeAnalysis.falling') : t('codeAnalysis.median')} · {t('codeAnalysis.sixWeeks')}</span>
-          </>}
-        </div>}
-      </div>
-    </div>
-    <div className="ca-span ca-scroll">
-      <Segmented label={t('codeAnalysis.periodAria')} value={month ? null : period} onChange={value => update({ period: value === 'all' ? null : value, month: null, sel: null })}
-        options={PERIODS.map(([key]) => [key, t(`codeAnalysis.period.${key}`)] as const)} />
-      {heights.length > 1 && <span className="ca-divider" aria-hidden="true" />}
-      {heights.length > 1 && heights.map(value => <button key={value} type="button" className="ca-pill" aria-pressed={height === value} onClick={() => update({ h: height === value ? null : value, sel: null })}>{value}</button>)}
-      {month && <button type="button" className="ca-pill" aria-pressed="true" onClick={() => update({ month: null, sel: null })}>{format(parseISO(`${month}-01`), 'MMMM yyyy', { locale: appLocale() })} ✕</button>}
-    </div>
 
-    {!analytics && <div className="ca-span ca-note">{t('codeAnalysis.straightJump')}</div>}
-    {!items.length && attemptsCapped && <div className="ca-span ca-note">{attemptsTotal === null ? t('codeAnalysis.cappedPlain') : t('codeAnalysis.cappedAria', { total: attemptsTotal })}</div>}
-    {!items.length && mode !== 'corrections' && <div className="ca-span ca-note">{t('codeAnalysis.emptyPeriod', { code })} <button type="button" className="ca-btn" onClick={() => update({ period: null, h: null, month: null })}>{t('codeAnalysis.showAll')}</button></div>}
-    {(items.length > 0 || canViewCorrections && scorePanel) && <>
-      <div className="ca-main">
-        {items.length > 0 && analytics && <div>
-          <dl className="ca-kpis" style={{ margin: 0 }} aria-label={t('codeAnalysis.summary')}>
-            <div className="ca-kpi"><dt>{t('codeAnalysis.average')}</dt><dd><CountUp value={mean(scores)} /></dd></div>
-            <div className="ca-kpi"><dt>{t('codeAnalysis.median')}</dt><dd><CountUp value={med} /></dd></div>
-            <div className="ca-kpi"><dt>{t('dives.best')}</dt><dd className="ca-t-P"><CountUp value={scores.length ? Math.max(...scores) : null} /></dd></div>
-            <div className="ca-kpi"><dt title={t('codeAnalysis.successTitle')}>{t('codeAnalysis.success')}</dt><dd title={t('codeAnalysis.successTitle')}><CountUp value={scored.length ? 100 * scored.filter(item => attemptScore(item) >= GRADE_FLOORS.G).length / scored.length : null} digits={0} suffix="%" /></dd></div>
-          </dl>
-          <div style={{ marginTop: 10 }}><RatingBar ratings={ratingCounts(items.map(item => item.performance))} /></div>
-          <p className="ca-sample" title={attemptsCapped ? (attemptsTotal === null ? t('codeAnalysis.cappedPlain') : t('codeAnalysis.cappedAria', { total: attemptsTotal })) : undefined}>{attemptsCapped && attemptsTotal !== null
-            ? t('codeAnalysis.sampleCapped', { attempts: items.length, total: attemptsTotal, sessions: sessions.length, from: date(items[0].dive_datetime), to: date(latest!.dive_datetime) })
-            : t('codeAnalysis.sample', { attempts: items.length, sessions: sessions.length, from: date(items[0].dive_datetime), to: date(latest!.dive_datetime) })}</p>
-        </div>}
-
-        {items.length > 0 && focus && analytics && (() => {
-          const before = all.filter(item => ts(item) < ts(focus)), previous = before[before.length - 1]
-          const delta = attemptScore(focus) - (median(all.filter(item => item.performance).map(attemptScore)) as number)
+  const focusCard = items.length > 0 && focus && analytics && (() => {
+          // An ungraded clip has no score: show a dash and no rank or comparison.
+          if (!focus.performance) return <button type="button" className="ca-focus" onClick={() => openClip(focus.id)}>
+            <span className="ca-thumb"><DiveThumbnail dive={focus} compact /></span>
+            <span><b className="text-app-text">{t('codeAnalysis.thisDive')} · <span className="ca-flat">—</span></b> <span className="ca-flat" style={{ fontSize: 12 }}>{date(focus.dive_datetime, 'd MMM · HH:mm')}</span></span>
+          </button>
+          // Same dives as the headline: the selected period and height. A clip outside them gets no rank or comparison.
+          const graded = scored
+          const inSample = graded.some(item => item.id === focus.id)
+          const before = graded.filter(item => ts(item) < ts(focus)), previous = before[before.length - 1]
+          const delta = attemptScore(focus) - (med ?? 0)
           const beaten = [...before].reverse().find(item => attemptScore(item) >= attemptScore(focus))
           const weeks = beaten ? Math.round((ts(focus) - ts(beaten)) / (7 * DAY_MS)) : null
           return <button type="button" className="ca-focus" onClick={() => openClip(focus.id)}>
             <span className="ca-thumb"><DiveThumbnail dive={focus} compact /></span>
             <span>
               <b className="text-app-text">{t('codeAnalysis.thisDive')} · <span className={`ca-t-${focus.performance}`}>{fmtScore(attemptScore(focus))}</span></b> <span className="ca-flat" style={{ fontSize: 12 }}>{date(focus.dive_datetime, 'd MMM · HH:mm')}</span>
-              <span className="ca-focus-facts">
-                <span className="ca-fact" title={t('codeAnalysis.rankTitle', { total: all.length })}>{rankText(rank(focus, all), all.length)}</span>
-                {Math.abs(delta) >= 0.05 && <span className={`ca-fact ${delta >= 0.25 ? 'ca-up' : delta <= -0.25 ? 'ca-down' : ''}`}>{delta >= 0 ? '+' : ''}{fmtScore(delta)} {t('codeAnalysis.vsMedian')}</span>}
+              {inSample && <span className="ca-focus-facts">
+                {<span className="ca-fact" title={t('codeAnalysis.rankTitle', { total: graded.length })}>{rankText(rank(focus, graded), graded.length)}</span>}
+                {med != null && Math.abs(delta) >= 0.05 && <span className={`ca-fact ${delta >= 0.25 ? 'ca-up' : delta <= -0.25 ? 'ca-down' : ''}`}>{delta >= 0 ? '+' : ''}{fmtScore(delta)} {t('codeAnalysis.vsMedian')}</span>}
                 {previous && Math.abs(attemptScore(focus) - attemptScore(previous)) >= 0.05 && <span className={`ca-fact ${attemptScore(focus) > attemptScore(previous) ? 'ca-up' : attemptScore(focus) < attemptScore(previous) ? 'ca-down' : ''}`}>{attemptScore(focus) > attemptScore(previous) ? '▲' : attemptScore(focus) < attemptScore(previous) ? '▼' : '='} {t('codeAnalysis.vsPreviousDive', { score: fmtScore(attemptScore(previous)) })}</span>}
                 {!beaten && before.length > 0 && <span className="ca-fact ca-up">{t('codeAnalysis.record')}</span>}
                 {weeks != null && weeks >= 3 && <span className="ca-fact ca-up">{t('codeAnalysis.bestSince', { count: weeks })}</span>}
-              </span>
+              </span>}
             </span>
           </button>
-        })()}
-
-        {user ? <TechniqueWorkspace key={`${user.user_id}-${code}`} code={code} viewer={user.user_id} height={height} scores={scorePanel} />
-          : scorePanel && <section className="ca-panel">{scorePanel.header}{scorePanel.content}</section>}
-        {items.length > 0 && <><div className="ca-two">
-          {analytics && (heightRows.length > 0 || phaseRows.length > 0) && <section className="ca-panel">
-            <div className="ca-panel-h"><h2>{t('codeAnalysis.context')}</h2><span>{t('codeAnalysis.median')}</span></div>
-            <div className="ca-bars">
-              {heightRows.map(row => <React.Fragment key={row.value}>{bar(row.value, row.count, row.median, height === row.value, () => update({ h: height === row.value ? null : row.value, sel: null }))}</React.Fragment>)}
-              {phaseRows.map(row => <React.Fragment key={row.key}>{bar(row.label, row.count, row.median)}</React.Fragment>)}
-            </div>
-            {phaseRows.length === 2 && <p className="ca-sample">{phaseRows[1].median < phaseRows[0].median - 0.4 ? t('codeAnalysis.phase2Costs') : phaseRows[1].median > phaseRows[0].median + 0.4 ? t('codeAnalysis.phase1Costs') : t('codeAnalysis.phasesEven')}</p>}
-          </section>}
-          <section className="ca-panel">
-            <div className="ca-panel-h"><h2>{t('codeAnalysis.sessions')}</h2><span>{sessions.length}</span></div>
+        })()
+  const sessionsPanel = <section className="ca-panel">
+            <div className="ca-panel-h"><h2>{t('codeAnalysis.sessions')}</h2></div>
             {shownSessions.map(group => { const mid = median(group.filter(item => item.performance).map(attemptScore)) as number; return <div key={group[0].session_id} className="ca-sess">
-              <div className="ca-sess-date">{date(group[0].dive_datetime, 'd MMM')}<small>{t('codeAnalysis.attemptsShort', { count: group.length })} · {group[0].height}</small></div>
+              <div className="ca-sess-date">{date(group[0].dive_datetime, 'd MMM')}<small>{t('codeAnalysis.attemptsShort', { count: group.length })} · {[...new Set(group.map(item => item.height))].join(' · ')}</small></div>
               <div className="ca-chips">{group.map(item => <ScoreChip key={item.id} id={item.id} performance={item.performance} score={attemptScore(item)} onOpen={openClip}
                 label={t('dives.openAttemptFrom', { code, date: date(item.dive_datetime, 'd MMM HH:mm') })} />)}</div>
               <b className={analytics ? `ca-t-${scoreBand(mid)}` : undefined}>{analytics ? fmtScore(mid) : ''}</b>
@@ -377,31 +365,87 @@ export default function CodeAnalysis() {
             {sessions.length > 6 && <button type="button" className="ca-btn" style={{ marginTop: 10, border: 0, padding: 0 }} onClick={() => setShowAllSessions(value => !value)}>
               {showAllSessions ? t('codeAnalysis.fewerSessions') : t('codeAnalysis.allSessions', { count: sessions.length })}</button>}
           </section>
-        </div>
-        {desktop && communityPanel}
-        {analytics && !diverId && <Link to={`/dives/analysis/${encodeURIComponent(code)}/details`} state={location.state} className="ca-flat" style={{ fontSize: 13 }}>{t('codeAnalysis.details')}</Link>}</>}
-      </div>
-
-      {items.length > 0 && <div className="ca-aside">
-        <section className="ca-panel">
+  const repsPanel = items.length > 0 && <section className="ca-panel">
           <div className="ca-panel-h"><h2>{t('codeAnalysis.representatives')}</h2></div>
-          <div className="ca-reps">{reps.map(([role, attempt]) => <button key={role} type="button" className="ca-rep" onClick={() => openClip(attempt.id)}>
+          <div className="ca-reps">{reps.map(([roles, attempt]) => <button key={roles[0]} type="button" className="ca-rep" onClick={() => openClip(attempt.id)}>
             <span className="ca-thumb" style={{ display: 'block' }}><DiveThumbnail dive={attempt} compact />{analytics && <span className={`ca-rep-badge ca-r-${attempt.performance}`}>{fmtScore(attemptScore(attempt))}</span>}</span>
-            <span className="ca-rep-cap"><b>{t(`codeAnalysis.rep.${role}`)}</b><span>{date(attempt.dive_datetime, 'd MMM')}</span></span>
+            <span className="ca-rep-cap"><b>{roles.map(role => t(`codeAnalysis.rep.${role}`)).join(' · ')}</b><span>{date(attempt.dive_datetime, parseISO(attempt.dive_datetime).getFullYear() === new Date().getFullYear() ? 'd MMM' : 'd MMM yyyy')}</span></span>
           </button>)}</div>
         </section>
-        {!desktop && communityPanel}
-        {related.length > 0 && <section className="ca-panel">
-          <div className="ca-panel-h"><h2>{t('codeAnalysis.related')}</h2></div>
-          <div className="ca-related">{related.map(({ summary, reason }) => <Link key={summary.dive_code} className="ca-rel" to={`/dives/analysis/${encodeURIComponent(summary.dive_code)}`} state={{ returnTo: returnTo ?? undefined }}>
-            <span className="ca-rel-code">{summary.dive_code}</span>
-            <span className="ca-rel-why">{t(`codeAnalysis.relation.${reason}`)}</span>
-            <span className="ca-rel-foot"><span>{t('codeAnalysis.median')} <b>{fmtScore(summary.median)}</b><small>{t('codeAnalysis.attemptsShort', { count: summary.attempt_count })}</small></span><Sparkline values={summary.spark} width={56} height={22} /></span>
-          </Link>)}</div>
-        </section>}
-      </div>}
-    </>}
 
+  // Height pills carry that height's median over the selected period once it has 10 graded dives.
+  const heightMedian = (value: string) => {
+    const pool = all.filter(item => item.height === value && item.performance && now - ts(item) <= days * DAY_MS && (!month || item.dive_datetime.startsWith(month))).map(attemptScore)
+    return pool.length >= 10 ? median(pool) as number : null
+  }
+  const filters = <div className="ca-span ca-filters">
+      <Segmented label={t('codeAnalysis.periodAria')} value={month ? null : period} onChange={value => update({ period: value === defaultPeriod ? null : value, month: null, sel: null })}
+        options={PERIODS.map(([key]) => [key, t(`codeAnalysis.period.${key}`)] as const)} />
+      {heights.length > 1 && <div className="ca-heights">{heights.map(value => { const mid = analytics ? heightMedian(value) : null
+        return <button key={value} type="button" className="ca-pill" aria-pressed={height === value} onClick={() => update({ h: height === value ? null : value, sel: null })}>
+          {value}{mid != null && <small className={`ca-t-${scoreBand(mid)}`} aria-label={`${t('codeAnalysis.median')} ${fmtScore(mid)}`}>{fmtScore(mid)}</small>}
+        </button> })}</div>}
+      {month && <button type="button" className="ca-pill" aria-pressed="true" onClick={() => update({ month: null, sel: null })}>{format(parseISO(`${month}-01`), 'MMMM yyyy', { locale: appLocale() })} ✕</button>}
+    </div>
+  // The library total counts every visible diver; once strangers are filtered out it no longer describes this page.
+  const strangersFiltered = !diverId && scope === 'all' && followedIds.size > 0
+  const pageTotal = strangersFiltered ? null : attemptsTotal
+  const cappedText = pageTotal === null ? t('codeAnalysis.cappedPlain') : t('codeAnalysis.cappedAria', { total: pageTotal })
+  const notes = <>
+    {!analytics && <div className="ca-span ca-note">{t('codeAnalysis.straightJump')}</div>}
+    {!items.length && attemptsCapped && <div className="ca-span ca-note">{cappedText}</div>}
+    {!items.length && mode !== 'corrections' && <div className="ca-span ca-note">{t('codeAnalysis.emptyPeriod', { code })} <button type="button" className="ca-btn" onClick={() => update({ period: defaultPeriod === 'all' ? null : 'all', h: null, month: null })}>{t('codeAnalysis.showAll')}</button></div>}
+  </>
+  // One label for the median and the trend: both say "all divers" as soon as either sample mixes divers.
+  const multiDiver = new Set([...scored, ...all.filter(item => item.performance && (!trendHeight || item.height === trendHeight))].map(item => item.diver_id)).size > 1
+  const trendClass = trend == null ? '' : trend >= 0.5 ? 'ca-up' : trend <= -0.5 ? 'ca-down' : 'ca-flat'
+  const trendText = trend == null ? null : Math.abs(trend) < 0.5 ? t('codeAnalysis.stable') : `${trend > 0 ? '▲' : '▼'} ${fmtScore(Math.abs(trend))}`
+  const verdict = analytics && med != null && <div className="ca-verdict">
+    <p>{t(multiDiver ? 'codeAnalysis.allDiversMedian' : 'codeAnalysis.personalMedian')} <b className={`ca-t-${scoreBand(med)}`}>{fmtScore(med)}</b> · {attemptsCapped && pageTotal !== null
+      ? t('codeAnalysis.shownOf', { count: items.length, total: pageTotal })
+      : <span title={attemptsCapped ? cappedText : undefined}>{t('codeAnalysis.gradedCount', { count: scored.length })}</span>}</p>
+    {trendText && <p title={t('codeAnalysis.trendTitle')}><b className={trendClass} aria-label={trend != null && Math.abs(trend) >= 0.5 ? `${t(trend > 0 ? 'codeAnalysis.rising' : 'codeAnalysis.falling')} ${fmtScore(Math.abs(trend))}` : undefined}>{trendText}</b> {heights.length > 1 && trendHeight ? t('codeAnalysis.trendScope', { height: trendHeight }) : t('codeAnalysis.trendVs')}</p>}
+    {attemptsCapped && pageTotal === null && items.length > 0 && <p className="ca-sample">{cappedText}</p>}
+  </div>
+  const hero = <div className="ca-span"><div className="ca-hero"><div>
+    <h1 className="ca-hero-code">{code}</h1>
+    <p className="ca-hero-name">{name !== code ? name : ''}{dd ? <> · <span className="whitespace-nowrap">DD {fmtScore(dd)}</span></> : null}</p>
+    {verdict}
+  </div></div></div>
+  // Nearby codes: all-history medians for this code and its neighbours, so the rows compare like with like.
+  // The reference row comes from the same library summaries as its neighbours, so the panel compares like with like.
+  const own = nearbySource?.find(item => item.dive_code === code)
+  const nearbyRows = related
+  const nearbyRow = (summary: CodeSummary, detail: string) => <>
+    <span className="ca-near-code">{summary.dive_code}</span>
+    <span className="ca-near-name"><span>{diveCodeName(summary.dive_code, lang)}</span><small>{detail}</small></span>
+    <b className={summary.median != null ? `ca-t-${scoreBand(summary.median)}` : undefined}>{fmtScore(summary.median)}</b>
+  </>
+  const nearby = nearbyRows.length > 0 && <section className="ca-panel ca-nearby">
+    <div className="ca-panel-h"><h2>{t('codeAnalysis.nearby')}</h2><span>{strangersFiltered ? (height ? t('codeAnalysis.nearbyCommunityHeight', { height }) : t('codeAnalysis.nearbyCommunity')) : height ? t('codeAnalysis.nearbyScopeHeight', { height }) : t('codeAnalysis.nearbyScope')}</span></div>
+    <div className="ca-near">
+      {own && <div className="ca-near-row is-self">{nearbyRow(own, t('codeAnalysis.gradedShort', { count: own.scored_count }))}</div>}
+      {nearbyRows.map(({ summary, reason }) => <Link key={summary.dive_code} className="ca-near-row" to={`/dives/analysis/${encodeURIComponent(summary.dive_code)}?${new URLSearchParams({ ...(height ? { h: height } : {}), scope })}`} state={{ returnTo: returnTo ?? undefined }}>
+        {nearbyRow(summary, `${t(`codeAnalysis.relation.${reason}`)} · ${t('codeAnalysis.gradedShort', { count: summary.scored_count })}`)}
+      </Link>)}
+    </div>
+  </section>
+  const workspace = user && !diverId
+    ? <TechniqueWorkspace key={`${user.user_id}-${code}`} code={code} viewer={user.user_id} height={height} scores={scorePanel} layout={{ slot: adjustmentSlot, attempts: all, capped: attemptsCapped }} />
+    : scorePanel && <section className="ca-panel">{scorePanel.header}{scorePanel.content}</section>
+  const slot = <div ref={setAdjustmentSlot} className="ca-slot" />
+  const hasBody = items.length > 0 || Boolean(canViewCorrections && scorePanel)
+
+  return <>
+  <div className="ca ca-page ca-arrive">
+    <div className="ca-lead"><div className="ca-span">{topbar}</div>{hero}{filters}{notes}</div>
+    {/* Phones read top to bottom in DOM order (videos, chart, adjustments, sessions); desktop splits reading and watching into two columns. */}
+    {hasBody && (desktop
+      ? <>
+          <div className="ca-main">{focusCard}{workspace}{items.length > 0 && sessionsPanel}{nearby}{communityPanel}</div>
+          {items.length > 0 && <div className="ca-aside">{repsPanel}{slot}</div>}
+        </>
+      : <div className="ca-main">{focusCard}{repsPanel}{workspace}{slot}{items.length > 0 && sessionsPanel}{nearby}{communityPanel}</div>)}
   </div>
     {/* Outside the animated page: a transformed ancestor would anchor the fixed viewer to the page instead of the screen. */}
     {viewerAttempt && <Suspense fallback={<PageLoading message={t('dives.openingVideo')} />}>

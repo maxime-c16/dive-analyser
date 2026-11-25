@@ -1,0 +1,8 @@
+{
+  "id": "code-page-simpler",
+  "date": "2026-11-25",
+  "title": "A simpler page for each dive",
+  "body": "Each dive code now opens on one personal median and a trend at a single height, with your latest, best and lowest videos up front. Technique adjustments show their effect on your scores, and nearby dives are listed weakest first so you know what to work on next.",
+  "audience": "all",
+  "components": ["frontend"]
+}

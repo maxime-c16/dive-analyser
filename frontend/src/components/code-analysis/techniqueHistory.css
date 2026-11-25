@@ -272,3 +272,23 @@
  .th-adjustments .th-dialog-actions { position: sticky; bottom: -16px; padding: 12px 0 4px; background: var(--app-panel); }
  .th-adjustment-actions { padding-left: 14px; }
 }
+
+/* Code-page adjustments list: each row shows its effect on the score. */
+.th-compact .th-adj-head { align-items: center; }
+.th-adj-add { min-height: 32px; padding: 4px 10px; font-size: 13px; }
+.th-compact .th-context-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.th-compact .th-context select { min-height: 36px; }
+.th-adj-list { display: grid; margin: 0; padding: 0; list-style: none; }
+.th-adj + .th-adj { border-top: 1px solid var(--app-border); }
+.th-adj-row { display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; gap: 10px; align-items: center; width: 100%; padding: 10px 0; border: 0; background: none; color: inherit; text-align: left; }
+.th-adj-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--app-border-strong); }
+.th-adj.is-on .th-adj-dot { background: var(--app-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--app-accent) 25%, transparent); }
+.th-adj-copy { display: grid; min-width: 0; }
+.th-adj-copy b { overflow: hidden; color: var(--app-text); font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
+.th-adj-copy small { color: var(--app-muted); font-size: 12px; }
+.th-adj:not(.is-on) .th-adj-copy b { color: var(--app-muted); }
+.th-adj-fx { display: grid; justify-items: end; font-size: 13px; white-space: nowrap; color: var(--app-muted); }
+.th-adj-fx small { font-size: 11px; font-weight: 400; color: var(--app-muted); }
+.th-adj-fx.is-thin span, .th-adj-fx.is-thin b { color: var(--app-muted); }
+.th-adj-empty { margin: 0; color: var(--app-muted); font-size: 13px; }
+@media (max-width: 1023px) { .th-adj-add { min-height: 44px; } }

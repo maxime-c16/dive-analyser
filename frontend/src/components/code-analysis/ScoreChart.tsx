@@ -9,7 +9,9 @@ export type ChartPoint = { key: number | string; highlight?: boolean; segment?: 
  * the rolling median and usual range are drawn behind, and the clearest
  * peaks/valleys of the median are labelled and tappable.
  */
-export default function ScoreChart({ points, smoothing, selected, onSelect, label, boundary, markers, timeDomain, renderTimeline, timeScale = false, selectionMode = 'scrub', showCursor = true, outsideOpacity = .25 }: {
+export default function ScoreChart({ points, smoothing, selected, onSelect, label, boundary, markers, timeDomain, renderTimeline, timeScale = false, selectionMode = 'scrub', showCursor = true, outsideOpacity = .25, simple = false }: {
+  /** Points and rolling median only: no usual-range band, no peak/valley labels. */
+  simple?: boolean
   showCursor?: boolean
   timeScale?: boolean
   timeDomain?: { start: number; end: number }
@@ -54,7 +56,18 @@ export default function ScoreChart({ points, smoothing, selected, onSelect, labe
   const x = (index: number) => timed ? timeX(points[index]?.occurredAt ?? timeStart) : n === 1 ? (L + W - R) / 2 : L + index * (W - L - R) / (n - 1)
   const y = (value: number) => T + (10 - value) * (H - T - B) / 10
   const values = useMemo(() => points.map(point => point.value), [points])
-  const smooth = useMemo(() => points.every(p => p.curveMedian !== undefined) ? points.map(p => p.curveMedian!) : rolling(values, smoothing), [points, values, smoothing])
+  // The rolling window restarts after a 60-day break (on every screen, calendar axis or not), so the line never averages across an unmeasured stretch.
+  const smooth = useMemo(() => {
+    if (points.every(p => p.curveMedian !== undefined)) return points.map(p => p.curveMedian!)
+    if (!points.every(p => p.occurredAt != null)) return rolling(values, smoothing)
+    const out: Array<number | null> = []
+    let start = 0
+    points.forEach((point, index) => {
+      const last = index === points.length - 1 || (points[index + 1].occurredAt ?? 0) - (point.occurredAt ?? 0) > 60 * DAY
+      if (last) { out.push(...rolling(values.slice(start, index + 1), smoothing)); start = index + 1 }
+    })
+    return out
+  }, [points, values, smoothing, timed])
   const low = useMemo(() => points.every(p => p.curveQ1 !== undefined) ? points.map(p => p.curveQ1!) : rolling(values, smoothing + 2, 0.25), [points, values, smoothing])
   const high = useMemo(() => points.every(p => p.curveQ3 !== undefined) ? points.map(p => p.curveQ3!) : rolling(values, smoothing + 2, 0.75), [points, values, smoothing])
   const groups = useMemo(() => {
@@ -98,7 +111,8 @@ export default function ScoreChart({ points, smoothing, selected, onSelect, labe
     const rect = host.current!.getBoundingClientRect()
     const px = (clientX - rect.left) * W / rect.width
     const py = clientY == null ? null : (clientY - rect.top) * H / rect.height
-    const distance = (index: number) => selectionMode === 'tap' && py != null ? Math.hypot(x(index)-px,y(points[index].value)-py) : Math.abs(x(index)-px)
+    // Scrubbing follows x; dives sharing a date are told apart by the pointer's height.
+    const distance = (index: number) => selectionMode === 'tap' && py != null ? Math.hypot(x(index)-px,y(points[index].value)-py) : Math.abs(x(index)-px) * 1000 + (py == null ? 0 : Math.abs(y(points[index].value)-py))
     if (timed) return points.reduce((best, _, index) => distance(index) < distance(best) ? index : best, 0)
     return Math.max(0, Math.min(n - 1, Math.round((px - L) / ((W - L - R) / Math.max(1, n - 1)))))
   }
@@ -132,7 +146,12 @@ export default function ScoreChart({ points, smoothing, selected, onSelect, labe
   }
 
   const bandPath = groups.filter(group => group.length > 1 && group.every(i => high[i] != null && low[i] != null)).map(group => `M${group.map(i => `${x(i)},${y(high[i]!)}`).join('L')}L${[...group].reverse().map(i => `${x(i)},${y(low[i]!)}`).join('L')}Z`).join(' ')
-  const medianPath = groups.filter(group => group.length > 1 && group.every(i => smooth[i] != null)).map(group => `M${group.map(i => `${x(i).toFixed(1)},${y(smooth[i]!).toFixed(1)}`).join('L')}`).join(' ')
+  // On a calendar axis a session's dives share one x: keep the last of each so the line does not spike inside a session.
+  // A break of more than 60 days lifts the pen, so an unmeasured stretch does not look like a steady level.
+  const medianPath = groups.filter(group => group.length > 1 && group.every(i => smooth[i] != null)).map(group => {
+    const kept = group.filter((i, k) => !timed || k === group.length - 1 || x(i) !== x(group[k + 1]))
+    return kept.map((i, k) => `${k && !((points[i].occurredAt ?? 0) - (points[kept[k - 1]].occurredAt ?? 0) > 60 * DAY) ? 'L' : 'M'}${x(i).toFixed(1)},${y(smooth[i]!).toFixed(1)}`).join('')
+  }).join(' ')
   const current = selected != null ? points[selected] : null
 
   return <><div ref={host} className="ca-chart" tabIndex={onSelect ? 0 : undefined} role={onSelect ? 'group' : 'img'} aria-label={onSelect ? `${label}. ${t('codeAnalysis.chartKeys')}` : label}
@@ -159,13 +178,15 @@ export default function ScoreChart({ points, smoothing, selected, onSelect, labe
             textAnchor={px < 32 ? 'start' : px > W - 32 ? 'end' : 'middle'}>{tick.text}</text>
         </g>
       })}
-      {bandPath && <path className="ca-band" d={bandPath} />}
+      {bandPath && !simple && <path className="ca-band" d={bandPath} />}
       {points.map((point, index) => point.lo != null && point.hi != null &&
         <line key={`r${point.key}`} x1={x(index)} x2={x(index)} y1={y(point.lo)} y2={y(point.hi)} stroke={`var(--ca-${point.band})`} strokeOpacity=".45" strokeLinecap="round"
           strokeWidth={Math.max(2, Math.min(8, (W - L - R) / n * 0.5))} />)}
       {points.map((point, index) => <circle key={point.key} cx={x(index)} cy={y(point.value)} r={radius} fill={`var(--ca-${point.band})`} className="ca-score-point" fillOpacity={boundary && !point.highlight ? outsideOpacity : .9} />)}
       {medianPath && <path ref={line} className="ca-medline" d={medianPath} />}
-      {(selectionMode === 'tap' || !onSelect ? [] : marks).map(mark => {
+      {/* Simple charts name the line where it ends instead of carrying a legend. */}
+      {simple && medianPath && smooth[n - 1] != null && <text className="ca-medline-label" x={x(n - 1) - 12} y={y(smooth[n - 1]!) + (smooth[n - 1]! > 8 ? 16 : -9)} textAnchor="end">{t('codeAnalysis.recentMedian')} {fmtScore(smooth[n - 1]!)}</text>}
+      {(selectionMode === 'tap' || !onSelect || simple ? [] : marks).map(mark => {
         const up = mark.kind === 'peak', colour = up ? 'var(--ca-P)' : 'var(--ca-B)'
         const text = `${up ? '▲' : '▼'} ${fmtScore(mark.value)}`
         return <g key={`${mark.kind}${mark.index}`} className="ca-mark" role="button" tabIndex={0} aria-label={`${up ? t('codeAnalysis.peak') : t('codeAnalysis.valley')} ${fmtScore(mark.value)}`}

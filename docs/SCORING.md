@@ -57,6 +57,9 @@ if they drift:
 | Analyse détaillée "Réussite · seuil X" | letter X or better; the threshold is shown | `dive_analysis_service.summarize` |
 | Performance moyenne | mean of 0–10 scores (Sessions, Dashboard, Analytics) | `dive_score_10` |
 | Médiane | median of 0–10 scores (code cards, code analysis, leaderboard, community) | `code_summaries`, `codeStats.median` |
+| Tendance (code analysis) | median of the last 6 weeks minus median of the 20 weeks before, on one height (height filter, else the latest dive's height); shown only with 8+ graded dives on each side, hidden under a month filter and when a capped newest-window truncates the 20-week baseline | `codeStats.recentTrend` |
+| Effet d'un ajustement / adjustment effect | median of up to 20 graded dives in the 6 months before the start → median of graded dives during it (same diver, code, height, apparatus, position, sync; an approximate start's uncertain stretch is excluded); muted below 8 dives per side, unshown when a capped newest-window truncates the 6-month run-up | `TechniqueAdjustments` `effect` |
+| Médiane récente (score chart line) | rolling median of graded dives, restarted after a 60-day break | `ScoreChart` `smooth` |
 
 Do not label a G‑or‑better rate "Réussite". Show a mean and a median under
 different labels; never swap one for the other on the same metric.
