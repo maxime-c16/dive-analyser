@@ -361,3 +361,41 @@ it('requests fullscreen for the player including its controls', () => {
   fireEvent.keyDown(t.surface, { key: 'f' });
   expect(request).toHaveBeenCalledOnce();
 });
+
+it('shows a duration hint without enabling seeking before metadata', () => {
+  const videoRef = { current: document.createElement('video') };
+  const { rerender } = render(<ImmersiveControls videoRef={videoRef} playbackRate={1} durationHint={3665} />);
+  expect(screen.getByText('0:00 / 1:01:05')).toBeVisible();
+  expect(screen.getByRole('slider')).toBeDisabled();
+  rerender(<ImmersiveControls videoRef={videoRef} playbackRate={1} durationHint={null} />);
+  expect(screen.getByText('0:00 / –:––')).toBeVisible();
+  Object.defineProperty(videoRef.current, 'duration', { value: 12 });
+  fireEvent.loadedMetadata(videoRef.current);
+  expect(screen.getByText('0:00 / 0:12')).toBeVisible();
+  expect(screen.getByRole('slider')).toBeEnabled();
+});
+
+it('offers WebKit fullscreen once metadata is loaded and handles a rejected presentation', () => {
+  const videoRef = { current: document.createElement('video') };
+  const native = vi.fn(() => { throw new DOMException('The video is not available', 'InvalidStateError'); });
+  const exit = vi.fn();
+  const hint = vi.fn();
+  Object.assign(videoRef.current, { webkitEnterFullscreen: native, webkitExitFullscreen: exit });
+  Object.defineProperty(document, 'fullscreenEnabled', { value: false, configurable: true });
+  const { rerender } = render(<ImmersiveControls videoRef={videoRef} playbackRate={1} />);
+  expect(screen.getByRole('button', { name: 'Fullscreen' })).toBeDisabled();
+  fireEvent.keyDown(screen.getByRole('button', { name: 'Play video' }), { key: 'f' });
+  expect(native).not.toHaveBeenCalled();
+  rerender(<ImmersiveControls videoRef={videoRef} playbackRate={1} onFullscreenPending={hint} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Fullscreen' }));
+  expect(hint).toHaveBeenCalledOnce();
+  expect(native).not.toHaveBeenCalled();
+  Object.defineProperty(videoRef.current, 'readyState', { value: HTMLMediaElement.HAVE_METADATA });
+  fireEvent.loadedMetadata(videoRef.current);
+  fireEvent.click(screen.getByRole('button', { name: 'Fullscreen' }));
+  expect(native).toHaveBeenCalledOnce();
+  Object.assign(videoRef.current, { webkitDisplayingFullscreen: true });
+  fireEvent.keyDown(screen.getByRole('button', { name: 'Play video' }), { key: 'f' });
+  expect(exit).toHaveBeenCalledOnce();
+  Reflect.deleteProperty(document, 'fullscreenEnabled');
+});

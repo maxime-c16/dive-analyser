@@ -66,12 +66,16 @@ function enter(entry: Entry) {
 function keyboard(event: KeyboardEvent) {
   const entry = top()
   if (!entry) return
+  const fullscreen = document.fullscreenElement
+  const fullscreenScope = fullscreen instanceof HTMLElement && entry.focus.contains(fullscreen) ? fullscreen : null
   if (event.key === 'Escape' && !event.defaultPrevented) {
     event.preventDefault()
     event.stopImmediatePropagation()
-    if (!event.repeat) entry.close()
+    if (event.repeat) return
+    if (fullscreenScope) void document.exitFullscreen?.().catch(() => {})
+    else entry.close()
   } else if (event.key === 'Tab') {
-    trapTabKey(entry.focus, event)
+    trapTabKey(fullscreenScope ?? entry.focus, event)
     // Legacy document shortcuts must not also trap a lower surface.
     event.stopImmediatePropagation()
   }

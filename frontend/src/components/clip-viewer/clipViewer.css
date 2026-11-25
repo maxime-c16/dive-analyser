@@ -1994,29 +1994,29 @@
   height: 24px;
   min-height: 24px;
 }
-.clip-viewer .clip-progress::-webkit-slider-runnable-track {
+:is(.clip-viewer, .session-video-frame) .clip-progress::-webkit-slider-runnable-track {
   height: 4px;
   border-radius: 4px;
   background: linear-gradient(90deg, var(--app-accent) var(--clip-progress, 0%), rgba(255, 255, 255, 0.28) 0);
 }
-.clip-viewer .clip-progress::-webkit-slider-thumb {
+:is(.clip-viewer, .session-video-frame) .clip-progress::-webkit-slider-thumb {
   width: 14px;
   height: 14px;
   margin-top: -5px;
   background: #fff;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
 }
-.clip-viewer .clip-progress::-moz-range-track {
+:is(.clip-viewer, .session-video-frame) .clip-progress::-moz-range-track {
   height: 4px;
   border-radius: 4px;
   background: rgba(255, 255, 255, 0.28);
 }
-.clip-viewer .clip-progress::-moz-range-progress {
+:is(.clip-viewer, .session-video-frame) .clip-progress::-moz-range-progress {
   height: 4px;
   border-radius: 4px;
   background: var(--app-accent);
 }
-.clip-viewer .clip-progress::-moz-range-thumb {
+:is(.clip-viewer, .session-video-frame) .clip-progress::-moz-range-thumb {
   width: 14px;
   height: 14px;
   background: #fff;

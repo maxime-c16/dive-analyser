@@ -12,7 +12,7 @@ const info: SessionVideoInfo = {
   duration_seconds: 1936.8, size_bytes: 3338404955, codec_string: 'hvc1.2.4.L123.B0', audio_codec_string: 'mp4a.40.2',
   video_codec: 'hevc', color_transfer: 'arib-std-b67', width: 1920, height: 1080, fps: 59.97, bit_rate: 13789351, can_share: false,
 }
-const urls = { playUrl: '/api/v1/session-videos/3/play', downloadUrl: '/api/v1/session-videos/3/download', reportUrl: '/api/v1/session-videos/3/playback-issues' }
+const urls = { playUrl: '/api/v1/session-videos/3/play', reportUrl: '/api/v1/session-videos/3/playback-issues' }
 
 function stubCapabilities(supported: boolean) {
   const decodingInfo = vi.fn(async () => ({ supported }))
@@ -57,10 +57,9 @@ describe('SessionVideoPlayer', () => {
 
   it('offers only the download when the codec is unsupported, and counts it', async () => {
     stubCapabilities(false)
-    const { container } = render(<SessionVideoPlayer info={info} {...urls} />)
+    const { container } = render(<SessionVideoPlayer info={info} {...urls} downloadFallback={<button>Download video · 3.3 GB</button>} />)
     expect(await screen.findByText('This video doesn’t play here')).toBeInTheDocument()
-    const link = screen.getByRole('link', { name: /Download · 3.3 GB/ })
-    expect(link).toHaveAttribute('href', urls.downloadUrl)
+    expect(screen.getByRole('button', { name: /Download video · 3.3 GB/ })).toBeVisible()
     expect(container.querySelector('video')).toBeNull()
     expect(api.post).toHaveBeenCalledWith(urls.reportUrl, { reason: 'unsupported' })
   })
@@ -80,15 +79,19 @@ describe('SessionVideoPlayer', () => {
     expect(api.post).toHaveBeenCalledWith(urls.reportUrl, { reason: 'no_frames' })
   })
 
-  it('refreshes an expired signed URL and resumes instead of giving up', async () => {
+  it.each([2, 4])('refreshes an expired signed URL after media error %s', async code => {
     stubCapabilities(true)
     const { container } = render(<SessionVideoPlayer info={info} {...urls} />)
     await waitFor(() => expect(container.querySelector('video')).not.toBeNull())
     const video = container.querySelector('video')!
-    Object.defineProperty(video, 'error', { value: { code: 2 }, configurable: true })
+    fireEvent.loadedMetadata(video)
+    const load = vi.spyOn(video, 'load')
+    Object.defineProperty(video, 'error', { value: { code }, configurable: true })
     Object.defineProperty(video, 'currentTime', { value: 600, writable: true })
     fireEvent.error(video)
     await waitFor(() => expect(container.querySelector('video')).toHaveAttribute('src', `${urls.playUrl}?r=1`))
+    expect(video).toHaveAttribute('preload', 'metadata')
+    expect(load).toHaveBeenCalledOnce()
     expect(api.post).not.toHaveBeenCalled()
   })
 
@@ -124,10 +127,31 @@ it.each([true, false])('restores position and speed after a refresh; playing=%s'
   fireEvent.pause(video) // Replacing the failed source also pauses the element.
   video.currentTime = 0
   video.playbackRate = 1
+  Object.defineProperty(video, 'error', { value: { code: 2 }, configurable: true })
+  fireEvent.error(video)
+  expect(video).toHaveAttribute('src', `${urls.playUrl}?r=2`)
+  Object.defineProperty(video, 'error', { value: null, configurable: true })
   fireEvent.loadedMetadata(video)
   fireEvent.canPlay(video)
   fireEvent.canPlay(video)
   expect(video.currentTime).toBe(600)
   expect(video.playbackRate).toBe(0.5)
   expect(play).toHaveBeenCalledTimes(wasPlaying ? 1 : 0)
+})
+
+it('retries an initial code 4 failure and plays the renewed source', async () => {
+  stubCapabilities(true)
+  const { container } = render(<SessionVideoPlayer info={info} {...urls} />)
+  await waitFor(() => expect(container.querySelector('video')).not.toBeNull())
+  const video = container.querySelector('video')!
+  const play = vi.spyOn(video, 'play').mockResolvedValue()
+  fireEvent.click(screen.getByRole('button', { name: 'Play video' }))
+  play.mockClear()
+  Object.defineProperty(video, 'error', { value: { code: 4 }, configurable: true })
+  fireEvent.error(video)
+  expect(video).toHaveAttribute('src', `${urls.playUrl}?r=1`)
+  fireEvent.loadedMetadata(video)
+  fireEvent.canPlay(video)
+  expect(play).toHaveBeenCalledOnce()
+  expect(api.post).not.toHaveBeenCalled()
 })

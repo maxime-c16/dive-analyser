@@ -1,0 +1,8 @@
+{
+  "id": "shared-session-download-viewer",
+  "date": "2026-11-25",
+  "title": "Easier access to shared session videos",
+  "body": "Find the download and file size as soon as you open a session. Browse sessions with several recordings in a compact list and watch videos in a larger, full-screen viewer.",
+  "audience": "all",
+  "components": ["frontend", "backend"]
+}

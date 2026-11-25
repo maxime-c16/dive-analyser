@@ -316,3 +316,73 @@ def test_telegram_never_leaks_the_token_in_logs(monkeypatch, caplog):
     monkeypatch.setattr(requests, 'post', boom)
     assert telegram.send('hello') is False
     assert 'SECRET-BOT-TOKEN' not in caplog.text
+
+
+@pytest.mark.parametrize("status", [206, 403, 200, 302])
+def test_prepare_session_download_checks_the_exact_bounded_attachment(sessions_env, monkeypatch, status):
+    import requests
+
+    db, login, _, b2, _ = sessions_env
+    video_id = service.ingest_object(db, KEY).id
+    endpoint = f'/api/v1/session-videos/{video_id}/download/prepare'
+    checked = []
+    closed = []
+
+    class Probe:
+        status_code = status
+        headers = {'Content-Length': '1', 'Content-Range': 'bytes 0-0/500'}
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            closed.append(True)
+
+    def get(url, **options):
+        checked.append(url)
+        assert options == {
+            'headers': {'Range': 'bytes=0-0'},
+            'stream': True,
+            'timeout': (3, 4),
+            'allow_redirects': False,
+        }
+        return Probe()
+
+    monkeypatch.setattr(requests, 'get', get)
+    viewer = login('viewer')
+    count = len(b2.presigned)
+    response = viewer.get(endpoint)
+    assert len(b2.presigned) == count + 1
+    assert closed == [True]
+    if status == 206:
+        assert response.status_code == 200
+        assert response.json()['url'] == checked[0]
+        assert response.headers['cache-control'] == 'private, no-store'
+        assert b2.presigned[-1][0]['ResponseContentDisposition'].startswith('attachment;')
+    else:
+        assert response.status_code == 503
+        assert checked[0] not in response.text
+
+    viewer.cookies.clear()
+    assert viewer.get(endpoint).status_code == 401
+    assert len(checked) == 1
+
+
+def test_prepare_session_download_reports_saturation(sessions_env):
+    db, login, _, b2, _ = sessions_env
+    video_id = service.ingest_object(db, KEY).id
+    endpoint = f'/api/v1/session-videos/{video_id}/download/prepare'
+    viewer = login('viewer')
+    before = len(b2.presigned)
+    slots = service._download_checks
+    for _ in range(4):
+        assert slots.acquire(blocking=False)
+    try:
+        response = viewer.get(endpoint)
+        assert response.status_code == 429
+        assert response.headers['retry-after'] == '2'
+        assert response.headers['cache-control'] == 'private, no-store'
+        assert len(b2.presigned) == before
+    finally:
+        for _ in range(4):
+            slots.release()

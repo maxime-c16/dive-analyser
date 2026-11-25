@@ -7,9 +7,13 @@ export function clipDownloadUrl(id: number): string {
 
 /** Browser-managed transfer: no video blobs, ZIP jobs or signed URLs in state. */
 export function startClipDownload(clip: DownloadClip): void {
+  startBrowserDownload(clip.url, clip.name)
+}
+
+export function startBrowserDownload(url: string, filename?: string): void {
   const link = document.createElement('a')
-  link.href = clip.url
-  link.download = clip.name
+  link.href = url
+  if (filename) link.download = filename
   const frame = document.createElement('iframe')
   frame.name = `clip-download-${++downloadSequence}`
   frame.hidden = true

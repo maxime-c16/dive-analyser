@@ -1,11 +1,17 @@
 import { fmtRate } from '../../utils/formatNumber'
 import React, { useEffect, useRef, useState, type RefObject } from "react";
 import { useTranslation } from "react-i18next";
-import { Heart, Maximize, Pause, Play, Volume2, VolumeX } from "lucide-react";
+import { Heart, Maximize, Minimize, Pause, Play, Volume2, VolumeX } from "lucide-react";
 
 import { PLAYBACK_RATES } from "./ClipViewerNavigation";
 
-const clock = (seconds: number) => `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, "0")}`;
+type FullscreenVideo = HTMLVideoElement & { webkitEnterFullscreen?: () => void; webkitExitFullscreen?: () => void; webkitDisplayingFullscreen?: boolean };
+
+const clock = (seconds: number) => {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = hours ? String(Math.floor(seconds / 60) % 60).padStart(2, '0') : Math.floor(seconds / 60);
+  return `${hours ? `${hours}:` : ''}${minutes}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`;
+};
 
 /** One gesture owner keeps taps, double taps, holds and swipes mutually exclusive. */
 export interface FeedDragEnd {
@@ -23,6 +29,9 @@ export default function ImmersiveControls({
   soundRef,
   playbackRate,
   onPlaybackRateChange,
+  durationHint,
+  onFullscreenPending,
+  onPlayRequested,
   mediaPresented = true,
   onLike,
   onNavigate,
@@ -40,6 +49,10 @@ export default function ImmersiveControls({
   playbackRate: number;
   /** When set, the transport row offers the playback speed. */
   onPlaybackRateChange?: (rate: number) => void;
+  /** Show a known duration before the browser loads metadata. Seeking still waits for the media. */
+  durationHint?: number | null;
+  onFullscreenPending?: () => void;
+  onPlayRequested?: () => void;
   /**
    * False until the video has presented its first real frame: the visible
    * play indicator, transport and scrub wait for that moment, while the
@@ -88,8 +101,11 @@ export default function ImmersiveControls({
   const [muted, setMuted] = useState(false);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [nativeFullscreen, setNativeFullscreen] = useState<'unavailable' | 'pending' | 'ready'>('unavailable');
+  const [fullscreen, setFullscreen] = useState(false);
   const [holding, setHolding] = useState(false);
   const [heart, setHeart] = useState(false);
+  const displayDuration = duration || durationHint;
   const controlsRef = useRef<HTMLButtonElement>(null);
   const holdTimer = useRef<ReturnType<typeof setTimeout>>();
   const tapTimer = useRef<ReturnType<typeof setTimeout>>();
@@ -133,12 +149,18 @@ export default function ImmersiveControls({
   const toggleFullscreen = () => {
     const video = videoRef.current;
     if (!video) return;
+    const stage = controlsRef.current?.parentElement;
     if (document.fullscreenElement) {
       void document.exitFullscreen?.().catch(() => {});
-    } else if (controlsRef.current?.parentElement?.requestFullscreen) {
-      void controlsRef.current!.parentElement!.requestFullscreen().catch(() => {});
+    } else if (document.fullscreenEnabled !== false && stage?.requestFullscreen) {
+      void stage.requestFullscreen().catch(() => {});
     } else {
-      (video as HTMLVideoElement & { webkitEnterFullscreen?: () => void }).webkitEnterFullscreen?.();
+      const nativeVideo = video as FullscreenVideo;
+      try {
+        if (nativeVideo.webkitDisplayingFullscreen) nativeVideo.webkitExitFullscreen?.();
+        else if (video.readyState >= HTMLMediaElement.HAVE_METADATA) nativeVideo.webkitEnterFullscreen?.();
+        else if (nativeVideo.webkitEnterFullscreen) onFullscreenPending?.();
+      } catch { /* A media reset or iOS presentation restriction can still reject the request. */ }
     }
   };
   const handleKeyboard = (event: React.KeyboardEvent<HTMLButtonElement>) => {
@@ -161,8 +183,10 @@ export default function ImmersiveControls({
   const toggle = () => {
     const video = videoRef.current;
     if (!video) return;
-    if (video.paused) void video.play().catch(() => setPaused(true));
-    else video.pause();
+    if (video.paused) {
+      onPlayRequested?.();
+      void video.play().catch(() => setPaused(true));
+    } else video.pause();
   };
   const like = () => {
     if (!onLike) {toggle(); return;}
@@ -251,6 +275,8 @@ export default function ImmersiveControls({
       setPaused(video.paused);
       setMuted((soundRef?.current || video).muted);
       setDuration(Number.isFinite(video.duration) ? video.duration : 0);
+      setNativeFullscreen(typeof (video as FullscreenVideo).webkitEnterFullscreen !== 'function'
+        ? 'unavailable' : video.readyState >= HTMLMediaElement.HAVE_METADATA ? 'ready' : 'pending');
       setProgress(video.currentTime || 0);
       if (announcedPaused !== video.paused) {
         announcedPaused = video.paused;
@@ -268,12 +294,21 @@ export default function ImmersiveControls({
       "emptied",
     ];
     events.forEach((event) => video.addEventListener(event, sync));
+    const syncFullscreen = () => setFullscreen(
+      document.fullscreenElement === controlsRef.current?.parentElement || !!(video as FullscreenVideo).webkitDisplayingFullscreen,
+    );
+    document.addEventListener('fullscreenchange', syncFullscreen);
+    video.addEventListener('webkitbeginfullscreen', syncFullscreen);
+    video.addEventListener('webkitendfullscreen', syncFullscreen);
     const sound = soundRef?.current;
     if (sound && sound !== video) sound.addEventListener('volumechange', sync);
     sync();
     return () => {
       if (sound && sound !== video) sound.removeEventListener('volumechange', sync);
       events.forEach((event) => video.removeEventListener(event, sync));
+      document.removeEventListener('fullscreenchange', syncFullscreen);
+      video.removeEventListener('webkitbeginfullscreen', syncFullscreen);
+      video.removeEventListener('webkitendfullscreen', syncFullscreen);
       clearTimeout(holdTimer.current);
       clearTimeout(tapTimer.current);
       clearTimeout(heartTimer.current);
@@ -429,7 +464,7 @@ export default function ImmersiveControls({
         {heart && (
           <Heart className="clip-heart" size={84} fill="currentColor" />
         )}
-        {holding && <span className="clip-speed-indicator">2× speed</span>}
+        {holding && <span className="clip-speed-indicator">{t('clipViewer.holdSpeed', { rate: fmtRate(2) })}</span>}
       </button>
       {mediaPresented && (
         <div className="clip-transport">
@@ -443,7 +478,7 @@ export default function ImmersiveControls({
           </button>
           <div className="clip-scrub">
             <span className="clip-time">
-              {clock(progress)} / {clock(duration)}
+              {clock(progress)} / {displayDuration === null ? '–:––' : clock(displayDuration ?? 0)}
             </span>
             <input
               className="clip-progress"
@@ -477,7 +512,11 @@ export default function ImmersiveControls({
               </select>
             </label>
           )}
-          {(document.fullscreenEnabled || Boolean((videoRef.current as (HTMLVideoElement & { webkitEnterFullscreen?: () => void }) | null)?.webkitEnterFullscreen)) && <button type="button" className="clip-hud-button" aria-label={t('clipViewer.fullscreen')} onClick={toggleFullscreen}><Maximize size={18} /></button>}
+          {(document.fullscreenEnabled || nativeFullscreen !== 'unavailable') && <button type="button" className="clip-hud-button"
+            aria-label={t(fullscreen ? 'clipViewer.exitFullscreen' : 'clipViewer.fullscreen')} aria-pressed={fullscreen}
+            disabled={!onFullscreenPending && !document.fullscreenEnabled && nativeFullscreen === 'pending'}
+            title={!document.fullscreenEnabled && nativeFullscreen === 'pending' ? t('clipViewer.fullscreenAfterPlay') : undefined}
+            onClick={toggleFullscreen}>{fullscreen ? <Minimize size={18} /> : <Maximize size={18} />}</button>}
           <button
             type="button"
             className="clip-hud-button"

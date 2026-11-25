@@ -1,4 +1,5 @@
 import { api } from './api'
+import { startBrowserDownload } from './clipDownloads'
 
 export type SessionVideoInfo = {
   id: number
@@ -35,6 +36,41 @@ export const sessionVideoPaths = (id: number) => ({
   report: `/api/v1/session-videos/${id}/playback-issues`,
   shares: `/api/v1/session-videos/${id}/shares`,
 })
+
+export class SessionDownloadBusy extends Error {
+  readonly retryAfterMs: number
+
+  constructor(retryAfter: string | null) {
+    super('Session download busy')
+    const seconds = Number(retryAfter)
+    this.retryAfterMs = (seconds > 0 && Number.isFinite(seconds) ? Math.min(seconds, 5) : 2) * 1000
+  }
+}
+
+export async function startSessionDownload(id: number, signal: AbortSignal): Promise<void> {
+  signal.throwIfAborted()
+  const prepareUrl = `${sessionVideoPaths(id).download}/prepare`
+  const check = new AbortController()
+  const abortCheck = () => check.abort()
+  signal.addEventListener('abort', abortCheck, { once: true })
+  const deadline = setTimeout(abortCheck, 15_000)
+  try {
+    const response = await fetch(prepareUrl, { redirect: 'error', credentials: 'same-origin', signal: check.signal })
+    if (!response.ok) {
+      void response.body?.cancel().catch(() => {})
+      if (response.status === 429) throw new SessionDownloadBusy(response.headers.get('Retry-After'))
+      throw new Error('Session download unavailable')
+    }
+    const { url } = await response.json()
+    const attachment = new URL(url)
+    if (attachment.protocol !== 'https:' && attachment.protocol !== 'http:') throw new Error('Invalid attachment URL')
+    check.signal.throwIfAborted()
+    startBrowserDownload(attachment.href)
+  } finally {
+    clearTimeout(deadline)
+    signal.removeEventListener('abort', abortCheck)
+  }
+}
 
 export async function listSessionVideos(): Promise<SessionVideoInfo[]> {
   const { data } = await api.get<{ items: SessionVideoInfo[] }>('/api/v1/session-videos')
@@ -73,8 +109,18 @@ export function formatBytes(bytes: number | null, locale: string): string {
 
 export function formatDuration(seconds: number | null): string {
   if (!seconds) return ''
+  if (seconds < 60) return `0:${String(Math.max(1, Math.floor(seconds))).padStart(2, '0')}`
   const minutes = Math.round(seconds / 60)
   return minutes >= 60 ? `${Math.floor(minutes / 60)} h ${String(minutes % 60).padStart(2, '0')}` : `${minutes} min`
+}
+
+export function formatRecordingDuration(seconds: number | null): string {
+  if (!seconds) return ''
+  const whole = Math.floor(seconds)
+  const hours = Math.floor(whole / 3600)
+  const minutes = Math.floor(whole / 60) % 60
+  const remainder = String(whole % 60).padStart(2, '0')
+  return hours ? `${hours}:${String(minutes).padStart(2, '0')}:${remainder}` : `${minutes}:${remainder}`
 }
 
 export function formatSessionDate(video: SessionVideoInfo, locale: string): string {
