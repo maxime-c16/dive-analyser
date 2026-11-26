@@ -2283,6 +2283,7 @@ deletedPeriod:"Deleted episode",anchorUnavailable:"Source attempt unavailable",l
     downloadOriginal: 'Download original',
     backToList: 'Back to list',
     loadMore: 'Load more',
+    loadMoreSessions: 'Load more sessions',
     diver: 'Diver',
     required: 'Required',
     otherDiver: 'Other',

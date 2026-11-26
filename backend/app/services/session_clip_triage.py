@@ -201,105 +201,120 @@ def _sql_interval_match(sub_s, sub_e, cand_s, cand_e):
     return ok, iou
 
 
+DEDUP_SCAN_PAGE_ROWS = 500
+
+
 def _find_best_db_matches(
     db: Session,
     video_id: int,
     valid_items: list[tuple[float, float, Optional[float], Optional[str], Optional[dict[str, Any]]]],
 ) -> tuple[dict[int, tuple[float, int]], dict[int, SessionClipCandidate]]:
-    """Match submitted intervals against ALL historical candidates using indexed O(1) SQL.
+    """Match submitted intervals against ALL historical candidates in bounded, resumable batches.
 
-    Uses a bounded-chunk CTE (`<= 100` submitted items per query -> at most 5 queries
-    for the 500-item run cap, independent of historical row count) with two separate
-    indexable B-tree range joins (`ix_session_clip_candidates_bounds` on original
-    bounds and `ix_session_clip_candidates_trimmed` on trimmed bounds), combined via
-    `UNION ALL` and ranked with `ROW_NUMBER() OVER (PARTITION BY idx ...)`.
+    Submitted items are sorted by start and processed in chunks of `DEDUP_SQL_BATCH_SIZE`.
+    For each chunk and each bound family (original, trimmed), historical candidates in the
+    chunk's time window are paged by keyset `(start, id)` at most `DEDUP_SCAN_PAGE_ROWS`
+    at a time; each page is matched and ranked in SQL (`ROW_NUMBER` over at most
+    chunk x page pairs) and the per-item best is carried across pages in Python with the
+    same `(score DESC, id ASC)` order. No query ranks an unbounded history, and every
+    historical row is still considered, so prior triage decisions are never missed.
     """
     if not valid_items:
         return {}, {}
 
     best_by_idx: dict[int, tuple[float, int]] = {}
 
-    for batch_start in range(0, len(valid_items), DEDUP_SQL_BATCH_SIZE):
-        chunk = valid_items[batch_start : batch_start + DEDUP_SQL_BATCH_SIZE]
+    def _keep_best(idx: int, score: float, cid: int) -> None:
+        current = best_by_idx.get(idx)
+        if current is None or score > current[0] or (score == current[0] and cid < current[1]):
+            best_by_idx[idx] = (score, cid)
+
+    order = sorted(range(len(valid_items)), key=lambda i: (valid_items[i][0], valid_items[i][1]))
+    bound_families = (
+        (SessionClipCandidate.start_s, SessionClipCandidate.end_s),
+        (SessionClipCandidate.trimmed_start_s, SessionClipCandidate.trimmed_end_s),
+    )
+
+    for batch_start in range(0, len(order), DEDUP_SQL_BATCH_SIZE):
+        chunk_idx = order[batch_start : batch_start + DEDUP_SQL_BATCH_SIZE]
         sub_selects = [
             select(
-                literal(batch_start + offset).label("idx"),
-                cast(literal(float(item[0])), Float).label("s"),
-                cast(literal(float(item[1])), Float).label("e"),
+                literal(i).label("idx"),
+                cast(literal(float(valid_items[i][0])), Float).label("s"),
+                cast(literal(float(valid_items[i][1])), Float).label("e"),
             )
-            for offset, item in enumerate(chunk)
+            for i in chunk_idx
         ]
         submitted_cte = (
             sub_selects[0].cte("submitted_clips")
             if len(sub_selects) == 1
             else union_all(*sub_selects).cte("submitted_clips")
         )
-
         sub_s = submitted_cte.c.s
         sub_e = submitted_cte.c.e
-        ok_orig, iou_orig = _sql_interval_match(
-            sub_s, sub_e, SessionClipCandidate.start_s, SessionClipCandidate.end_s
-        )
-        ok_trim, iou_trim = _sql_interval_match(
-            sub_s, sub_e, SessionClipCandidate.trimmed_start_s, SessionClipCandidate.trimmed_end_s
-        )
-        orig_matches = (
-            select(
-                submitted_cte.c.idx.label("idx"),
-                SessionClipCandidate.id.label("cid"),
-                iou_orig.label("score"),
-            )
-            .select_from(submitted_cte)
-            .join(
-                SessionClipCandidate,
-                and_(
+        lo = min(valid_items[i][0] for i in chunk_idx) - DEDUP_START_LOOKBACK_S
+        hi = max(valid_items[i][1] for i in chunk_idx) + DEDUP_WINDOW_PAD_S
+        end_floor = min(valid_items[i][0] for i in chunk_idx) - DEDUP_WINDOW_PAD_S
+
+        for start_col, end_col in bound_families:
+            ok, iou = _sql_interval_match(sub_s, sub_e, start_col, end_col)
+            last_key: Optional[tuple[float, int]] = None
+            while True:
+                page_q = db.query(SessionClipCandidate.id, start_col).filter(
                     SessionClipCandidate.session_video_id == video_id,
-                    SessionClipCandidate.start_s >= sub_s - DEDUP_START_LOOKBACK_S,
-                    SessionClipCandidate.start_s <= sub_e + DEDUP_WINDOW_PAD_S,
-                    SessionClipCandidate.end_s >= sub_s - DEDUP_WINDOW_PAD_S,
-                    ok_orig,
-                ),
-            )
-        )
-        trimmed_matches = (
-            select(
-                submitted_cte.c.idx.label("idx"),
-                SessionClipCandidate.id.label("cid"),
-                iou_trim.label("score"),
-            )
-            .select_from(submitted_cte)
-            .join(
-                SessionClipCandidate,
-                and_(
-                    SessionClipCandidate.session_video_id == video_id,
-                    SessionClipCandidate.trimmed_start_s.is_not(None),
-                    SessionClipCandidate.trimmed_start_s >= sub_s - DEDUP_START_LOOKBACK_S,
-                    SessionClipCandidate.trimmed_start_s <= sub_e + DEDUP_WINDOW_PAD_S,
-                    SessionClipCandidate.trimmed_end_s >= sub_s - DEDUP_WINDOW_PAD_S,
-                    ok_trim,
-                ),
-            )
-        )
-        combined = union_all(orig_matches, trimmed_matches).subquery("dedup_matches")
-        ranked = (
-            select(
-                combined.c.idx.label("idx"),
-                combined.c.cid.label("cid"),
-                combined.c.score.label("score"),
-                func.row_number()
-                .over(
-                    partition_by=combined.c.idx,
-                    order_by=(combined.c.score.desc(), combined.c.cid.asc()),
+                    start_col.is_not(None),
+                    start_col >= lo,
+                    start_col <= hi,
+                    end_col >= end_floor,
                 )
-                .label("rn"),
-            )
-            .subquery()
-        )
-        rows = db.execute(
-            select(ranked.c.idx, ranked.c.score, ranked.c.cid).where(ranked.c.rn == 1)
-        ).all()
-        for orig_idx, score, cid in rows:
-            best_by_idx[int(orig_idx)] = (float(score), int(cid))
+                if last_key is not None:
+                    page_q = page_q.filter(
+                        or_(
+                            start_col > last_key[0],
+                            and_(start_col == last_key[0], SessionClipCandidate.id > last_key[1]),
+                        )
+                    )
+                page = page_q.order_by(start_col, SessionClipCandidate.id).limit(DEDUP_SCAN_PAGE_ROWS).all()
+                if not page:
+                    break
+                page_ids = [int(cid) for cid, _ in page]
+                matches = (
+                    select(
+                        submitted_cte.c.idx.label("idx"),
+                        SessionClipCandidate.id.label("cid"),
+                        iou.label("score"),
+                    )
+                    .select_from(submitted_cte)
+                    .join(
+                        SessionClipCandidate,
+                        and_(
+                            SessionClipCandidate.id.in_(page_ids),
+                            start_col >= sub_s - DEDUP_START_LOOKBACK_S,
+                            start_col <= sub_e + DEDUP_WINDOW_PAD_S,
+                            end_col >= sub_s - DEDUP_WINDOW_PAD_S,
+                            ok,
+                        ),
+                    )
+                    .subquery("dedup_matches")
+                )
+                ranked = (
+                    select(
+                        matches.c.idx,
+                        matches.c.cid,
+                        matches.c.score,
+                        func.row_number()
+                        .over(partition_by=matches.c.idx, order_by=(matches.c.score.desc(), matches.c.cid.asc()))
+                        .label("rn"),
+                    )
+                    .subquery()
+                )
+                for orig_idx, score, cid in db.execute(
+                    select(ranked.c.idx, ranked.c.score, ranked.c.cid).where(ranked.c.rn == 1)
+                ).all():
+                    _keep_best(int(orig_idx), float(score), int(cid))
+                if len(page) < DEDUP_SCAN_PAGE_ROWS:
+                    break
+                last_key = (float(page[-1][1]), page_ids[-1])
 
     matched_ids = sorted({cid for _, cid in best_by_idx.values()})
     matched_rows: dict[int, SessionClipCandidate] = {}

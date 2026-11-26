@@ -2285,6 +2285,7 @@ deletedPeriod:"Période supprimée",anchorUnavailable:"Plongeon source indisponi
     downloadOriginal: 'Télécharger l’original',
     backToList: 'Retour à la liste',
     loadMore: 'Charger plus',
+    loadMoreSessions: 'Charger plus de séances',
     diver: 'Plongeur',
     required: 'Requis',
     otherDiver: 'Autre',

@@ -393,3 +393,12 @@ complete-head results). No production history annotations changed.
 - R118 confirmed on `6b660960beea30dcfd5e03175875fcb0495aa61a` in [OpenCode review](https://github.com/maxime-c16/dive-analyser/actions/runs/45798177050) (Medium `session_clip_triage.py:574`). The gallery badge latest-run lookup materialized one row per ready video plus a growing run-ID `IN` list; the session page limit did not bound those child rows.
 - Fix. `_triage_counts_for_sessions` now ranks the latest run per selected session in SQL (correlated subquery on `sessions.id`) and returns at most one row per session in the page.
 - Evidence. Existing `test_session_triage_counts_selects_latest_run_across_videos_without_window_ranking` still passes. Fixed SHA is the follow-up commit on PR #223.
+- R119 confirmed on `a510c631a0913d70539afde07782cbc2ec74c2f5` in [OpenCode review](https://github.com/maxime-c16/dive-analyser/actions/runs/45799204284) (Medium `session_clip_triage.py:273`). Dedup joined and ranked every historical match in a time window in one query; trims stacked on one range could make later submissions rank unbounded history.
+- Fix. `_find_best_db_matches` now sorts submitted items, and for each chunk and bound family pages historical candidates by keyset `(start, id)` in `DEDUP_SCAN_PAGE_ROWS = 500` batches, ranking at most chunk × page pairs per query and carrying the per-item best `(score DESC, id ASC)` across pages. Every historical row is still considered, so triage decisions are preserved.
+- Evidence. Added `test_dedup_scan_pages_bound_ranked_rows_and_keep_best_across_pages`; existing `test_dedup_keyset_pagination_loops_past_500_overlapping_rows_in_one_window` still passes. Fixed SHA is the follow-up commit on PR #223.
+- R120 partially confirmed on `a510c631a0913d70539afde07782cbc2ec74c2f5` (Medium `ClipTriage.tsx:964`). The `__load_more__` option was only disabled while a page was loading, so it was reachable; but a pseudo-option inside a `<select>` is a poor control.
+- Fix. Replaced it with a visible "Load more" button next to the session selector.
+- Evidence. Frontend suite green (1187 tests).
+- R121 confirmed on `a510c631a0913d70539afde07782cbc2ec74c2f5` (Medium `clipTriageApi.ts:236`). The browser GT export started only the first page and ignored `next_cursor`.
+- Fix. `downloadVideoGroundTruth` fetches pages through the API client, saves each bounded page as its own file (`.partN.json`), follows `next_cursor`, aborts on a non-advancing cursor, and caps pages.
+- Evidence. Added `frontend/src/services/clipTriageApi.test.ts`.

@@ -854,10 +854,6 @@ export default function ClipTriage() {
   }, [sessionsHasMore, sessionsNextOffset, loadingMoreSessions])
 
   const setSessionId = (id: string) => {
-    if (id === '__load_more__') {
-      void loadMoreSessions()
-      return
-    }
     flushAutosave()
     clearUndo()
     setSearch((prev) => {
@@ -960,12 +956,18 @@ export default function ClipTriage() {
                   {s.title || s.date} ({s.pending})
                 </option>
               ))}
-              {sessionsHasMore && (
-                <option value="__load_more__" disabled={loadingMoreSessions}>
-                  … {t('clipTriage.loadMore')}
-                </option>
-              )}
             </select>
+          )}
+          {sessionsList.length > 0 && sessionsHasMore && (
+            <button
+              type="button"
+              className="app-input min-h-[38px] py-1 text-xs"
+              disabled={loadingMoreSessions}
+              aria-label={t('clipTriage.loadMoreSessions')}
+              onClick={() => void loadMoreSessions()}
+            >
+              + {t('clipTriage.loadMore')}
+            </button>
           )}
           <span className="triage-save-cue" data-state={saveState} role="status">
             {saveState === 'saving' && t('clipTriage.saving')}

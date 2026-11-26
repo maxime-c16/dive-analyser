@@ -2157,3 +2157,51 @@ def test_gt_export_follows_cursors_with_page_count_and_rejects_stuck_cursor(monk
     monkeypatch.setattr(cli, "_stream_export_gt_page", lambda *a, cursor=None, **kw: (1, None, "same"))
     with pytest.raises(SystemExit, match="did not advance"):
         cli._stream_export_gt("http://x", "k", 1, tmp_path / "gt.json")
+
+
+def test_dedup_scan_pages_bound_ranked_rows_and_keep_best_across_pages(clip_env, monkeypatch):
+    """Trimmed bounds stacked on one range are scanned in small keyset pages; the best match on a later page wins."""
+    from sqlalchemy import event
+    from app.services import session_clip_triage as triage
+
+    db = clip_env["db"]
+    video_id = clip_env["video_id"]
+    now = datetime.utcnow()
+    monkeypatch.setattr(triage, "DEDUP_SCAN_PAGE_ROWS", 3)
+    # Seven weak trimmed matches on [14, 21] sort first, then the exact rejected match [15, 20].
+    rows = [
+        SessionClipCandidate(
+            session_video_id=video_id,
+            start_s=200.0 + i * 20,
+            end_s=205.0 + i * 20,
+            trimmed_start_s=14.0 if i < 7 else 15.0,
+            trimmed_end_s=21.0 if i < 7 else 20.0,
+            triage_status="rejected" if i == 7 else "pending",
+            reject_reason="false_positive" if i == 7 else None,
+            extraction_status="none",
+            visibility="private",
+            created_at=now,
+            updated_at=now,
+        )
+        for i in range(8)
+    ]
+    db.bulk_save_objects(rows)
+    db.commit()
+    rejected_id = db.query(SessionClipCandidate.id).filter_by(session_video_id=video_id, triage_status="rejected").scalar()
+
+    page_limits: list[str] = []
+
+    def _capture(conn, cursor, statement, params, context, executemany):
+        if "LIMIT" in statement and "trimmed_start_s" in statement and "ORDER BY" in statement:
+            page_limits.append(statement)
+
+    engine = db.get_bind()
+    event.listen(engine, "before_cursor_execute", _capture)
+    try:
+        best, matched = triage._find_best_db_matches(db, video_id, [(15.0, 20.0, None, None, None)])
+    finally:
+        event.remove(engine, "before_cursor_execute", _capture)
+
+    assert best[0] == (1.0, rejected_id)
+    assert matched[rejected_id].triage_status == "rejected"
+    assert len(page_limits) >= 3  # 8 trimmed rows / page of 3 -> resumed across pages

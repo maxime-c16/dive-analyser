@@ -233,14 +233,53 @@ export async function getVideoClipRuns(
   return data
 }
 
-export async function downloadVideoGroundTruth(videoId: number, filename: string): Promise<void> {
-  const base = (api.defaults.baseURL || '').replace(/\/+$/, '')
+const GT_NEXT_CURSOR_TAIL_RE = /"next_cursor"\s*:\s*(?:null|"([^"\\]+)")/
+export const MAX_GT_EXPORT_PAGES = 500
+
+/**
+ * Download a video's Ground Truth export, following `next_cursor` continuation.
+ * Each bounded server page (<= 2 MiB) is saved as its own file and released
+ * before the next request, so browser memory stays at one page.
+ */
+export async function downloadVideoGroundTruth(videoId: number, filename: string): Promise<number> {
+  const stem = `gt-${filename.replace(/\.[^.]+$/, '')}-v${videoId}`
+  let cursor: string | null = null
+  let page = 1
+  for (;;) {
+    const { data } = await api.get<Blob>(`/api/v1/session-videos/${videoId}/clip-gt/export`, {
+      params: cursor ? { cursor } : undefined,
+      responseType: 'blob',
+    })
+    const tail = await blobText(data.slice(Math.max(0, data.size - 2048)))
+    const next = GT_NEXT_CURSOR_TAIL_RE.exec(tail)?.[1] ?? null
+    saveBlob(data, page === 1 ? `${stem}.json` : `${stem}.part${page}.json`)
+    if (!next) return page
+    if (next === cursor) throw new Error('GT export cursor did not advance')
+    if (page >= MAX_GT_EXPORT_PAGES) throw new Error('GT export exceeded page limit')
+    cursor = next
+    page += 1
+  }
+}
+
+function blobText(blob: Blob): Promise<string> {
+  if (typeof blob.text === 'function') return blob.text()
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result ?? ''))
+    reader.onerror = () => reject(reader.error)
+    reader.readAsText(blob)
+  })
+}
+
+function saveBlob(blob: Blob, name: string): void {
+  const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
-  link.href = `${base}/api/v1/session-videos/${videoId}/clip-gt/export`
-  link.download = `gt-${filename.replace(/\.[^.]+$/, '')}-v${videoId}.json`
+  link.href = url
+  link.download = name
   document.body.appendChild(link)
   link.click()
   link.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 0)
 }
 
 export function formatClipTime(seconds: number): string {
