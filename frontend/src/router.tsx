@@ -54,8 +54,10 @@ const loadSharedDive = () => loadChunk(() => import("./pages/SharedDive"));
 const SharedDive = lazy(loadSharedDive);
 const loadSharedSession = () => loadChunk(() => import("./pages/SharedSession"));
 const SharedSession = lazy(loadSharedSession);
-const loadSessionVideos = () => loadChunk(() => import("./pages/SessionVideos"));
-const SessionVideoPage = lazy(loadSessionVideos);
+const loadSessionVideos = () => import("./pages/SessionVideos");
+const SessionVideoPage = lazy(() => loadChunk(loadSessionVideos));
+const loadClipTriage = () => import("./pages/ClipTriage");
+const ClipTriage = lazy(() => loadChunk(loadClipTriage));
 const loadClaim = () => loadChunk(() => import("./pages/Claim"));
 const Claim = lazy(loadClaim);
 const loadInvite = () => loadChunk(() => import("./pages/Invite"));
@@ -109,7 +111,7 @@ const routeLoaders: Record<string, () => Promise<unknown>> = {
   '/media/representatives': loadRepresentativeMedia, '/media/recall': loadMediaRecall,
   '/admin': loadAdmin, '/account': loadAccount, '/users': loadMemberProfile, '/notifications': loadNotifications,
   '/messages': loadMessages, '/evaluations': loadEvaluations, '/community': loadCommunity,
-  '/calendar': loadCalendar,
+  '/calendar': loadCalendar, '/triage': loadClipTriage,
 };
 
 function IntentNavLink({ primaryActive, end, caseSensitive, ...props }: React.ComponentProps<typeof NavLink> & { primaryActive?: boolean }) {
@@ -158,6 +160,7 @@ const secondaryNav = [
 ];
 
 const operationsNav = [
+  { to: "/triage", label: "nav.clipTriage", icon: Film },
   { to: "/media/recall", label: "nav.mediaRecall", icon: HardDriveDownload },
   { to: "/admin", label: "nav.system", icon: ShieldCheck },
 ];
@@ -272,6 +275,8 @@ export function breadcrumbTrail(
       return [{ labelKey: "nav.analytics" }];
     case "/sessions":
       return [{ labelKey: "nav.sessions" }];
+    case "/triage":
+      return [{ labelKey: "nav.clipTriage" }];
     case "/notifications":
       return [{ labelKey: "nav.notifications" }];
     case "/media/representatives":
@@ -710,6 +715,7 @@ function Router() {
                   <Route path="/session-videos" element={<Navigate to="/dives" replace />} />
                   <Route path="/sessions/shared/:sessionId" element={<SessionVideosGate><SessionVideoPage /></SessionVideosGate>} />
                   <Route path="/session-videos/:videoId" element={<SessionVideosGate><SessionVideoPage /></SessionVideosGate>} />
+                  <Route path="/triage" element={<SessionVideosGate><ClipTriage /></SessionVideosGate>} />
                   <Route path="/notifications" element={<Notifications />} />
                   <Route path="/deposits" element={<Deposits />} />
                   <Route path="/deposits/:batchId" element={<Deposits />} />

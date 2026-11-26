@@ -133,7 +133,7 @@ export function LibraryCardGrid({
           </div>
           <div className="grid grid-cols-2 gap-x-3 gap-y-5 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
             {sessions.filter(s=>s.date===group.key).map(session=><Link key={`session-${session.session_id}`} to={`/sessions/shared/${session.session_id}`} className="group flex h-full min-w-0 flex-col text-left" aria-label={t("libraryUX.sessionRowAria", { count: session.video_count })}>
-              <div className="relative aspect-[9/16] w-full overflow-hidden rounded-xl border border-app">{session.videos[0] && <SessionPoster video={session.videos[0]}/>}<span className="absolute bottom-1.5 left-1.5 rounded-full bg-app-accent px-2 text-xs font-bold text-black">{t("libraryUX.sessionBadge")}</span></div>
+              <div className="relative aspect-[9/16] w-full overflow-hidden rounded-xl border border-app">{session.videos[0] && <SessionPoster video={session.videos[0]}/>}<span className="absolute bottom-1.5 left-1.5 rounded-full bg-app-accent px-2 text-xs font-bold text-black">{t("libraryUX.sessionBadge")}</span>{session.clip_triage && session.clip_triage.pending > 0 && <span className="absolute right-1.5 top-1.5 rounded-full border border-amber-300/50 bg-black/85 px-2 py-0.5 text-[11px] font-bold tabular-nums text-amber-300">{t("clipTriage.cardPending", { count: session.clip_triage.pending })}</span>}</div>
               <span className="mt-1.5 text-sm font-semibold">{t("libraryUX.sessionVideos", { count: session.video_count })}</span><span className="text-xs text-app-muted">{formatDuration(session.total_duration)}</span>
             </Link>)}
             {group.items.map((attempt) => {

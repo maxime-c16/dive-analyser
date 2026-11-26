@@ -584,9 +584,21 @@ async def run_media_job_loop(
         f"max_jobs={config.media.max_jobs}"
     )
 
+    from .clip_cut_jobs import process_clip_cut_once
+
     while not stop_event.is_set():
         try:
             processed = await processor.process_once()
+            if (
+                processed == 0
+                and getattr(config.media, "leasing_enabled", True)
+                and sync_client is not None
+                and hasattr(sync_client, "lease_clip_cuts")
+            ):
+                try:
+                    processed += await process_clip_cut_once(config, sync_client, processor.agent_id)
+                except Exception as exc:
+                    logger.warning("Clip cut polling failed: %s", exc)
             if processed > 0:
                 # Yield so shutdown and the metadata loop remain responsive,
                 # but do not add a polling interval to every queued batch.

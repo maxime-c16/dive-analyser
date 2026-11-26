@@ -100,12 +100,16 @@ def storage_client():
 
 
 def presign_get(bucket: str, key: str, ttl: int, *, content_type: str | None = None,
-                download_name: str | None = None) -> str:
+                download_name: str | None = None, if_match: str | None = None) -> str:
     params = {"Bucket": bucket, "Key": key}
     if content_type:
         params["ResponseContentType"] = content_type
     if download_name:
         params["ResponseContentDisposition"] = f'attachment; filename="{_safe_filename(download_name)}"'
+    if if_match:
+        clean_etag = if_match.strip().strip('"')
+        if clean_etag:
+            params["IfMatch"] = f'"{clean_etag}"'
     try:
         return storage_client().generate_presigned_url("get_object", Params=params, ExpiresIn=int(ttl))
     except SessionsStorageUnavailable:

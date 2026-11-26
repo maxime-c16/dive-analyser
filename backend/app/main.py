@@ -2,10 +2,14 @@
 
 import asyncio
 import logging
+import math
 import os
 from contextlib import asynccontextmanager
 from time import perf_counter
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from sqlalchemy.engine import make_url
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
@@ -122,6 +126,27 @@ app = FastAPI(
     description="Interactive analytics API for diving performance tracking",
     lifespan=lifespan,
 )
+
+
+def _sanitize_non_finite(obj):
+    if isinstance(obj, float):
+        return str(obj) if not math.isfinite(obj) else obj
+    if isinstance(obj, dict):
+        return {k: _sanitize_non_finite(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_sanitize_non_finite(v) for v in obj]
+    if isinstance(obj, tuple):
+        return tuple(_sanitize_non_finite(v) for v in obj)
+    return obj
+
+
+@app.exception_handler(RequestValidationError)
+async def _request_validation_handler(_request: Request, exc: RequestValidationError):
+    """Ensure validation errors containing non-finite floats (e.g. 1e400) serialize as 422, never 500."""
+    return JSONResponse(
+        status_code=422,
+        content={"detail": _sanitize_non_finite(jsonable_encoder(exc.errors()))},
+    )
 
 # Add CORS middleware
 app.add_middleware(

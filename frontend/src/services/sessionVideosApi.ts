@@ -128,9 +128,12 @@ export function formatSessionDate(video: SessionVideoInfo, locale: string): stri
   return day ? new Intl.DateTimeFormat(locale, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(day) : video.filename
 }
 
+import type { ClipTriageSessionCounts } from './clipTriageApi'
+
 export type SharedTrainingSession = {
   title?: string | null; can_manage?: boolean; session_id: number; date: string; videos: SessionVideoInfo[]; video_count: number;
-  total_duration: number; total_bytes: number; has_more: boolean; next_video_id?: number | null
+  total_duration: number; total_bytes: number; has_more: boolean; next_video_id?: number | null;
+  clip_triage?: ClipTriageSessionCounts | null
 }
 export async function getTrainingSession(id: number): Promise<SharedTrainingSession> {
   return (await api.get(`/api/v1/shared-sessions/${id}`)).data

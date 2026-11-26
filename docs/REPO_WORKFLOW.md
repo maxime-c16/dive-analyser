@@ -349,7 +349,9 @@ Spec and implementation: [SHARED_SESSIONS.md](features/SHARED_SESSIONS.md).
    (adds the `AppUser` preference column the new backend selects even with the
    flag off), then `backend/migrations/add_session_calendar.sql` (additive
    only: new columns and partial identities; keeps legacy date uniqueness so
-   the running backend's uploads keep working). The tables are
+   the running backend's uploads keep working), and
+   `backend/migrations/add_session_clip_triage.sql` (additive: detection runs,
+   triage candidates, and GT match tables for session clip triage). The tables are
    migration-only: startup never creates them. Previous backends keep working
    with this schema.
 2. **After** the new backend is verified, apply
@@ -427,3 +429,20 @@ Runtime-only verification on the server:
 python3 ci/check-media-delivery.py --base https://127.0.0.1:6443 \
   --base http://127.0.0.1:6091 --base https://dive-analyser.tail32dd14.ts.net
 ```
+
+### Session clip auto-detection & triage
+
+Requires `SHARED_SESSIONS_ENABLED=true` and `backend/migrations/add_session_clip_triage.sql`
+applied against Postgres **before merging to `master`** (merges auto-deploy via
+`ops/auto-deploy.sh`; the migration is additive only so the prior backend continues
+working on the migrated schema). Background cutting of kept clips requires:
+
+1. Server B2 upload credentials (`B2_UPLOAD_KEY_ID`, `B2_UPLOAD_KEY_SECRET`,
+   `B2_UPLOAD_REGION`, `B2_UPLOAD_ENVIRONMENT=prod`) in
+   `~/.config/diveanalyzer/browser-upload.env` (0600) so cut clips are persisted
+   and roundtrip-verified in B2 before publishing into `dives`.
+2. `ci/ship.sh mac` to deploy the updated `mac-agent` clip-cut worker (`mac-media-01`
+   with an active leasing `MediaAgent` key).
+3. For `tools/push_clip_candidates.py`, target the LAN/Tailscale-private HTTPS front
+   door (e.g. `https://deb-serv:6443`) or local loopback; the public Funnel proxy
+   requires a browser session cookie and does not forward machine API keys.

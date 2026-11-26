@@ -391,6 +391,8 @@ def session_payloads(db, ids, *, user=None, guest_base=None, after=0):
     from app.services.session_calendar import session_titles
     titles = session_titles(db, [d.calendar_occurrence_id for d in days.values() if d.calendar_occurrence_id])
     owned = set() if not user else {r[0] for r in db.query(SessionVideo.session_id).filter(SessionVideo.session_id.in_(ids), SessionVideo.owner_user_id == user.id).distinct()}
+    from app.services.session_clip_triage import _triage_counts_for_sessions
+    triage_counts = _triage_counts_for_sessions(db, ids, user) if user and not guest_base else {}
     grouped = {id: [] for id in ids}
     for v in rows:
         item = serialize(v, can_share=can_manage(user, v))
@@ -402,7 +404,8 @@ def session_payloads(db, ids, *, user=None, guest_base=None, after=0):
     return [dict(session_id=id, date=days[id].date.isoformat(), title=titles.get(days[id].calendar_occurrence_id), videos=grouped[id][:100], can_manage=bool(user and (user.is_admin or id in owned)),
         video_count=totals.get(id,(0,0,0))[0], total_duration=totals.get(id,(0,0,0))[1] or 0,
         total_bytes=totals.get(id,(0,0,0))[2] or 0, has_more=len(grouped[id])>100,
-        next_video_id=grouped[id][99]['id'] if len(grouped[id])>100 else None) for id in ids if id in days]
+        next_video_id=grouped[id][99]['id'] if len(grouped[id])>100 else None,
+        clip_triage=triage_counts.get(id)) for id in ids if id in days]
 
 
 @router.get('/shared-sessions', dependencies=[Depends(require_enabled)])
