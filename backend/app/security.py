@@ -47,7 +47,7 @@ def create_test_api_key(db=None, agent_name: str = "test-agent") -> str:
 
 
 _MEDIA_WORKER_PATH = re.compile(
-    r"/api/v1/media/(?:agents/(?:heartbeat|sources/report)|jobs/(?:lease|[0-9]+/(?:heartbeat|fail|upload|finalize|package/slots))|catalog/runs/(?:lease|[0-9]+/(?:chunks|complete|fail)))"
+    r"/api/v1/media/(?:agents/(?:heartbeat|sources/report)|jobs/(?:lease|[0-9]+/(?:heartbeat|fail|upload|finalize|package/slots))|catalog/runs/(?:lease|[0-9]+/(?:chunks|complete|fail))|clip-cuts/(?:lease|[0-9]+/(?:heartbeat|complete|fail)))"
 )
 
 

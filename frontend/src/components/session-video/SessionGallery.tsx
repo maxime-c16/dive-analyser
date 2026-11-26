@@ -1,4 +1,5 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Download, Lock, Play, Settings, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import DiveThumbnail from '../DiveThumbnail'
@@ -8,9 +9,11 @@ import SessionDownloadAccess from './SessionDownloadAccess'
 import ShareDiveButton from '../clip-viewer/ShareDiveButton'
 import { api } from '../../services/api'
 import { formatBytes, formatDuration, formatRecordingDuration, type SharedTrainingSession, type SessionVideoInfo } from '../../services/sessionVideosApi'
+import { downloadVideoGroundTruth } from '../../services/clipTriageApi'
 import { useSessionDownloads } from './useSessionDownloads'
 import { useSessionHistory } from './useSessionHistory'
 import './sessionVideo.css'
+import '../../pages/ClipTriage.css'
 
 export function SessionPoster({ video }: { video: SessionVideoInfo }) {
   return <DiveThumbnail compact dive={{ id: video.id, thumb_url: video.poster_url, animated_url: video.animated_url } as Attempt} />
@@ -250,6 +253,48 @@ function GalleryWorkspace({
         </div>}
       </header>
       {singleVideo && <div className="session-primary-actions">{primaryDownload}{alert}</div>}
+      {canManage && session.clip_triage && session.clip_triage.total > 0 && (
+        <div className="session-triage-card">
+          <div className="session-triage-head">
+            <div>
+              <div className="triage-eyebrow">
+                {t('clipTriage.sessionCardEyebrow')}
+                {session.clip_triage.latest_version ? ` · ${session.clip_triage.latest_version}` : ''}
+              </div>
+              <div className="mt-0.5 text-sm font-semibold text-app-text">
+                {t('clipTriage.sessionCardTotal', { count: session.clip_triage.total })}
+              </div>
+            </div>
+            {singleVideo && videos[0] && (
+              <button
+                type="button"
+                className="touch-target border border-app bg-app-panel-elevated px-3 text-xs font-semibold text-app-muted hover:text-app-text"
+                onClick={() => void downloadVideoGroundTruth(videos[0].id, videos[0].filename).catch(() => setError(t('clipTriage.loadError')))}
+              >
+                {t('clipTriage.exportGt')}
+              </button>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {session.clip_triage.pending > 0 && (
+              <span className="triage-pill triage-pill-teal">{t('clipTriage.cardPending', { count: session.clip_triage.pending })}</span>
+            )}
+            {session.clip_triage.kept > 0 && (
+              <span className="triage-pill triage-pill-green">{t('clipTriage.cardKept', { count: session.clip_triage.kept })}</span>
+            )}
+            {session.clip_triage.incomplete > 0 && (
+              <Link to={`/triage?tab=incomplete&session=${session.session_id}`} className="triage-pill triage-pill-amber">
+                {t('clipTriage.cardIncomplete', { count: session.clip_triage.incomplete })}
+              </Link>
+            )}
+          </div>
+          {session.clip_triage.pending > 0 && (
+            <Link to={`/triage?session=${session.session_id}`} className="session-triage-cta">
+              {t('clipTriage.startTriage', { count: session.clip_triage.pending })}
+            </Link>
+          )}
+        </div>
+      )}
       {multipleVideos && <footer ref={dock} className="session-gallery-footer">
         {alert}
         {progress}
@@ -295,6 +340,15 @@ function GalleryWorkspace({
                 </div> : <button type="button" disabled={busy || !!download} onClick={() => setDeleteCandidate(item.id)}>{t('sessionVideo.delete')}</button>}
                 <input aria-label={t('sessionVideo.destinationDate')} type="date" value={moveDate} onChange={event => setMoveDate(event.target.value)} />
                 <button type="button" disabled={busy || !!download || !moveDate} onClick={() => edit(item.id, { date: moveDate })}>{t('sessionVideo.move')}</button>
+                {session.clip_triage && session.clip_triage.total > 0 && (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void downloadVideoGroundTruth(item.id, item.filename).catch(() => setError(t('clipTriage.loadError')))}
+                  >
+                    {t('clipTriage.exportGt')}
+                  </button>
+                )}
               </div>}
             </li>
           })}

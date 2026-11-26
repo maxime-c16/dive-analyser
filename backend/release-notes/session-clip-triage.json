@@ -1,0 +1,8 @@
+{
+  "id": "session-clip-triage",
+  "date": "2026-11-25",
+  "title": "Fast session clip triage inbox",
+  "body": "Review detected dives from full-session recordings in short sessions with looping playback, one-tap diver assignment, autosave, undo, and instant export of reviewed timestamps without losing earlier decisions when re-running detection.",
+  "audience": "admin",
+  "components": ["backend", "frontend"]
+}

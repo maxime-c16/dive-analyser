@@ -19,6 +19,14 @@ from .config import ServerConfig
 logger = logging.getLogger(__name__)
 
 
+class SyncHTTPError(RuntimeError):
+    """Structured HTTP error carrying the integer status code from SyncClient."""
+
+    def __init__(self, message: str, *, status_code: int):
+        super().__init__(message)
+        self.status_code = int(status_code)
+
+
 def _curl_post(url: str, data: dict, api_key: str, timeout: float, ca_cert_path: str = "") -> tuple:
     """Blocking HTTP POST via curl. Returns (status_code, body_str)."""
     body_json = json.dumps(data)
@@ -1041,6 +1049,129 @@ class SyncClient:
         ok, data, error = _parse_response(status, body)
         if not ok:
             raise RuntimeError(f"catalog failure report failed: {status} {error}")
+        return data
+
+    async def lease_clip_cuts(self, agent_id: str, limit: int = 1) -> List[Dict[str, Any]]:
+        url = f"{self.server_config.url}/api/v1/media/clip-cuts/lease"
+        payload = {"agent_id": agent_id, "limit": limit}
+        status, body = await asyncio.to_thread(
+            _curl_post, url, payload, self.server_config.api_key or "", self.server_config.timeout_seconds or 30.0, self.server_config.ca_cert_path
+        )
+        if status == 404:
+            # Shared sessions feature off on server -> idle cleanly.
+            return []
+        ok, data, error = _parse_response(status, body)
+        if not ok:
+            raise SyncHTTPError(f"clip cut lease failed: {status} {error}", status_code=status)
+        return list(data.get("jobs") or [])
+
+    async def heartbeat_clip_cut(
+        self, candidate_id: int, agent_id: str, lease_token: str, cut_revision: int
+    ) -> Dict[str, Any]:
+        url = f"{self.server_config.url}/api/v1/media/clip-cuts/{candidate_id}/heartbeat"
+        payload = {"agent_id": agent_id, "lease_token": lease_token, "cut_revision": cut_revision}
+        status, body = await asyncio.to_thread(
+            _curl_post, url, payload, self.server_config.api_key or "", self.server_config.timeout_seconds or 30.0, self.server_config.ca_cert_path
+        )
+        ok, data, error = _parse_response(status, body)
+        if not ok:
+            raise SyncHTTPError(f"clip cut heartbeat failed: {status} {error}", status_code=status)
+        return data
+
+    async def fail_clip_cut(
+        self,
+        candidate_id: int,
+        agent_id: str,
+        lease_token: str,
+        cut_revision: int,
+        error_value: str,
+        defer: bool = False,
+    ) -> Dict[str, Any]:
+        """Release a cut lease; `defer=True` requeues without charging an extraction attempt."""
+        url = f"{self.server_config.url}/api/v1/media/clip-cuts/{candidate_id}/fail"
+        payload = {
+            "agent_id": agent_id,
+            "lease_token": lease_token,
+            "cut_revision": cut_revision,
+            "error": error_value[:240],
+        }
+        if defer:
+            payload["defer"] = True
+        status, body = await asyncio.to_thread(
+            _curl_post, url, payload, self.server_config.api_key or "", self.server_config.timeout_seconds or 30.0, self.server_config.ca_cert_path
+        )
+        ok, data, error = _parse_response(status, body)
+        if not ok:
+            raise SyncHTTPError(f"clip cut fail report failed: {status} {error}", status_code=status)
+        return data
+
+    async def complete_clip_cut(
+        self,
+        *,
+        candidate_id: int,
+        agent_id: str,
+        lease_token: str,
+        cut_revision: int,
+        mp4_path: str,
+    ) -> Dict[str, Any]:
+        """Stream raw MP4 bytes with auth/fencing headers passed via curl stdin config."""
+        url = f"{self.server_config.url}/api/v1/media/clip-cuts/{candidate_id}/complete"
+        api_key = self.server_config.api_key or ""
+        headers = [
+            f"X-API-Key: {api_key}",
+            f"X-Media-Agent-Id: {agent_id}",
+            f"X-Lease-Token: {lease_token}",
+            f"X-Cut-Revision: {int(cut_revision)}",
+            "Content-Type: video/mp4",
+        ]
+        for h in headers:
+            if "\r" in h or "\n" in h:
+                raise ValueError("Invalid control character in clip cut header")
+
+        def _escape_cfg(val: str) -> str:
+            return val.replace("\\", "\\\\").replace('"', '\\"')
+
+        cfg_lines = [f'header = "{_escape_cfg(h)}"' for h in headers]
+        stdin_cfg = "\n".join(cfg_lines) + "\n"
+
+        def _upload() -> tuple:
+            timeout = max(float(self.server_config.timeout_seconds or 60.0), 180.0)
+            cmd = [
+                "curl",
+                "-s",
+                "-X",
+                "POST",
+                "-K",
+                "-",
+                "--data-binary",
+                f"@{mp4_path}",
+                "-w",
+                "\n%{http_code}",
+                "--max-time",
+                str(int(timeout)),
+            ]
+            if self.server_config.ca_cert_path:
+                cmd.extend(["--cacert", self.server_config.ca_cert_path])
+            cmd.append(url)
+            res = subprocess.run(
+                cmd,
+                input=stdin_cfg,
+                capture_output=True,
+                text=True,
+                timeout=timeout + 5,
+            )
+            output = res.stdout.strip()
+            lines = output.rsplit("\n", 1)
+            body_str, status_str = lines if len(lines) == 2 else (output, "0")
+            try:
+                return int(status_str), body_str
+            except ValueError:
+                return 0, body_str
+
+        status, body = await asyncio.to_thread(_upload)
+        ok, data, error = _parse_response(status, body)
+        if not ok:
+            raise SyncHTTPError(f"clip cut complete failed: {status} {error}", status_code=status)
         return data
 
     def get_stats(self) -> Dict[str, Any]:

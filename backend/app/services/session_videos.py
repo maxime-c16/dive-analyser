@@ -100,12 +100,16 @@ def storage_client():
 
 
 def presign_get(bucket: str, key: str, ttl: int, *, content_type: str | None = None,
-                download_name: str | None = None) -> str:
+                download_name: str | None = None, if_match: str | None = None) -> str:
     params = {"Bucket": bucket, "Key": key}
     if content_type:
         params["ResponseContentType"] = content_type
     if download_name:
         params["ResponseContentDisposition"] = f'attachment; filename="{_safe_filename(download_name)}"'
+    if if_match:
+        clean_etag = if_match.strip().strip('"')
+        if clean_etag:
+            params["IfMatch"] = f'"{clean_etag}"'
     try:
         return storage_client().generate_presigned_url("get_object", Params=params, ExpiresIn=int(ttl))
     except SessionsStorageUnavailable:
@@ -594,6 +598,13 @@ def _reconcile_tick() -> None:
             retry_missing_images(db)
         except Exception as exc:
             logger.warning("Session image retries skipped (%s)", type(exc).__name__)
+        finally:
+            db.rollback()
+        try:
+            from app.services.session_clip_triage import reclaim_orphan_clip_objects
+            reclaim_orphan_clip_objects(db)
+        except Exception as exc:
+            logger.warning("Clip orphan B2 reclaim skipped (%s)", type(exc).__name__)
         finally:
             db.rollback()
             db.close()

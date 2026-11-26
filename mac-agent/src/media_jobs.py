@@ -568,6 +568,9 @@ class MediaJobProcessor:
         return exporter, transcoder, uploader
 
 
+CLIP_INTERLEAVE_EVERY_BATCHES = 3
+
+
 async def run_media_job_loop(
     config: Config,
     sync_client: SyncClient,
@@ -584,9 +587,29 @@ async def run_media_job_loop(
         f"max_jobs={config.media.max_jobs}"
     )
 
+    from .clip_cut_jobs import process_clip_cut_once
+
+    media_batches_since_clip = 0
     while not stop_event.is_set():
         try:
             processed = await processor.process_once()
+            if processed > 0:
+                media_batches_since_clip += 1
+            should_poll_clips = (
+                processed == 0 or media_batches_since_clip >= CLIP_INTERLEAVE_EVERY_BATCHES
+            )
+            if (
+                should_poll_clips
+                and not stop_event.is_set()
+                and getattr(config.media, "leasing_enabled", True)
+                and sync_client is not None
+                and hasattr(sync_client, "lease_clip_cuts")
+            ):
+                media_batches_since_clip = 0
+                try:
+                    processed += await process_clip_cut_once(config, sync_client, processor.agent_id)
+                except Exception as exc:
+                    logger.warning("Clip cut polling failed: %s", exc)
             if processed > 0:
                 # Yield so shutdown and the metadata loop remain responsive,
                 # but do not add a polling interval to every queued batch.

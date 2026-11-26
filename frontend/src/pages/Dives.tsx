@@ -40,6 +40,7 @@ import { LibraryCardGrid } from "../components/LibraryCards";
 import { Link } from "react-router-dom";
 import { Gift } from "lucide-react";
 import { canAcceptDeposits, listPendingBatches } from "../services/depositsApi";
+import { getClipTriageSummary } from "../services/clipTriageApi";
 import PageLoading from "../components/PageLoading";
 import "./Dives.css";
 
@@ -213,6 +214,38 @@ function parseSearch(value: string) {
   ]);
   const text = tokens.filter((token) => !known.has(token)).join(" ");
   return { code, height, sync, modifiers, performance, position, text };
+}
+
+function TriageHeaderButton() {
+  const { user } = useAuth();
+  const { t } = useTranslation();
+  const [count, setCount] = useState(0);
+  const enabled = user?.features?.shared_sessions === true;
+
+  useEffect(() => {
+    if (!enabled) { setCount(0); return; }
+    const controller = new AbortController();
+    getClipTriageSummary(controller.signal)
+      .then((sum) => {
+        if (!controller.signal.aborted && sum.can_manage) {
+          setCount(sum.pending_count + sum.incomplete_count);
+        }
+      })
+      .catch(() => {});
+    return () => controller.abort();
+  }, [enabled, user?.user_id]);
+
+  if (!enabled || count <= 0) return null;
+  return (
+    <Link
+      to="/triage"
+      className="library-triage-link touch-target inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-full border border-app-accent/60 bg-app-accent-soft px-3.5 text-sm font-semibold text-app-text hover:border-app-accent sm:rounded-xl"
+      aria-label={t("clipTriage.headerButtonAria", { count })}
+    >
+      <span>{t("clipTriage.headerButton")}</span>
+      <span className="rounded-full bg-app-accent px-1.5 py-px font-mono text-xs font-bold text-black">{count}</span>
+    </Link>
+  );
 }
 
 // Recreate local UI state when account/access bindings change; old attempts
@@ -982,6 +1015,7 @@ function DiveLibrary() {
         >
           <RefreshCw className="h-4 w-4" />
         </button>
+        <TriageHeaderButton />
         <AddVideos onAdded={() => { clearLibraryCache(); setReloadKey(key => key + 1); }} />
       </header>
       <PendingBanner />

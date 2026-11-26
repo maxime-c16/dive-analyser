@@ -152,6 +152,14 @@ def scope_member_reads(state):
             # Technique routes authorize the entire diver explicitly, including
             # date-only and deleted-anchor boundaries. Never infer clip grants.
             continue
+        if model.__tablename__ in (
+            'session_clip_runs',
+            'session_clip_candidates',
+            'session_clip_run_matches',
+        ):
+            # Session clip triage routes authorize session owners and admins
+            # explicitly; untriaged candidates have NULL dive_id/photos_asset_id.
+            continue
         dive_links = [column for column in mapper.columns if any(fk.target_fullname == "dives.id" for fk in column.foreign_keys)]
         if dive_links:
             criteria.append((model, and_(*[getattr(model, column.key).in_(visible_ids) for column in dive_links])))

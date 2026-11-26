@@ -127,15 +127,19 @@ def test_b2_original_is_roundtrip_verified_before_registration(monkeypatch, tmp_
             return {'Body': Stream(b'original video bytes')}
     monkeypatch.setattr(boto3, 'client', lambda *a, **kw: Client())
     monkeypatch.setattr(media_backbone, 'commit_verified_ingest', lambda *a, **kw: calls.append(kw))
+    from app.services import session_clip_triage
+    monkeypatch.setattr(session_clip_triage, 'claim_b2_object_retained', lambda *a, **kw: calls.append(('claim', kw['object_key'])))
     browser_upload.persist_original(None, 'video-id', tmp_path)
     assert calls[0] == 'upload'
-    assert calls[1]['rendition_semantics'] == 'browser_original'
-    assert calls[1]['commit'] is False
+    assert calls[1][0] == 'claim'  # orphan-reclaim claim is taken before registration
+    assert calls[2]['rendition_semantics'] == 'browser_original'
+    assert calls[2]['object_key'] == calls[1][1]
+    assert calls[2]['commit'] is False
     monkeypatch.setattr(Client, 'get_object', lambda *a, **kw: {'Body': Stream(b'corrupt')})
     with pytest.raises(HTTPException) as error:
         browser_upload.persist_original(None, 'video-id', tmp_path)
     assert error.value.status_code == 502
-    assert len(calls) == 3  # second upload, no second registration
+    assert len(calls) == 4  # second upload, no second claim or registration
 
 
 def test_upload_rejects_empty_and_non_video_inputs_before_processing(monkeypatch, tmp_path):
