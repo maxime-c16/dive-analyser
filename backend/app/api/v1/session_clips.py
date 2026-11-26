@@ -473,6 +473,7 @@ class ClipCutHeartbeatInput(BaseModel):
 
 class ClipCutFailInput(ClipCutHeartbeatInput):
     error: str = Field(..., min_length=1, max_length=240)
+    defer: bool = False
 
 
 @router.post("/media/clip-cuts/lease", dependencies=[Depends(require_enabled)])
@@ -518,6 +519,7 @@ def fail_clip_cut(
         lease_token=payload.lease_token,
         cut_revision=payload.cut_revision,
         error=payload.error,
+        defer=payload.defer,
     )
 
 

@@ -52,6 +52,9 @@ from app.services.phase_validator import PhaseValidator
 logger = logging.getLogger(__name__)
 
 MAX_CANDIDATES_PER_RUN = 500
+# Hard history budget per recording: bounds every dedup scan (each run reads each
+# historical row at most once per bound family).
+MAX_CANDIDATES_PER_VIDEO = 20_000
 MAX_PAGE_LIMIT = 100
 DEFAULT_PAGE_LIMIT = 50
 MAX_GT_PAGE_LIMIT = 500
@@ -201,6 +204,26 @@ def _sql_interval_match(sub_s, sub_e, cand_s, cand_e):
     return ok, iou
 
 
+def _group_dedup_windows(valid_items: list[tuple], order: list[int]) -> list[list[int]]:
+    """Group start-sorted item indexes only while their search windows overlap.
+
+    Each group's scan range is the union of relevant windows (never the gap between
+    distant detections), so each historical row is read about once per bound family.
+    """
+    groups: list[list[int]] = []
+    group_hi = float("-inf")
+    for i in order:
+        win_lo = valid_items[i][0] - DEDUP_START_LOOKBACK_S
+        win_hi = valid_items[i][1] + DEDUP_WINDOW_PAD_S
+        if groups and win_lo <= group_hi and len(groups[-1]) < DEDUP_SQL_BATCH_SIZE:
+            groups[-1].append(i)
+            group_hi = max(group_hi, win_hi)
+        else:
+            groups.append([i])
+            group_hi = win_hi
+    return groups
+
+
 DEDUP_SCAN_PAGE_ROWS = 500
 
 
@@ -211,7 +234,9 @@ def _find_best_db_matches(
 ) -> tuple[dict[int, tuple[float, int]], dict[int, SessionClipCandidate]]:
     """Match submitted intervals against ALL historical candidates in bounded, resumable batches.
 
-    Submitted items are sorted by start and processed in chunks of `DEDUP_SQL_BATCH_SIZE`.
+    Submitted items are sorted by start and grouped while their search windows overlap
+    (at most `DEDUP_SQL_BATCH_SIZE` per group), so only relevant indexed intervals are
+    scanned. Total work is bounded by `MAX_CANDIDATES_PER_VIDEO` history rows per family.
     For each chunk and each bound family (original, trimmed), historical candidates in the
     chunk's time window are paged by keyset `(start, id)` at most `DEDUP_SCAN_PAGE_ROWS`
     at a time; each page is matched and ranked in SQL (`ROW_NUMBER` over at most
@@ -235,8 +260,7 @@ def _find_best_db_matches(
         (SessionClipCandidate.trimmed_start_s, SessionClipCandidate.trimmed_end_s),
     )
 
-    for batch_start in range(0, len(order), DEDUP_SQL_BATCH_SIZE):
-        chunk_idx = order[batch_start : batch_start + DEDUP_SQL_BATCH_SIZE]
+    for chunk_idx in _group_dedup_windows(valid_items, order):
         sub_selects = [
             select(
                 literal(i).label("idx"),
@@ -386,6 +410,12 @@ def submit_clip_run(
         meta = item.get("meta") if isinstance(item.get("meta"), dict) else None
         valid_items.append((round(s_val, 3), round(e_val, 3), conf_val, label, meta))
 
+    existing_count = int(
+        db.query(func.count(SessionClipCandidate.id))
+        .filter(SessionClipCandidate.session_video_id == video.id)
+        .scalar()
+        or 0
+    )
     best_db_by_idx, matched_db_rows = _find_best_db_matches(db, video.id, valid_items)
 
     run = SessionClipRun(
@@ -463,6 +493,12 @@ def submit_clip_run(
                 prev_match.confidence = conf_val
             continue
 
+        if existing_count + created_count >= MAX_CANDIDATES_PER_VIDEO:
+            db.rollback()
+            raise HTTPException(
+                422,
+                f"This recording already has {MAX_CANDIDATES_PER_VIDEO} clip candidates; triage or reset before adding more",
+            )
         new_cand = SessionClipCandidate(
             session_video_id=video.id,
             first_run_id=run.id,
@@ -2892,6 +2928,7 @@ def claim_b2_object_retained(
     bucket: str,
     object_key: str,
     fail_open_missing_table: bool = False,
+    uploaded_after: Optional[datetime] = None,
 ) -> None:
     """Serialize publication against orphan reclamation by locking `(bucket, object_key)` `FOR UPDATE`.
 
@@ -2915,7 +2952,15 @@ def claim_b2_object_retained(
         raise
     if row is None:
         return
-    if row.status in ("deleting", "reclaimed"):
+    # A finished reclaim does not block a publisher whose upload started after the
+    # B2 delete completed: those bytes are a fresh copy, not the deleted ones.
+    fresh_upload = (
+        row.status == "reclaimed"
+        and uploaded_after is not None
+        and row.reclaimed_at is not None
+        and row.reclaimed_at < uploaded_after
+    )
+    if row.status == "deleting" or (row.status == "reclaimed" and not fresh_upload):
         raise HTTPException(
             503,
             "Storage object was reclaimed or is being deleted; retry upload",
@@ -3329,10 +3374,15 @@ def fail_clip_cut(
     lease_token: str,
     cut_revision: int,
     error: str,
+    defer: bool = False,
 ) -> dict[str, Any]:
+    """Release a cut lease. `defer=True` is storage contention (server busy, delete
+    claim in flight): requeue and refund the attempt charged at lease time."""
     _, cand = require_valid_lease_context(db, candidate_id, agent_id, lease_token, cut_revision)
     now = datetime.utcnow()
-    retryable = cand.extraction_attempts < MAX_EXTRACTION_ATTEMPTS
+    if defer:
+        cand.extraction_attempts = max(0, int(cand.extraction_attempts or 0) - 1)
+    retryable = defer or cand.extraction_attempts < MAX_EXTRACTION_ATTEMPTS
     cand.extraction_status = "queued" if retryable else "failed"
     cand.extraction_error = sanitize_worker_error(error)
     cand.lease_token = None

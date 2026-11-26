@@ -1079,8 +1079,15 @@ class SyncClient:
         return data
 
     async def fail_clip_cut(
-        self, candidate_id: int, agent_id: str, lease_token: str, cut_revision: int, error_value: str
+        self,
+        candidate_id: int,
+        agent_id: str,
+        lease_token: str,
+        cut_revision: int,
+        error_value: str,
+        defer: bool = False,
     ) -> Dict[str, Any]:
+        """Release a cut lease; `defer=True` requeues without charging an extraction attempt."""
         url = f"{self.server_config.url}/api/v1/media/clip-cuts/{candidate_id}/fail"
         payload = {
             "agent_id": agent_id,
@@ -1088,6 +1095,8 @@ class SyncClient:
             "cut_revision": cut_revision,
             "error": error_value[:240],
         }
+        if defer:
+            payload["defer"] = True
         status, body = await asyncio.to_thread(
             _curl_post, url, payload, self.server_config.api_key or "", self.server_config.timeout_seconds or 30.0, self.server_config.ca_cert_path
         )

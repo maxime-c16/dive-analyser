@@ -13,6 +13,7 @@ from fastapi.testclient import TestClient
 from app.api.v1 import session_clips as session_clips_api
 from app.config import get_settings
 from app.main import app
+from app.services import session_clip_triage as triage_service
 from app.models.deposit_batch import BatchEmailOutbox, EvaluatorNote
 from app.models.dive import Dive
 from app.models.diver import Diver
@@ -2205,3 +2206,119 @@ def test_dedup_scan_pages_bound_ranked_rows_and_keep_best_across_pages(clip_env,
     assert best[0] == (1.0, rejected_id)
     assert matched[rejected_id].triage_status == "rejected"
     assert len(page_limits) >= 3  # 8 trimmed rows / page of 3 -> resumed across pages
+
+
+def test_deferred_clip_cut_requeues_without_charging_attempt(clip_env):
+    """Storage contention (defer=True) never exhausts extraction attempts; a real failure still does."""
+    api_client = TestClient(app)
+    video_id = clip_env["video_id"]
+    api_client.post(
+        f"/api/v1/session-videos/{video_id}/clip-runs",
+        headers={"X-API-Key": API_KEY},
+        json={"detector_name": "core", "detector_version": "v1", "candidates": [{"start_s": 40.0, "end_s": 46.0}]},
+    )
+    admin = clip_env["as_user"]("alice")
+    cand = admin.get("/api/v1/clip-triage/candidates").json()["items"][0]
+    admin.patch(
+        f"/api/v1/clip-triage/candidates/{cand['id']}",
+        headers=ORIGIN,
+        json={"diver_id": clip_env["alice_diver_id"], "triage_status": "kept"},
+    )
+    db = clip_env["db"]
+
+    def _lease_and_fail(defer: bool) -> dict:
+        job = api_client.post(
+            "/api/v1/media/clip-cuts/lease", headers={"X-API-Key": WORKER_KEY}, json={"agent_id": "mac-media-01"}
+        ).json()["jobs"][0]
+        res = api_client.post(
+            f"/api/v1/media/clip-cuts/{cand['id']}/fail",
+            headers={"X-API-Key": WORKER_KEY},
+            json={
+                "agent_id": "mac-media-01",
+                "lease_token": job["lease_token"],
+                "cut_revision": job["cut_revision"],
+                "error": "503 Storage object reclamation in progress",
+                "defer": defer,
+            },
+        )
+        assert res.status_code == 200, res.text
+        return res.json()
+
+    for _ in range(triage_service.MAX_EXTRACTION_ATTEMPTS + 2):
+        body = _lease_and_fail(defer=True)
+        assert body == {"candidate_id": cand["id"], "status": "queued", "attempts": 0}
+
+    for attempt in range(1, triage_service.MAX_EXTRACTION_ATTEMPTS + 1):
+        body = _lease_and_fail(defer=False)
+        assert body["attempts"] == attempt
+    assert body["status"] == "failed"
+    db.expire_all()
+
+
+def test_reclaimed_object_accepts_publisher_upload_started_after_delete(clip_env):
+    """A finished reclaim blocks stale publishers but not a fresh upload begun after the delete."""
+    from datetime import timedelta
+    from fastapi import HTTPException
+    from app.models.session_clip_triage import SessionClipOrphanObject
+
+    db = clip_env["db"]
+    sha = "d" * 64
+    bucket, key = "diveanalyzer-media", f"media/dd/{sha}"
+    now = datetime.utcnow()
+    db.add(
+        SessionClipOrphanObject(
+            bucket=bucket,
+            object_key=key,
+            blob_sha256=sha,
+            byte_size=10,
+            status="reclaimed",
+            eligible_after=now,
+            reclaimed_at=now,
+            created_at=now,
+        )
+    )
+    db.commit()
+
+    with pytest.raises(HTTPException) as stale:
+        triage_service.claim_b2_object_retained(db, bucket=bucket, object_key=key, uploaded_after=now - timedelta(seconds=1))
+    assert stale.value.status_code == 503
+    db.rollback()
+
+    triage_service.claim_b2_object_retained(db, bucket=bucket, object_key=key, uploaded_after=now + timedelta(seconds=1))
+    db.commit()
+    db.expire_all()
+    assert db.query(SessionClipOrphanObject).filter_by(bucket=bucket, object_key=key).one().status == "retained"
+
+
+def test_dedup_groups_only_overlapping_windows_and_caps_video_history(clip_env, monkeypatch):
+    """Distant detections scan separate narrow windows; the per-video cap bounds history."""
+    items = [(100.0, 106.0), (110.0, 116.0), (8000.0, 8006.0)]
+    groups = triage_service._group_dedup_windows(items, [0, 1, 2])
+    assert groups == [[0, 1], [2]]
+
+    db = clip_env["db"]
+    video_id = clip_env["video_id"]
+    db.get(SessionVideo, video_id).duration_seconds = 10_000.0
+    db.commit()
+    monkeypatch.setattr(triage_service, "MAX_CANDIDATES_PER_VIDEO", 1)
+    api_client = TestClient(app)
+    first = api_client.post(
+        f"/api/v1/session-videos/{video_id}/clip-runs",
+        headers={"X-API-Key": API_KEY},
+        json={"detector_name": "core", "detector_version": "v1", "candidates": [{"start_s": 500.0, "end_s": 506.0}]},
+    )
+    assert first.status_code == 201
+    over = api_client.post(
+        f"/api/v1/session-videos/{video_id}/clip-runs",
+        headers={"X-API-Key": API_KEY},
+        json={"detector_name": "core", "detector_version": "v1", "candidates": [{"start_s": 700.0, "end_s": 706.0}]},
+    )
+    assert over.status_code == 422
+    # A rerun that only dedups still succeeds at the cap.
+    rerun = api_client.post(
+        f"/api/v1/session-videos/{video_id}/clip-runs",
+        headers={"X-API-Key": API_KEY},
+        json={"detector_name": "core", "detector_version": "v2", "candidates": [{"start_s": 500.0, "end_s": 506.0}]},
+    )
+    assert rerun.status_code == 201
+    assert rerun.json()["deduped_count"] == 1

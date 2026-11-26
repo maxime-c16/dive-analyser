@@ -139,6 +139,7 @@ def persist_original(db, video_uuid, folder, *, register=True, source_name='sour
     sha = sha256_file(source)
     key = f'{settings.media_backbone_object_prefix}/{sha[:2]}/{sha}'
     client = boto3.client('s3', region_name=settings.b2_upload_region, endpoint_url=settings.b2_upload_endpoint_url or f'https://s3.{settings.b2_upload_region}.backblazeb2.com', aws_access_key_id=settings.b2_upload_key_id, aws_secret_access_key=settings.b2_upload_key_secret, config=Config(connect_timeout=10, read_timeout=120, retries={'total_max_attempts': 2}))
+    upload_started_at = datetime.utcnow()
     try:
         client.upload_file(str(source), bucket, key, ExtraArgs={'ContentType': content_type, 'Metadata': {'sha256': sha}})
         response = client.get_object(Bucket=bucket, Key=key)
@@ -164,7 +165,9 @@ def persist_original(db, video_uuid, folder, *, register=True, source_name='sour
     if register:
         from app.services.session_clip_triage import claim_b2_object_retained
 
-        claim_b2_object_retained(db, bucket=bucket, object_key=key, fail_open_missing_table=True)
+        claim_b2_object_retained(
+            db, bucket=bucket, object_key=key, fail_open_missing_table=True, uploaded_after=upload_started_at
+        )
         commit_verified_ingest(db, **manifest, commit=False)
     return manifest
 

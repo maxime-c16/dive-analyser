@@ -461,3 +461,45 @@ async def test_cut_clip_async_reencodes_oversized_output_and_rejects_unbounded_f
     assert processed == 0
     sync_client.complete_clip_cut.assert_not_called()
     sync_client.fail_clip_cut.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_persistent_storage_503_defers_lease_without_charging_attempt(tmp_path, monkeypatch):
+    mp4 = tmp_path / "clip.mp4"
+    mp4.write_bytes(b"fake-mp4-data")
+    monkeypatch.setattr(clip_cut_jobs, "_cut_clip_async", AsyncMock(return_value=mp4))
+    monkeypatch.setattr(clip_cut_jobs, "UPLOAD_RETRY_BACKOFF_S", 0.0)
+    busy = SyncHTTPError("clip cut complete failed: 503 Storage object reclamation in progress", status_code=503)
+    sync_client = SimpleNamespace(
+        lease_clip_cuts=AsyncMock(
+            return_value=[
+                {"candidate_id": 91, "lease_token": "tok-91919191", "cut_revision": 1, "start_s": 10.0, "end_s": 20.0, "source_url": "https://b2.example/s.mov"}
+            ]
+        ),
+        heartbeat_clip_cut=AsyncMock(return_value={"status": "extracting"}),
+        complete_clip_cut=AsyncMock(side_effect=busy),
+        fail_clip_cut=AsyncMock(),
+    )
+    config = SimpleNamespace(media=SimpleNamespace(temp_dir=str(tmp_path / "scratch"), ffmpeg_path="ffmpeg", ffprobe_path="ffprobe"))
+    assert await clip_cut_jobs.process_clip_cut_once(config, sync_client, "mac-media-01") == 0
+    assert sync_client.complete_clip_cut.await_count == clip_cut_jobs.MAX_UPLOAD_RETRY_ATTEMPTS
+    sync_client.fail_clip_cut.assert_awaited_once()
+    assert sync_client.fail_clip_cut.call_args.kwargs["defer"] is True
+
+
+@pytest.mark.asyncio
+async def test_cut_errors_are_not_deferred(tmp_path, monkeypatch):
+    monkeypatch.setattr(clip_cut_jobs, "_cut_clip_async", AsyncMock(side_effect=clip_cut_jobs._CutError("ffmpeg exited 1")))
+    sync_client = SimpleNamespace(
+        lease_clip_cuts=AsyncMock(
+            return_value=[
+                {"candidate_id": 92, "lease_token": "tok-92929292", "cut_revision": 1, "start_s": 10.0, "end_s": 20.0, "source_url": "https://b2.example/s.mov"}
+            ]
+        ),
+        heartbeat_clip_cut=AsyncMock(return_value={"status": "extracting"}),
+        complete_clip_cut=AsyncMock(),
+        fail_clip_cut=AsyncMock(),
+    )
+    config = SimpleNamespace(media=SimpleNamespace(temp_dir=str(tmp_path / "scratch"), ffmpeg_path="ffmpeg", ffprobe_path="ffprobe"))
+    await clip_cut_jobs.process_clip_cut_once(config, sync_client, "mac-media-01")
+    assert sync_client.fail_clip_cut.call_args.kwargs["defer"] is False

@@ -527,8 +527,15 @@ async def process_clip_cut_once(
             logger.warning("Clip cut %s failed: %s", candidate_id, safe_err)
             if not lease_lost.is_set() and not _is_server_lease_dead(exc):
                 try:
+                    # Storage contention (e.g. 503 while a B2 delete claim is in flight)
+                    # is deferred: requeued without burning one of the extraction attempts.
                     await sync_client.fail_clip_cut(
-                        candidate_id, agent_id, lease_token, cut_revision, safe_err
+                        candidate_id,
+                        agent_id,
+                        lease_token,
+                        cut_revision,
+                        safe_err,
+                        defer=_is_transient_upload_busy(exc),
                     )
                 except Exception:
                     pass
