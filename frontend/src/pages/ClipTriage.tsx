@@ -26,6 +26,7 @@ import {
   getClipTriageCandidate,
   getClipTriageSummary,
   listClipTriageCandidates,
+  listClipTriageDivers,
   patchClipCandidate,
   retryClipExtraction,
   type CandidatePatch,
@@ -143,6 +144,9 @@ export default function ClipTriage() {
   const [nextCursor, setNextCursor] = useState<string | null>(null)
   const [loadingMore, setLoadingMore] = useState(false)
   const [divers, setDivers] = useState<TriageDiver[]>([])
+  const [diversHasMore, setDiversHasMore] = useState(false)
+  const [diverSearch, setDiverSearch] = useState('')
+  const [searchedDivers, setSearchedDivers] = useState<TriageDiver[] | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -318,6 +322,8 @@ export default function ClipTriage() {
       setHasMore(Boolean(list.has_more && list.next_cursor))
       setNextCursor(list.next_cursor ?? null)
       setDivers(list.divers)
+      setDiversHasMore(Boolean(list.divers_has_more))
+      setSearchedDivers(null)
       setActiveId(initialActive)
     } catch (err) {
       if (signal?.aborted || (err as { name?: string })?.name === 'AbortError') return
@@ -713,6 +719,33 @@ export default function ClipTriage() {
     }
   }, [undoEntry, clearUndo, enqueueCandidateOp, refreshSummary, t])
 
+  // Searchable server-side diver lookup when club roster exceeds the initial page
+  useEffect(() => {
+    if (!showAllDivers || (!diversHasMore && !diverSearch.trim())) {
+      setSearchedDivers(null)
+      return
+    }
+    const q = diverSearch.trim()
+    if (!q) {
+      setSearchedDivers(null)
+      return
+    }
+    const controller = new AbortController()
+    const tid = window.setTimeout(() => {
+      void listClipTriageDivers({ q, session_id: sessionFilter, limit: 50, offset: 0 }, controller.signal)
+        .then((res) => {
+          if (!controller.signal.aborted) setSearchedDivers(res.items)
+        })
+        .catch(() => {})
+    }, 180)
+    return () => {
+      window.clearTimeout(tid)
+      controller.abort()
+    }
+  }, [showAllDivers, diversHasMore, diverSearch, sessionFilter])
+
+  const selectableDivers = searchedDivers ?? divers
+
   // Suggested quick-tap divers (top 6)
   const quickDivers = useMemo(() => {
     const preferred = divers.filter((d) => d.is_own || d.suggested)
@@ -1100,7 +1133,7 @@ export default function ClipTriage() {
                     <span>{d.display_name}</span>
                   </button>
                 ))}
-                {divers.length > quickDivers.length && (
+                {(divers.length > quickDivers.length || diversHasMore) && (
                   <button
                     type="button"
                     className="triage-diver-chip text-app-muted"
@@ -1111,26 +1144,44 @@ export default function ClipTriage() {
                 )}
               </div>
               {showAllDivers && (
-                <select
-                  aria-label={t('clipTriage.allDivers')}
-                  className="app-input mt-2 w-full text-sm"
-                  value={draft.diver_id ?? ''}
-                  onChange={(e) => {
-                    const id = e.target.value ? Number(e.target.value) : null
-                    if (expressMode && id != null && tab === 'pending') {
-                      void commitKeep(id)
-                    } else {
-                      updateDraft({ diver_id: id }, { diver_id: id })
-                    }
-                  }}
-                >
-                  {(active.triage_status !== 'kept' || draft.diver_id == null) && (
-                    <option value="">{t('clipTriage.pickDiver')}</option>
+                <div className="mt-2 flex flex-col gap-1.5">
+                  {diversHasMore && (
+                    <input
+                      type="search"
+                      aria-label={t('clipTriage.allDivers')}
+                      placeholder={t('clipTriage.pickDiver')}
+                      className="app-input w-full text-sm"
+                      value={diverSearch}
+                      onChange={(e) => setDiverSearch(e.target.value)}
+                    />
                   )}
-                  {divers.map((d) => (
-                    <option key={d.id} value={d.id}>{d.display_name}</option>
-                  ))}
-                </select>
+                  <select
+                    aria-label={t('clipTriage.allDivers')}
+                    className="app-input w-full text-sm"
+                    value={draft.diver_id ?? ''}
+                    onChange={(e) => {
+                      const id = e.target.value ? Number(e.target.value) : null
+                      if (id != null && searchedDivers) {
+                        const found = searchedDivers.find((d) => d.id === id)
+                        if (found) {
+                          setDivers((prev) => (prev.some((d) => d.id === found.id) ? prev : [...prev, found]))
+                        }
+                      }
+                      if (expressMode && id != null && tab === 'pending') {
+                        void commitKeep(id)
+                      } else {
+                        updateDraft({ diver_id: id }, { diver_id: id })
+                      }
+                    }}
+                  >
+                    {(active.triage_status !== 'kept' || draft.diver_id == null) && (
+                      <option value="">{t('clipTriage.pickDiver')}</option>
+                    )}
+                    {selectableDivers.map((d) => (
+                      <option key={d.id} value={d.id}>{d.display_name}</option>
+                    ))}
+                  </select>
+                </div>
               )}
             </div>
 

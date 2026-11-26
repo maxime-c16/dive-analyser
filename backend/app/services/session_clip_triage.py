@@ -620,44 +620,94 @@ def get_triage_summary(db: Session, user: AppUser) -> dict[str, Any]:
     }
 
 
-def _suggested_and_all_divers(
+MAX_DIVER_PAGE_LIMIT = 100
+DEFAULT_DIVER_PAGE_LIMIT = 50
+MAX_RUNS_PAGE_LIMIT = 100
+DEFAULT_RUNS_PAGE_LIMIT = 50
+DIVER_SCOPED_UPDATE_FIELDS = frozenset(
+    {
+        "dive_code",
+        "height",
+        "performance",
+        "phase1_performance",
+        "phase2_performance",
+        "notes",
+        "visibility",
+        "confirm_publish",
+    }
+)
+
+
+def list_triage_divers(
     db: Session,
     user: AppUser,
-    authorized_session_ids: list[int],
-) -> list[dict[str, Any]]:
-    """Divers this user may assign (admins: club roster; non-admin owners: own divers only)."""
+    *,
+    authorized_session_ids: Optional[list[int]] = None,
+    q: Optional[str] = None,
+    limit: int = DEFAULT_DIVER_PAGE_LIMIT,
+    offset: int = 0,
+) -> dict[str, Any]:
+    """Bounded, searchable, paginated diver selector (admins: full roster; owners: own divers)."""
+    if not _user_can_manage_any_video(db, user):
+        return {"items": [], "total": 0, "has_more": False, "next_offset": None}
+
+    bounded_limit = max(1, min(limit, MAX_DIVER_PAGE_LIMIT))
+    bounded_offset = max(0, offset)
+    search_term = (q or "").strip()
     own_ids = set(owned_diver_ids(db, user.id))
+
+    def _search_filter(query):
+        if not search_term:
+            return query
+        escaped = search_term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        pat = f"%{escaped}%"
+        return query.filter(
+            or_(
+                Diver.display_name.ilike(pat, escape="\\"),
+                Diver.canonical_name.ilike(pat, escape="\\"),
+            )
+        )
+
     if not user.is_admin:
         if not own_ids:
-            return []
+            return {"items": [], "total": 0, "has_more": False, "next_offset": None}
         with unscoped_reads(db):
-            own_divers = (
-                db.query(Diver)
-                .filter(Diver.id.in_(own_ids))
-                .order_by(Diver.display_name.asc(), Diver.id.asc())
-                .limit(50)
+            base_q = _search_filter(db.query(Diver).filter(Diver.id.in_(own_ids)))
+            total = int(base_q.count() or 0)
+            rows = (
+                base_q.order_by(Diver.display_name.asc(), Diver.id.asc())
+                .offset(bounded_offset)
+                .limit(bounded_limit + 1)
                 .all()
             )
-        return [
-            {
-                "id": d.id,
-                "display_name": d.display_name,
-                "is_own": True,
-                "has_account": True,
-                "suggested": True,
-            }
-            for d in own_divers
-        ]
+        has_more = len(rows) > bounded_limit
+        page = rows[:bounded_limit]
+        return {
+            "items": [
+                {
+                    "id": d.id,
+                    "display_name": d.display_name,
+                    "is_own": True,
+                    "has_account": True,
+                    "suggested": True,
+                }
+                for d in page
+            ],
+            "total": total,
+            "has_more": has_more,
+            "next_offset": (bounded_offset + bounded_limit) if has_more else None,
+        }
 
     suggested_ids: list[int] = []
     with unscoped_reads(db):
-        if authorized_session_ids:
+        sess_ids = list(authorized_session_ids or [])
+        if sess_ids:
             table = TrainingSession.__table__
             occ_ids = [
                 r[0]
                 for r in db.execute(
                     select(table.c.calendar_occurrence_id).where(
-                        table.c.id.in_(authorized_session_ids),
+                        table.c.id.in_(sess_ids),
                         table.c.calendar_occurrence_id.is_not(None),
                     )
                 ).all()
@@ -716,7 +766,7 @@ def _suggested_and_all_divers(
                 for r in db.query(SessionClipCandidate.diver_id)
                 .join(SessionVideo, SessionVideo.id == SessionClipCandidate.session_video_id)
                 .filter(
-                    SessionVideo.session_id.in_(authorized_session_ids),
+                    SessionVideo.session_id.in_(sess_ids),
                     SessionClipCandidate.diver_id.is_not(None),
                 )
                 .distinct()
@@ -730,40 +780,68 @@ def _suggested_and_all_divers(
                 suggested_ids.insert(0, own_id)
 
         suggested_set = set(suggested_ids)
-        all_divers = (
-            db.query(Diver)
-            .order_by(Diver.display_name.asc(), Diver.id.asc())
-            .limit(300)
+        base_q = _search_filter(db.query(Diver))
+        total = int(base_q.count() or 0)
+        own_rank = case((Diver.id.in_(own_ids), 0), else_=1) if own_ids else 1
+        sugg_rank = case((Diver.id.in_(suggested_set), 0), else_=1) if suggested_set else 1
+        rows = (
+            base_q.order_by(
+                own_rank,
+                sugg_rank,
+                func.lower(Diver.display_name).asc(),
+                Diver.id.asc(),
+            )
+            .offset(bounded_offset)
+            .limit(bounded_limit + 1)
             .all()
         )
-        all_diver_ids = [d.id for d in all_divers]
+        has_more = len(rows) > bounded_limit
+        page = rows[:bounded_limit]
+        page_diver_ids = [d.id for d in page]
         owner_links = (
             {
                 r[0]
                 for r in db.query(UserDiverAccess.diver_id)
                 .filter(
-                    UserDiverAccess.diver_id.in_(all_diver_ids),
+                    UserDiverAccess.diver_id.in_(page_diver_ids),
                     UserDiverAccess.access_kind == "OWNER",
                 )
                 .distinct()
                 .all()
             }
-            if all_diver_ids
+            if page_diver_ids
             else set()
         )
 
-    result = [
-        {
-            "id": d.id,
-            "display_name": d.display_name,
-            "is_own": d.id in own_ids,
-            "has_account": d.id in owner_links,
-            "suggested": d.id in suggested_set,
-        }
-        for d in all_divers
-    ]
-    result.sort(key=lambda d: (not d["is_own"], not d["suggested"], d["display_name"].lower()))
-    return result
+    return {
+        "items": [
+            {
+                "id": d.id,
+                "display_name": d.display_name,
+                "is_own": d.id in own_ids,
+                "has_account": d.id in owner_links,
+                "suggested": d.id in suggested_set,
+            }
+            for d in page
+        ],
+        "total": total,
+        "has_more": has_more,
+        "next_offset": (bounded_offset + bounded_limit) if has_more else None,
+    }
+
+
+def _suggested_and_all_divers(
+    db: Session,
+    user: AppUser,
+    authorized_session_ids: list[int],
+) -> dict[str, Any]:
+    return list_triage_divers(
+        db,
+        user,
+        authorized_session_ids=authorized_session_ids,
+        limit=DEFAULT_DIVER_PAGE_LIMIT,
+        offset=0,
+    )
 
 
 def serialize_candidate(
@@ -806,22 +884,26 @@ def serialize_candidate(
         "skipped_at": cand.skipped_at.replace(tzinfo=timezone.utc).isoformat() if cand.skipped_at else None,
         "diver_id": None if mask_diver else cand.diver_id,
         "diver_name": None if mask_diver else diver_name,
-        "dive_code": cand.dive_code,
-        "height": cand.height,
-        "performance": cand.performance,
-        "phase1_performance": cand.phase1_performance,
-        "phase2_performance": cand.phase2_performance,
-        "notes": cand.notes,
-        "visibility": cand.visibility,
-        "metadata_complete": is_metadata_complete(cand),
-        "publish_requested": bool(
+        "dive_code": None if mask_diver else cand.dive_code,
+        "height": None if mask_diver else cand.height,
+        "performance": None if mask_diver else cand.performance,
+        "phase1_performance": None if mask_diver else cand.phase1_performance,
+        "phase2_performance": None if mask_diver else cand.phase2_performance,
+        "notes": None if mask_diver else cand.notes,
+        "visibility": "private" if mask_diver else cand.visibility,
+        "metadata_complete": False if mask_diver else is_metadata_complete(cand),
+        "publish_requested": False
+        if mask_diver
+        else bool(
             cand.publish_requested_at is not None and cand.publish_requested_by_user_id is not None
         ),
         "extraction_status": cand.extraction_status,
         "extraction_error": cand.extraction_error,
         "cut_revision": cand.cut_revision,
-        "dive_id": cand.dive_id,
-        "published_at": cand.published_at.replace(tzinfo=timezone.utc).isoformat() if cand.published_at else None,
+        "dive_id": None if mask_diver else cand.dive_id,
+        "published_at": None
+        if mask_diver
+        else (cand.published_at.replace(tzinfo=timezone.utc).isoformat() if cand.published_at else None),
         "updated_at": cand.updated_at.replace(tzinfo=timezone.utc).isoformat() if cand.updated_at else None,
     }
 
@@ -909,6 +991,8 @@ def list_triage_candidates(
             "next_offset": None,
             "next_cursor": None,
             "divers": [],
+            "divers_total": 0,
+            "divers_has_more": False,
         }
 
     bounded_limit = max(1, min(limit, MAX_PAGE_LIMIT))
@@ -1139,13 +1223,15 @@ def list_triage_candidates(
                 }
             )
 
-    divers = _suggested_and_all_divers(db, user, authorized_sess_ids)
+    divers_page = _suggested_and_all_divers(db, user, authorized_sess_ids)
     return {
         "items": items,
         "has_more": has_more,
         "next_offset": (effective_offset + bounded_limit) if has_more else None,
         "next_cursor": next_cursor,
-        "divers": divers,
+        "divers": divers_page["items"],
+        "divers_total": divers_page["total"],
+        "divers_has_more": divers_page["has_more"],
     }
 
 
@@ -1302,9 +1388,9 @@ def maybe_publish_candidate(
     ):
         return None
 
-    if cand.source_etag and video.etag and cand.source_etag != video.etag:
-        # Source object changed since cut -> retire stale cut & re-queue fresh extraction
-        # against the new source ETag so the confirmed clip auto-publishes once re-cut.
+    if not cand.source_etag or not video.etag or cand.source_etag != video.etag:
+        # Source ETag missing or changed since cut -> retire stale cut & re-queue fresh extraction
+        # against a verified source ETag so the confirmed clip auto-publishes once re-cut.
         stale_paths = _invalidate_cut_lease(db, cand, next_status="queued")
         if retired_paths is not None:
             retired_paths.extend(stale_paths)
@@ -1539,7 +1625,13 @@ def update_candidate(
                 cand.trimmed_end_s = e_val
                 bounds_changed = True
 
-    # 2. Diver assignment (own diver OR admin; never clear diver on a kept clip)
+    # 2. Diver assignment & diver-scoping guard (non-admins may only edit diver metadata for own divers)
+    user_owned_divers = None if user.is_admin else owned_diver_ids(db, user.id)
+    was_other_diver = (
+        user_owned_divers is not None
+        and cand.diver_id is not None
+        and cand.diver_id not in user_owned_divers
+    )
     if "diver_id" in updates:
         diver_id = updates["diver_id"]
         next_triage = updates.get("triage_status", cand.triage_status)
@@ -1547,15 +1639,27 @@ def update_candidate(
             if next_triage == "kept":
                 raise HTTPException(422, "A kept clip must remain assigned to a diver")
             cand.diver_id = None
+            if was_other_diver:
+                cand.notes = None
         else:
             target_id = int(diver_id)
-            if not user.is_admin and target_id not in owned_diver_ids(db, user.id):
+            if user_owned_divers is not None and target_id not in user_owned_divers:
                 raise HTTPException(403, "Choose a diver you own")
             with unscoped_reads(db):
                 diver = db.get(Diver, target_id)
             if diver is None:
                 raise HTTPException(404, "Diver not found")
+            if was_other_diver and cand.diver_id != diver.id and "notes" not in updates:
+                cand.notes = None
             cand.diver_id = diver.id
+
+    target_is_other_diver = (
+        user_owned_divers is not None
+        and cand.diver_id is not None
+        and cand.diver_id not in user_owned_divers
+    )
+    if target_is_other_diver and (DIVER_SCOPED_UPDATE_FIELDS & updates.keys()):
+        raise HTTPException(403, "Cannot edit another diver's clip metadata")
 
     # 3. Dive code
     if "dive_code" in updates:
@@ -1745,6 +1849,12 @@ def retry_candidate_extraction(db: Session, user: AppUser, candidate_id: int) ->
         raise HTTPException(409, "Only kept clips can be queued for extraction")
     if cand.dive_id is not None:
         raise HTTPException(409, "Clip is already published")
+    if (
+        not user.is_admin
+        and cand.diver_id is not None
+        and cand.diver_id not in owned_diver_ids(db, user.id)
+    ):
+        raise HTTPException(403, "Cannot retry extraction for another diver's clip")
     retired_paths = _invalidate_cut_lease(db, cand, next_status="queued")
     cand.updated_at = datetime.utcnow()
     db.commit()
@@ -1754,16 +1864,39 @@ def retry_candidate_extraction(db: Session, user: AppUser, candidate_id: int) ->
     return _serialize_one_candidate(db, cand, video, viewer=user)
 
 
-def list_video_runs(db: Session, video: SessionVideo) -> list[dict[str, Any]]:
-    runs = (
+def list_video_runs(
+    db: Session,
+    video: SessionVideo,
+    *,
+    limit: int = DEFAULT_RUNS_PAGE_LIMIT,
+    offset: int = 0,
+) -> dict[str, Any]:
+    """Paginated detector runs with full-scope count and explicit continuation."""
+    bounded_limit = max(1, min(limit, MAX_RUNS_PAGE_LIMIT))
+    bounded_offset = max(0, offset)
+    total_runs = int(
+        db.query(func.count(SessionClipRun.id))
+        .filter(SessionClipRun.session_video_id == video.id)
+        .scalar()
+        or 0
+    )
+    rows = (
         db.query(SessionClipRun)
         .filter(SessionClipRun.session_video_id == video.id)
         .order_by(SessionClipRun.created_at.desc(), SessionClipRun.id.desc())
-        .limit(50)
+        .offset(bounded_offset)
+        .limit(bounded_limit + 1)
         .all()
     )
+    has_more = len(rows) > bounded_limit
+    runs = rows[:bounded_limit]
     if not runs:
-        return []
+        return {
+            "runs": [],
+            "total_runs": total_runs,
+            "has_more": False,
+            "next_offset": None,
+        }
 
     total_kept = (
         db.query(func.count(SessionClipCandidate.id))
@@ -1816,7 +1949,12 @@ def list_video_runs(db: Session, video: SessionVideo) -> list[dict[str, Any]]:
                 "created_at": r.created_at.replace(tzinfo=timezone.utc).isoformat(),
             }
         )
-    return out
+    return {
+        "runs": out,
+        "total_runs": total_runs,
+        "has_more": has_more,
+        "next_offset": (bounded_offset + bounded_limit) if has_more else None,
+    }
 
 
 def export_video_ground_truth(
@@ -1910,16 +2048,17 @@ def export_video_ground_truth(
             entry.update(
                 diver_id=None if mask_diver else c.diver_id,
                 diver_name=None if mask_diver else (divers_by_id.get(c.diver_id) if c.diver_id is not None else None),
-                dive_code=c.dive_code,
-                height=c.height,
-                performance=c.performance,
-                dive_id=c.dive_id,
+                dive_code=None if mask_diver else c.dive_code,
+                height=None if mask_diver else c.height,
+                performance=None if mask_diver else c.performance,
+                dive_id=None if mask_diver else c.dive_id,
             )
             positives.append(entry)
         else:
             entry["reject_reason"] = c.reject_reason or "false_positive"
             negatives.append(entry)
 
+    runs_page = list_video_runs(db, video, limit=DEFAULT_RUNS_PAGE_LIMIT, offset=0)
     return {
         "schema_version": "session_clip_gt_v1",
         "session_video_id": video.id,
@@ -1935,7 +2074,10 @@ def export_video_ground_truth(
         "next_offset": bounded_offset + bounded_limit if has_more else None,
         "positives": positives,
         "negatives": negatives,
-        "runs": list_video_runs(db, video),
+        "runs": runs_page["runs"],
+        "runs_total": runs_page["total_runs"],
+        "runs_has_more": runs_page["has_more"],
+        "runs_next_offset": runs_page["next_offset"],
     }
 
 
@@ -1982,10 +2124,16 @@ def lease_clip_cuts(db: Session, *, agent_id: str, limit: int = 1) -> list[dict[
             )
         )
 
-    # 2. Lease up to `bounded` ready jobs.
+    # 2. Lease up to `bounded` ready jobs whose source video has a verified non-empty ETag.
+    # Joining SessionVideo here prevents missing-ETag or deleted videos from starving valid clips.
     query = (
         db.query(SessionClipCandidate)
+        .join(SessionVideo, SessionVideo.id == SessionClipCandidate.session_video_id)
         .filter(
+            SessionVideo.status == "ready",
+            SessionVideo.deleted_at.is_(None),
+            SessionVideo.etag.is_not(None),
+            SessionVideo.etag != "",
             SessionClipCandidate.triage_status == "kept",
             SessionClipCandidate.dive_id.is_(None),
             SessionClipCandidate.extraction_attempts < MAX_EXTRACTION_ATTEMPTS,
@@ -2001,7 +2149,7 @@ def lease_clip_cuts(db: Session, *, agent_id: str, limit: int = 1) -> list[dict[
         .limit(bounded)
     )
     if db.get_bind().dialect.name == "postgresql":
-        query = query.with_for_update(skip_locked=True)
+        query = query.with_for_update(of=SessionClipCandidate, skip_locked=True)
     else:
         query = query.with_for_update()
 
@@ -2019,6 +2167,8 @@ def lease_clip_cuts(db: Session, *, agent_id: str, limit: int = 1) -> list[dict[
             SessionVideo.id.in_(video_ids),
             SessionVideo.status == "ready",
             SessionVideo.deleted_at.is_(None),
+            SessionVideo.etag.is_not(None),
+            SessionVideo.etag != "",
         )
         .all()
     }
@@ -2027,10 +2177,7 @@ def lease_clip_cuts(db: Session, *, agent_id: str, limit: int = 1) -> list[dict[
     snapshots: list[dict[str, Any]] = []
     for cand in candidates:
         video = videos.get(cand.session_video_id)
-        if video is None:
-            cand.extraction_status = "failed"
-            cand.extraction_error = "Source session video is no longer available"
-            cand.updated_at = now
+        if video is None or not (video.etag or "").strip():
             continue
         if cand.clip_video_uuid is None:
             cand.clip_video_uuid = str(uuid.uuid4())
@@ -2109,8 +2256,8 @@ def require_valid_lease_context(
         raise HTTPException(409, "Clip cut lease expired or superseded")
     if cand.claimed_until is not None and cand.claimed_until < datetime.utcnow():
         raise HTTPException(409, "Clip cut lease expired")
-    if cand.source_etag and video.etag and cand.source_etag != video.etag:
-        raise HTTPException(409, "Source session video changed during cut")
+    if not cand.source_etag or not video.etag or cand.source_etag != video.etag:
+        raise HTTPException(409, "Source session video ETag missing or changed during cut")
     return video, cand
 
 

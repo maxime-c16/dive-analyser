@@ -33,7 +33,7 @@ class SessionClipRun(Base):
 
     id = Column(Integer, primary_key=True)
     session_video_id = Column(
-        Integer, ForeignKey("session_videos.id", ondelete="CASCADE"), nullable=False, index=True
+        Integer, ForeignKey("session_videos.id", ondelete="CASCADE"), nullable=False
     )
     detector_name = Column(String(80), nullable=False)
     detector_version = Column(String(80), nullable=False)
@@ -77,7 +77,7 @@ class SessionClipCandidate(Base):
 
     id = Column(Integer, primary_key=True)
     session_video_id = Column(
-        Integer, ForeignKey("session_videos.id", ondelete="CASCADE"), nullable=False, index=True
+        Integer, ForeignKey("session_videos.id", ondelete="CASCADE"), nullable=False
     )
     first_run_id = Column(
         Integer, ForeignKey("session_clip_runs.id", ondelete="SET NULL"), nullable=True

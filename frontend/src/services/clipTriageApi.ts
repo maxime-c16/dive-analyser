@@ -141,6 +141,8 @@ export async function listClipTriageCandidates(
   next_offset: number | null
   next_cursor?: string | null
   divers: TriageDiver[]
+  divers_total?: number
+  divers_has_more?: boolean
 }> {
   const clean: Record<string, string | number> = {}
   if (params.tab) clean.tab = params.tab
@@ -156,6 +158,29 @@ export async function listClipTriageCandidates(
     }
   }
   const { data } = await api.get('/api/v1/clip-triage/candidates', { params: clean, signal })
+  return data
+}
+
+export async function listClipTriageDivers(
+  params: {
+    q?: string
+    session_id?: number | null
+    limit?: number
+    offset?: number
+  },
+  signal?: AbortSignal,
+): Promise<{
+  items: TriageDiver[]
+  total: number
+  has_more: boolean
+  next_offset: number | null
+}> {
+  const clean: Record<string, string | number> = {}
+  if (params.q && params.q.trim()) clean.q = params.q.trim()
+  if (params.session_id != null) clean.session_id = params.session_id
+  if (params.limit != null) clean.limit = params.limit
+  if (params.offset != null) clean.offset = params.offset
+  const { data } = await api.get('/api/v1/clip-triage/divers', { params: clean, signal })
   return data
 }
 

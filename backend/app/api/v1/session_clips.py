@@ -197,12 +197,15 @@ def _authorized_ready_video(db: Session, video_id: int, actor: Optional[AppUser]
 def get_clip_runs(
     video_id: int,
     response: Response,
+    limit: int = Query(default=triage.DEFAULT_RUNS_PAGE_LIMIT, ge=1, le=triage.MAX_RUNS_PAGE_LIMIT),
+    offset: int = Query(default=0, ge=0),
     actor: Optional[AppUser] = Depends(_admin_or_api_key),
     db: Session = Depends(get_db),
 ):
     video = _authorized_ready_video(db, video_id, actor)
     secure_headers(response)
-    return {"session_video_id": video.id, "runs": triage.list_video_runs(db, video)}
+    page = triage.list_video_runs(db, video, limit=limit, offset=offset)
+    return {"session_video_id": video.id, **page}
 
 
 @router.get("/session-videos/{video_id}/clip-gt", dependencies=[Depends(require_enabled)])
@@ -230,6 +233,35 @@ def triage_summary(
 ):
     secure_headers(response)
     return triage.get_triage_summary(db, user)
+
+
+@router.get("/clip-triage/divers", dependencies=[Depends(require_enabled)])
+def list_triage_divers(
+    response: Response,
+    q: Optional[str] = Query(default=None, max_length=120),
+    session_id: Optional[int] = Query(default=None),
+    limit: int = Query(default=triage.DEFAULT_DIVER_PAGE_LIMIT, ge=1, le=triage.MAX_DIVER_PAGE_LIMIT),
+    offset: int = Query(default=0, ge=0),
+    user: AppUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    secure_headers(response)
+    authorized_sess_ids: list[int] = []
+    if session_id is not None:
+        v_q = db.query(SessionVideo.id).filter(
+            *triage._manageable_video_filter(user),
+            SessionVideo.session_id == session_id,
+        )
+        if v_q.limit(1).first() is not None:
+            authorized_sess_ids = [session_id]
+    return triage.list_triage_divers(
+        db,
+        user,
+        authorized_session_ids=authorized_sess_ids,
+        q=q,
+        limit=limit,
+        offset=offset,
+    )
 
 
 def _parse_exclude_ids(raw: Optional[str]) -> Optional[list[int]]:

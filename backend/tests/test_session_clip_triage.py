@@ -31,9 +31,17 @@ OTHER_WORKER_KEY = "test-other-worker-key-9876543210"
 ORIGIN = {"Origin": "http://testserver"}
 
 
+_HAS_FFMPEG = bool(shutil.which("ffmpeg") and shutil.which("ffprobe"))
+_SYNTH_MP4_PREFIX = b"SYNTHETIC-H264-MP4:"
+
+
 def _make_real_mp4_bytes(tmp_path: Path, duration_s: float = 2.0, name: str = "tiny_real.mp4") -> bytes:
-    """Generate a tiny real H.264 MP4 via ffmpeg so server ffprobe + poster extraction are truly exercised."""
+    """Generate a tiny real H.264 MP4 via ffmpeg when available, else a deterministic tagged payload."""
     out = tmp_path / name
+    if not _HAS_FFMPEG:
+        data = _SYNTH_MP4_PREFIX + f"{duration_s:.3f}".encode("ascii") + b":" + name.encode("utf-8")
+        out.write_bytes(data)
+        return data
     res = subprocess.run(
         [
             "ffmpeg",
@@ -60,6 +68,33 @@ def clip_env(workspace, monkeypatch, tmp_path):
     settings = get_settings()
     monkeypatch.setattr(settings, "shared_sessions_enabled", True)
     monkeypatch.setattr(settings, "media_cache_root", str(tmp_path))
+
+    if not _HAS_FFMPEG:
+        import json as _json
+        from types import SimpleNamespace as _NS
+
+        def _fake_media_subprocess(cmd, *args, **kwargs):
+            prog = str(cmd[0])
+            if prog == "ffprobe":
+                raw = Path(cmd[-1]).read_bytes()
+                if not raw.startswith(_SYNTH_MP4_PREFIX):
+                    return _NS(returncode=1, stdout=b"", stderr=b"invalid mp4")
+                dur = raw[len(_SYNTH_MP4_PREFIX) :].split(b":", 1)[0].decode("ascii")
+                payload = _json.dumps(
+                    {
+                        "streams": [
+                            {"codec_type": "video", "codec_name": "h264", "width": 160, "height": 120}
+                        ],
+                        "format": {"duration": dur},
+                    }
+                ).encode("utf-8")
+                return _NS(returncode=0, stdout=payload, stderr=b"")
+            if prog == "ffmpeg":
+                Path(cmd[-1]).write_bytes(b"\xff\xd8\xff\xe0synthetic-poster")
+                return _NS(returncode=0, stdout=b"", stderr=b"")
+            return subprocess.run(cmd, *args, **kwargs)
+
+        monkeypatch.setattr(session_clips_api.subprocess, "run", _fake_media_subprocess)
 
     presign_calls: list[dict] = []
 
@@ -1201,3 +1236,237 @@ def test_dedup_keyset_pagination_loops_past_500_overlapping_rows_in_one_window(c
     assert rerun.json()["created_count"] == 0
     assert rerun.json()["deduped_count"] == 1
     assert rerun.json()["preserved_triaged_count"] == 1
+
+
+def test_diver_scoping_blocks_non_admin_edits_and_masks_other_diver_metadata_and_gt(clip_env):
+    """A non-admin video owner cannot read or edit another diver's candidate metadata or GT fields."""
+    db = clip_env["db"]
+    api_client = TestClient(app)
+    as_user = clip_env["as_user"]
+
+    bob_video = SessionVideo(
+        session_id=clip_env["session_id"],
+        owner_user_id=clip_env["bob_user_id"],
+        bucket="diveanalyzer-sessions",
+        object_key="inbox/BOB_SCOPED.MOV",
+        etag="etag-bob-scoped",
+        status="ready",
+        recorded_at=datetime(2026, 11, 25, 19, 0, 0),
+        recorded_date=datetime(2026, 11, 25).date(),
+        duration_seconds=300.0,
+    )
+    db.add(bob_video)
+    db.commit()
+    bob_video_id = bob_video.id
+
+    api_client.post(
+        f"/api/v1/session-videos/{bob_video_id}/clip-runs",
+        headers={"X-API-Key": API_KEY},
+        json={"detector_name": "core", "detector_version": "v1", "candidates": [{"start_s": 10.0, "end_s": 15.0}]},
+    )
+
+    admin = as_user("alice")
+    cand = admin.get(
+        "/api/v1/clip-triage/candidates", params={"session_video_id": bob_video_id}
+    ).json()["items"][0]
+    # Admin assigns clip to Alice's diver with private metadata.
+    kept = admin.patch(
+        f"/api/v1/clip-triage/candidates/{cand['id']}",
+        headers=ORIGIN,
+        json={
+            "diver_id": clip_env["alice_diver_id"],
+            "dive_code": "103B",
+            "height": "3m",
+            "performance": "G",
+            "notes": "Private Alice note",
+            "triage_status": "kept",
+        },
+    )
+    assert kept.status_code == 200
+
+    # Non-admin Bob owns the recording -> reads MUST mask Alice's diver metadata & GT fields!
+    bob = as_user("bob")
+    read_one = bob.get(f"/api/v1/clip-triage/candidates/{cand['id']}").json()
+    assert read_one["diver_id"] is None
+    assert read_one["diver_name"] is None
+    assert read_one["dive_code"] is None
+    assert read_one["height"] is None
+    assert read_one["performance"] is None
+    assert read_one["notes"] is None
+    assert read_one["dive_id"] is None
+
+    gt = bob.get(f"/api/v1/session-videos/{bob_video_id}/clip-gt").json()
+    assert len(gt["positives"]) == 1
+    pos = gt["positives"][0]
+    assert pos["diver_id"] is None
+    assert pos["dive_code"] is None
+    assert pos["height"] is None
+    assert pos["performance"] is None
+    assert pos["dive_id"] is None
+
+    # Bob MUST NOT edit Alice's diver metadata or retry extraction (403)!
+    for bad_patch in (
+        {"dive_code": "201C"},
+        {"height": "5m"},
+        {"performance": "B"},
+        {"notes": "tampered"},
+        {"visibility": "public"},
+    ):
+        r = bob.patch(f"/api/v1/clip-triage/candidates/{cand['id']}", headers=ORIGIN, json=bad_patch)
+        assert r.status_code == 403
+
+    r_retry = bob.post(
+        f"/api/v1/clip-triage/candidates/{cand['id']}/retry-extraction", headers=ORIGIN
+    )
+    assert r_retry.status_code == 403
+
+    # Bob CAN still perform source-video triage (trim bounds) without altering Alice's metadata!
+    r_trim = bob.patch(
+        f"/api/v1/clip-triage/candidates/{cand['id']}",
+        headers=ORIGIN,
+        json={"trimmed_start_s": 10.5, "trimmed_end_s": 14.5},
+    )
+    assert r_trim.status_code == 200
+
+
+def test_missing_etag_not_leased_and_does_not_starve_valid_video(clip_env):
+    """A ready video missing its source ETag is never leased and cannot starve valid queued cuts."""
+    db = clip_env["db"]
+    api_client = TestClient(app)
+    as_user = clip_env["as_user"]
+
+    no_etag_video = SessionVideo(
+        session_id=clip_env["session_id"],
+        owner_user_id=clip_env["admin_id"],
+        bucket="diveanalyzer-sessions",
+        object_key="inbox/NO_ETAG.MOV",
+        etag=None,
+        status="ready",
+        recorded_at=datetime(2026, 11, 25, 16, 0, 0),
+        recorded_date=datetime(2026, 11, 25).date(),
+        duration_seconds=300.0,
+    )
+    db.add(no_etag_video)
+    db.commit()
+    no_etag_video_id = no_etag_video.id
+
+    # Queue older clip on missing-ETag video AND newer clip on valid-ETag video.
+    api_client.post(
+        f"/api/v1/session-videos/{no_etag_video_id}/clip-runs",
+        headers={"X-API-Key": API_KEY},
+        json={"detector_name": "core", "detector_version": "v1", "candidates": [{"start_s": 5.0, "end_s": 10.0}]},
+    )
+    api_client.post(
+        f"/api/v1/session-videos/{clip_env['video_id']}/clip-runs",
+        headers={"X-API-Key": API_KEY},
+        json={"detector_name": "core", "detector_version": "v1", "candidates": [{"start_s": 15.0, "end_s": 20.0}]},
+    )
+    admin = as_user("alice")
+    c_no_etag = admin.get(
+        "/api/v1/clip-triage/candidates", params={"session_video_id": no_etag_video_id}
+    ).json()["items"][0]
+    c_valid = admin.get(
+        "/api/v1/clip-triage/candidates", params={"session_video_id": clip_env["video_id"]}
+    ).json()["items"][0]
+    for cid in (c_no_etag["id"], c_valid["id"]):
+        assert admin.patch(
+            f"/api/v1/clip-triage/candidates/{cid}",
+            headers=ORIGIN,
+            json={"diver_id": clip_env["alice_diver_id"], "triage_status": "kept"},
+        ).status_code == 200
+
+    # Leasing limit=1 MUST skip the missing-ETag video and lease the valid-ETag video!
+    leased = api_client.post(
+        "/api/v1/media/clip-cuts/lease",
+        headers={"X-API-Key": WORKER_KEY},
+        json={"agent_id": "mac-media-01", "limit": 1},
+    ).json()["jobs"]
+    assert len(leased) == 1
+    assert leased[0]["candidate_id"] == c_valid["id"]
+    assert leased[0]["source_etag"] == "etag-v1"
+
+    # Next lease returns empty (missing-ETag clip stays queued, never leased without ETag).
+    leased2 = api_client.post(
+        "/api/v1/media/clip-cuts/lease",
+        headers={"X-API-Key": WORKER_KEY},
+        json={"agent_id": "mac-media-01", "limit": 2},
+    ).json()["jobs"]
+    assert leased2 == []
+
+    # If source video loses its ETag mid-lease, heartbeat fails with 409!
+    v_valid = db.get(SessionVideo, clip_env["video_id"])
+    v_valid.etag = None
+    db.commit()
+    hb = api_client.post(
+        f"/api/v1/media/clip-cuts/{c_valid['id']}/heartbeat",
+        headers={"X-API-Key": WORKER_KEY},
+        json={
+            "agent_id": "mac-media-01",
+            "lease_token": leased[0]["lease_token"],
+            "cut_revision": leased[0]["cut_revision"],
+        },
+    )
+    assert hb.status_code == 409
+
+
+def test_clip_runs_and_triage_divers_explicit_pagination_and_search(clip_env):
+    """Both clip-runs and clip-triage/divers expose explicit counts, continuation, and search."""
+    db = clip_env["db"]
+    video_id = clip_env["video_id"]
+    api_client = TestClient(app)
+
+    for i in range(3):
+        r = api_client.post(
+            f"/api/v1/session-videos/{video_id}/clip-runs",
+            headers={"X-API-Key": API_KEY},
+            json={
+                "detector_name": "core",
+                "detector_version": f"v{i + 1}",
+                "candidates": [{"start_s": float(10 + i * 20), "end_s": float(15 + i * 20)}],
+            },
+        )
+        assert r.status_code == 201
+
+    p1 = api_client.get(
+        f"/api/v1/session-videos/{video_id}/clip-runs",
+        headers={"X-API-Key": API_KEY},
+        params={"limit": 2, "offset": 0},
+    ).json()
+    assert p1["total_runs"] == 3
+    assert len(p1["runs"]) == 2
+    assert p1["has_more"] is True
+    assert p1["next_offset"] == 2
+
+    p2 = api_client.get(
+        f"/api/v1/session-videos/{video_id}/clip-runs",
+        headers={"X-API-Key": API_KEY},
+        params={"limit": 2, "offset": p1["next_offset"]},
+    ).json()
+    assert p2["total_runs"] == 3
+    assert len(p2["runs"]) == 1
+    assert p2["has_more"] is False
+    assert p2["next_offset"] is None
+
+    gt = api_client.get(
+        f"/api/v1/session-videos/{video_id}/clip-gt",
+        headers={"X-API-Key": API_KEY},
+    ).json()
+    assert gt["runs_total"] == 3
+    assert gt["runs_has_more"] is False
+
+    # Seed extra divers and test searchable paginated /clip-triage/divers
+    for idx in range(5):
+        db.add(Diver(display_name=f"Zed Diver {idx}", canonical_name=f"zed diver {idx}"))
+    db.commit()
+
+    admin = clip_env["as_user"]("alice")
+    d1 = admin.get("/api/v1/clip-triage/divers", params={"limit": 3, "offset": 0}).json()
+    assert d1["total"] >= 7
+    assert len(d1["items"]) == 3
+    assert d1["has_more"] is True
+    assert d1["next_offset"] == 3
+
+    d_search = admin.get("/api/v1/clip-triage/divers", params={"q": "Zed Diver 4"}).json()
+    assert d_search["total"] == 1
+    assert d_search["items"][0]["display_name"] == "Zed Diver 4"
+    assert d_search["has_more"] is False
