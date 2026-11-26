@@ -236,15 +236,27 @@ export async function getVideoClipRuns(
 type GroundTruthPage = {
   positives: Array<{ candidate_id?: number } & Record<string, unknown>>
   negatives: Array<{ candidate_id?: number } & Record<string, unknown>>
+  runs?: Array<{ id?: number } & Record<string, unknown>>
+  runs_has_more?: boolean
+  runs_next_offset?: number | null
   has_more?: boolean
   next_offset?: number | null
   [key: string]: unknown
 }
 
+type ClipRunsPage = {
+  runs: Array<{ id?: number } & Record<string, unknown>>
+  total_runs?: number
+  has_more?: boolean
+  next_offset?: number | null
+}
+
 export async function downloadVideoGroundTruth(videoId: number, filename: string): Promise<void> {
   const positives: Array<Record<string, unknown>> = []
   const negatives: Array<Record<string, unknown>> = []
+  const runs: Array<Record<string, unknown>> = []
   const seen = new Set<number>()
+  const seenRunIds = new Set<number>()
   let combined: GroundTruthPage | null = null
   let offset = 0
   const limit = 500
@@ -253,7 +265,16 @@ export async function downloadVideoGroundTruth(videoId: number, filename: string
     const { data } = await api.get<GroundTruthPage>(`/api/v1/session-videos/${videoId}/clip-gt`, {
       params: { limit, offset },
     })
-    if (!combined) combined = { ...data }
+    if (!combined) {
+      combined = { ...data }
+      for (const run of data.runs ?? []) {
+        const rid = typeof run.id === 'number' ? run.id : null
+        if (rid == null || !seenRunIds.has(rid)) {
+          if (rid != null) seenRunIds.add(rid)
+          runs.push(run)
+        }
+      }
+    }
     for (const item of data.positives ?? []) {
       const id = typeof item.candidate_id === 'number' ? item.candidate_id : null
       if (id == null || !seen.has(id)) {
@@ -272,12 +293,31 @@ export async function downloadVideoGroundTruth(videoId: number, filename: string
     offset = data.next_offset
   }
 
+  let runsOffset = combined?.runs_has_more ? (combined.runs_next_offset ?? null) : null
+  while (runsOffset != null) {
+    const { data: runPage } = await api.get<ClipRunsPage>(`/api/v1/session-videos/${videoId}/clip-runs`, {
+      params: { limit: 100, offset: runsOffset },
+    })
+    for (const run of runPage.runs ?? []) {
+      const rid = typeof run.id === 'number' ? run.id : null
+      if (rid == null || !seenRunIds.has(rid)) {
+        if (rid != null) seenRunIds.add(rid)
+        runs.push(run)
+      }
+    }
+    if (!runPage.has_more || runPage.next_offset == null || runPage.next_offset <= runsOffset) break
+    runsOffset = runPage.next_offset
+  }
+
   const payload = {
     ...(combined ?? {}),
     positives,
     negatives,
+    runs,
     has_more: false,
     next_offset: null,
+    runs_has_more: false,
+    runs_next_offset: null,
   }
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
   const url = URL.createObjectURL(blob)

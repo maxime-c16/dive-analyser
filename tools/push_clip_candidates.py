@@ -177,18 +177,26 @@ def _resolve_video_id(base_url: str, api_key: str, filename: str) -> int:
 
 
 def _fetch_all_gt(base_url: str, api_key: str, video_id: int) -> dict[str, Any]:
-    """Paginate clip-gt across all pages so large sessions are never truncated."""
+    """Paginate clip-gt candidates AND clip-runs across all pages so nothing is truncated."""
     offset = 0
     combined: dict[str, Any] | None = None
     positives: list[dict[str, Any]] = []
     negatives: list[dict[str, Any]] = []
+    runs: list[dict[str, Any]] = []
     seen_ids: set[int] = set()
+    seen_run_ids: set[int] = set()
 
     while True:
         q = urllib.parse.urlencode({"limit": MAX_CANDIDATES_PER_BATCH, "offset": offset})
         page = _request_json(base_url, f"/api/v1/session-videos/{video_id}/clip-gt?{q}", api_key)
         if combined is None:
             combined = dict(page)
+            for run in page.get("runs") or []:
+                rid = run.get("id")
+                if rid is None or rid not in seen_run_ids:
+                    if rid is not None:
+                        seen_run_ids.add(rid)
+                    runs.append(run)
         for item in page.get("positives") or []:
             cid = item.get("candidate_id")
             if cid is None or cid not in seen_ids:
@@ -209,10 +217,30 @@ def _fetch_all_gt(base_url: str, api_key: str, video_id: int) -> dict[str, Any]:
         offset = next_offset
 
     assert combined is not None
+    runs_offset = combined.get("runs_next_offset") if combined.get("runs_has_more") else None
+    while runs_offset is not None:
+        rq = urllib.parse.urlencode({"limit": 100, "offset": int(runs_offset)})
+        rpage = _request_json(base_url, f"/api/v1/session-videos/{video_id}/clip-runs?{rq}", api_key)
+        for run in rpage.get("runs") or []:
+            rid = run.get("id")
+            if rid is None or rid not in seen_run_ids:
+                if rid is not None:
+                    seen_run_ids.add(rid)
+                runs.append(run)
+        if not rpage.get("has_more") or rpage.get("next_offset") is None:
+            break
+        next_runs_offset = int(rpage["next_offset"])
+        if next_runs_offset <= int(runs_offset):
+            break
+        runs_offset = next_runs_offset
+
     combined["positives"] = positives
     combined["negatives"] = negatives
+    combined["runs"] = runs
     combined["has_more"] = False
     combined["next_offset"] = None
+    combined["runs_has_more"] = False
+    combined["runs_next_offset"] = None
     return combined
 
 

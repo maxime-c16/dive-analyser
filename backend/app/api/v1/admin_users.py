@@ -658,6 +658,9 @@ def unbind_diver(
     user = db.get(AppUser, user_id)
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
+    # Lock the Diver row so concurrent clip writes/publication serialize against revocation.
+    with _unscoped_divers(db):
+        db.query(Diver).filter(Diver.id == diver_id).with_for_update().first()
     existing = (
         db.query(UserDiverAccess)
         .filter_by(user_id=user.id, diver_id=diver_id, access_kind="OWNER")

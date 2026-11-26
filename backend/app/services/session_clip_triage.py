@@ -1421,6 +1421,22 @@ def _queue_batch_email_safe(
         logger.exception("clip triage: batch email queue failed for batch=%s diver=%s", batch_id, diver_id)
 
 
+def _lock_divers_in_order(db: Session, diver_ids: list[Optional[int]]) -> dict[int, Diver]:
+    """Lock Diver rows in ascending id order so ownership checks serialize with admin unbind_diver."""
+    ordered = sorted({int(did) for did in diver_ids if did is not None})
+    if not ordered:
+        return {}
+    with unscoped_reads(db):
+        rows = (
+            db.query(Diver)
+            .filter(Diver.id.in_(ordered))
+            .order_by(Diver.id.asc())
+            .with_for_update()
+            .all()
+        )
+    return {row.id: row for row in rows}
+
+
 def maybe_publish_candidate(
     db: Session,
     cand: SessionClipCandidate,
@@ -1469,7 +1485,13 @@ def maybe_publish_candidate(
         return None
 
     with unscoped_reads(db):
-        diver = db.get(Diver, cand.diver_id)
+        # Lock Diver row so ownership recheck serializes against concurrent admin_users.unbind_diver.
+        diver = (
+            db.query(Diver)
+            .filter(Diver.id == cand.diver_id)
+            .with_for_update()
+            .first()
+        )
         if diver is None:
             _clear_invalid_confirmation()
             return None
@@ -1696,8 +1718,14 @@ def update_candidate(
                 cand.trimmed_end_s = e_val
                 bounds_changed = True
 
-    # 2. Diver assignment & diver-scoping guard: check authorization against the ORIGINAL
-    # assignment before allowing any reassignment, diver-scoped edit, or keep/publish.
+    # 2. Diver assignment & diver-scoping guard: lock involved Diver rows first so ownership
+    # checks serialize against concurrent admin_users.unbind_diver, then verify ORIGINAL assignment.
+    requested_diver_id = (
+        int(updates["diver_id"])
+        if ("diver_id" in updates and updates["diver_id"] is not None)
+        else None
+    )
+    locked_divers = _lock_divers_in_order(db, [cand.diver_id, requested_diver_id])
     user_owned_divers = None if user.is_admin else owned_diver_ids(db, user.id)
     was_other_diver = (
         user_owned_divers is not None
@@ -1722,8 +1750,7 @@ def update_candidate(
             target_id = int(diver_id)
             if user_owned_divers is not None and target_id not in user_owned_divers:
                 raise HTTPException(403, "Choose a diver you own")
-            with unscoped_reads(db):
-                diver = db.get(Diver, target_id)
+            diver = locked_divers.get(target_id)
             if diver is None:
                 raise HTTPException(404, "Diver not found")
             cand.diver_id = diver.id
@@ -1916,6 +1943,7 @@ def retry_candidate_extraction(db: Session, user: AppUser, candidate_id: int) ->
         raise HTTPException(409, "Only kept clips can be queued for extraction")
     if cand.dive_id is not None:
         raise HTTPException(409, "Clip is already published")
+    _lock_divers_in_order(db, [cand.diver_id])
     if (
         not user.is_admin
         and cand.diver_id is not None
