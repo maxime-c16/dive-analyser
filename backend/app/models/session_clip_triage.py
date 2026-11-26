@@ -27,7 +27,7 @@ _MIGRATION_ONLY = {"sql_migration_only": True}
 class SessionClipRun(Base):
     __tablename__ = "session_clip_runs"
     __table_args__ = (
-        Index("ix_session_clip_runs_video", "session_video_id", "created_at"),
+        Index("ix_session_clip_runs_video", "session_video_id", "created_at", "id"),
         {"info": _MIGRATION_ONLY},
     )
 

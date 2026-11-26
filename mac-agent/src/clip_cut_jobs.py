@@ -24,10 +24,24 @@ CUT_HEARTBEAT_SECONDS = 45
 CUT_TIMEOUT_SECONDS = 300
 MIN_CLIP_SPAN_S = 0.5
 MAX_CLIP_SPAN_S = 60.0
+MAX_CLIP_UPLOAD_BYTES = 250 * 1024 * 1024  # Matches backend MAX_CUT_UPLOAD_BYTES
+TARGET_MAX_CLIP_BYTES = 220 * 1024 * 1024  # ~88% ceiling leaves headroom for VBV & container muxing
+FALLBACK_TARGET_CLIP_BYTES = 180 * 1024 * 1024
+AUDIO_BITRATE_KBPS = 128
+MAX_VIDEO_BITRATE_KBPS = 40_000
+MIN_VIDEO_BITRATE_KBPS = 500
 MAX_UPLOAD_RETRY_ATTEMPTS = 3
 UPLOAD_RETRY_BACKOFF_S = 2.0
 HDR_TRANSFERS = ("smpte2084", "arib-std-b67")
 _URL_RE = re.compile(r"https?://\S+", re.IGNORECASE)
+
+
+def compute_max_video_kbps(duration_s: float, target_bytes: int = TARGET_MAX_CLIP_BYTES) -> int:
+    """Compute a VBV video bitrate ceiling (kbps) so the encoded MP4 fits within target_bytes."""
+    safe_dur = max(MIN_CLIP_SPAN_S, float(duration_s))
+    total_kbps = int((target_bytes * 8) / (safe_dur * 1000.0))
+    video_kbps = total_kbps - AUDIO_BITRATE_KBPS
+    return max(MIN_VIDEO_BITRATE_KBPS, min(MAX_VIDEO_BITRATE_KBPS, video_kbps))
 
 
 def sanitize_cut_error(message: str, source_url: str | None = None) -> str:
@@ -77,11 +91,16 @@ def build_cut_ffmpeg_command(
     mp4_path: Path,
     color_transfer: str | None = None,
     source_etag: str | None = None,
+    crf: int = 19,
+    max_output_bytes: int = TARGET_MAX_CLIP_BYTES,
+    max_width: int | None = None,
 ) -> list[str]:
-    """Build the ffmpeg command for cutting a web-safe SDR MP4 without GPS/EXIF."""
+    """Build the ffmpeg command for cutting a web-safe SDR MP4 bounded to fit MAX_CLIP_UPLOAD_BYTES."""
     start, end = validate_cut_window(start_s, end_s)
     duration = end - start
     is_hdr = (color_transfer or "").strip().lower() in HDR_TRANSFERS
+    max_video_kbps = compute_max_video_kbps(duration, max_output_bytes)
+    bufsize_kbps = max(2000, min(max_video_kbps * 2, 60_000))
 
     filters: list[str] = []
     color_args: list[str] = []
@@ -105,6 +124,8 @@ def build_cut_ffmpeg_command(
             "-color_trc",
             "bt709",
         ]
+    if max_width is not None and max_width > 0:
+        filters.append(f"scale='min({int(max_width)},iw)':-2")
     filters.extend(["scale=trunc(iw/2)*2:trunc(ih/2)*2", "format=yuv420p"])
 
     header_args: list[str] = []
@@ -146,11 +167,15 @@ def build_cut_ffmpeg_command(
         "-preset",
         "veryfast",
         "-crf",
-        "19",
+        str(int(crf)),
+        "-maxrate",
+        f"{max_video_kbps}k",
+        "-bufsize",
+        f"{bufsize_kbps}k",
         "-c:a",
         "aac",
         "-b:a",
-        "128k",
+        f"{AUDIO_BITRATE_KBPS}k",
         "-movflags",
         "+faststart",
         *color_args,
@@ -220,6 +245,27 @@ class _CutError(RuntimeError):
     """Error produced by local ffmpeg/ffprobe execution (distinct from server API errors)."""
 
 
+async def _run_ffmpeg_to_path(cmd: list[str], out_path: Path, source_url: str) -> None:
+    proc = await asyncio.create_subprocess_exec(
+        *cmd,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    try:
+        _, stderr = await asyncio.wait_for(proc.communicate(), timeout=CUT_TIMEOUT_SECONDS)
+    except asyncio.TimeoutError as exc:
+        await _terminate_proc(proc)
+        raise _CutError(f"Clip cut timed out after {CUT_TIMEOUT_SECONDS}s") from exc
+    except asyncio.CancelledError:
+        await _terminate_proc(proc)
+        raise
+
+    if proc.returncode != 0 or not out_path.is_file() or out_path.stat().st_size == 0:
+        raw_err = (stderr or b"").decode("utf-8", errors="replace").strip()
+        err = sanitize_cut_error(raw_err or f"ffmpeg exit {proc.returncode}", source_url)
+        raise _CutError(f"Clip cut failed: {err}")
+
+
 async def _cut_clip_async(
     *,
     ffmpeg_path: str,
@@ -231,8 +277,9 @@ async def _cut_clip_async(
     color_transfer: str | None = None,
     source_etag: str | None = None,
 ) -> Path:
-    """Cut `[start_s, end_s]` from a presigned HTTP Range URL into H.264 SDR MP4."""
+    """Cut `[start_s, end_s]` from a presigned HTTP Range URL into a <=250 MiB H.264 SDR MP4."""
     start, end = validate_cut_window(start_s, end_s)
+    duration = end - start
     transfer = color_transfer
     if not transfer:
         try:
@@ -252,24 +299,37 @@ async def _cut_clip_async(
         color_transfer=transfer,
         source_etag=source_etag,
     )
-    proc = await asyncio.create_subprocess_exec(
-        *cmd,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-    )
-    try:
-        _, stderr = await asyncio.wait_for(proc.communicate(), timeout=CUT_TIMEOUT_SECONDS)
-    except asyncio.TimeoutError as exc:
-        await _terminate_proc(proc)
-        raise _CutError(f"Clip cut timed out after {CUT_TIMEOUT_SECONDS}s") from exc
-    except asyncio.CancelledError:
-        await _terminate_proc(proc)
-        raise
+    await _run_ffmpeg_to_path(cmd, mp4_path, source_url)
 
-    if proc.returncode != 0 or not mp4_path.is_file() or mp4_path.stat().st_size == 0:
-        raw_err = (stderr or b"").decode("utf-8", errors="replace").strip()
-        err = sanitize_cut_error(raw_err or f"ffmpeg exit {proc.returncode}", source_url)
-        raise _CutError(f"Clip cut failed: {err}")
+    size_bytes = mp4_path.stat().st_size
+    if size_bytes > MAX_CLIP_UPLOAD_BYTES:
+        # Rare VBV overshoot on complex 4K clips: re-encode locally from the already-cut SDR clip
+        # at a stricter bitrate/1080p cap so it fits safely under MAX_CLIP_UPLOAD_BYTES.
+        logger.warning(
+            "Cut clip size %s bytes exceeds %s byte upload limit; running bounded 1080p fit pass",
+            size_bytes,
+            MAX_CLIP_UPLOAD_BYTES,
+        )
+        fitted_path = out_dir / "clip-fitted.mp4"
+        fit_cmd = build_cut_ffmpeg_command(
+            ffmpeg_path=ffmpeg_path,
+            source_url=str(mp4_path),
+            start_s=0.0,
+            end_s=duration,
+            mp4_path=fitted_path,
+            color_transfer="bt709",
+            source_etag=None,
+            crf=24,
+            max_output_bytes=FALLBACK_TARGET_CLIP_BYTES,
+            max_width=1920,
+        )
+        await _run_ffmpeg_to_path(fit_cmd, fitted_path, source_url)
+        fitted_path.replace(mp4_path)
+        size_bytes = mp4_path.stat().st_size
+        if size_bytes > MAX_CLIP_UPLOAD_BYTES:
+            raise _CutError(
+                f"Cut clip size ({size_bytes} bytes) exceeds {MAX_CLIP_UPLOAD_BYTES} byte upload limit"
+            )
 
     return mp4_path
 
@@ -439,6 +499,11 @@ async def process_clip_cut_once(
             if lease_lost.is_set():
                 logger.warning("Clip cut %s lease lost mid-cut; abandoning upload", candidate_id)
                 continue
+            cut_size = mp4_path.stat().st_size
+            if cut_size > MAX_CLIP_UPLOAD_BYTES:
+                raise _CutError(
+                    f"Cut clip size ({cut_size} bytes) exceeds {MAX_CLIP_UPLOAD_BYTES} byte upload limit"
+                )
             result = await _upload_with_backoff(
                 sync_client,
                 candidate_id=candidate_id,

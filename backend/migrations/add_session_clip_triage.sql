@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS session_clip_runs (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS ix_session_clip_runs_video
-    ON session_clip_runs (session_video_id, created_at DESC);
+    ON session_clip_runs (session_video_id, created_at DESC, id DESC);
 
 CREATE TABLE IF NOT EXISTS session_clip_candidates (
     id SERIAL PRIMARY KEY,

@@ -1767,3 +1767,77 @@ def test_dedup_indexed_bounds_matches_both_original_and_trimmed_intervals(clip_e
     assert r3.status_code == 201
     assert r3.json()["created_count"] == 1
     assert r3.json()["deduped_count"] == 1
+
+
+def test_session_triage_counts_selects_latest_run_across_videos_without_window_ranking(clip_env):
+    """_triage_counts_for_sessions uses indexed per-video latest-run lookup and picks the newest run across all videos of a session."""
+    from datetime import timedelta
+    from app.models.session_clip_triage import SessionClipRun
+    from app.services import session_clip_triage as triage
+
+    db = clip_env["db"]
+    session_id = clip_env["session_id"]
+    video1_id = clip_env["video_id"]
+    admin = db.get(AppUser, clip_env["admin_id"])
+
+    video2 = SessionVideo(
+        session_id=session_id,
+        owner_user_id=admin.id,
+        bucket="diveanalyzer-sessions",
+        object_key="inbox/IMG_2652.MOV",
+        etag="etag-v2",
+        status="ready",
+        recorded_date=date(2026, 11, 25),
+        duration_seconds=600.0,
+    )
+    db.add(video2)
+    db.flush()
+
+    base = datetime(2026, 11, 25, 12, 0, 0)
+    db.add_all(
+        [
+            SessionClipRun(
+                session_video_id=video1_id,
+                detector_name="core",
+                detector_version="v1",
+                submitted_count=1,
+                created_count=1,
+                deduped_count=0,
+                created_at=base,
+            ),
+            SessionClipRun(
+                session_video_id=video1_id,
+                detector_name="core",
+                detector_version="v2",
+                submitted_count=1,
+                created_count=0,
+                deduped_count=1,
+                created_at=base + timedelta(minutes=5),
+            ),
+            SessionClipRun(
+                session_video_id=video2.id,
+                detector_name="core_next",
+                detector_version="v9",
+                submitted_count=1,
+                created_count=1,
+                deduped_count=0,
+                created_at=base + timedelta(minutes=10),
+            ),
+            SessionClipCandidate(
+                session_video_id=video1_id,
+                start_s=10.0,
+                end_s=16.0,
+                triage_status="pending",
+                extraction_status="none",
+                visibility="private",
+                created_at=base,
+                updated_at=base,
+            ),
+        ]
+    )
+    db.commit()
+
+    counts = triage._triage_counts_for_sessions(db, [session_id], admin)
+    assert counts[session_id]["pending"] == 1
+    assert counts[session_id]["latest_detector"] == "core_next"
+    assert counts[session_id]["latest_version"] == "v9"

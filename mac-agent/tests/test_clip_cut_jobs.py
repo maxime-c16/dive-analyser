@@ -368,3 +368,96 @@ async def test_media_job_loop_interleaves_clip_cuts_under_continuous_media_load(
     await asyncio.wait_for(media_jobs.run_media_job_loop(config, sync_client, stop), timeout=2)
     assert media_calls == media_jobs.CLIP_INTERLEAVE_EVERY_BATCHES * 2
     assert clip_calls >= 1
+
+
+def test_build_cut_ffmpeg_command_bounds_bitrate_for_upload_limit(tmp_path):
+    mp4 = tmp_path / "clip60.mp4"
+    cmd = clip_cut_jobs.build_cut_ffmpeg_command(
+        ffmpeg_path="ffmpeg",
+        source_url="https://b2.example/4k60.mov",
+        start_s=0.0,
+        end_s=60.0,
+        mp4_path=mp4,
+        color_transfer="bt709",
+    )
+    assert "-maxrate" in cmd
+    assert "-bufsize" in cmd
+    maxrate_kbps = int(cmd[cmd.index("-maxrate") + 1].rstrip("k"))
+    # 60s at maxrate + 128k audio must fit well under 250 MiB.
+    estimated_bytes = (maxrate_kbps + clip_cut_jobs.AUDIO_BITRATE_KBPS) * 1000 * 60 / 8
+    assert estimated_bytes < clip_cut_jobs.MAX_CLIP_UPLOAD_BYTES
+
+
+@pytest.mark.asyncio
+async def test_cut_clip_async_reencodes_oversized_output_and_rejects_unbounded_file(tmp_path, monkeypatch):
+    monkeypatch.setattr(clip_cut_jobs, "MAX_CLIP_UPLOAD_BYTES", 1024)
+    monkeypatch.setattr(clip_cut_jobs, "TARGET_MAX_CLIP_BYTES", 900)
+    monkeypatch.setattr(clip_cut_jobs, "FALLBACK_TARGET_CLIP_BYTES", 700)
+
+    calls: list[list[str]] = []
+
+    async def fake_run_fits(cmd, out_path, source_url):
+        calls.append(cmd)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        # First pass overshoots 1024 bytes; fallback 1080p fit pass succeeds at 512 bytes.
+        out_path.write_bytes(b"x" * (2048 if len(calls) == 1 else 512))
+
+    monkeypatch.setattr(clip_cut_jobs, "_run_ffmpeg_to_path", fake_run_fits)
+    out = await clip_cut_jobs._cut_clip_async(
+        ffmpeg_path="ffmpeg",
+        ffprobe_path="ffprobe",
+        source_url="https://b2.example/4k.mov",
+        start_s=10.0,
+        end_s=70.0,
+        out_dir=tmp_path / "fit-ok",
+        color_transfer="bt709",
+    )
+    assert len(calls) == 2
+    assert out.stat().st_size == 512
+    assert "min(1920,iw)" in calls[1][calls[1].index("-vf") + 1]
+
+    # If even the fallback pass stays over MAX_CLIP_UPLOAD_BYTES, _CutError is raised before upload.
+    async def fake_run_still_huge(cmd, out_path, source_url):
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_bytes(b"y" * 2048)
+
+    monkeypatch.setattr(clip_cut_jobs, "_run_ffmpeg_to_path", fake_run_still_huge)
+    with pytest.raises(clip_cut_jobs._CutError, match="upload limit"):
+        await clip_cut_jobs._cut_clip_async(
+            ffmpeg_path="ffmpeg",
+            ffprobe_path="ffprobe",
+            source_url="https://b2.example/4k.mov",
+            start_s=10.0,
+            end_s=70.0,
+            out_dir=tmp_path / "fit-fail",
+            color_transfer="bt709",
+        )
+
+    # process_clip_cut_once also refuses to upload an oversized cut file.
+    oversized = tmp_path / "oversized.mp4"
+    oversized.write_bytes(b"z" * 2048)
+    monkeypatch.setattr(clip_cut_jobs, "_cut_clip_async", AsyncMock(return_value=oversized))
+    sync_client = SimpleNamespace(
+        lease_clip_cuts=AsyncMock(
+            return_value=[
+                {
+                    "candidate_id": 101,
+                    "lease_token": "tok-oversize",
+                    "cut_revision": 1,
+                    "start_s": 0.0,
+                    "end_s": 10.0,
+                    "source_url": "https://b2.example/4k.mov",
+                }
+            ]
+        ),
+        heartbeat_clip_cut=AsyncMock(return_value={"status": "extracting"}),
+        complete_clip_cut=AsyncMock(),
+        fail_clip_cut=AsyncMock(),
+    )
+    config = SimpleNamespace(
+        media=SimpleNamespace(temp_dir=str(tmp_path / "s"), ffmpeg_path="ffmpeg", ffprobe_path="ffprobe")
+    )
+    processed = await clip_cut_jobs.process_clip_cut_once(config, sync_client, "mac-media-01")
+    assert processed == 0
+    sync_client.complete_clip_cut.assert_not_called()
+    sync_client.fail_clip_cut.assert_awaited_once()
