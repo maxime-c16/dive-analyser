@@ -106,6 +106,24 @@ CREATE INDEX IF NOT EXISTS ix_session_clip_run_matches_run
 CREATE INDEX IF NOT EXISTS ix_session_clip_run_matches_candidate
     ON session_clip_run_matches (candidate_id);
 
+CREATE TABLE IF NOT EXISTS session_clip_orphan_objects (
+    id SERIAL PRIMARY KEY,
+    bucket VARCHAR(120) NOT NULL,
+    object_key VARCHAR(200) NOT NULL,
+    blob_sha256 VARCHAR(64) NOT NULL,
+    byte_size BIGINT NOT NULL DEFAULT 0,
+    candidate_id INTEGER REFERENCES session_clip_candidates(id) ON DELETE SET NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'pending',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    eligible_after TIMESTAMP NOT NULL,
+    reclaimed_at TIMESTAMP,
+    last_error VARCHAR(240),
+    CONSTRAINT uq_session_clip_orphan_key UNIQUE (bucket, object_key),
+    CONSTRAINT ck_session_clip_orphan_status CHECK (status IN ('pending', 'reclaimed', 'retained'))
+);
+CREATE INDEX IF NOT EXISTS ix_session_clip_orphan_due
+    ON session_clip_orphan_objects (status, eligible_after, id);
+
 COMMIT;
 -- Rollback (destroys clip detection runs and triage records; published dives stay):
--- DROP TABLE session_clip_run_matches, session_clip_candidates, session_clip_runs;
+-- DROP TABLE session_clip_orphan_objects, session_clip_run_matches, session_clip_candidates, session_clip_runs;

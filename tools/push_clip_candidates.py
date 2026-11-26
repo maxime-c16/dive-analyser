@@ -39,6 +39,7 @@ MAX_CLIP_SPAN_S = 60.0
 STREAM_CHUNK_BYTES = 65536
 LOOPBACK_HOSTS = {"localhost", "127.0.0.1", "::1"}
 _COUNTS_HEAD_RE = re.compile(r'"counts"\s*:\s*(\{[^}]+\})')
+_NEXT_CURSOR_TAIL_RE = re.compile(r'"next_cursor"\s*:\s*(null|"([^"\\]+)")')
 
 
 class _NoRedirectHandler(urllib.request.HTTPRedirectHandler):
@@ -179,14 +180,18 @@ def _resolve_video_id(base_url: str, api_key: str, filename: str) -> int:
     return int(matches[0]["id"])
 
 
-def _stream_export_gt(
+def _stream_export_gt_page(
     base_url: str,
     api_key: str,
     video_id: int,
     out_path: Path,
-) -> tuple[int, dict[str, int] | None]:
-    """Stream Ground Truth JSON directly to disk in bounded 64 KiB chunks (O(1) RAM)."""
+    *,
+    cursor: str | None = None,
+) -> tuple[int, dict[str, int] | None, str | None]:
+    """Stream one bounded Ground Truth JSON page directly to disk in 64 KiB chunks."""
     path = f"/api/v1/session-videos/{video_id}/clip-gt/export"
+    if cursor:
+        path = f"{path}?{urllib.parse.urlencode({'cursor': cursor})}"
     url = base_url.rstrip("/") + path
     req = urllib.request.Request(
         url,
@@ -197,6 +202,7 @@ def _stream_export_gt(
     tmp_path = out_path.with_name(f"{out_path.name}.tmp.{os.getpid()}")
     total_bytes = 0
     head_buf = bytearray()
+    tail_buf = bytearray()
     try:
         with _OPENER.open(req, timeout=120) as resp, tmp_path.open("wb") as handle:
             while True:
@@ -207,6 +213,9 @@ def _stream_export_gt(
                 total_bytes += len(chunk)
                 if len(head_buf) < 4096:
                     head_buf.extend(chunk[: 4096 - len(head_buf)])
+                tail_buf.extend(chunk[-2048:])
+                if len(tail_buf) > 2048:
+                    del tail_buf[:-2048]
         os.replace(tmp_path, out_path)
     except urllib.error.HTTPError as exc:
         tmp_path.unlink(missing_ok=True)
@@ -232,7 +241,47 @@ def _stream_export_gt(
                 }
         except (ValueError, TypeError):
             counts = None
-    return total_bytes, counts
+
+    next_cursor: str | None = None
+    tail_match = _NEXT_CURSOR_TAIL_RE.search(tail_buf.decode("utf-8", errors="replace"))
+    if tail_match and tail_match.group(2):
+        next_cursor = tail_match.group(2)
+    return total_bytes, counts, next_cursor
+
+
+def _stream_export_gt(
+    base_url: str,
+    api_key: str,
+    video_id: int,
+    out_path: Path,
+) -> tuple[int, dict[str, int] | None, list[Path]]:
+    """Stream bounded GT export pages directly to disk, following explicit next_cursor continuation."""
+    cursor: str | None = None
+    page_num = 1
+    total_bytes = 0
+    first_counts: dict[str, int] | None = None
+    written: list[Path] = []
+    seen_cursors: set[str] = set()
+
+    while True:
+        target = (
+            out_path
+            if page_num == 1
+            else out_path.with_name(f"{out_path.stem}.part{page_num}{out_path.suffix}")
+        )
+        nbytes, counts, next_cursor = _stream_export_gt_page(
+            base_url, api_key, video_id, target, cursor=cursor
+        )
+        total_bytes += nbytes
+        if first_counts is None:
+            first_counts = counts
+        written.append(target)
+        if not next_cursor or next_cursor in seen_cursors:
+            break
+        seen_cursors.add(next_cursor)
+        cursor = next_cursor
+        page_num += 1
+    return total_bytes, first_counts, written
 
 
 def main() -> None:
@@ -297,14 +346,15 @@ def main() -> None:
 
     if args.export_gt:
         out = Path(args.export_gt)
-        total_bytes, counts = _stream_export_gt(base_url, args.api_key, video_id, out)
+        total_bytes, counts, written = _stream_export_gt(base_url, args.api_key, video_id, out)
+        dest = str(out) if len(written) == 1 else f"{out} (+{len(written) - 1} part(s))"
         if counts is not None:
             print(
-                f"GT exporté → {out} ({counts['positives']} vrais plongeons, "
+                f"GT exporté → {dest} ({counts['positives']} vrais plongeons, "
                 f"{counts['negatives']} faux positifs, {counts['trimmed']} bornes ajustées)"
             )
         else:
-            print(f"GT exporté → {out} ({total_bytes} octets)")
+            print(f"GT exporté → {dest} ({total_bytes} octets)")
 
     if not args.input_json and not args.export_gt:
         print(f"Resolved video_id={video_id}")

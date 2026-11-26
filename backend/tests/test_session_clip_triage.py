@@ -1841,3 +1841,203 @@ def test_session_triage_counts_selects_latest_run_across_videos_without_window_r
     assert counts[session_id]["pending"] == 1
     assert counts[session_id]["latest_detector"] == "core_next"
     assert counts[session_id]["latest_version"] == "v9"
+
+
+def test_gt_streaming_export_bounds_response_bytes_with_cursor_continuation(clip_env, monkeypatch):
+    """Streaming GT export enforces a per-page byte budget and continues cleanly via next_cursor."""
+    from app.services import session_clip_triage as triage
+
+    monkeypatch.setattr(triage, "GT_EXPORT_MIN_BYTES", 600)
+    monkeypatch.setattr(triage, "GT_EXPORT_MAX_BYTES", 700)
+    video_id = clip_env["video_id"]
+    admin = clip_env["as_user"]("alice")
+    api_client = TestClient(app)
+
+    api_client.post(
+        f"/api/v1/session-videos/{video_id}/clip-runs",
+        headers={"X-API-Key": API_KEY},
+        json={
+            "detector_name": "core",
+            "detector_version": "v1",
+            "candidates": [
+                {"start_s": float(10 + i * 20), "end_s": float(16 + i * 20), "confidence": 0.85}
+                for i in range(6)
+            ],
+        },
+    )
+    cands = sorted(
+        admin.get("/api/v1/clip-triage/candidates", params={"tab": "pending", "limit": 20}).json()["items"],
+        key=lambda c: c["start_s"],
+    )
+    for c in cands[:3]:
+        assert admin.patch(
+            f"/api/v1/clip-triage/candidates/{c['id']}",
+            json={"triage_status": "kept", "diver_id": clip_env["alice_diver_id"], "dive_code": "101C", "height": "3m", "performance": "G"},
+        ).status_code == 200
+    for c in cands[3:]:
+        assert admin.patch(
+            f"/api/v1/clip-triage/candidates/{c['id']}",
+            json={"triage_status": "rejected", "reject_reason": "false_positive"},
+        ).status_code == 200
+
+    # Invalid cursor rejected with 422 before streaming.
+    bad = api_client.get(
+        f"/api/v1/session-videos/{video_id}/clip-gt/export",
+        headers={"X-API-Key": API_KEY},
+        params={"cursor": "not-valid-base64!!!"},
+    )
+    assert bad.status_code == 422
+
+    # Page across small 700-byte responses and confirm union matches full dataset with zero duplicates.
+    all_pos, all_neg, all_runs = [], [], []
+    cursor = None
+    pages = 0
+    while True:
+        params = {}
+        if cursor:
+            params["cursor"] = cursor
+        resp = api_client.get(
+            f"/api/v1/session-videos/{video_id}/clip-gt/export",
+            headers={"X-API-Key": API_KEY},
+            params=params,
+        )
+        assert resp.status_code == 200
+        body = resp.json()
+        all_pos.extend(body["positives"])
+        all_neg.extend(body["negatives"])
+        all_runs.extend(body["runs"])
+        pages += 1
+        if not body["has_more"]:
+            assert body["next_cursor"] is None
+            break
+        assert body["next_cursor"] is not None
+        cursor = body["next_cursor"]
+        assert pages < 20
+
+    assert pages >= 3
+    assert [p["candidate_id"] for p in all_pos] == [c["id"] for c in cands[:3]]
+    assert [n["candidate_id"] for n in all_neg] == [c["id"] for c in cands[3:]]
+    assert len(all_runs) == 1
+
+
+def test_orphan_b2_clip_object_tracked_on_superseded_lease_and_reclaimed_after_grace(clip_env, monkeypatch):
+    """Failed finalization leaves a durable orphan B2 ledger row; reclamation checks references & grace period."""
+    from datetime import timedelta
+    from app.models.session_clip_triage import SessionClipOrphanObject
+    from app.services import session_clip_triage as triage
+
+    video_id = clip_env["video_id"]
+    admin = clip_env["as_user"]("alice")
+    api_client = TestClient(app)
+    db = clip_env["db"]
+
+    api_client.post(
+        f"/api/v1/session-videos/{video_id}/clip-runs",
+        headers={"X-API-Key": API_KEY},
+        json={
+            "detector_name": "core",
+            "detector_version": "v1",
+            "candidates": [{"start_s": 25.0, "end_s": 31.0}],
+        },
+    )
+    cand = admin.get("/api/v1/clip-triage/candidates", params={"tab": "pending"}).json()["items"][0]
+    assert admin.patch(
+        f"/api/v1/clip-triage/candidates/{cand['id']}",
+        json={"triage_status": "kept", "diver_id": clip_env["alice_diver_id"]},
+    ).status_code == 200
+
+    job = api_client.post(
+        "/api/v1/media/clip-cuts/lease",
+        headers={"X-API-Key": WORKER_KEY},
+        json={"agent_id": "mac-media-01", "limit": 1},
+    ).json()["jobs"][0]
+
+    # Revoke the lease RIGHT AFTER persist_original uploads the B2 object, simulating a mid-upload supersede!
+    from app.services import browser_upload
+
+    orig_persist = browser_upload.persist_original
+
+    def _persist_then_supersede(db_arg, video_uuid, folder, **kwargs):
+        manifest = orig_persist(db_arg, video_uuid, folder, **kwargs)
+        # Invalidate lease in DB before complete_clip_cut runs!
+        row = db.get(SessionClipCandidate, cand["id"])
+        row.cut_revision += 1
+        row.lease_token = None
+        db.commit()
+        return manifest
+
+    monkeypatch.setattr(browser_upload, "persist_original", _persist_then_supersede)
+    mp4_bytes = _make_real_mp4_bytes(clip_env["tmp_path"], duration_s=6.0, name="orphan_test.mp4")
+    resp = api_client.post(
+        f"/api/v1/media/clip-cuts/{cand['id']}/complete",
+        headers={
+            "X-API-Key": WORKER_KEY,
+            "X-Media-Agent-Id": "mac-media-01",
+            "X-Lease-Token": job["lease_token"],
+            "X-Cut-Revision": str(job["cut_revision"]),
+        },
+        content=mp4_bytes,
+    )
+    assert resp.status_code == 409
+
+    # Durable pending orphan row MUST exist with future eligible_after grace period.
+    db.expire_all()
+    orphan = db.query(SessionClipOrphanObject).one()
+    assert orphan.status == "pending"
+    assert orphan.candidate_id == cand["id"]
+    assert orphan.eligible_after > datetime.utcnow()
+
+    # Before grace period expires, reclaim does NOT delete anything!
+    deleted: list[tuple[str, str]] = []
+    res_early = triage.reclaim_orphan_clip_objects(
+        db, delete_fn=lambda b, k: deleted.append((b, k))
+    )
+    assert res_early == {"reclaimed": 0, "retained": 0, "failed": 0}
+    assert deleted == []
+
+    # Advance past grace period -> unreferenced orphan IS deleted and marked reclaimed!
+    orphan.eligible_after = datetime.utcnow() - timedelta(minutes=1)
+    db.commit()
+    res_due = triage.reclaim_orphan_clip_objects(
+        db, delete_fn=lambda b, k: deleted.append((b, k))
+    )
+    assert res_due == {"reclaimed": 1, "retained": 0, "failed": 0}
+    assert deleted == [(orphan.bucket, orphan.object_key)]
+    db.expire_all()
+    assert db.get(SessionClipOrphanObject, orphan.id).status == "reclaimed"
+
+    # Referenced objects are NEVER deleted even past grace period (marked retained instead).
+    from app.models.media_backbone import MediaBlobLocation
+
+    db.add(
+        MediaBlobLocation(
+            blob_sha256="b" * 64,
+            environment="prod",
+            storage_backend="b2",
+            bucket="diveanalyzer-media",
+            object_key="media/bb/" + "b" * 64,
+            verified=True,
+        )
+    )
+    triage.record_staging_b2_object(
+        db,
+        bucket="diveanalyzer-media",
+        object_key="media/bb/" + "b" * 64,
+        blob_sha256="b" * 64,
+        byte_size=4096,
+    )
+    ref_row = (
+        db.query(SessionClipOrphanObject)
+        .filter_by(object_key="media/bb/" + "b" * 64)
+        .one()
+    )
+    ref_row.eligible_after = datetime.utcnow() - timedelta(minutes=1)
+    db.commit()
+    deleted.clear()
+    res_ref = triage.reclaim_orphan_clip_objects(
+        db, delete_fn=lambda b, k: deleted.append((b, k))
+    )
+    assert res_ref == {"reclaimed": 0, "retained": 1, "failed": 0}
+    assert deleted == []
+    db.expire_all()
+    assert db.get(SessionClipOrphanObject, ref_row.id).status == "retained"

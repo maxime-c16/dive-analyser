@@ -227,15 +227,28 @@ def export_clip_gt(
 @router.get("/session-videos/{video_id}/clip-gt/export", dependencies=[Depends(require_enabled)])
 def export_clip_gt_stream(
     video_id: int,
+    cursor: Optional[str] = Query(default=None, max_length=512),
+    max_bytes: int = Query(
+        default=triage.GT_EXPORT_MAX_BYTES,
+        ge=triage.GT_EXPORT_MIN_BYTES,
+        le=triage.GT_EXPORT_MAX_BYTES,
+    ),
     actor: Optional[AppUser] = Depends(_admin_or_api_key),
     db: Session = Depends(get_db),
 ):
-    """Stream complete Ground Truth JSON directly to the browser or CLI in O(1) memory."""
+    """Stream bounded Ground Truth JSON pages with explicit cursor continuation."""
     video = _authorized_ready_video(db, video_id, actor)
+    cursor_state = triage.decode_gt_export_cursor(cursor)
     stem = PurePosixPath(video.object_key).stem
     safe_stem = re.sub(r"[^A-Za-z0-9._-]+", "_", stem).strip("._") or "video"
     resp = StreamingResponse(
-        triage.iter_video_ground_truth_json(db, video, viewer=actor),
+        triage.iter_video_ground_truth_json(
+            db,
+            video,
+            viewer=actor,
+            cursor_state=cursor_state,
+            max_bytes=max_bytes,
+        ),
         media_type="application/json; charset=utf-8",
         headers={
             "Content-Disposition": f'attachment; filename="gt-{safe_stem}-v{video.id}.json"',
@@ -625,7 +638,31 @@ async def complete_clip_cut(
             raise HTTPException(422, "Uploaded clip is empty")
         mp4_sha = digest.hexdigest()
 
-        # 3. Validate H.264 MP4 via ffprobe, render poster, and roundtrip-verify B2 original.
+        # 3. Record durable pre-upload B2 staging ledger, validate H.264 MP4 via ffprobe,
+        # render poster, and roundtrip-verify B2 original.
+        def _record_pre_upload_stage():
+            settings = get_settings()
+            if (
+                settings.b2_upload_key_id
+                and settings.b2_upload_key_secret
+                and settings.b2_upload_region
+                and settings.b2_upload_environment in ("dev", "prod")
+            ):
+                from app.services.media_backbone import environment_bucket
+
+                bucket = environment_bucket(settings.b2_upload_environment)
+                key = f"{settings.media_backbone_object_prefix}/{mp4_sha[:2]}/{mp4_sha}"
+                triage.record_staging_b2_object(
+                    db,
+                    bucket=bucket,
+                    object_key=key,
+                    blob_sha256=mp4_sha,
+                    byte_size=size,
+                    candidate_id=candidate_id,
+                )
+
+        await run_to_completion(asyncio.to_thread(_record_pre_upload_stage))
+
         def _validate_and_persist():
             width, height, duration, p_size, p_sha = _probe_and_poster_mp4(
                 mp4_path, poster_path, expected_duration_s
@@ -647,6 +684,21 @@ async def complete_clip_cut(
         width, height, duration, p_size, p_sha, b2_manifest = await run_to_completion(
             asyncio.to_thread(_validate_and_persist)
         )
+
+        # Ensure the exact uploaded (bucket, object_key) from persist_original is durably
+        # tracked BEFORE finalization so a 409/revoked lease leaves a reclaimable orphan row.
+        def _record_uploaded_stage():
+            if b2_manifest.get("bucket") and b2_manifest.get("object_key"):
+                triage.record_staging_b2_object(
+                    db,
+                    bucket=str(b2_manifest["bucket"]),
+                    object_key=str(b2_manifest["object_key"]),
+                    blob_sha256=str(b2_manifest.get("blob_sha256") or mp4_sha),
+                    byte_size=int(b2_manifest.get("byte_size") or size),
+                    candidate_id=candidate_id,
+                )
+
+        await run_to_completion(asyncio.to_thread(_record_uploaded_stage))
 
         # 4. Final locked DB commit & optional auto-publish off the event loop.
         def _finalize():

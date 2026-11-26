@@ -28,10 +28,12 @@ from app.models.deposit_batch import BatchEmailOutbox
 from app.models.dive import Dive
 from app.models.diver import Diver
 from app.models.media import MediaCacheEntry
+from app.models.media_backbone import MediaBlob, MediaBlobLocation, MediaRevision
 from app.models.photos_asset import PhotosAsset
 from app.models.session import Session as TrainingSession
 from app.models.session_clip_triage import (
     SessionClipCandidate,
+    SessionClipOrphanObject,
     SessionClipRun,
     SessionClipRunMatch,
 )
@@ -165,6 +167,12 @@ DEDUP_SQL_BATCH_SIZE = 100
 DEDUP_START_LOOKBACK_S = MAX_CLIP_SPAN_S + DEDUP_WINDOW_PAD_S
 GT_STREAM_CHUNK_SIZE = 200
 GT_STREAM_RUN_CHUNK_SIZE = 100
+GT_EXPORT_MAX_BYTES = 2 * 1024 * 1024  # 2 MiB hard response-byte budget per export page
+GT_EXPORT_MIN_BYTES = 4096
+GT_EXPORT_MAX_CHUNKS = 25
+ORPHAN_B2_GRACE_PERIOD = timedelta(hours=24)
+ORPHAN_B2_RETRY_BACKOFF = timedelta(minutes=30)
+MAX_ORPHAN_RECLAIM_BATCH = 20
 
 
 def _sql_max2(a, b):
@@ -2218,17 +2226,55 @@ def export_video_ground_truth(
     }
 
 
+def _encode_gt_export_cursor(state: dict[str, Any]) -> str:
+    raw = json.dumps(state, separators=(",", ":"), allow_nan=False).encode("utf-8")
+    return base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
+
+
+def decode_gt_export_cursor(cursor: Optional[str]) -> Optional[dict[str, Any]]:
+    """Decode and validate an opaque streaming GT export continuation cursor."""
+    if not cursor:
+        return None
+    try:
+        pad = "=" * (-len(cursor) % 4)
+        data = json.loads(base64.urlsafe_b64decode(cursor + pad).decode("utf-8"))
+        if not isinstance(data, dict):
+            raise ValueError("not a dict")
+        section = data.get("s")
+        if section not in ("positives", "negatives", "runs"):
+            raise ValueError("bad section")
+        if section in ("positives", "negatives"):
+            if "start_s" in data or "id" in data:
+                start_s = float(data["start_s"])
+                cid = int(data["id"])
+                if not math.isfinite(start_s) or cid < 1:
+                    raise ValueError("bad bounds")
+                return {"s": section, "start_s": start_s, "id": cid}
+            return {"s": section}
+        if "created_at" in data or "id" in data:
+            created_at = datetime.fromisoformat(str(data["created_at"]))
+            rid = int(data["id"])
+            if rid < 1:
+                raise ValueError("bad run id")
+            return {"s": "runs", "created_at": created_at, "id": rid}
+        return {"s": "runs"}
+    except Exception:
+        raise HTTPException(422, "Invalid export cursor") from None
+
+
 def iter_video_ground_truth_json(
     db: Session,
     video: SessionVideo,
     *,
     viewer: Optional[AppUser] = None,
+    cursor_state: Optional[dict[str, Any]] = None,
+    max_bytes: int = GT_EXPORT_MAX_BYTES,
 ) -> Iterator[bytes]:
-    """Stream complete Ground Truth JSON (`session_clip_gt_v1`) in O(1 chunk) memory.
+    """Stream bounded Ground Truth JSON (`session_clip_gt_v1`) with explicit continuation.
 
-    Uses keyset-paginated tuple queries (zero ORM identity-map retention) so large
-    videos with thousands of candidates or detector runs stream directly to HTTP/disk
-    without buffering the full export in Python or browser RAM.
+    Bounds rows per query (`GT_STREAM_CHUNK_SIZE`), query count (`GT_EXPORT_MAX_CHUNKS`),
+    retained memory (O(1 chunk) tuple rows), and total response bytes (`max_bytes`)
+    separately, emitting `has_more` and `next_cursor` whenever more data remains.
     """
     video_id = video.id
     session_id = video.session_id
@@ -2237,6 +2283,9 @@ def iter_video_ground_truth_json(
     visible_diver_ids = (
         None if (viewer is None or viewer.is_admin) else owned_diver_ids(db, viewer.id)
     )
+    byte_cap = max(GT_EXPORT_MIN_BYTES, min(int(max_bytes), GT_EXPORT_MAX_BYTES))
+    trailer_reserve = 384
+    byte_budget = max(512, byte_cap - trailer_reserve)
 
     totals = (
         db.query(
@@ -2274,259 +2323,673 @@ def iter_video_ground_truth_json(
     def _dumps(obj: Any) -> str:
         return json.dumps(obj, ensure_ascii=False, allow_nan=False)
 
-    prefix = (
+    start_section = cursor_state["s"] if cursor_state else "positives"
+    section_order = {"positives": 0, "negatives": 1, "runs": 2}
+    start_rank = section_order[start_section]
+
+    prefix_bytes = (
         '{"schema_version":"session_clip_gt_v1",'
         f'"session_video_id":{_dumps(video_id)},'
         f'"session_id":{_dumps(session_id)},'
         f'"filename":{_dumps(filename)},'
         f'"duration_seconds":{_dumps(duration_seconds)},'
         f'"counts":{{"positives":{total_positives},"negatives":{total_negatives},"trimmed":{total_trimmed}}},'
-        '"has_more":false,"next_offset":null,"positives":['
-    )
-    yield prefix.encode("utf-8")
+        '"positives":['
+    ).encode("utf-8")
+    yield prefix_bytes
+
+    emitted_bytes = len(prefix_bytes)
+    emitted_items = 0
+    chunks_used = 0
+    next_cursor: Optional[str] = None
+    runs_has_more = False
+
+    def _budget_reached(extra_bytes: int = 0) -> bool:
+        return emitted_items > 0 and (
+            (emitted_bytes + extra_bytes) > byte_budget or chunks_used >= GT_EXPORT_MAX_CHUNKS
+        )
 
     # 1. Stream positives (kept) in keyset order (start_s ASC, id ASC)
-    first_pos = True
-    last_start_s: Optional[float] = None
-    last_id: Optional[int] = None
-    while True:
-        q = db.query(
-            SessionClipCandidate.id,
-            SessionClipCandidate.start_s,
-            SessionClipCandidate.end_s,
-            SessionClipCandidate.trimmed_start_s,
-            SessionClipCandidate.trimmed_end_s,
-            SessionClipCandidate.confidence,
-            SessionClipCandidate.diver_id,
-            SessionClipCandidate.dive_code,
-            SessionClipCandidate.height,
-            SessionClipCandidate.performance,
-            SessionClipCandidate.dive_id,
-        ).filter(
-            SessionClipCandidate.session_video_id == video_id,
-            SessionClipCandidate.triage_status == "kept",
+    if start_rank <= 0 and next_cursor is None:
+        first_pos = True
+        last_start_s: Optional[float] = (
+            float(cursor_state["start_s"])
+            if cursor_state and start_section == "positives" and "start_s" in cursor_state
+            else None
         )
-        if last_start_s is not None and last_id is not None:
-            q = q.filter(
-                or_(
-                    SessionClipCandidate.start_s > last_start_s,
-                    and_(
-                        SessionClipCandidate.start_s == last_start_s,
-                        SessionClipCandidate.id > last_id,
-                    ),
+        last_id: Optional[int] = (
+            int(cursor_state["id"])
+            if cursor_state and start_section == "positives" and "id" in cursor_state
+            else None
+        )
+        while True:
+            if _budget_reached():
+                has_any = (
+                    db.query(SessionClipCandidate.id)
+                    .filter(
+                        SessionClipCandidate.session_video_id == video_id,
+                        SessionClipCandidate.triage_status == "kept",
+                        *(
+                            [
+                                or_(
+                                    SessionClipCandidate.start_s > last_start_s,
+                                    and_(
+                                        SessionClipCandidate.start_s == last_start_s,
+                                        SessionClipCandidate.id > last_id,
+                                    ),
+                                )
+                            ]
+                            if last_start_s is not None and last_id is not None
+                            else []
+                        ),
+                    )
+                    .limit(1)
+                    .first()
+                    is not None
                 )
-            )
-        chunk = (
-            q.order_by(SessionClipCandidate.start_s.asc(), SessionClipCandidate.id.asc())
-            .limit(GT_STREAM_CHUNK_SIZE)
-            .all()
-        )
-        if not chunk:
-            break
-        diver_ids = [
-            did
-            for did in {row[6] for row in chunk if row[6] is not None}
-            if visible_diver_ids is None or did in visible_diver_ids
-        ]
-        with unscoped_reads(db):
-            divers_by_id = (
-                {
-                    d.id: d.display_name
-                    for d in db.query(Diver.id, Diver.display_name).filter(Diver.id.in_(diver_ids)).all()
-                }
-                if diver_ids
-                else {}
-            )
-        parts: list[str] = []
-        for (
-            cid,
-            start_s,
-            end_s,
-            trimmed_start_s,
-            trimmed_end_s,
-            confidence,
-            diver_id,
-            dive_code,
-            height,
-            performance,
-            dive_id,
-        ) in chunk:
-            was_trimmed = trimmed_start_s is not None or trimmed_end_s is not None
-            mask_diver = (
-                diver_id is not None
-                and visible_diver_ids is not None
-                and diver_id not in visible_diver_ids
-            )
-            entry = {
-                "candidate_id": cid,
-                "start_s": trimmed_start_s if trimmed_start_s is not None else start_s,
-                "end_s": trimmed_end_s if trimmed_end_s is not None else end_s,
-                "original_start_s": start_s,
-                "original_end_s": end_s,
-                "trimmed": was_trimmed,
-                "confidence": confidence,
-                "diver_id": None if mask_diver else diver_id,
-                "diver_name": None if mask_diver else (divers_by_id.get(diver_id) if diver_id is not None else None),
-                "dive_code": None if mask_diver else dive_code,
-                "height": None if mask_diver else height,
-                "performance": None if mask_diver else performance,
-                "dive_id": None if mask_diver else dive_id,
-            }
-            parts.append(("" if first_pos else ",") + _dumps(entry))
-            first_pos = False
-        yield "".join(parts).encode("utf-8")
-        last_start_s = float(chunk[-1][1])
-        last_id = int(chunk[-1][0])
-        if len(chunk) < GT_STREAM_CHUNK_SIZE:
-            break
+                if has_any:
+                    state = (
+                        {"s": "positives", "start_s": last_start_s, "id": last_id}
+                        if last_start_s is not None and last_id is not None
+                        else {"s": "positives"}
+                    )
+                    next_cursor = _encode_gt_export_cursor(state)
+                break
 
-    yield b'],"negatives":['
+            q = db.query(
+                SessionClipCandidate.id,
+                SessionClipCandidate.start_s,
+                SessionClipCandidate.end_s,
+                SessionClipCandidate.trimmed_start_s,
+                SessionClipCandidate.trimmed_end_s,
+                SessionClipCandidate.confidence,
+                SessionClipCandidate.diver_id,
+                SessionClipCandidate.dive_code,
+                SessionClipCandidate.height,
+                SessionClipCandidate.performance,
+                SessionClipCandidate.dive_id,
+            ).filter(
+                SessionClipCandidate.session_video_id == video_id,
+                SessionClipCandidate.triage_status == "kept",
+            )
+            if last_start_s is not None and last_id is not None:
+                q = q.filter(
+                    or_(
+                        SessionClipCandidate.start_s > last_start_s,
+                        and_(
+                            SessionClipCandidate.start_s == last_start_s,
+                            SessionClipCandidate.id > last_id,
+                        ),
+                    )
+                )
+            rows = (
+                q.order_by(SessionClipCandidate.start_s.asc(), SessionClipCandidate.id.asc())
+                .limit(GT_STREAM_CHUNK_SIZE + 1)
+                .all()
+            )
+            chunks_used += 1
+            more_in_db = len(rows) > GT_STREAM_CHUNK_SIZE
+            chunk = rows[:GT_STREAM_CHUNK_SIZE]
+            if not chunk:
+                break
+            diver_ids = [
+                did
+                for did in {row[6] for row in chunk if row[6] is not None}
+                if visible_diver_ids is None or did in visible_diver_ids
+            ]
+            with unscoped_reads(db):
+                divers_by_id = (
+                    {
+                        d.id: d.display_name
+                        for d in db.query(Diver.id, Diver.display_name).filter(Diver.id.in_(diver_ids)).all()
+                    }
+                    if diver_ids
+                    else {}
+                )
+            parts: list[bytes] = []
+            stopped_mid_chunk = False
+            for (
+                cid,
+                start_s,
+                end_s,
+                trimmed_start_s,
+                trimmed_end_s,
+                confidence,
+                diver_id,
+                dive_code,
+                height,
+                performance,
+                dive_id,
+            ) in chunk:
+                was_trimmed = trimmed_start_s is not None or trimmed_end_s is not None
+                mask_diver = (
+                    diver_id is not None
+                    and visible_diver_ids is not None
+                    and diver_id not in visible_diver_ids
+                )
+                entry = {
+                    "candidate_id": cid,
+                    "start_s": trimmed_start_s if trimmed_start_s is not None else start_s,
+                    "end_s": trimmed_end_s if trimmed_end_s is not None else end_s,
+                    "original_start_s": start_s,
+                    "original_end_s": end_s,
+                    "trimmed": was_trimmed,
+                    "confidence": confidence,
+                    "diver_id": None if mask_diver else diver_id,
+                    "diver_name": None if mask_diver else (divers_by_id.get(diver_id) if diver_id is not None else None),
+                    "dive_code": None if mask_diver else dive_code,
+                    "height": None if mask_diver else height,
+                    "performance": None if mask_diver else performance,
+                    "dive_id": None if mask_diver else dive_id,
+                }
+                encoded = (("" if first_pos else ",") + _dumps(entry)).encode("utf-8")
+                if emitted_items > 0 and (emitted_bytes + len(encoded)) > byte_budget:
+                    state = (
+                        {"s": "positives", "start_s": last_start_s, "id": last_id}
+                        if last_start_s is not None and last_id is not None
+                        else {"s": "positives"}
+                    )
+                    next_cursor = _encode_gt_export_cursor(state)
+                    stopped_mid_chunk = True
+                    break
+                parts.append(encoded)
+                emitted_bytes += len(encoded)
+                emitted_items += 1
+                first_pos = False
+                last_start_s = float(start_s)
+                last_id = int(cid)
+            if parts:
+                yield b"".join(parts)
+            if stopped_mid_chunk or not more_in_db:
+                break
+
+    sep_neg = b'],"negatives":['
+    yield sep_neg
+    emitted_bytes += len(sep_neg)
 
     # 2. Stream negatives (rejected) in keyset order (start_s ASC, id ASC)
-    first_neg = True
-    last_start_s = None
-    last_id = None
-    while True:
-        q = db.query(
-            SessionClipCandidate.id,
-            SessionClipCandidate.start_s,
-            SessionClipCandidate.end_s,
-            SessionClipCandidate.trimmed_start_s,
-            SessionClipCandidate.trimmed_end_s,
-            SessionClipCandidate.confidence,
-            SessionClipCandidate.reject_reason,
-        ).filter(
-            SessionClipCandidate.session_video_id == video_id,
-            SessionClipCandidate.triage_status == "rejected",
+    if start_rank <= 1 and next_cursor is None:
+        first_neg = True
+        last_start_s = (
+            float(cursor_state["start_s"])
+            if cursor_state and start_section == "negatives" and "start_s" in cursor_state
+            else None
         )
-        if last_start_s is not None and last_id is not None:
-            q = q.filter(
-                or_(
-                    SessionClipCandidate.start_s > last_start_s,
-                    and_(
-                        SessionClipCandidate.start_s == last_start_s,
-                        SessionClipCandidate.id > last_id,
-                    ),
+        last_id = (
+            int(cursor_state["id"])
+            if cursor_state and start_section == "negatives" and "id" in cursor_state
+            else None
+        )
+        while True:
+            if _budget_reached():
+                has_any = (
+                    db.query(SessionClipCandidate.id)
+                    .filter(
+                        SessionClipCandidate.session_video_id == video_id,
+                        SessionClipCandidate.triage_status == "rejected",
+                        *(
+                            [
+                                or_(
+                                    SessionClipCandidate.start_s > last_start_s,
+                                    and_(
+                                        SessionClipCandidate.start_s == last_start_s,
+                                        SessionClipCandidate.id > last_id,
+                                    ),
+                                )
+                            ]
+                            if last_start_s is not None and last_id is not None
+                            else []
+                        ),
+                    )
+                    .limit(1)
+                    .first()
+                    is not None
                 )
-            )
-        chunk = (
-            q.order_by(SessionClipCandidate.start_s.asc(), SessionClipCandidate.id.asc())
-            .limit(GT_STREAM_CHUNK_SIZE)
-            .all()
-        )
-        if not chunk:
-            break
-        parts = []
-        for cid, start_s, end_s, trimmed_start_s, trimmed_end_s, confidence, reject_reason in chunk:
-            was_trimmed = trimmed_start_s is not None or trimmed_end_s is not None
-            entry = {
-                "candidate_id": cid,
-                "start_s": trimmed_start_s if trimmed_start_s is not None else start_s,
-                "end_s": trimmed_end_s if trimmed_end_s is not None else end_s,
-                "original_start_s": start_s,
-                "original_end_s": end_s,
-                "trimmed": was_trimmed,
-                "confidence": confidence,
-                "reject_reason": reject_reason or "false_positive",
-            }
-            parts.append(("" if first_neg else ",") + _dumps(entry))
-            first_neg = False
-        yield "".join(parts).encode("utf-8")
-        last_start_s = float(chunk[-1][1])
-        last_id = int(chunk[-1][0])
-        if len(chunk) < GT_STREAM_CHUNK_SIZE:
-            break
+                if has_any:
+                    state = (
+                        {"s": "negatives", "start_s": last_start_s, "id": last_id}
+                        if last_start_s is not None and last_id is not None
+                        else {"s": "negatives"}
+                    )
+                    next_cursor = _encode_gt_export_cursor(state)
+                break
 
-    yield b'],"runs":['
+            q = db.query(
+                SessionClipCandidate.id,
+                SessionClipCandidate.start_s,
+                SessionClipCandidate.end_s,
+                SessionClipCandidate.trimmed_start_s,
+                SessionClipCandidate.trimmed_end_s,
+                SessionClipCandidate.confidence,
+                SessionClipCandidate.reject_reason,
+            ).filter(
+                SessionClipCandidate.session_video_id == video_id,
+                SessionClipCandidate.triage_status == "rejected",
+            )
+            if last_start_s is not None and last_id is not None:
+                q = q.filter(
+                    or_(
+                        SessionClipCandidate.start_s > last_start_s,
+                        and_(
+                            SessionClipCandidate.start_s == last_start_s,
+                            SessionClipCandidate.id > last_id,
+                        ),
+                    )
+                )
+            rows = (
+                q.order_by(SessionClipCandidate.start_s.asc(), SessionClipCandidate.id.asc())
+                .limit(GT_STREAM_CHUNK_SIZE + 1)
+                .all()
+            )
+            chunks_used += 1
+            more_in_db = len(rows) > GT_STREAM_CHUNK_SIZE
+            chunk = rows[:GT_STREAM_CHUNK_SIZE]
+            if not chunk:
+                break
+            parts = []
+            stopped_mid_chunk = False
+            for cid, start_s, end_s, trimmed_start_s, trimmed_end_s, confidence, reject_reason in chunk:
+                was_trimmed = trimmed_start_s is not None or trimmed_end_s is not None
+                entry = {
+                    "candidate_id": cid,
+                    "start_s": trimmed_start_s if trimmed_start_s is not None else start_s,
+                    "end_s": trimmed_end_s if trimmed_end_s is not None else end_s,
+                    "original_start_s": start_s,
+                    "original_end_s": end_s,
+                    "trimmed": was_trimmed,
+                    "confidence": confidence,
+                    "reject_reason": reject_reason or "false_positive",
+                }
+                encoded = (("" if first_neg else ",") + _dumps(entry)).encode("utf-8")
+                if emitted_items > 0 and (emitted_bytes + len(encoded)) > byte_budget:
+                    state = (
+                        {"s": "negatives", "start_s": last_start_s, "id": last_id}
+                        if last_start_s is not None and last_id is not None
+                        else {"s": "negatives"}
+                    )
+                    next_cursor = _encode_gt_export_cursor(state)
+                    stopped_mid_chunk = True
+                    break
+                parts.append(encoded)
+                emitted_bytes += len(encoded)
+                emitted_items += 1
+                first_neg = False
+                last_start_s = float(start_s)
+                last_id = int(cid)
+            if parts:
+                yield b"".join(parts)
+            if stopped_mid_chunk or not more_in_db:
+                break
+
+    sep_runs = b'],"runs":['
+    yield sep_runs
+    emitted_bytes += len(sep_runs)
 
     # 3. Stream runs in keyset order (created_at DESC, id DESC)
-    first_run = True
-    last_created_at: Optional[datetime] = None
-    last_run_id: Optional[int] = None
-    while True:
-        rq = db.query(
-            SessionClipRun.id,
-            SessionClipRun.session_video_id,
-            SessionClipRun.detector_name,
-            SessionClipRun.detector_version,
-            SessionClipRun.submitted_count,
-            SessionClipRun.created_count,
-            SessionClipRun.deduped_count,
-            SessionClipRun.created_at,
-        ).filter(SessionClipRun.session_video_id == video_id)
-        if last_created_at is not None and last_run_id is not None:
-            rq = rq.filter(
-                or_(
-                    SessionClipRun.created_at < last_created_at,
-                    and_(
-                        SessionClipRun.created_at == last_created_at,
-                        SessionClipRun.id < last_run_id,
-                    ),
+    if next_cursor is None:
+        first_run = True
+        last_created_at: Optional[datetime] = (
+            cursor_state["created_at"]
+            if cursor_state and start_section == "runs" and "created_at" in cursor_state
+            else None
+        )
+        last_run_id: Optional[int] = (
+            int(cursor_state["id"])
+            if cursor_state and start_section == "runs" and "id" in cursor_state
+            else None
+        )
+        while True:
+            if _budget_reached():
+                has_any = (
+                    db.query(SessionClipRun.id)
+                    .filter(
+                        SessionClipRun.session_video_id == video_id,
+                        *(
+                            [
+                                or_(
+                                    SessionClipRun.created_at < last_created_at,
+                                    and_(
+                                        SessionClipRun.created_at == last_created_at,
+                                        SessionClipRun.id < last_run_id,
+                                    ),
+                                )
+                            ]
+                            if last_created_at is not None and last_run_id is not None
+                            else []
+                        ),
+                    )
+                    .limit(1)
+                    .first()
+                    is not None
+                )
+                if has_any:
+                    state = (
+                        {
+                            "s": "runs",
+                            "created_at": last_created_at.isoformat(),
+                            "id": last_run_id,
+                        }
+                        if last_created_at is not None and last_run_id is not None
+                        else {"s": "runs"}
+                    )
+                    next_cursor = _encode_gt_export_cursor(state)
+                    runs_has_more = True
+                break
+
+            rq = db.query(
+                SessionClipRun.id,
+                SessionClipRun.session_video_id,
+                SessionClipRun.detector_name,
+                SessionClipRun.detector_version,
+                SessionClipRun.submitted_count,
+                SessionClipRun.created_count,
+                SessionClipRun.deduped_count,
+                SessionClipRun.created_at,
+            ).filter(SessionClipRun.session_video_id == video_id)
+            if last_created_at is not None and last_run_id is not None:
+                rq = rq.filter(
+                    or_(
+                        SessionClipRun.created_at < last_created_at,
+                        and_(
+                            SessionClipRun.created_at == last_created_at,
+                            SessionClipRun.id < last_run_id,
+                        ),
+                    )
+                )
+            run_rows = (
+                rq.order_by(SessionClipRun.created_at.desc(), SessionClipRun.id.desc())
+                .limit(GT_STREAM_RUN_CHUNK_SIZE + 1)
+                .all()
+            )
+            chunks_used += 1
+            more_runs_in_db = len(run_rows) > GT_STREAM_RUN_CHUNK_SIZE
+            run_chunk = run_rows[:GT_STREAM_RUN_CHUNK_SIZE]
+            if not run_chunk:
+                break
+            run_ids = [int(r[0]) for r in run_chunk]
+            match_stats = (
+                db.query(
+                    SessionClipRunMatch.run_id,
+                    func.sum(case((SessionClipCandidate.triage_status == "kept", 1), else_=0)),
+                    func.sum(case((SessionClipCandidate.triage_status == "rejected", 1), else_=0)),
+                    func.sum(case((SessionClipCandidate.triage_status == "pending", 1), else_=0)),
+                )
+                .join(SessionClipCandidate, SessionClipCandidate.id == SessionClipRunMatch.candidate_id)
+                .filter(SessionClipRunMatch.run_id.in_(run_ids))
+                .group_by(SessionClipRunMatch.run_id)
+                .all()
+            )
+            stats_by_run = {
+                int(rid): (int(k or 0), int(rej or 0), int(pend or 0))
+                for rid, k, rej, pend in match_stats
+            }
+            parts = []
+            stopped_mid_chunk = False
+            for (
+                rid,
+                sv_id,
+                det_name,
+                det_ver,
+                sub_cnt,
+                cre_cnt,
+                ded_cnt,
+                created_at,
+            ) in run_chunk:
+                tp, fp, pend = stats_by_run.get(int(rid), (0, 0, 0))
+                triaged = tp + fp
+                precision = round(tp / triaged, 4) if triaged > 0 else None
+                recall = round(tp / total_positives, 4) if total_positives > 0 else None
+                run_obj = {
+                    "id": rid,
+                    "session_video_id": sv_id,
+                    "detector_name": det_name,
+                    "detector_version": det_ver,
+                    "submitted_count": sub_cnt,
+                    "created_count": cre_cnt,
+                    "deduped_count": ded_cnt,
+                    "kept_matches": tp,
+                    "rejected_matches": fp,
+                    "pending_matches": pend,
+                    "precision": precision,
+                    "recall": recall,
+                    "created_at": created_at.replace(tzinfo=timezone.utc).isoformat(),
+                }
+                encoded = (("" if first_run else ",") + _dumps(run_obj)).encode("utf-8")
+                if emitted_items > 0 and (emitted_bytes + len(encoded)) > byte_budget:
+                    state = (
+                        {
+                            "s": "runs",
+                            "created_at": last_created_at.isoformat(),
+                            "id": last_run_id,
+                        }
+                        if last_created_at is not None and last_run_id is not None
+                        else {"s": "runs"}
+                    )
+                    next_cursor = _encode_gt_export_cursor(state)
+                    runs_has_more = True
+                    stopped_mid_chunk = True
+                    break
+                parts.append(encoded)
+                emitted_bytes += len(encoded)
+                emitted_items += 1
+                first_run = False
+                last_created_at = created_at
+                last_run_id = int(rid)
+            if parts:
+                yield b"".join(parts)
+            if stopped_mid_chunk or not more_runs_in_db:
+                break
+    elif total_runs > 0:
+        runs_has_more = True
+
+    has_more = next_cursor is not None
+    yield (
+        f'],"runs_total":{total_runs},'
+        f'"runs_has_more":{"true" if runs_has_more else "false"},'
+        '"runs_next_offset":null,'
+        f'"has_more":{"true" if has_more else "false"},'
+        '"next_offset":null,'
+        f'"next_cursor":{_dumps(next_cursor)}}}\n'
+    ).encode("utf-8")
+
+
+# ----------------------------------------- Durable orphan B2 object ledger ---
+
+
+def record_staging_b2_object(
+    db: Session,
+    *,
+    bucket: str,
+    object_key: str,
+    blob_sha256: str,
+    byte_size: int,
+    candidate_id: Optional[int] = None,
+) -> None:
+    """Durably track a staged B2 clip object before DB commit so failed finalizations can be reclaimed."""
+    now = datetime.utcnow()
+    eligible_after = now + ORPHAN_B2_GRACE_PERIOD
+    existing = (
+        db.query(SessionClipOrphanObject)
+        .filter_by(bucket=bucket, object_key=object_key)
+        .first()
+    )
+    if existing is not None:
+        if existing.status != "retained":
+            existing.blob_sha256 = blob_sha256
+            existing.byte_size = max(0, int(byte_size))
+            existing.candidate_id = candidate_id
+            existing.status = "pending"
+            existing.eligible_after = eligible_after
+            existing.reclaimed_at = None
+            existing.last_error = None
+            db.commit()
+        return
+
+    row = SessionClipOrphanObject(
+        bucket=bucket,
+        object_key=object_key,
+        blob_sha256=blob_sha256,
+        byte_size=max(0, int(byte_size)),
+        candidate_id=candidate_id,
+        status="pending",
+        created_at=now,
+        eligible_after=eligible_after,
+    )
+    try:
+        with db.begin_nested():
+            db.add(row)
+            db.flush()
+    except IntegrityError:
+        existing = (
+            db.query(SessionClipOrphanObject)
+            .filter_by(bucket=bucket, object_key=object_key)
+            .first()
+        )
+        if existing is not None and existing.status != "retained":
+            existing.status = "pending"
+            existing.eligible_after = eligible_after
+            existing.reclaimed_at = None
+            existing.last_error = None
+    db.commit()
+
+
+def _b2_object_is_referenced(db: Session, bucket: str, object_key: str, blob_sha256: str) -> bool:
+    """Return True if any committed media backbone record still references this object or content SHA."""
+    if (
+        db.query(MediaBlobLocation.id)
+        .filter(
+            or_(
+                and_(
+                    MediaBlobLocation.bucket == bucket,
+                    MediaBlobLocation.object_key == object_key,
+                ),
+                and_(
+                    MediaBlobLocation.bucket == bucket,
+                    MediaBlobLocation.blob_sha256 == blob_sha256,
+                ),
+            )
+        )
+        .limit(1)
+        .first()
+        is not None
+    ):
+        return True
+    if (
+        db.query(MediaRevision.id)
+        .filter(MediaRevision.blob_sha256 == blob_sha256)
+        .limit(1)
+        .first()
+        is not None
+    ):
+        return True
+    if (
+        db.query(MediaBlob.sha256)
+        .filter(MediaBlob.sha256 == blob_sha256)
+        .limit(1)
+        .first()
+        is not None
+    ):
+        return True
+    return False
+
+
+def reclaim_orphan_clip_objects(
+    db: Session,
+    *,
+    limit: int = MAX_ORPHAN_RECLAIM_BATCH,
+    delete_fn=None,
+) -> dict[str, int]:
+    """Reclaim uncommitted staged B2 clip objects past their grace period after reference verification."""
+    bounded = max(1, min(int(limit), 50))
+    now = datetime.utcnow()
+    stats = {"reclaimed": 0, "retained": 0, "failed": 0}
+    try:
+        due_rows = (
+            db.query(
+                SessionClipOrphanObject.id,
+                SessionClipOrphanObject.bucket,
+                SessionClipOrphanObject.object_key,
+                SessionClipOrphanObject.blob_sha256,
+            )
+            .filter(
+                SessionClipOrphanObject.status == "pending",
+                SessionClipOrphanObject.eligible_after <= now,
+            )
+            .order_by(SessionClipOrphanObject.eligible_after.asc(), SessionClipOrphanObject.id.asc())
+            .limit(bounded)
+            .all()
+        )
+    except (OperationalError, ProgrammingError):
+        db.rollback()
+        return stats
+
+    deleter = delete_fn or browser_upload.delete_b2_object
+    for row_id, bucket, object_key, blob_sha256 in due_rows:
+        check_time = datetime.utcnow()
+        # Re-verify still pending and past grace period, plus zero committed references.
+        live = (
+            db.query(SessionClipOrphanObject)
+            .filter(
+                SessionClipOrphanObject.id == row_id,
+                SessionClipOrphanObject.status == "pending",
+                SessionClipOrphanObject.eligible_after <= check_time,
+            )
+            .first()
+        )
+        if live is None:
+            continue
+        if _b2_object_is_referenced(db, bucket, object_key, blob_sha256):
+            live.status = "retained"
+            live.reclaimed_at = check_time
+            live.last_error = None
+            db.commit()
+            stats["retained"] += 1
+            continue
+
+        # Release DB transaction BEFORE remote B2 DELETE so no DB lock spans network I/O.
+        db.rollback()
+        try:
+            deleter(bucket, object_key)
+        except Exception as exc:
+            err_msg = sanitize_worker_error(str(exc))
+            (
+                db.query(SessionClipOrphanObject)
+                .filter(
+                    SessionClipOrphanObject.id == row_id,
+                    SessionClipOrphanObject.status == "pending",
+                )
+                .update(
+                    {
+                        SessionClipOrphanObject.eligible_after: datetime.utcnow() + ORPHAN_B2_RETRY_BACKOFF,
+                        SessionClipOrphanObject.last_error: err_msg,
+                    },
+                    synchronize_session=False,
                 )
             )
-        run_chunk = (
-            rq.order_by(SessionClipRun.created_at.desc(), SessionClipRun.id.desc())
-            .limit(GT_STREAM_RUN_CHUNK_SIZE)
-            .all()
-        )
-        if not run_chunk:
-            break
-        run_ids = [int(r[0]) for r in run_chunk]
-        match_stats = (
-            db.query(
-                SessionClipRunMatch.run_id,
-                func.sum(case((SessionClipCandidate.triage_status == "kept", 1), else_=0)),
-                func.sum(case((SessionClipCandidate.triage_status == "rejected", 1), else_=0)),
-                func.sum(case((SessionClipCandidate.triage_status == "pending", 1), else_=0)),
-            )
-            .join(SessionClipCandidate, SessionClipCandidate.id == SessionClipRunMatch.candidate_id)
-            .filter(SessionClipRunMatch.run_id.in_(run_ids))
-            .group_by(SessionClipRunMatch.run_id)
-            .all()
-        )
-        stats_by_run = {
-            int(rid): (int(k or 0), int(rej or 0), int(pend or 0))
-            for rid, k, rej, pend in match_stats
-        }
-        parts = []
-        for (
-            rid,
-            sv_id,
-            det_name,
-            det_ver,
-            sub_cnt,
-            cre_cnt,
-            ded_cnt,
-            created_at,
-        ) in run_chunk:
-            tp, fp, pend = stats_by_run.get(int(rid), (0, 0, 0))
-            triaged = tp + fp
-            precision = round(tp / triaged, 4) if triaged > 0 else None
-            recall = round(tp / total_positives, 4) if total_positives > 0 else None
-            run_obj = {
-                "id": rid,
-                "session_video_id": sv_id,
-                "detector_name": det_name,
-                "detector_version": det_ver,
-                "submitted_count": sub_cnt,
-                "created_count": cre_cnt,
-                "deduped_count": ded_cnt,
-                "kept_matches": tp,
-                "rejected_matches": fp,
-                "pending_matches": pend,
-                "precision": precision,
-                "recall": recall,
-                "created_at": created_at.replace(tzinfo=timezone.utc).isoformat(),
-            }
-            parts.append(("" if first_run else ",") + _dumps(run_obj))
-            first_run = False
-        yield "".join(parts).encode("utf-8")
-        last_created_at = run_chunk[-1][7]
-        last_run_id = int(run_chunk[-1][0])
-        if len(run_chunk) < GT_STREAM_RUN_CHUNK_SIZE:
-            break
+            db.commit()
+            stats["failed"] += 1
+            continue
 
-    yield f'],"runs_total":{total_runs},"runs_has_more":false,"runs_next_offset":null}}\n'.encode("utf-8")
+        (
+            db.query(SessionClipOrphanObject)
+            .filter(
+                SessionClipOrphanObject.id == row_id,
+                SessionClipOrphanObject.status == "pending",
+                SessionClipOrphanObject.eligible_after <= check_time,
+            )
+            .update(
+                {
+                    SessionClipOrphanObject.status: "reclaimed",
+                    SessionClipOrphanObject.reclaimed_at: datetime.utcnow(),
+                    SessionClipOrphanObject.last_error: None,
+                },
+                synchronize_session=False,
+            )
+        )
+        db.commit()
+        stats["reclaimed"] += 1
+
+    return stats
 
 
 # --------------------------------------------------- Mac-agent clip cut lease ---
@@ -2852,6 +3315,22 @@ def complete_clip_cut(
 
         # Commit durable verified B2 original revision before publishing!
         commit_verified_ingest(db, **b2_manifest, commit=False)
+        if b2_manifest.get("bucket") and b2_manifest.get("object_key"):
+            (
+                db.query(SessionClipOrphanObject)
+                .filter_by(
+                    bucket=str(b2_manifest["bucket"]),
+                    object_key=str(b2_manifest["object_key"]),
+                )
+                .update(
+                    {
+                        SessionClipOrphanObject.status: "retained",
+                        SessionClipOrphanObject.reclaimed_at: now,
+                        SessionClipOrphanObject.last_error: None,
+                    },
+                    synchronize_session=False,
+                )
+            )
 
         def _upsert_cache(
             rendition: str,

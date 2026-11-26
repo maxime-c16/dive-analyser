@@ -600,6 +600,13 @@ def _reconcile_tick() -> None:
             logger.warning("Session image retries skipped (%s)", type(exc).__name__)
         finally:
             db.rollback()
+        try:
+            from app.services.session_clip_triage import reclaim_orphan_clip_objects
+            reclaim_orphan_clip_objects(db)
+        except Exception as exc:
+            logger.warning("Clip orphan B2 reclaim skipped (%s)", type(exc).__name__)
+        finally:
+            db.rollback()
             db.close()
 
 

@@ -5,6 +5,7 @@ Tables come from backend/migrations/add_session_clip_triage.sql only.
 from datetime import datetime
 
 from sqlalchemy import (
+    BigInteger,
     Boolean,
     CheckConstraint,
     Column,
@@ -166,3 +167,32 @@ class SessionClipRunMatch(Base):
     was_new = Column(Boolean, nullable=False, default=False)
     overlap_iou = Column(Float, nullable=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+
+class SessionClipOrphanObject(Base):
+    """Durable ledger of B2 clip-cut objects staged before DB commit, for grace-period reclamation."""
+
+    __tablename__ = "session_clip_orphan_objects"
+    __table_args__ = (
+        UniqueConstraint("bucket", "object_key", name="uq_session_clip_orphan_key"),
+        CheckConstraint(
+            "status IN ('pending', 'reclaimed', 'retained')",
+            name="ck_session_clip_orphan_status",
+        ),
+        Index("ix_session_clip_orphan_due", "status", "eligible_after", "id"),
+        {"info": _MIGRATION_ONLY},
+    )
+
+    id = Column(Integer, primary_key=True)
+    bucket = Column(String(120), nullable=False)
+    object_key = Column(String(200), nullable=False)
+    blob_sha256 = Column(String(64), nullable=False)
+    byte_size = Column(BigInteger, nullable=False, default=0)
+    candidate_id = Column(
+        Integer, ForeignKey("session_clip_candidates.id", ondelete="SET NULL"), nullable=True
+    )
+    status = Column(String(20), nullable=False, default="pending")
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    eligible_after = Column(DateTime, nullable=False)
+    reclaimed_at = Column(DateTime, nullable=True)
+    last_error = Column(String(240), nullable=True)

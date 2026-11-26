@@ -164,3 +164,23 @@ def persist_original(db, video_uuid, folder, *, register=True, source_name='sour
     if register:
         commit_verified_ingest(db, **manifest, commit=False)
     return manifest
+
+
+def delete_b2_object(bucket: str, key: str) -> None:
+    """Delete an unreferenced B2 object during grace-period orphan reclamation."""
+    import boto3
+    from botocore.config import Config
+
+    settings = get_settings()
+    if not settings.b2_upload_key_id or not settings.b2_upload_key_secret or not settings.b2_upload_region:
+        raise RuntimeError("Video storage is not configured")
+    client = boto3.client(
+        "s3",
+        region_name=settings.b2_upload_region,
+        endpoint_url=settings.b2_upload_endpoint_url
+        or f"https://s3.{settings.b2_upload_region}.backblazeb2.com",
+        aws_access_key_id=settings.b2_upload_key_id,
+        aws_secret_access_key=settings.b2_upload_key_secret,
+        config=Config(connect_timeout=10, read_timeout=30, retries={"total_max_attempts": 2}),
+    )
+    client.delete_object(Bucket=bucket, Key=key)
