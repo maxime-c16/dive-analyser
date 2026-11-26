@@ -119,7 +119,7 @@ CREATE TABLE IF NOT EXISTS session_clip_orphan_objects (
     reclaimed_at TIMESTAMP,
     last_error VARCHAR(240),
     CONSTRAINT uq_session_clip_orphan_key UNIQUE (bucket, object_key),
-    CONSTRAINT ck_session_clip_orphan_status CHECK (status IN ('pending', 'reclaimed', 'retained'))
+    CONSTRAINT ck_session_clip_orphan_status CHECK (status IN ('pending', 'deleting', 'reclaimed', 'retained'))
 );
 CREATE INDEX IF NOT EXISTS ix_session_clip_orphan_due
     ON session_clip_orphan_objects (status, eligible_after, id);

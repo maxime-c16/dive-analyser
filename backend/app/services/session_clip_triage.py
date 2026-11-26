@@ -171,6 +171,7 @@ GT_EXPORT_MAX_BYTES = 2 * 1024 * 1024  # 2 MiB hard response-byte budget per exp
 GT_EXPORT_MIN_BYTES = 4096
 GT_EXPORT_MAX_CHUNKS = 25
 ORPHAN_B2_GRACE_PERIOD = timedelta(hours=24)
+ORPHAN_DELETE_CLAIM_TTL = timedelta(minutes=10)
 ORPHAN_B2_RETRY_BACKOFF = timedelta(minutes=30)
 MAX_ORPHAN_RECLAIM_BATCH = 20
 
@@ -2805,15 +2806,28 @@ def record_staging_b2_object(
     byte_size: int,
     candidate_id: Optional[int] = None,
 ) -> None:
-    """Durably track a staged B2 clip object before DB commit so failed finalizations can be reclaimed."""
+    """Durably track a staged B2 clip object before DB commit so failed finalizations can be reclaimed.
+
+    Serializes against `reclaim_orphan_clip_objects` via `FOR UPDATE` on `(bucket, object_key)`.
+    If a durable delete claim (`status == 'deleting'`) is in flight for this exact object,
+    rejects with a retryable 503 so no publisher uploads or commits into a key being deleted.
+    """
     now = datetime.utcnow()
     eligible_after = now + ORPHAN_B2_GRACE_PERIOD
     existing = (
         db.query(SessionClipOrphanObject)
         .filter_by(bucket=bucket, object_key=object_key)
+        .with_for_update()
         .first()
     )
     if existing is not None:
+        if existing.status == "deleting":
+            db.rollback()
+            raise HTTPException(
+                503,
+                "Storage object reclamation in progress; retry shortly",
+                headers={"Retry-After": "5"},
+            )
         if existing.status != "retained":
             existing.blob_sha256 = blob_sha256
             existing.byte_size = max(0, int(byte_size))
@@ -2823,6 +2837,8 @@ def record_staging_b2_object(
             existing.reclaimed_at = None
             existing.last_error = None
             db.commit()
+        else:
+            db.rollback()
         return
 
     row = SessionClipOrphanObject(
@@ -2843,14 +2859,68 @@ def record_staging_b2_object(
         existing = (
             db.query(SessionClipOrphanObject)
             .filter_by(bucket=bucket, object_key=object_key)
+            .with_for_update()
             .first()
         )
-        if existing is not None and existing.status != "retained":
-            existing.status = "pending"
-            existing.eligible_after = eligible_after
-            existing.reclaimed_at = None
-            existing.last_error = None
+        if existing is not None:
+            if existing.status == "deleting":
+                db.rollback()
+                raise HTTPException(
+                    503,
+                    "Storage object reclamation in progress; retry shortly",
+                    headers={"Retry-After": "5"},
+                ) from None
+            if existing.status != "retained":
+                existing.blob_sha256 = blob_sha256
+                existing.byte_size = max(0, int(byte_size))
+                existing.candidate_id = candidate_id
+                existing.status = "pending"
+                existing.eligible_after = eligible_after
+                existing.reclaimed_at = None
+                existing.last_error = None
     db.commit()
+
+
+def claim_b2_object_retained(
+    db: Session,
+    *,
+    bucket: str,
+    object_key: str,
+    fail_open_missing_table: bool = False,
+) -> None:
+    """Serialize publication against orphan reclamation by locking `(bucket, object_key)` `FOR UPDATE`.
+
+    Called inside the publisher's commit transaction BEFORE writing `MediaBlobLocation`/`MediaRevision`.
+    If the reclaimer already holds a durable `'deleting'` claim (or already `'reclaimed'` the object),
+    raises retryable HTTP 503 so no published dive can ever reference deleted B2 bytes.
+    """
+    if not bucket or not object_key:
+        return
+    try:
+        with db.begin_nested():
+            row = (
+                db.query(SessionClipOrphanObject)
+                .filter_by(bucket=bucket, object_key=object_key)
+                .with_for_update()
+                .first()
+            )
+    except (OperationalError, ProgrammingError):
+        if fail_open_missing_table:
+            return
+        raise
+    if row is None:
+        return
+    if row.status in ("deleting", "reclaimed"):
+        raise HTTPException(
+            503,
+            "Storage object was reclaimed or is being deleted; retry upload",
+            headers={"Retry-After": "5"},
+        )
+    if row.status != "retained":
+        row.status = "retained"
+        row.reclaimed_at = datetime.utcnow()
+        row.last_error = None
+        db.flush()
 
 
 def _b2_object_is_referenced(db: Session, bucket: str, object_key: str, blob_sha256: str) -> bool:
@@ -2899,7 +2969,18 @@ def reclaim_orphan_clip_objects(
     limit: int = MAX_ORPHAN_RECLAIM_BATCH,
     delete_fn=None,
 ) -> dict[str, int]:
-    """Reclaim uncommitted staged B2 clip objects past their grace period after reference verification."""
+    """Reclaim uncommitted staged B2 clip objects past their grace period using a durable delete claim.
+
+    Protocol (zero TOCTOU between reclaimer and publishers):
+    1. Lock the `(bucket, object_key)` row `FOR UPDATE`, verify due grace + zero references,
+       and commit `status = 'deleting'` BEFORE releasing the DB transaction.
+    2. While `status == 'deleting'`, every publisher (`record_staging_b2_object`,
+       `complete_clip_cut`, `browser_upload.persist_original`) refuses to commit references
+       to that object (retryable 503).
+    3. Execute remote B2 `delete_object` with no DB lock held.
+    4. Commit `status = 'reclaimed'` on success; on transient error keep `status = 'deleting'`
+       and push `eligible_after` by retry backoff so the delete completes on a later tick.
+    """
     bounded = max(1, min(int(limit), 50))
     now = datetime.utcnow()
     stats = {"reclaimed": 0, "retained": 0, "failed": 0}
@@ -2912,7 +2993,7 @@ def reclaim_orphan_clip_objects(
                 SessionClipOrphanObject.blob_sha256,
             )
             .filter(
-                SessionClipOrphanObject.status == "pending",
+                SessionClipOrphanObject.status.in_(("pending", "deleting")),
                 SessionClipOrphanObject.eligible_after <= now,
             )
             .order_by(SessionClipOrphanObject.eligible_after.asc(), SessionClipOrphanObject.id.asc())
@@ -2926,17 +3007,19 @@ def reclaim_orphan_clip_objects(
     deleter = delete_fn or browser_upload.delete_b2_object
     for row_id, bucket, object_key, blob_sha256 in due_rows:
         check_time = datetime.utcnow()
-        # Re-verify still pending and past grace period, plus zero committed references.
+        # Step 1: Lock row FOR UPDATE, verify grace & references, and commit durable 'deleting' claim.
         live = (
             db.query(SessionClipOrphanObject)
             .filter(
                 SessionClipOrphanObject.id == row_id,
-                SessionClipOrphanObject.status == "pending",
+                SessionClipOrphanObject.status.in_(("pending", "deleting")),
                 SessionClipOrphanObject.eligible_after <= check_time,
             )
+            .with_for_update()
             .first()
         )
         if live is None:
+            db.rollback()
             continue
         if _b2_object_is_referenced(db, bucket, object_key, blob_sha256):
             live.status = "retained"
@@ -2946,8 +3029,12 @@ def reclaim_orphan_clip_objects(
             stats["retained"] += 1
             continue
 
-        # Release DB transaction BEFORE remote B2 DELETE so no DB lock spans network I/O.
-        db.rollback()
+        live.status = "deleting"
+        live.eligible_after = check_time + ORPHAN_DELETE_CLAIM_TTL
+        live.last_error = None
+        db.commit()
+
+        # Step 2: Remote B2 DELETE runs with NO DB lock held, fenced by durable 'deleting' claim.
         try:
             deleter(bucket, object_key)
         except Exception as exc:
@@ -2956,7 +3043,7 @@ def reclaim_orphan_clip_objects(
                 db.query(SessionClipOrphanObject)
                 .filter(
                     SessionClipOrphanObject.id == row_id,
-                    SessionClipOrphanObject.status == "pending",
+                    SessionClipOrphanObject.status == "deleting",
                 )
                 .update(
                     {
@@ -2970,12 +3057,12 @@ def reclaim_orphan_clip_objects(
             stats["failed"] += 1
             continue
 
+        # Step 3: Finalize durable 'reclaimed' state.
         (
             db.query(SessionClipOrphanObject)
             .filter(
                 SessionClipOrphanObject.id == row_id,
-                SessionClipOrphanObject.status == "pending",
-                SessionClipOrphanObject.eligible_after <= check_time,
+                SessionClipOrphanObject.status == "deleting",
             )
             .update(
                 {
@@ -3313,24 +3400,15 @@ def complete_clip_cut(
             db.add(asset)
             db.flush()
 
+        # Serialize publication against orphan reclamation BEFORE committing MediaBlobLocation/MediaRevision!
+        if b2_manifest.get("bucket") and b2_manifest.get("object_key"):
+            claim_b2_object_retained(
+                db,
+                bucket=str(b2_manifest["bucket"]),
+                object_key=str(b2_manifest["object_key"]),
+            )
         # Commit durable verified B2 original revision before publishing!
         commit_verified_ingest(db, **b2_manifest, commit=False)
-        if b2_manifest.get("bucket") and b2_manifest.get("object_key"):
-            (
-                db.query(SessionClipOrphanObject)
-                .filter_by(
-                    bucket=str(b2_manifest["bucket"]),
-                    object_key=str(b2_manifest["object_key"]),
-                )
-                .update(
-                    {
-                        SessionClipOrphanObject.status: "retained",
-                        SessionClipOrphanObject.reclaimed_at: now,
-                        SessionClipOrphanObject.last_error: None,
-                    },
-                    synchronize_session=False,
-                )
-            )
 
         def _upsert_cache(
             rendition: str,

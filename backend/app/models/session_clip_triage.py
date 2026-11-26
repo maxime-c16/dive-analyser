@@ -176,7 +176,7 @@ class SessionClipOrphanObject(Base):
     __table_args__ = (
         UniqueConstraint("bucket", "object_key", name="uq_session_clip_orphan_key"),
         CheckConstraint(
-            "status IN ('pending', 'reclaimed', 'retained')",
+            "status IN ('pending', 'deleting', 'reclaimed', 'retained')",
             name="ck_session_clip_orphan_status",
         ),
         Index("ix_session_clip_orphan_due", "status", "eligible_after", "id"),

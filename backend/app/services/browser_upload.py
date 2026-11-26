@@ -162,6 +162,9 @@ def persist_original(db, video_uuid, folder, *, register=True, source_name='sour
     metadata = json.loads(metadata_path.read_text()) if metadata_path.exists() else {}
     manifest.update(width=metadata.get('width'), height=metadata.get('height'), codec='h264' if source_name == 'original.mp4' else metadata.get('codec_name'))
     if register:
+        from app.services.session_clip_triage import claim_b2_object_retained
+
+        claim_b2_object_retained(db, bucket=bucket, object_key=key, fail_open_missing_table=True)
         commit_verified_ingest(db, **manifest, commit=False)
     return manifest
 

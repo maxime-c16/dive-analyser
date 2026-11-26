@@ -2041,3 +2041,68 @@ def test_orphan_b2_clip_object_tracked_on_superseded_lease_and_reclaimed_after_g
     assert deleted == []
     db.expire_all()
     assert db.get(SessionClipOrphanObject, ref_row.id).status == "retained"
+
+
+def test_durable_deleting_claim_blocks_concurrent_publication_and_survives_delete_error(clip_env):
+    """While reclaimer holds a durable 'deleting' claim, publishers cannot commit references to that object."""
+    from datetime import timedelta
+    from fastapi import HTTPException
+    from app.models.media_backbone import MediaRevision
+    from app.models.session_clip_triage import SessionClipOrphanObject
+    from app.services import session_clip_triage as triage
+
+    db = clip_env["db"]
+    sha = "c" * 64
+    bucket = "diveanalyzer-media"
+    key = f"media/cc/{sha}"
+
+    triage.record_staging_b2_object(
+        db, bucket=bucket, object_key=key, blob_sha256=sha, byte_size=2048
+    )
+    row = db.query(SessionClipOrphanObject).filter_by(bucket=bucket, object_key=key).one()
+    row.eligible_after = datetime.utcnow() - timedelta(minutes=1)
+    db.commit()
+
+    # Simulate publisher racing INSIDE the B2 delete window after reclaimer commits 'deleting' claim!
+    observed_statuses: list[str] = []
+
+    def _delete_with_racing_publisher(b, k):
+        db.expire_all()
+        live = db.query(SessionClipOrphanObject).filter_by(bucket=b, object_key=k).one()
+        observed_statuses.append(live.status)
+        # Both staging and publication MUST be blocked with retryable 503 while 'deleting'!
+        with pytest.raises(HTTPException) as exc1:
+            triage.record_staging_b2_object(
+                db, bucket=b, object_key=k, blob_sha256=sha, byte_size=2048
+            )
+        assert exc1.value.status_code == 503
+        with pytest.raises(HTTPException) as exc2:
+            triage.claim_b2_object_retained(db, bucket=b, object_key=k)
+        assert exc2.value.status_code == 503
+        # Simulate transient network error on B2 delete -> row MUST stay 'deleting' (never 'pending')!
+        raise RuntimeError("transient B2 timeout")
+
+    res_fail = triage.reclaim_orphan_clip_objects(db, delete_fn=_delete_with_racing_publisher)
+    assert res_fail == {"reclaimed": 0, "retained": 0, "failed": 1}
+    assert observed_statuses == ["deleting"]
+    db.expire_all()
+    row_after_fail = db.query(SessionClipOrphanObject).filter_by(bucket=bucket, object_key=key).one()
+    assert row_after_fail.status == "deleting"
+    assert db.query(MediaRevision).filter_by(blob_sha256=sha).first() is None
+
+    # After retry backoff expires, second reclaim finishes the delete and marks 'reclaimed'.
+    row_after_fail.eligible_after = datetime.utcnow() - timedelta(minutes=1)
+    db.commit()
+    deleted_keys: list[str] = []
+    res_ok = triage.reclaim_orphan_clip_objects(
+        db, delete_fn=lambda b, k: deleted_keys.append(k)
+    )
+    assert res_ok == {"reclaimed": 1, "retained": 0, "failed": 0}
+    assert deleted_keys == [key]
+    db.expire_all()
+    assert db.query(SessionClipOrphanObject).filter_by(bucket=bucket, object_key=key).one().status == "reclaimed"
+
+    # A stale publisher attempting to commit an already-'reclaimed' object without fresh staging is also blocked (503).
+    with pytest.raises(HTTPException) as exc3:
+        triage.claim_b2_object_retained(db, bucket=bucket, object_key=key)
+    assert exc3.value.status_code == 503
