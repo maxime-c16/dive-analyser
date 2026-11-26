@@ -249,19 +249,24 @@ def _stream_export_gt_page(
     return total_bytes, counts, next_cursor
 
 
+MAX_GT_EXPORT_PAGES = 10_000
+
+
 def _stream_export_gt(
     base_url: str,
     api_key: str,
     video_id: int,
     out_path: Path,
-) -> tuple[int, dict[str, int] | None, list[Path]]:
-    """Stream bounded GT export pages directly to disk, following explicit next_cursor continuation."""
+) -> tuple[int, dict[str, int] | None, int]:
+    """Stream bounded GT export pages directly to disk, following explicit next_cursor continuation.
+
+    Returns (total_bytes, first_page_counts, page_count). Retains only the
+    current cursor, so memory stays constant regardless of page count.
+    """
     cursor: str | None = None
     page_num = 1
     total_bytes = 0
     first_counts: dict[str, int] | None = None
-    written: list[Path] = []
-    seen_cursors: set[str] = set()
 
     while True:
         target = (
@@ -275,13 +280,15 @@ def _stream_export_gt(
         total_bytes += nbytes
         if first_counts is None:
             first_counts = counts
-        written.append(target)
-        if not next_cursor or next_cursor in seen_cursors:
+        if not next_cursor:
             break
-        seen_cursors.add(next_cursor)
+        if next_cursor == cursor:
+            raise SystemExit(f"GT export cursor did not advance after page {page_num}")
+        if page_num >= MAX_GT_EXPORT_PAGES:
+            raise SystemExit(f"GT export exceeded {MAX_GT_EXPORT_PAGES} pages; aborting")
         cursor = next_cursor
         page_num += 1
-    return total_bytes, first_counts, written
+    return total_bytes, first_counts, page_num
 
 
 def main() -> None:
@@ -346,8 +353,8 @@ def main() -> None:
 
     if args.export_gt:
         out = Path(args.export_gt)
-        total_bytes, counts, written = _stream_export_gt(base_url, args.api_key, video_id, out)
-        dest = str(out) if len(written) == 1 else f"{out} (+{len(written) - 1} part(s))"
+        total_bytes, counts, page_count = _stream_export_gt(base_url, args.api_key, video_id, out)
+        dest = str(out) if page_count == 1 else f"{out} (+{page_count - 1} part(s))"
         if counts is not None:
             print(
                 f"GT exporté → {dest} ({counts['positives']} vrais plongeons, "

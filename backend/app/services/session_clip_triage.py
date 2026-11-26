@@ -554,45 +554,35 @@ def _triage_counts_for_sessions(
     if not counts:
         return counts
 
-    # Indexed O(1)-probe-per-video latest run lookup using ix_session_clip_runs_video
-    # (session_video_id, created_at DESC, id DESC) — never window-ranks full run history.
+    # Latest run per *selected session*, ranked in SQL: one row per session in
+    # `counts` (already bounded by the caller's session page), never one row
+    # per video nor an IN list that grows with recordings.
+    session_table = TrainingSession.__table__
     latest_run_id_subq = (
         select(SessionClipRun.id)
-        .where(SessionClipRun.session_video_id == SessionVideo.id)
+        .join(SessionVideo, SessionVideo.id == SessionClipRun.session_video_id)
+        .where(SessionVideo.session_id == session_table.c.id, *filters)
         .order_by(SessionClipRun.created_at.desc(), SessionClipRun.id.desc())
         .limit(1)
-        .correlate(SessionVideo)
+        .correlate(session_table)
         .scalar_subquery()
     )
-    video_latest_rows = (
+    latest_rows = (
         db.query(
-            SessionVideo.session_id,
-            latest_run_id_subq.label("latest_run_id"),
+            session_table.c.id,
+            SessionClipRun.detector_name,
+            SessionClipRun.detector_version,
         )
-        .filter(*filters)
+        .select_from(session_table)
+        .join(SessionClipRun, SessionClipRun.id == latest_run_id_subq)
+        .filter(session_table.c.id.in_(list(counts.keys())))
         .all()
     )
-    run_to_session: dict[int, int] = {}
-    for sid, rid in video_latest_rows:
-        if sid is not None and rid is not None and int(sid) in counts:
-            run_to_session[int(rid)] = int(sid)
-
-    if run_to_session:
-        winning_runs = (
-            db.query(
-                SessionClipRun.id,
-                SessionClipRun.detector_name,
-                SessionClipRun.detector_version,
-            )
-            .filter(SessionClipRun.id.in_(list(run_to_session.keys())))
-            .order_by(SessionClipRun.created_at.desc(), SessionClipRun.id.desc())
-            .all()
-        )
-        for rid, det_name, det_ver in winning_runs:
-            sid = run_to_session.get(int(rid))
-            if sid is not None and counts[sid]["latest_detector"] is None:
-                counts[sid]["latest_detector"] = det_name
-                counts[sid]["latest_version"] = det_ver
+    for sid, det_name, det_ver in latest_rows:
+        entry = counts.get(int(sid))
+        if entry is not None:
+            entry["latest_detector"] = det_name
+            entry["latest_version"] = det_ver
     return counts
 
 

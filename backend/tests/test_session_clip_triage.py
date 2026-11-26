@@ -2135,3 +2135,25 @@ def test_clip_json_endpoints_enforce_pre_parse_byte_limit(clip_env):
         content=huge_patch,
     )
     assert res_patch.status_code == 413
+
+
+def test_gt_export_follows_cursors_with_page_count_and_rejects_stuck_cursor(monkeypatch, tmp_path):
+    import pytest
+    from tools import push_clip_candidates as cli
+
+    pages = {None: "c2", "c2": "c3", "c3": None}
+    seen = []
+
+    def fake_page(base_url, api_key, video_id, target, *, cursor=None):
+        seen.append((cursor, target.name))
+        return 10, ({"positives": 1, "negatives": 0, "trimmed": 0} if cursor is None else None), pages[cursor]
+
+    monkeypatch.setattr(cli, "_stream_export_gt_page", fake_page)
+    total, counts, page_count = cli._stream_export_gt("http://x", "k", 1, tmp_path / "gt.json")
+    assert (total, page_count) == (30, 3)
+    assert counts == {"positives": 1, "negatives": 0, "trimmed": 0}
+    assert [name for _, name in seen] == ["gt.json", "gt.part2.json", "gt.part3.json"]
+
+    monkeypatch.setattr(cli, "_stream_export_gt_page", lambda *a, cursor=None, **kw: (1, None, "same"))
+    with pytest.raises(SystemExit, match="did not advance"):
+        cli._stream_export_gt("http://x", "k", 1, tmp_path / "gt.json")
