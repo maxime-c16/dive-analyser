@@ -41,15 +41,31 @@
   }
 }
 
-@media (min-width: 1024px) {
+@media (min-width: 640px) {
   .library-heading {
-    grid-template-columns: minmax(0, 1fr) repeat(2, auto);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .library-heading h1 {
+    flex: 1 1 auto;
+  }
+
+  .library-heading > [role="status"] {
+    flex-basis: 100%;
   }
 }
 
 @media (width < 640px) {
   .library-heading {
     grid-template-columns: minmax(0, 1fr) auto 96px;
+  }
+
+  .library-heading > .library-triage-link {
+    grid-row: 3;
+    grid-column: 1 / -1;
+    justify-self: start;
   }
 
   .library-heading h1 {

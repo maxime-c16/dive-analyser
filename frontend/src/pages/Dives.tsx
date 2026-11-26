@@ -239,7 +239,7 @@ function TriageHeaderButton() {
   return (
     <Link
       to="/triage"
-      className="touch-target inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-full border border-app-accent/60 bg-app-accent-soft px-3.5 text-sm font-semibold text-app-text hover:border-app-accent sm:rounded-xl"
+      className="library-triage-link touch-target inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-full border border-app-accent/60 bg-app-accent-soft px-3.5 text-sm font-semibold text-app-text hover:border-app-accent sm:rounded-xl"
       aria-label={t("clipTriage.headerButtonAria", { count })}
     >
       <span>{t("clipTriage.headerButton")}</span>
