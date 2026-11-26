@@ -27,6 +27,7 @@ import argparse
 import json
 import math
 import os
+import re
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -35,7 +36,9 @@ from typing import Any
 
 MAX_CANDIDATES_PER_BATCH = 500
 MAX_CLIP_SPAN_S = 60.0
+STREAM_CHUNK_BYTES = 65536
 LOOPBACK_HOSTS = {"localhost", "127.0.0.1", "::1"}
+_COUNTS_HEAD_RE = re.compile(r'"counts"\s*:\s*(\{[^}]+\})')
 
 
 class _NoRedirectHandler(urllib.request.HTTPRedirectHandler):
@@ -176,72 +179,60 @@ def _resolve_video_id(base_url: str, api_key: str, filename: str) -> int:
     return int(matches[0]["id"])
 
 
-def _fetch_all_gt(base_url: str, api_key: str, video_id: int) -> dict[str, Any]:
-    """Paginate clip-gt candidates AND clip-runs across all pages so nothing is truncated."""
-    offset = 0
-    combined: dict[str, Any] | None = None
-    positives: list[dict[str, Any]] = []
-    negatives: list[dict[str, Any]] = []
-    runs: list[dict[str, Any]] = []
-    seen_ids: set[int] = set()
-    seen_run_ids: set[int] = set()
+def _stream_export_gt(
+    base_url: str,
+    api_key: str,
+    video_id: int,
+    out_path: Path,
+) -> tuple[int, dict[str, int] | None]:
+    """Stream Ground Truth JSON directly to disk in bounded 64 KiB chunks (O(1) RAM)."""
+    path = f"/api/v1/session-videos/{video_id}/clip-gt/export"
+    url = base_url.rstrip("/") + path
+    req = urllib.request.Request(
+        url,
+        headers={"Accept": "application/json", "X-API-Key": api_key},
+        method="GET",
+    )
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = out_path.with_name(f"{out_path.name}.tmp.{os.getpid()}")
+    total_bytes = 0
+    head_buf = bytearray()
+    try:
+        with _OPENER.open(req, timeout=120) as resp, tmp_path.open("wb") as handle:
+            while True:
+                chunk = resp.read(STREAM_CHUNK_BYTES)
+                if not chunk:
+                    break
+                handle.write(chunk)
+                total_bytes += len(chunk)
+                if len(head_buf) < 4096:
+                    head_buf.extend(chunk[: 4096 - len(head_buf)])
+        os.replace(tmp_path, out_path)
+    except urllib.error.HTTPError as exc:
+        tmp_path.unlink(missing_ok=True)
+        body = exc.read().decode("utf-8", errors="replace")[:400]
+        raise SystemExit(f"HTTP {exc.code} on GET {path}: {body}") from None
+    except urllib.error.URLError as exc:
+        tmp_path.unlink(missing_ok=True)
+        raise SystemExit(f"Network error on GET {path}: {exc.reason}") from None
+    except Exception:
+        tmp_path.unlink(missing_ok=True)
+        raise
 
-    while True:
-        q = urllib.parse.urlencode({"limit": MAX_CANDIDATES_PER_BATCH, "offset": offset})
-        page = _request_json(base_url, f"/api/v1/session-videos/{video_id}/clip-gt?{q}", api_key)
-        if combined is None:
-            combined = dict(page)
-            for run in page.get("runs") or []:
-                rid = run.get("id")
-                if rid is None or rid not in seen_run_ids:
-                    if rid is not None:
-                        seen_run_ids.add(rid)
-                    runs.append(run)
-        for item in page.get("positives") or []:
-            cid = item.get("candidate_id")
-            if cid is None or cid not in seen_ids:
-                if cid is not None:
-                    seen_ids.add(cid)
-                positives.append(item)
-        for item in page.get("negatives") or []:
-            cid = item.get("candidate_id")
-            if cid is None or cid not in seen_ids:
-                if cid is not None:
-                    seen_ids.add(cid)
-                negatives.append(item)
-        if not page.get("has_more") or page.get("next_offset") is None:
-            break
-        next_offset = int(page["next_offset"])
-        if next_offset <= offset:
-            break
-        offset = next_offset
-
-    assert combined is not None
-    runs_offset = combined.get("runs_next_offset") if combined.get("runs_has_more") else None
-    while runs_offset is not None:
-        rq = urllib.parse.urlencode({"limit": 100, "offset": int(runs_offset)})
-        rpage = _request_json(base_url, f"/api/v1/session-videos/{video_id}/clip-runs?{rq}", api_key)
-        for run in rpage.get("runs") or []:
-            rid = run.get("id")
-            if rid is None or rid not in seen_run_ids:
-                if rid is not None:
-                    seen_run_ids.add(rid)
-                runs.append(run)
-        if not rpage.get("has_more") or rpage.get("next_offset") is None:
-            break
-        next_runs_offset = int(rpage["next_offset"])
-        if next_runs_offset <= int(runs_offset):
-            break
-        runs_offset = next_runs_offset
-
-    combined["positives"] = positives
-    combined["negatives"] = negatives
-    combined["runs"] = runs
-    combined["has_more"] = False
-    combined["next_offset"] = None
-    combined["runs_has_more"] = False
-    combined["runs_next_offset"] = None
-    return combined
+    counts: dict[str, int] | None = None
+    match = _COUNTS_HEAD_RE.search(head_buf.decode("utf-8", errors="replace"))
+    if match:
+        try:
+            parsed = json.loads(match.group(1))
+            if isinstance(parsed, dict):
+                counts = {
+                    "positives": int(parsed.get("positives", 0)),
+                    "negatives": int(parsed.get("negatives", 0)),
+                    "trimmed": int(parsed.get("trimmed", 0)),
+                }
+        except (ValueError, TypeError):
+            counts = None
+    return total_bytes, counts
 
 
 def main() -> None:
@@ -305,15 +296,15 @@ def main() -> None:
         )
 
     if args.export_gt:
-        gt = _fetch_all_gt(base_url, args.api_key, video_id)
         out = Path(args.export_gt)
-        out.parent.mkdir(parents=True, exist_ok=True)
-        out.write_text(json.dumps(gt, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-        c = gt["counts"]
-        print(
-            f"GT exporté → {out} ({c['positives']} vrais plongeons, "
-            f"{c['negatives']} faux positifs, {c['trimmed']} bornes ajustées)"
-        )
+        total_bytes, counts = _stream_export_gt(base_url, args.api_key, video_id, out)
+        if counts is not None:
+            print(
+                f"GT exporté → {out} ({counts['positives']} vrais plongeons, "
+                f"{counts['negatives']} faux positifs, {counts['trimmed']} bornes ajustées)"
+            )
+        else:
+            print(f"GT exporté → {out} ({total_bytes} octets)")
 
     if not args.input_json and not args.export_gt:
         print(f"Resolved video_id={video_id}")

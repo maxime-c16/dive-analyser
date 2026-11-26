@@ -329,3 +329,42 @@ async def test_503_with_404_in_body_is_not_classified_as_dead_lease(tmp_path, mo
             mp4_path=str(mp4),
         )
     assert exc_info.value.status_code == 503
+
+
+@pytest.mark.asyncio
+async def test_media_job_loop_interleaves_clip_cuts_under_continuous_media_load(monkeypatch):
+    """Clip cut polling must not starve when normal media batches are continuously non-empty."""
+    import asyncio
+    import src.media_jobs as media_jobs
+
+    stop = asyncio.Event()
+    media_calls = 0
+    clip_calls = 0
+
+    async def fake_process_once():
+        nonlocal media_calls
+        media_calls += 1
+        if media_calls >= media_jobs.CLIP_INTERLEAVE_EVERY_BATCHES * 2:
+            stop.set()
+        return 1
+
+    async def fake_clip_once(cfg, client, agent_id):
+        nonlocal clip_calls
+        clip_calls += 1
+        return 1
+
+    monkeypatch.setattr(
+        media_jobs,
+        "MediaJobProcessor",
+        lambda *_: SimpleNamespace(process_once=fake_process_once, agent_id="mac-media-01"),
+    )
+    monkeypatch.setattr(clip_cut_jobs, "process_clip_cut_once", fake_clip_once)
+
+    config = SimpleNamespace(
+        media=SimpleNamespace(enabled=True, interval_seconds=60, max_jobs=1, leasing_enabled=True)
+    )
+    sync_client = SimpleNamespace(lease_clip_cuts=AsyncMock(return_value=[]))
+
+    await asyncio.wait_for(media_jobs.run_media_job_loop(config, sync_client, stop), timeout=2)
+    assert media_calls == media_jobs.CLIP_INTERLEAVE_EVERY_BATCHES * 2
+    assert clip_calls >= 1

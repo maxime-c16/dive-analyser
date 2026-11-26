@@ -1536,3 +1536,234 @@ def test_clip_runs_and_triage_divers_explicit_pagination_and_search(clip_env):
     sess_q = admin.get("/api/v1/clip-triage/sessions", params={"q": "2026-11-20"}).json()
     assert sess_q["total"] == 1
     assert sess_q["items"][0]["date"] == "2026-11-20"
+
+
+def test_gt_streaming_export_chunks_masking_and_runs(clip_env, monkeypatch):
+    """Streaming GT export emits complete session_clip_gt_v1 JSON across multiple keyset chunks and respects diver masking."""
+    from app.services import session_clip_triage as triage
+
+    monkeypatch.setattr(triage, "GT_STREAM_CHUNK_SIZE", 2)
+    monkeypatch.setattr(triage, "GT_STREAM_RUN_CHUNK_SIZE", 1)
+
+    video_id = clip_env["video_id"]
+    admin = clip_env["as_user"]("alice")
+    api_client = TestClient(app)
+
+    # Bob owns the recording; Alice (admin) assigns 3 kept clips (1 Bob, 2 Alice) and 3 rejected clips across 2 runs.
+    db = clip_env["db"]
+    vid = db.get(SessionVideo, video_id)
+    vid.owner_user_id = clip_env["bob_user_id"]
+    db.commit()
+
+    r1 = api_client.post(
+        f"/api/v1/session-videos/{video_id}/clip-runs",
+        headers={"X-API-Key": API_KEY},
+        json={
+            "detector_name": "core",
+            "detector_version": "v1",
+            "candidates": [
+                {"start_s": 10.0, "end_s": 16.0, "confidence": 0.9},
+                {"start_s": 40.0, "end_s": 46.0, "confidence": 0.8},
+                {"start_s": 70.0, "end_s": 76.0, "confidence": 0.7},
+            ],
+        },
+    )
+    assert r1.status_code == 201
+    r2 = api_client.post(
+        f"/api/v1/session-videos/{video_id}/clip-runs",
+        headers={"X-API-Key": API_KEY},
+        json={
+            "detector_name": "core",
+            "detector_version": "v2",
+            "candidates": [
+                {"start_s": 100.0, "end_s": 106.0, "confidence": 0.6},
+                {"start_s": 130.0, "end_s": 136.0, "confidence": 0.5},
+                {"start_s": 160.0, "end_s": 166.0, "confidence": 0.4},
+            ],
+        },
+    )
+    assert r2.status_code == 201
+
+    cands = sorted(
+        admin.get("/api/v1/clip-triage/candidates", params={"tab": "pending", "limit": 20}).json()["items"],
+        key=lambda c: c["start_s"],
+    )
+    assert len(cands) == 6
+    # Keep 0 (Bob), 1 (Alice), 2 (Alice + trimmed); reject 3, 4, 5.
+    assert admin.patch(
+        f"/api/v1/clip-triage/candidates/{cands[0]['id']}",
+        json={"triage_status": "kept", "diver_id": clip_env["bob_diver_id"], "dive_code": "101C", "height": "3m", "performance": "G"},
+    ).status_code == 200
+    assert admin.patch(
+        f"/api/v1/clip-triage/candidates/{cands[1]['id']}",
+        json={"triage_status": "kept", "diver_id": clip_env["alice_diver_id"], "dive_code": "201B", "height": "3m", "performance": "M"},
+    ).status_code == 200
+    assert admin.patch(
+        f"/api/v1/clip-triage/candidates/{cands[2]['id']}",
+        json={
+            "triage_status": "kept",
+            "diver_id": clip_env["alice_diver_id"],
+            "dive_code": "301C",
+            "height": "5m",
+            "performance": "P",
+            "trimmed_start_s": 71.0,
+            "trimmed_end_s": 75.5,
+        },
+    ).status_code == 200
+    for rej_cand in cands[3:]:
+        assert admin.patch(
+            f"/api/v1/clip-triage/candidates/{rej_cand['id']}",
+            json={"triage_status": "rejected", "reject_reason": "false_positive"},
+        ).status_code == 200
+
+    # Admin / API key gets complete unmasked streamed JSON with all 3 positives, 3 negatives, and 2 runs.
+    resp_api = api_client.get(
+        f"/api/v1/session-videos/{video_id}/clip-gt/export",
+        headers={"X-API-Key": API_KEY},
+    )
+    assert resp_api.status_code == 200
+    assert "attachment;" in resp_api.headers["content-disposition"]
+    assert "no-store" in resp_api.headers["cache-control"]
+    gt_full = resp_api.json()
+    assert gt_full["schema_version"] == "session_clip_gt_v1"
+    assert gt_full["counts"] == {"positives": 3, "negatives": 3, "trimmed": 1}
+    assert gt_full["has_more"] is False
+    assert gt_full["runs_has_more"] is False
+    assert gt_full["runs_total"] == 2
+    assert len(gt_full["positives"]) == 3
+    assert len(gt_full["negatives"]) == 3
+    assert len(gt_full["runs"]) == 2
+    assert [p["dive_code"] for p in gt_full["positives"]] == ["101C", "201B", "301C"]
+
+    # Non-admin owner (Bob) gets all rows streamed, with Alice's diver fields masked!
+    bob = clip_env["as_user"]("bob")
+    resp_bob = bob.get(f"/api/v1/session-videos/{video_id}/clip-gt/export")
+    assert resp_bob.status_code == 200
+    gt_bob = resp_bob.json()
+    assert len(gt_bob["positives"]) == 3
+    assert gt_bob["positives"][0]["diver_id"] == clip_env["bob_diver_id"]
+    assert gt_bob["positives"][0]["dive_code"] == "101C"
+    for masked in gt_bob["positives"][1:]:
+        assert masked["diver_id"] is None
+        assert masked["diver_name"] is None
+        assert masked["dive_code"] is None
+        assert masked["height"] is None
+        assert masked["performance"] is None
+
+
+def test_lease_defers_without_burning_attempt_when_b2_unavailable(clip_env, monkeypatch):
+    """If B2 presigning is temporarily unavailable, lease_clip_cuts defers the job without burning an attempt."""
+    from app.services import session_videos as sv_service
+
+    video_id = clip_env["video_id"]
+    admin = clip_env["as_user"]("alice")
+    api_client = TestClient(app)
+
+    api_client.post(
+        f"/api/v1/session-videos/{video_id}/clip-runs",
+        headers={"X-API-Key": API_KEY},
+        json={
+            "detector_name": "core",
+            "detector_version": "v1",
+            "candidates": [{"start_s": 20.0, "end_s": 28.0}],
+        },
+    )
+    cand = admin.get("/api/v1/clip-triage/candidates", params={"tab": "pending"}).json()["items"][0]
+    assert admin.patch(
+        f"/api/v1/clip-triage/candidates/{cand['id']}",
+        json={"triage_status": "kept", "diver_id": clip_env["alice_diver_id"]},
+    ).status_code == 200
+
+    orig_presign = sv_service.presign_get
+
+    def _boom(*args, **kwargs):
+        raise sv_service.SessionsStorageUnavailable("B2 temporarily unreachable")
+
+    monkeypatch.setattr(sv_service, "presign_get", _boom)
+    res = api_client.post(
+        "/api/v1/media/clip-cuts/lease",
+        headers={"X-API-Key": WORKER_KEY},
+        json={"agent_id": "mac-media-01", "limit": 2},
+    )
+    assert res.status_code == 200
+    assert res.json()["jobs"] == []
+
+    db = clip_env["db"]
+    db.expire_all()
+    row = db.get(SessionClipCandidate, cand["id"])
+    assert row.extraction_status == "queued"
+    assert row.extraction_attempts == 0
+    assert row.lease_token is None
+    assert row.claimed_by is None
+
+    # Once B2 recovers, the next lease succeeds cleanly on attempt 1 with a valid source_url.
+    monkeypatch.setattr(sv_service, "presign_get", orig_presign)
+    res2 = api_client.post(
+        "/api/v1/media/clip-cuts/lease",
+        headers={"X-API-Key": WORKER_KEY},
+        json={"agent_id": "mac-media-01", "limit": 2},
+    )
+    assert res2.status_code == 200
+    jobs = res2.json()["jobs"]
+    assert len(jobs) == 1
+    assert jobs[0]["candidate_id"] == cand["id"]
+    assert jobs[0]["source_url"] is not None
+    db.expire_all()
+    row2 = db.get(SessionClipCandidate, cand["id"])
+    assert row2.extraction_status == "claimed"
+    assert row2.extraction_attempts == 1
+
+
+def test_dedup_indexed_bounds_matches_both_original_and_trimmed_intervals(clip_env):
+    """Two-sided indexed dedup joins match against both original and shifted trimmed intervals."""
+    video_id = clip_env["video_id"]
+    admin = clip_env["as_user"]("alice")
+    api_client = TestClient(app)
+
+    r1 = api_client.post(
+        f"/api/v1/session-videos/{video_id}/clip-runs",
+        headers={"X-API-Key": API_KEY},
+        json={
+            "detector_name": "core",
+            "detector_version": "v1",
+            "candidates": [{"start_s": 100.0, "end_s": 110.0}],
+        },
+    )
+    assert r1.status_code == 201
+    cand = admin.get("/api/v1/clip-triage/candidates", params={"tab": "pending"}).json()["items"][0]
+    # Shift trimmed window significantly later (125..135), disjoint from original 100..110.
+    assert admin.patch(
+        f"/api/v1/clip-triage/candidates/{cand['id']}",
+        json={"trimmed_start_s": 125.0, "trimmed_end_s": 135.0},
+    ).status_code == 200
+
+    # A new run matching the trimmed interval (126..134) MUST dedup against the existing candidate.
+    r2 = api_client.post(
+        f"/api/v1/session-videos/{video_id}/clip-runs",
+        headers={"X-API-Key": API_KEY},
+        json={
+            "detector_name": "core",
+            "detector_version": "v2",
+            "candidates": [{"start_s": 126.0, "end_s": 134.0}],
+        },
+    )
+    assert r2.status_code == 201
+    assert r2.json()["created_count"] == 0
+    assert r2.json()["deduped_count"] == 1
+
+    # Another run matching the original interval (101..109) MUST also dedup, while a distant one (300..310) creates new.
+    r3 = api_client.post(
+        f"/api/v1/session-videos/{video_id}/clip-runs",
+        headers={"X-API-Key": API_KEY},
+        json={
+            "detector_name": "core",
+            "detector_version": "v3",
+            "candidates": [
+                {"start_s": 101.0, "end_s": 109.0},
+                {"start_s": 300.0, "end_s": 310.0},
+            ],
+        },
+    )
+    assert r3.status_code == 201
+    assert r3.json()["created_count"] == 1
+    assert r3.json()["deduped_count"] == 1

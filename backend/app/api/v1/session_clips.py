@@ -5,6 +5,7 @@ import asyncio
 import hashlib
 import json
 import math
+import re
 import shutil
 import subprocess
 import threading
@@ -13,6 +14,7 @@ from typing import Any, Literal, Optional
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, Response
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
@@ -220,6 +222,27 @@ def export_clip_gt(
     video = _authorized_ready_video(db, video_id, actor)
     secure_headers(response)
     return triage.export_video_ground_truth(db, video, limit=limit, offset=offset, viewer=actor)
+
+
+@router.get("/session-videos/{video_id}/clip-gt/export", dependencies=[Depends(require_enabled)])
+def export_clip_gt_stream(
+    video_id: int,
+    actor: Optional[AppUser] = Depends(_admin_or_api_key),
+    db: Session = Depends(get_db),
+):
+    """Stream complete Ground Truth JSON directly to the browser or CLI in O(1) memory."""
+    video = _authorized_ready_video(db, video_id, actor)
+    stem = PurePosixPath(video.object_key).stem
+    safe_stem = re.sub(r"[^A-Za-z0-9._-]+", "_", stem).strip("._") or "video"
+    resp = StreamingResponse(
+        triage.iter_video_ground_truth_json(db, video, viewer=actor),
+        media_type="application/json; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="gt-{safe_stem}-v{video.id}.json"',
+        },
+    )
+    secure_headers(resp)
+    return resp
 
 
 # --------------------------------------------------------- Fast Triage UI API ---

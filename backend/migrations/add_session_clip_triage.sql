@@ -81,6 +81,11 @@ CREATE INDEX IF NOT EXISTS ix_session_clip_candidates_queue
     ON session_clip_candidates (triage_status, skipped_at, id);
 CREATE INDEX IF NOT EXISTS ix_session_clip_candidates_video
     ON session_clip_candidates (session_video_id, triage_status, start_s);
+CREATE INDEX IF NOT EXISTS ix_session_clip_candidates_bounds
+    ON session_clip_candidates (session_video_id, start_s, end_s);
+CREATE INDEX IF NOT EXISTS ix_session_clip_candidates_trimmed
+    ON session_clip_candidates (session_video_id, trimmed_start_s, trimmed_end_s)
+    WHERE trimmed_start_s IS NOT NULL;
 CREATE INDEX IF NOT EXISTS ix_session_clip_candidates_extract
     ON session_clip_candidates (extraction_status, claimed_until, id);
 

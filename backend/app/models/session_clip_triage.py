@@ -71,6 +71,8 @@ class SessionClipCandidate(Base):
         ),
         Index("ix_session_clip_candidates_queue", "triage_status", "skipped_at", "id"),
         Index("ix_session_clip_candidates_video", "session_video_id", "triage_status", "start_s"),
+        Index("ix_session_clip_candidates_bounds", "session_video_id", "start_s", "end_s"),
+        Index("ix_session_clip_candidates_trimmed", "session_video_id", "trimmed_start_s", "trimmed_end_s"),
         Index("ix_session_clip_candidates_extract", "extraction_status", "claimed_until", "id"),
         {"info": _MIGRATION_ONLY},
     )
