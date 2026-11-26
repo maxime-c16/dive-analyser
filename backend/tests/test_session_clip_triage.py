@@ -1304,13 +1304,23 @@ def test_diver_scoping_blocks_non_admin_edits_and_masks_other_diver_metadata_and
     assert pos["performance"] is None
     assert pos["dive_id"] is None
 
-    # Bob MUST NOT edit Alice's diver metadata or retry extraction (403)!
+    # Bob MUST NOT edit Alice's diver metadata, steal/reassign diver_id in one PATCH, or retry extraction (403)!
     for bad_patch in (
         {"dive_code": "201C"},
         {"height": "5m"},
         {"performance": "B"},
         {"notes": "tampered"},
         {"visibility": "public"},
+        {"diver_id": clip_env["bob_diver_id"]},
+        {
+            "diver_id": clip_env["bob_diver_id"],
+            "dive_code": "201C",
+            "height": "3m",
+            "performance": "G",
+            "triage_status": "kept",
+            "confirm_publish": True,
+        },
+        {"diver_id": None, "triage_status": "pending"},
     ):
         r = bob.patch(f"/api/v1/clip-triage/candidates/{cand['id']}", headers=ORIGIN, json=bad_patch)
         assert r.status_code == 403
@@ -1470,3 +1480,59 @@ def test_clip_runs_and_triage_divers_explicit_pagination_and_search(clip_env):
     assert d_search["total"] == 1
     assert d_search["items"][0]["display_name"] == "Zed Diver 4"
     assert d_search["has_more"] is False
+
+    # Paginated & searchable /clip-triage/sessions (and explicit summary continuation)
+    s1 = TrainingSession(date=date(2026, 11, 20))
+    s2 = TrainingSession(date=date(2026, 11, 21))
+    db.add_all([s1, s2])
+    db.flush()
+    v1 = SessionVideo(
+        session_id=s1.id,
+        owner_user_id=clip_env["admin_id"],
+        bucket="diveanalyzer-sessions",
+        object_key="inbox/S1.MOV",
+        etag="etag-s1",
+        status="ready",
+        recorded_date=s1.date,
+        duration_seconds=300.0,
+    )
+    v2 = SessionVideo(
+        session_id=s2.id,
+        owner_user_id=clip_env["admin_id"],
+        bucket="diveanalyzer-sessions",
+        object_key="inbox/S2.MOV",
+        etag="etag-s2",
+        status="ready",
+        recorded_date=s2.date,
+        duration_seconds=300.0,
+    )
+    db.add_all([v1, v2])
+    db.flush()
+    now = datetime.utcnow()
+    db.add_all(
+        [
+            SessionClipCandidate(
+                session_video_id=v1.id, start_s=5.0, end_s=10.0, triage_status="pending",
+                extraction_status="none", visibility="private", created_at=now, updated_at=now,
+            ),
+            SessionClipCandidate(
+                session_video_id=v2.id, start_s=5.0, end_s=10.0, triage_status="pending",
+                extraction_status="none", visibility="private", created_at=now, updated_at=now,
+            ),
+        ]
+    )
+    db.commit()
+
+    sess_p1 = admin.get("/api/v1/clip-triage/sessions", params={"limit": 2, "offset": 0}).json()
+    assert sess_p1["total"] == 3
+    assert len(sess_p1["items"]) == 2
+    assert sess_p1["has_more"] is True
+    assert sess_p1["next_offset"] == 2
+
+    sess_p2 = admin.get("/api/v1/clip-triage/sessions", params={"limit": 2, "offset": 2}).json()
+    assert len(sess_p2["items"]) == 1
+    assert sess_p2["has_more"] is False
+
+    sess_q = admin.get("/api/v1/clip-triage/sessions", params={"q": "2026-11-20"}).json()
+    assert sess_q["total"] == 1
+    assert sess_q["items"][0]["date"] == "2026-11-20"

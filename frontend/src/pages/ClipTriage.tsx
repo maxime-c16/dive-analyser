@@ -27,10 +27,12 @@ import {
   getClipTriageSummary,
   listClipTriageCandidates,
   listClipTriageDivers,
+  listClipTriageSessions,
   patchClipCandidate,
   retryClipExtraction,
   type CandidatePatch,
   type ClipCandidate,
+  type ClipTriageSessionSummary,
   type ClipTriageSummary,
   type TriageDiver,
 } from '../services/clipTriageApi'
@@ -139,6 +141,10 @@ export default function ClipTriage() {
   const requestedClipId = search.get('clip') ? Number(search.get('clip')) : null
 
   const [summary, setSummary] = useState<ClipTriageSummary | null>(null)
+  const [sessionsList, setSessionsList] = useState<ClipTriageSessionSummary[]>([])
+  const [sessionsHasMore, setSessionsHasMore] = useState(false)
+  const [sessionsNextOffset, setSessionsNextOffset] = useState<number | null>(null)
+  const [loadingMoreSessions, setLoadingMoreSessions] = useState(false)
   const [items, setItems] = useState<ClipCandidate[]>([])
   const [hasMore, setHasMore] = useState(false)
   const [nextCursor, setNextCursor] = useState<string | null>(null)
@@ -318,6 +324,14 @@ export default function ClipTriage() {
         }
       }
       setSummary(sum)
+      setSessionsList((prev) => {
+        if (prev.length <= sum.sessions.length) return sum.sessions
+        const byId = new Map(sum.sessions.map((s) => [s.session_id, s]))
+        const extra = prev.filter((s) => !byId.has(s.session_id))
+        return [...sum.sessions, ...extra]
+      })
+      setSessionsHasMore(Boolean(sum.sessions_has_more))
+      setSessionsNextOffset(sum.sessions_next_offset ?? null)
       setItems(nextItems)
       setHasMore(Boolean(list.has_more && list.next_cursor))
       setNextCursor(list.next_cursor ?? null)
@@ -820,7 +834,30 @@ export default function ClipTriage() {
     }, { replace: true })
   }
 
+  const loadMoreSessions = useCallback(async () => {
+    if (!sessionsHasMore || sessionsNextOffset == null || loadingMoreSessions) return
+    setLoadingMoreSessions(true)
+    try {
+      const page = await listClipTriageSessions({ limit: 50, offset: sessionsNextOffset })
+      if (!mountedRef.current) return
+      setSessionsList((prev) => {
+        const seen = new Set(prev.map((s) => s.session_id))
+        return [...prev, ...page.items.filter((s) => !seen.has(s.session_id))]
+      })
+      setSessionsHasMore(Boolean(page.has_more))
+      setSessionsNextOffset(page.next_offset ?? null)
+    } catch {
+      // Non-critical; user can retry.
+    } finally {
+      if (mountedRef.current) setLoadingMoreSessions(false)
+    }
+  }, [sessionsHasMore, sessionsNextOffset, loadingMoreSessions])
+
   const setSessionId = (id: string) => {
+    if (id === '__load_more__') {
+      void loadMoreSessions()
+      return
+    }
     flushAutosave()
     clearUndo()
     setSearch((prev) => {
@@ -910,7 +947,7 @@ export default function ClipTriage() {
               <span>{t('clipTriage.expressMode')}</span>
             </button>
           )}
-          {summary && summary.sessions.length > 0 && (
+          {sessionsList.length > 0 && (
             <select
               aria-label={t('clipTriage.filterSession')}
               className="app-input min-h-[38px] py-1 text-xs"
@@ -918,11 +955,16 @@ export default function ClipTriage() {
               onChange={(e) => setSessionId(e.target.value)}
             >
               <option value="">{t('clipTriage.allSessions')}</option>
-              {summary.sessions.map((s) => (
+              {sessionsList.map((s) => (
                 <option key={s.session_id} value={s.session_id}>
                   {s.title || s.date} ({s.pending})
                 </option>
               ))}
+              {sessionsHasMore && (
+                <option value="__load_more__" disabled={loadingMoreSessions}>
+                  … {t('clipTriage.loadMore')}
+                </option>
+              )}
             </select>
           )}
           <span className="triage-save-cue" data-state={saveState} role="status">

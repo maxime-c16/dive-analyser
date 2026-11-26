@@ -29,6 +29,9 @@ export type ClipTriageSummary = {
   published_count: number
   rejected_count: number
   sessions: ClipTriageSessionSummary[]
+  sessions_total?: number
+  sessions_has_more?: boolean
+  sessions_next_offset?: number | null
 }
 
 export type TriageDiver = {
@@ -121,6 +124,23 @@ export type CandidatePatch = {
 
 export async function getClipTriageSummary(signal?: AbortSignal): Promise<ClipTriageSummary> {
   const { data } = await api.get<ClipTriageSummary>('/api/v1/clip-triage/summary', { signal })
+  return data
+}
+
+export async function listClipTriageSessions(
+  params: { q?: string; limit?: number; offset?: number },
+  signal?: AbortSignal,
+): Promise<{
+  items: ClipTriageSessionSummary[]
+  total: number
+  has_more: boolean
+  next_offset: number | null
+}> {
+  const clean: Record<string, string | number> = {}
+  if (params.q && params.q.trim()) clean.q = params.q.trim()
+  if (params.limit != null) clean.limit = params.limit
+  if (params.offset != null) clean.offset = params.offset
+  const { data } = await api.get('/api/v1/clip-triage/sessions', { params: clean, signal })
   return data
 }
 

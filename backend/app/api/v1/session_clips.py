@@ -235,6 +235,19 @@ def triage_summary(
     return triage.get_triage_summary(db, user)
 
 
+@router.get("/clip-triage/sessions", dependencies=[Depends(require_enabled)])
+def list_triage_sessions(
+    response: Response,
+    q: Optional[str] = Query(default=None, max_length=60),
+    limit: int = Query(default=triage.DEFAULT_SESSION_PAGE_LIMIT, ge=1, le=triage.MAX_SESSION_PAGE_LIMIT),
+    offset: int = Query(default=0, ge=0),
+    user: AppUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    secure_headers(response)
+    return triage.list_triage_sessions(db, user, q=q, limit=limit, offset=offset)
+
+
 @router.get("/clip-triage/divers", dependencies=[Depends(require_enabled)])
 def list_triage_divers(
     response: Response,

@@ -18,7 +18,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any, Optional
 
 from fastapi import HTTPException
-from sqlalchemy import and_, case, exists, func, or_, select
+from sqlalchemy import Float, String, and_, case, cast, exists, func, literal, or_, select, union_all
 from sqlalchemy.exc import IntegrityError, OperationalError, ProgrammingError
 from sqlalchemy.orm import Session
 
@@ -158,23 +158,32 @@ def _validated_span(start_raw: float, end_raw: float) -> tuple[float, float]:
     return s_val, e_val
 
 
-DEDUP_SUBBATCH_SIZE = 40
-DEDUP_QUERY_PAGE_SIZE = 500
+DEDUP_SQL_BATCH_SIZE = 100
 
 
-def _merge_padded_windows(bounds: list[tuple[float, float]]) -> list[tuple[float, float]]:
-    """Merge padded candidate intervals into minimal disjoint query windows."""
-    if not bounds:
-        return []
-    padded = sorted((max(0.0, s - DEDUP_WINDOW_PAD_S), e + DEDUP_WINDOW_PAD_S) for s, e in bounds)
-    merged: list[tuple[float, float]] = [padded[0]]
-    for w_start, w_end in padded[1:]:
-        prev_start, prev_end = merged[-1]
-        if w_start <= prev_end:
-            merged[-1] = (prev_start, max(prev_end, w_end))
-        else:
-            merged.append((w_start, w_end))
-    return merged
+def _sql_max2(a, b):
+    return case((a >= b, a), else_=b)
+
+
+def _sql_min2(a, b):
+    return case((a <= b, a), else_=b)
+
+
+def _sql_interval_match(sub_s, sub_e, cand_s, cand_e):
+    """Exact SQL mirror of `_intervals_match` portable across SQLite and PostgreSQL."""
+    inter = _sql_max2(literal(0.0), _sql_min2(sub_e, cand_e) - _sql_max2(sub_s, cand_s))
+    union = _sql_max2(sub_e, cand_e) - _sql_min2(sub_s, cand_s)
+    iou = case((and_(inter > 0.0, union > 0.0), inter / union), else_=literal(0.0))
+    sub_mid = (sub_s + sub_e) * literal(0.5)
+    cand_mid = (cand_s + cand_e) * literal(0.5)
+    mid_ok = and_(
+        sub_mid >= cand_s - DEDUP_MIDPOINT_PAD_S,
+        sub_mid <= cand_e + DEDUP_MIDPOINT_PAD_S,
+        cand_mid >= sub_s - DEDUP_MIDPOINT_PAD_S,
+        cand_mid <= sub_e + DEDUP_MIDPOINT_PAD_S,
+    )
+    ok = or_(iou >= DEDUP_IOU_MIN, mid_ok)
+    return ok, iou
 
 
 def _find_best_db_matches(
@@ -182,80 +191,89 @@ def _find_best_db_matches(
     video_id: int,
     valid_items: list[tuple[float, float, Optional[float], Optional[str], Optional[dict[str, Any]]]],
 ) -> tuple[dict[int, tuple[float, int]], dict[int, SessionClipCandidate]]:
-    """Match submitted intervals against ALL historical candidates using bounded keyset pages.
+    """Match submitted intervals against ALL historical candidates using O(1) set-based SQL.
 
-    Queries tight merged time windows per sub-batch in lightweight 500-row keyset pages
-    (ordered by id) so peak memory stays O(500) tuples while never missing historical
-    rows beyond any fixed row cap.
+    Uses a bounded-chunk CTE (`<= 100` submitted items per query -> at most 5 queries
+    for the 500-item run cap, independent of historical row count) with SQL window
+    ranking (`ROW_NUMBER() OVER (PARTITION BY idx ...)`) so only the single best
+    matching historical candidate per submitted interval is returned.
     """
     if not valid_items:
         return {}, {}
 
     eff_start_col = func.coalesce(SessionClipCandidate.trimmed_start_s, SessionClipCandidate.start_s)
     eff_end_col = func.coalesce(SessionClipCandidate.trimmed_end_s, SessionClipCandidate.end_s)
-
-    indexed_order = sorted(range(len(valid_items)), key=lambda i: (valid_items[i][0], valid_items[i][1], i))
     best_by_idx: dict[int, tuple[float, int]] = {}
 
-    for batch_start in range(0, len(indexed_order), DEDUP_SUBBATCH_SIZE):
-        batch_indices = indexed_order[batch_start : batch_start + DEDUP_SUBBATCH_SIZE]
-        batch_bounds = [(valid_items[i][0], valid_items[i][1]) for i in batch_indices]
-        windows = _merge_padded_windows(batch_bounds)
-        window_clauses = []
-        for w_start, w_end in windows:
-            window_clauses.append(and_(SessionClipCandidate.end_s >= w_start, SessionClipCandidate.start_s <= w_end))
-            window_clauses.append(and_(eff_end_col >= w_start, eff_start_col <= w_end))
-
-        # Keep sub-batch items sorted by start_s for fast neighborhood pruning.
-        sub_items = [(i, valid_items[i][0], valid_items[i][1]) for i in batch_indices]
-        last_id = 0
-        while True:
-            page = (
-                db.query(
-                    SessionClipCandidate.id,
-                    SessionClipCandidate.start_s,
-                    SessionClipCandidate.end_s,
-                    SessionClipCandidate.trimmed_start_s,
-                    SessionClipCandidate.trimmed_end_s,
-                )
-                .filter(
-                    SessionClipCandidate.session_video_id == video_id,
-                    SessionClipCandidate.id > last_id,
-                    or_(*window_clauses),
-                )
-                .order_by(SessionClipCandidate.id.asc())
-                .limit(DEDUP_QUERY_PAGE_SIZE)
-                .all()
+    for batch_start in range(0, len(valid_items), DEDUP_SQL_BATCH_SIZE):
+        chunk = valid_items[batch_start : batch_start + DEDUP_SQL_BATCH_SIZE]
+        sub_selects = [
+            select(
+                literal(batch_start + offset).label("idx"),
+                cast(literal(float(item[0])), Float).label("s"),
+                cast(literal(float(item[1])), Float).label("e"),
             )
-            if not page:
-                break
-            for cid, c_start, c_end, t_start, t_end in page:
-                eff_s = t_start if t_start is not None else c_start
-                eff_e = t_end if t_end is not None else c_end
-                cand_min = min(c_start, eff_s) - DEDUP_WINDOW_PAD_S
-                cand_max = max(c_end, eff_e) + DEDUP_WINDOW_PAD_S
-                for orig_idx, s_val, e_val in sub_items:
-                    if s_val > cand_max:
-                        break
-                    if e_val < cand_min:
-                        continue
-                    ok_orig, iou_orig = _intervals_match(s_val, e_val, c_start, c_end)
-                    ok_eff, iou_eff = _intervals_match(s_val, e_val, eff_s, eff_e)
-                    if not (ok_orig or ok_eff):
-                        continue
-                    iou = max(iou_orig if ok_orig else -1.0, iou_eff if ok_eff else -1.0)
-                    prev = best_by_idx.get(orig_idx)
-                    if prev is None or iou > prev[0] or (iou == prev[0] and cid < prev[1]):
-                        best_by_idx[orig_idx] = (iou, cid)
-            last_id = page[-1][0]
-            if len(page) < DEDUP_QUERY_PAGE_SIZE:
-                break
+            for offset, item in enumerate(chunk)
+        ]
+        submitted_cte = (
+            sub_selects[0].cte("submitted_clips")
+            if len(sub_selects) == 1
+            else union_all(*sub_selects).cte("submitted_clips")
+        )
+
+        sub_s = submitted_cte.c.s
+        sub_e = submitted_cte.c.e
+        ok_orig, iou_orig = _sql_interval_match(
+            sub_s, sub_e, SessionClipCandidate.start_s, SessionClipCandidate.end_s
+        )
+        ok_eff, iou_eff = _sql_interval_match(sub_s, sub_e, eff_start_col, eff_end_col)
+        best_score = _sql_max2(
+            case((ok_orig, iou_orig), else_=literal(-1.0)),
+            case((ok_eff, iou_eff), else_=literal(-1.0)),
+        )
+        ranked = (
+            select(
+                submitted_cte.c.idx.label("idx"),
+                SessionClipCandidate.id.label("cid"),
+                best_score.label("score"),
+                func.row_number()
+                .over(
+                    partition_by=submitted_cte.c.idx,
+                    order_by=(best_score.desc(), SessionClipCandidate.id.asc()),
+                )
+                .label("rn"),
+            )
+            .select_from(submitted_cte)
+            .join(
+                SessionClipCandidate,
+                and_(
+                    SessionClipCandidate.session_video_id == video_id,
+                    or_(
+                        and_(
+                            SessionClipCandidate.end_s >= sub_s - DEDUP_WINDOW_PAD_S,
+                            SessionClipCandidate.start_s <= sub_e + DEDUP_WINDOW_PAD_S,
+                        ),
+                        and_(
+                            eff_end_col >= sub_s - DEDUP_WINDOW_PAD_S,
+                            eff_start_col <= sub_e + DEDUP_WINDOW_PAD_S,
+                        ),
+                    ),
+                    or_(ok_orig, ok_eff),
+                ),
+            )
+            .subquery()
+        )
+        rows = db.execute(
+            select(ranked.c.idx, ranked.c.score, ranked.c.cid).where(ranked.c.rn == 1)
+        ).all()
+        for orig_idx, score, cid in rows:
+            best_by_idx[int(orig_idx)] = (float(score), int(cid))
 
     matched_ids = sorted({cid for _, cid in best_by_idx.values()})
     matched_rows: dict[int, SessionClipCandidate] = {}
     for pos in range(0, len(matched_ids), 200):
-        chunk = matched_ids[pos : pos + 200]
-        for row in db.query(SessionClipCandidate).filter(SessionClipCandidate.id.in_(chunk)).all():
+        chunk_ids = matched_ids[pos : pos + 200]
+        for row in db.query(SessionClipCandidate).filter(SessionClipCandidate.id.in_(chunk_ids)).all():
             matched_rows[row.id] = row
     return best_by_idx, matched_rows
 
@@ -527,8 +545,101 @@ def _triage_counts_for_sessions(
     return counts
 
 
+MAX_SESSION_PAGE_LIMIT = 100
+DEFAULT_SESSION_PAGE_LIMIT = 50
+
+
+def list_triage_sessions(
+    db: Session,
+    user: AppUser,
+    *,
+    q: Optional[str] = None,
+    limit: int = DEFAULT_SESSION_PAGE_LIMIT,
+    offset: int = 0,
+) -> dict[str, Any]:
+    """Bounded, paginated, searchable session selector with full-scope count."""
+    if not _user_can_manage_any_video(db, user):
+        return {"items": [], "total": 0, "has_more": False, "next_offset": None}
+
+    bounded_limit = max(1, min(limit, MAX_SESSION_PAGE_LIMIT))
+    bounded_offset = max(0, offset)
+    filters = _manageable_video_filter(user)
+    table = TrainingSession.__table__
+    search_term = (q or "").strip()
+
+    extra_filters: list[Any] = [SessionVideo.session_id.is_not(None)]
+    if search_term:
+        escaped = search_term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        extra_filters.append(cast(table.c.date, String).ilike(f"%{escaped}%", escape="\\"))
+
+    total = int(
+        db.query(func.count(func.distinct(SessionVideo.session_id)))
+        .select_from(SessionClipCandidate)
+        .join(SessionVideo, SessionVideo.id == SessionClipCandidate.session_video_id)
+        .join(table, table.c.id == SessionVideo.session_id)
+        .filter(*filters, *extra_filters)
+        .scalar()
+        or 0
+    )
+
+    rows = (
+        db.query(
+            SessionVideo.session_id,
+            table.c.date,
+            table.c.calendar_occurrence_id,
+            func.sum(case((SessionClipCandidate.triage_status == "pending", 1), else_=0)),
+            func.sum(case((_incomplete_clause(), 1), else_=0)),
+            func.sum(
+                case(
+                    (SessionClipCandidate.extraction_status.in_(("queued", "claimed", "extracting")), 1),
+                    else_=0,
+                )
+            ),
+            func.sum(case((SessionClipCandidate.extraction_status == "published", 1), else_=0)),
+            func.sum(case((SessionClipCandidate.triage_status == "rejected", 1), else_=0)),
+        )
+        .join(SessionVideo, SessionVideo.id == SessionClipCandidate.session_video_id)
+        .join(table, table.c.id == SessionVideo.session_id)
+        .filter(*filters, *extra_filters)
+        .group_by(SessionVideo.session_id, table.c.date, table.c.calendar_occurrence_id)
+        .order_by(table.c.date.desc(), SessionVideo.session_id.desc())
+        .offset(bounded_offset)
+        .limit(bounded_limit + 1)
+        .all()
+    )
+    has_more = len(rows) > bounded_limit
+    page = rows[:bounded_limit]
+
+    occ_ids = [r[2] for r in page if r[2] is not None]
+    titles: dict[int, str] = {}
+    if occ_ids:
+        from app.services.session_calendar import session_titles
+
+        titles = session_titles(db, occ_ids)
+
+    items = [
+        {
+            "session_id": int(sid),
+            "date": day_date.isoformat(),
+            "title": titles.get(occ_id) if occ_id else None,
+            "pending": int(p or 0),
+            "incomplete": int(inc or 0),
+            "extracting": int(ext or 0),
+            "published": int(pub or 0),
+            "rejected": int(rej or 0),
+        }
+        for sid, day_date, occ_id, p, inc, ext, pub, rej in page
+    ]
+    return {
+        "items": items,
+        "total": total,
+        "has_more": has_more,
+        "next_offset": (bounded_offset + bounded_limit) if has_more else None,
+    }
+
+
 def get_triage_summary(db: Session, user: AppUser) -> dict[str, Any]:
-    """Bounded global counts + top 100 session breakdown for manageable sessions."""
+    """Bounded global counts + first paginated slice of manageable sessions."""
     if not _user_can_manage_any_video(db, user):
         return {
             "can_manage": False,
@@ -538,6 +649,9 @@ def get_triage_summary(db: Session, user: AppUser) -> dict[str, Any]:
             "published_count": 0,
             "rejected_count": 0,
             "sessions": [],
+            "sessions_total": 0,
+            "sessions_has_more": False,
+            "sessions_next_offset": None,
         }
 
     filters = _manageable_video_filter(user)
@@ -561,53 +675,7 @@ def get_triage_summary(db: Session, user: AppUser) -> dict[str, Any]:
         .one()
     )
 
-    # 2. Top 100 sessions ordered in SQL BEFORE fetching TrainingSession metadata.
-    table = TrainingSession.__table__
-    session_rows = (
-        db.query(
-            SessionVideo.session_id,
-            table.c.date,
-            table.c.calendar_occurrence_id,
-            func.sum(case((SessionClipCandidate.triage_status == "pending", 1), else_=0)),
-            func.sum(case((_incomplete_clause(), 1), else_=0)),
-            func.sum(
-                case(
-                    (SessionClipCandidate.extraction_status.in_(("queued", "claimed", "extracting")), 1),
-                    else_=0,
-                )
-            ),
-            func.sum(case((SessionClipCandidate.extraction_status == "published", 1), else_=0)),
-            func.sum(case((SessionClipCandidate.triage_status == "rejected", 1), else_=0)),
-        )
-        .join(SessionVideo, SessionVideo.id == SessionClipCandidate.session_video_id)
-        .join(table, table.c.id == SessionVideo.session_id)
-        .filter(*filters, SessionVideo.session_id.is_not(None))
-        .group_by(SessionVideo.session_id, table.c.date, table.c.calendar_occurrence_id)
-        .order_by(table.c.date.desc(), SessionVideo.session_id.desc())
-        .limit(100)
-        .all()
-    )
-
-    occ_ids = [r[2] for r in session_rows if r[2] is not None]
-    titles: dict[int, str] = {}
-    if occ_ids:
-        from app.services.session_calendar import session_titles
-
-        titles = session_titles(db, occ_ids)
-
-    sessions_out = [
-        {
-            "session_id": int(sid),
-            "date": day_date.isoformat(),
-            "title": titles.get(occ_id) if occ_id else None,
-            "pending": int(p or 0),
-            "incomplete": int(inc or 0),
-            "extracting": int(ext or 0),
-            "published": int(pub or 0),
-            "rejected": int(rej or 0),
-        }
-        for sid, day_date, occ_id, p, inc, ext, pub, rej in session_rows
-    ]
+    sessions_page = list_triage_sessions(db, user, limit=DEFAULT_SESSION_PAGE_LIMIT, offset=0)
 
     return {
         "can_manage": True,
@@ -616,7 +684,10 @@ def get_triage_summary(db: Session, user: AppUser) -> dict[str, Any]:
         "extracting_count": int(totals[2] or 0),
         "published_count": int(totals[3] or 0),
         "rejected_count": int(totals[4] or 0),
-        "sessions": sessions_out,
+        "sessions": sessions_page["items"],
+        "sessions_total": sessions_page["total"],
+        "sessions_has_more": sessions_page["has_more"],
+        "sessions_next_offset": sessions_page["next_offset"],
     }
 
 
@@ -1625,13 +1696,21 @@ def update_candidate(
                 cand.trimmed_end_s = e_val
                 bounds_changed = True
 
-    # 2. Diver assignment & diver-scoping guard (non-admins may only edit diver metadata for own divers)
+    # 2. Diver assignment & diver-scoping guard: check authorization against the ORIGINAL
+    # assignment before allowing any reassignment, diver-scoped edit, or keep/publish.
     user_owned_divers = None if user.is_admin else owned_diver_ids(db, user.id)
     was_other_diver = (
         user_owned_divers is not None
         and cand.diver_id is not None
         and cand.diver_id not in user_owned_divers
     )
+    if was_other_diver and (
+        "diver_id" in updates
+        or (DIVER_SCOPED_UPDATE_FIELDS & updates.keys())
+        or updates.get("triage_status") == "kept"
+    ):
+        raise HTTPException(403, "Cannot edit or reassign another diver's clip")
+
     if "diver_id" in updates:
         diver_id = updates["diver_id"]
         next_triage = updates.get("triage_status", cand.triage_status)
@@ -1639,8 +1718,6 @@ def update_candidate(
             if next_triage == "kept":
                 raise HTTPException(422, "A kept clip must remain assigned to a diver")
             cand.diver_id = None
-            if was_other_diver:
-                cand.notes = None
         else:
             target_id = int(diver_id)
             if user_owned_divers is not None and target_id not in user_owned_divers:
@@ -1649,17 +1726,7 @@ def update_candidate(
                 diver = db.get(Diver, target_id)
             if diver is None:
                 raise HTTPException(404, "Diver not found")
-            if was_other_diver and cand.diver_id != diver.id and "notes" not in updates:
-                cand.notes = None
             cand.diver_id = diver.id
-
-    target_is_other_diver = (
-        user_owned_divers is not None
-        and cand.diver_id is not None
-        and cand.diver_id not in user_owned_divers
-    )
-    if target_is_other_diver and (DIVER_SCOPED_UPDATE_FIELDS & updates.keys()):
-        raise HTTPException(403, "Cannot edit another diver's clip metadata")
 
     # 3. Dive code
     if "dive_code" in updates:
