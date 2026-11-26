@@ -2106,3 +2106,32 @@ def test_durable_deleting_claim_blocks_concurrent_publication_and_survives_delet
     with pytest.raises(HTTPException) as exc3:
         triage.claim_b2_object_retained(db, bucket=bucket, object_key=key)
     assert exc3.value.status_code == 503
+
+
+def test_clip_json_endpoints_enforce_pre_parse_byte_limit(clip_env):
+    """Oversized JSON bodies are rejected with 413 before JSON/Pydantic parsing."""
+    from app.api.v1 import session_clips as clips_api
+
+    video_id = clip_env["video_id"]
+    admin = clip_env["as_user"]("alice")
+    api_client = TestClient(app)
+
+    # 1. Oversized POST /clip-runs (> 2 MiB) returns 413 without materializing a huge body.
+    huge_run = b'{"detector_name":"x","detector_version":"1","candidates":[],"pad":"' + (
+        b"a" * (clips_api.MAX_CLIP_RUN_JSON_BYTES + 1024)
+    ) + b'"}'
+    res_run = api_client.post(
+        f"/api/v1/session-videos/{video_id}/clip-runs",
+        headers={"X-API-Key": API_KEY, "Content-Type": "application/json"},
+        content=huge_run,
+    )
+    assert res_run.status_code == 413
+
+    # 2. Oversized PATCH /clip-triage/candidates/{id} (> 32 KiB) returns 413.
+    huge_patch = b'{"notes":"' + (b"b" * (clips_api.MAX_CLIP_CONTROL_JSON_BYTES + 256)) + b'"}'
+    res_patch = admin.patch(
+        "/api/v1/clip-triage/candidates/1",
+        headers={"Content-Type": "application/json"},
+        content=huge_patch,
+    )
+    assert res_patch.status_code == 413

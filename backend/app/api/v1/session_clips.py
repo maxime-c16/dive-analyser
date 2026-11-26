@@ -14,8 +14,9 @@ from typing import Any, Literal, Optional
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, Response
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, ValidationError, field_validator
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
@@ -38,8 +39,43 @@ router = APIRouter()
 MAX_CUT_UPLOAD_BYTES = 250 * 1024 * 1024  # 250 MiB per cut clip
 MIN_FREE_DISK_BYTES = 2 * MAX_CUT_UPLOAD_BYTES
 MAX_CANDIDATE_META_BYTES = 4096
+MAX_CLIP_RUN_JSON_BYTES = 2 * 1024 * 1024  # 2 MiB hard pre-parse cap for clip-run submission
+MAX_CLIP_CONTROL_JSON_BYTES = 32 * 1024  # 32 KiB hard pre-parse cap for triage PATCH / worker JSON
 # 1 slot per uvicorn process (production runs 2 workers -> max 2 concurrent fleet-wide).
 _COMPLETE_SLOTS = threading.BoundedSemaphore(1)
+
+
+async def _read_bounded_json(request: Request, max_bytes: int) -> Any:
+    """Enforce a hard byte cap BEFORE buffering or parsing JSON (guards 2 GiB nginx proxy limit)."""
+    content_length = request.headers.get("content-length")
+    if content_length:
+        try:
+            if int(content_length) > max_bytes:
+                raise HTTPException(413, "Request body exceeds maximum allowed size")
+        except ValueError:
+            raise HTTPException(400, "Invalid Content-Length") from None
+    buf = bytearray()
+    async for chunk in request.stream():
+        if not chunk:
+            continue
+        if len(buf) + len(chunk) > max_bytes:
+            raise HTTPException(413, "Request body exceeds maximum allowed size")
+        buf.extend(chunk)
+    try:
+        return json.loads(buf.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        raise HTTPException(422, "Request body must be valid UTF-8 JSON") from None
+
+
+def _bounded_model_dep(model_cls: type[BaseModel], max_bytes: int):
+    async def _parse_bounded(request: Request):
+        raw = await _read_bounded_json(request, max_bytes)
+        try:
+            return model_cls.model_validate(raw)
+        except ValidationError as exc:
+            raise RequestValidationError(exc.errors()) from None
+
+    return _parse_bounded
 
 
 def _admin_or_api_key(
@@ -162,9 +198,9 @@ def resolve_session_video(
 )
 def submit_clip_run(
     video_id: int,
-    payload: ClipRunSubmitInput,
     request: Request,
     response: Response,
+    payload: ClipRunSubmitInput = Depends(_bounded_model_dep(ClipRunSubmitInput, MAX_CLIP_RUN_JSON_BYTES)),
     actor: Optional[AppUser] = Depends(_admin_or_api_key),
     db: Session = Depends(get_db),
 ):
@@ -393,8 +429,8 @@ class CandidatePatchInput(BaseModel):
 )
 def patch_candidate(
     candidate_id: int,
-    payload: CandidatePatchInput,
     response: Response,
+    payload: CandidatePatchInput = Depends(_bounded_model_dep(CandidatePatchInput, MAX_CLIP_CONTROL_JSON_BYTES)),
     user: AppUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -441,7 +477,7 @@ class ClipCutFailInput(ClipCutHeartbeatInput):
 
 @router.post("/media/clip-cuts/lease", dependencies=[Depends(require_enabled)])
 def lease_clip_cuts(
-    payload: ClipCutLeaseInput,
+    payload: ClipCutLeaseInput = Depends(_bounded_model_dep(ClipCutLeaseInput, MAX_CLIP_CONTROL_JSON_BYTES)),
     api_key: dict = Depends(verify_media_worker_key),
     db: Session = Depends(get_db),
 ):
@@ -453,7 +489,7 @@ def lease_clip_cuts(
 @router.post("/media/clip-cuts/{candidate_id}/heartbeat", dependencies=[Depends(require_enabled)])
 def heartbeat_clip_cut(
     candidate_id: int,
-    payload: ClipCutHeartbeatInput,
+    payload: ClipCutHeartbeatInput = Depends(_bounded_model_dep(ClipCutHeartbeatInput, MAX_CLIP_CONTROL_JSON_BYTES)),
     api_key: dict = Depends(verify_media_worker_key),
     db: Session = Depends(get_db),
 ):
@@ -470,7 +506,7 @@ def heartbeat_clip_cut(
 @router.post("/media/clip-cuts/{candidate_id}/fail", dependencies=[Depends(require_enabled)])
 def fail_clip_cut(
     candidate_id: int,
-    payload: ClipCutFailInput,
+    payload: ClipCutFailInput = Depends(_bounded_model_dep(ClipCutFailInput, MAX_CLIP_CONTROL_JSON_BYTES)),
     api_key: dict = Depends(verify_media_worker_key),
     db: Session = Depends(get_db),
 ):
